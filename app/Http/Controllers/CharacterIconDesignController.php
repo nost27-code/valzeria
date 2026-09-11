@@ -62,6 +62,9 @@ class CharacterIconDesignController extends Controller
             ]);
         }
 
+        $createdSetCount = $service->createdSetCountForAccount($character);
+        $createdSetLimit = $service->createdSetLimit();
+
         return view('character-icon-design.show', [
             'character' => $character,
             'designRequest' => $designRequest,
@@ -69,6 +72,11 @@ class CharacterIconDesignController extends Controller
             'submittedRequests' => $submittedRequests,
             'viewMode' => $viewMode,
             'submissionAvailable' => $service->canSubmit($character),
+            'createdSetCount' => $createdSetCount,
+            'createdSetLimit' => $createdSetLimit,
+            'newRequestAllowed' => $draftRequest !== null || $createdSetCount < $createdSetLimit,
+            'newRequestLimitMessage' => CharacterIconDesignService::NEW_REQUEST_LIMIT_MESSAGE,
+            'additionalRequestPermitted' => $draftRequest?->permit_granted_at !== null,
             'totalKiseki' => (int) ($character->free_kiseki ?? 0)
                 + (int) ($character->paid_kiseki ?? 0),
         ]);

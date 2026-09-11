@@ -55,8 +55,33 @@ class CharacterIconDesignController extends Controller
                 ->with(['attachments', 'adminUser'])
                 ->orderBy('id'),
         ]);
+        $createdSetCount = $service->createdSetCountForAccount($designRequest->character);
+        $createdSetLimit = $service->createdSetLimit();
+        $accountDraft = $service->draftForAccount($designRequest->character);
 
-        return view('admin.character-icon-design.show', compact('designRequest'));
+        return view('admin.character-icon-design.show', compact(
+            'designRequest',
+            'createdSetCount',
+            'createdSetLimit',
+            'accountDraft',
+        ));
+    }
+
+    public function grantAdditionalPermit(
+        DesignRequest $designRequest,
+        CharacterIconDesignService $service,
+    ) {
+        $designRequest->loadMissing('character');
+        abort_unless($designRequest->character, 404);
+
+        $result = $service->grantAdditionalRequestPermit(
+            $designRequest->character,
+            Auth::user(),
+        );
+
+        return redirect()
+            ->route('admin.character-icon-design.show', $designRequest)
+            ->with($result['success'] ? 'status' : 'error', $result['message']);
     }
 
     public function updateStatus(

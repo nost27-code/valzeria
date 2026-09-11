@@ -170,6 +170,30 @@
                     </dl>
                 </section>
 
+                <section class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                    <h2 class="text-base font-black text-slate-950">制作回数・追加受付</h2>
+                    <p class="mt-2 text-sm font-bold leading-6 text-slate-600">
+                        同じアカウントの全キャラクターを合計し、取り消し済みを含む制作履歴を数えます。
+                    </p>
+                    <div class="mt-3 rounded-lg bg-slate-50 px-3 py-3">
+                        <div class="text-xs font-black text-slate-400">制作済みセット</div>
+                        <div class="mt-1 text-lg font-black text-slate-950">{{ number_format($createdSetCount) }} / {{ number_format($createdSetLimit) }}</div>
+                    </div>
+
+                    @if($createdSetCount < $createdSetLimit)
+                        <p class="mt-3 text-sm font-bold leading-6 text-emerald-700">通常の新規受付が可能です。</p>
+                    @elseif($accountDraft?->permit_granted_at)
+                        <p class="mt-3 text-sm font-bold leading-6 text-indigo-700">追加受付を1件許可済みです。</p>
+                    @elseif($accountDraft)
+                        <p class="mt-3 text-sm font-bold leading-6 text-amber-700">同じアカウントに作成中の依頼があります。</p>
+                    @else
+                        <form method="POST" action="{{ route('admin.character-icon-design.additional-permit.store', $designRequest) }}" class="mt-3" data-submit-lock data-loading-text="許可中..." onsubmit="return confirm('このアカウントへ追加の制作依頼を1件許可しますか？')">
+                            @csrf
+                            <button type="submit" class="inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-indigo-700 px-4 text-sm font-black text-white hover:bg-indigo-800">追加制作を1件許可</button>
+                        </form>
+                    @endif
+                </section>
+
                 @if($designRequest->submitted_at)
                     <section class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
                         <h2 class="text-base font-black text-slate-950">進行状態を更新</h2>

@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Character;
 use App\Models\CharacterIconDesignMessage;
 use App\Models\CharacterIconDesignRequest;
+use App\Models\CharacterIconEntitlement;
 use App\Models\KisekiTransaction;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Collection;
@@ -18,6 +19,8 @@ class CharacterIconDesignService
     public const CONTENT_KEY = 'character_icon_design';
 
     public const FORM_UPDATED_MESSAGE = 'ヒアリング内容を修正しました。回答内容を再確認してください。';
+
+    public const NEW_REQUEST_LIMIT_MESSAGE = 'すでに2セット制作済みのため、新しい制作依頼の受付をいったんお休みしています。完成済みアイコンの不具合や軽微な修正は、個別にご相談ください。';
 
     public function isEnabled(): bool
     {
@@ -73,6 +76,40 @@ class CharacterIconDesignService
             ->first();
     }
 
+    public function draftForAccount(?Character $character): ?CharacterIconDesignRequest
+    {
+        if (! $character) {
+            return null;
+        }
+
+        return CharacterIconDesignRequest::query()
+            ->whereHas('character', fn ($query) => $query->where('user_id', $character->user_id))
+            ->whereIn('status', ['eligible', 'draft'])
+            ->latest('id')
+            ->first();
+    }
+
+    public function createdSetLimit(): int
+    {
+        return max(1, (int) config('character_icon_design.max_created_sets_per_account', 2));
+    }
+
+    public function createdSetCountForAccount(?Character $character): int
+    {
+        if (! $character) {
+            return 0;
+        }
+
+        return CharacterIconEntitlement::query()
+            ->whereHas('character', fn ($query) => $query->where('user_id', $character->user_id))
+            ->count();
+    }
+
+    public function canStartNewRequest(?Character $character): bool
+    {
+        return $this->createdSetCountForAccount($character) < $this->createdSetLimit();
+    }
+
     /**
      * @return Collection<int, CharacterIconDesignRequest>
      */
@@ -113,6 +150,10 @@ class CharacterIconDesignService
             $submit,
             $designRequestId,
         ): array {
+            User::query()
+                ->whereKey($character->user_id)
+                ->lockForUpdate()
+                ->firstOrFail();
             $lockedCharacter = Character::query()
                 ->whereKey($character->id)
                 ->lockForUpdate()
@@ -129,6 +170,14 @@ class CharacterIconDesignService
             $designRequest = $designRequestQuery->lockForUpdate()->first();
 
             if (! $designRequest) {
+                if (! $this->canStartNewRequest($lockedCharacter)) {
+                    return [
+                        'success' => false,
+                        'message' => self::NEW_REQUEST_LIMIT_MESSAGE,
+                        'submitted_now' => false,
+                    ];
+                }
+
                 if ($submit) {
                     return [
                         'success' => false,
@@ -205,6 +254,56 @@ class CharacterIconDesignService
                     ? 'ヒアリングシートを提出しました。管理人との専用チャットが開きました。'
                     : '下書きを保存しました。',
                 'submitted_now' => $submit,
+            ];
+        });
+    }
+
+    /**
+     * @return array{success: bool, message: string}
+     */
+    public function grantAdditionalRequestPermit(Character $character, User $admin): array
+    {
+        return DB::transaction(function () use ($character, $admin): array {
+            User::query()
+                ->whereKey($character->user_id)
+                ->lockForUpdate()
+                ->firstOrFail();
+            $lockedCharacter = Character::query()
+                ->whereKey($character->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if ($this->canStartNewRequest($lockedCharacter)) {
+                return [
+                    'success' => false,
+                    'message' => '制作済みセットが上限に達していないため、追加受付の許可は不要です。',
+                ];
+            }
+
+            $existingDraft = CharacterIconDesignRequest::query()
+                ->whereHas('character', fn ($query) => $query->where('user_id', $lockedCharacter->user_id))
+                ->whereIn('status', ['eligible', 'draft'])
+                ->lockForUpdate()
+                ->first();
+
+            if ($existingDraft) {
+                return [
+                    'success' => false,
+                    'message' => 'すでに下書きまたは追加受付中の依頼があります。',
+                ];
+            }
+
+            CharacterIconDesignRequest::query()->create([
+                'character_id' => $lockedCharacter->id,
+                'permit_granted_by_user_id' => $admin->id,
+                'permit_granted_at' => now(),
+                'status' => 'eligible',
+                'price_kiseki' => (int) config('character_icon_design.submission_price_kiseki', 40),
+            ]);
+
+            return [
+                'success' => true,
+                'message' => '追加の制作依頼を1件許可しました。',
             ];
         });
     }

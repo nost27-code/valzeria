@@ -654,6 +654,7 @@ Route::middleware(['auth', 'admin'])->group(function () {
     Route::get('/admin/bug-reports/attachments/{attachment}', [\App\Http\Controllers\BugReportController::class, 'attachment'])->name('admin.bug-reports.attachments.show');
     Route::get('/admin/character-icon-design', [\App\Http\Controllers\Admin\CharacterIconDesignController::class, 'index'])->name('admin.character-icon-design.index');
     Route::get('/admin/character-icon-design/{designRequest}', [\App\Http\Controllers\Admin\CharacterIconDesignController::class, 'show'])->name('admin.character-icon-design.show');
+    Route::post('/admin/character-icon-design/{designRequest}/additional-permit', [\App\Http\Controllers\Admin\CharacterIconDesignController::class, 'grantAdditionalPermit'])->name('admin.character-icon-design.additional-permit.store');
     Route::patch('/admin/character-icon-design/{designRequest}/status', [\App\Http\Controllers\Admin\CharacterIconDesignController::class, 'updateStatus'])->name('admin.character-icon-design.status.update');
     Route::post('/admin/character-icon-design/{designRequest}/messages', [\App\Http\Controllers\Admin\CharacterIconDesignController::class, 'sendMessage'])->name('admin.character-icon-design.messages.store');
     Route::get('/admin/character-icon-design/attachments/{attachment}', [\App\Http\Controllers\Admin\CharacterIconDesignController::class, 'attachment'])->name('admin.character-icon-design.attachments.show');

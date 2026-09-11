@@ -7,6 +7,7 @@ use App\Livewire\MainScreen;
 use App\Models\Character;
 use App\Models\CharacterIconDesignMessageAttachment;
 use App\Models\CharacterIconDesignRequest;
+use App\Models\CharacterIconEntitlement;
 use App\Models\CharacterNotification;
 use App\Models\PlayerValmon;
 use App\Models\User;
@@ -647,6 +648,166 @@ class CharacterIconDesignRequestTest extends TestCase
             'design_request_id' => $firstRequest->id,
             'intent' => 'confirm',
         ])->assertNotFound();
+    }
+
+    public function test_account_with_two_created_icon_sets_cannot_start_another_request(): void
+    {
+        [$player, $character] = $this->createPlayer('制作上限の冒険者', 40, 0);
+        $otherCharacter = Character::query()->create([
+            'user_id' => $player->id,
+            'name' => '同じアカウントの別冒険者',
+            'explore_stamina' => 0,
+        ]);
+        CharacterIconEntitlement::query()->create([
+            'character_id' => $character->id,
+            'icon_set_key' => 'limit-test-first',
+            'previous_icon_path' => '/images/chara/chara_001.webp',
+            'granted_at' => now(),
+        ]);
+        CharacterIconEntitlement::query()->create([
+            'character_id' => $otherCharacter->id,
+            'icon_set_key' => 'limit-test-second',
+            'previous_icon_path' => '/images/chara/chara_001.webp',
+            'granted_at' => now()->subDay(),
+            'revoked_at' => now(),
+        ]);
+
+        $this->actingAs($player)
+            ->withSession(['current_character_id' => $character->id])
+            ->get(route('character-icon-design.show', ['view' => 'new']))
+            ->assertOk()
+            ->assertSee('お一人につき原則2セットまで')
+            ->assertSee('これまでに2セット制作済みです')
+            ->assertSee('新しい制作依頼の受付をいったんお休みしています')
+            ->assertDontSee('data-character-icon-autosave', false);
+
+        $this->post(route('character-icon-design.form.save'), [
+            'one_line' => '作成されてはいけない下書き',
+            'intent' => 'draft',
+        ])
+            ->assertRedirect(route('character-icon-design.show'))
+            ->assertSessionHas('error', CharacterIconDesignService::NEW_REQUEST_LIMIT_MESSAGE);
+
+        $this->assertDatabaseCount('character_icon_design_requests', 0);
+        $this->assertDatabaseCount('kiseki_transactions', 0);
+    }
+
+    public function test_existing_draft_can_continue_after_account_reaches_the_created_set_limit(): void
+    {
+        [$player, $character] = $this->createPlayer('既存下書きの冒険者', 40, 0);
+        $designRequest = CharacterIconDesignRequest::query()->create([
+            'character_id' => $character->id,
+            'status' => 'draft',
+            'price_kiseki' => 40,
+            'form_data' => $this->validFormPayload(),
+        ]);
+        foreach (['limit-draft-first', 'limit-draft-second'] as $setKey) {
+            CharacterIconEntitlement::query()->create([
+                'character_id' => $character->id,
+                'icon_set_key' => $setKey,
+                'previous_icon_path' => '/images/chara/chara_001.webp',
+                'granted_at' => now(),
+            ]);
+        }
+
+        $this->actingAs($player)
+            ->withSession(['current_character_id' => $character->id])
+            ->get(route('character-icon-design.show', ['view' => 'new']))
+            ->assertOk()
+            ->assertSee('data-character-icon-autosave', false)
+            ->assertSee('優しい雰囲気の星読み司書');
+
+        $this->post(route('character-icon-design.form.save'), [
+            ...$this->validFormPayload(),
+            'intent' => 'confirm',
+        ])->assertRedirect(route('character-icon-design.form.confirm'));
+        $this->post(route('character-icon-design.form.submit'))
+            ->assertRedirect(route('character-icon-design.show', ['request' => $designRequest->id]));
+
+        $this->assertDatabaseHas('character_icon_design_requests', [
+            'id' => $designRequest->id,
+            'status' => 'submitted',
+        ]);
+        $this->assertDatabaseCount('kiseki_transactions', 1);
+    }
+
+    public function test_admin_can_grant_one_additional_request_permit_after_the_limit(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        [$player, $character] = $this->createPlayer('追加受付の冒険者', 40, 0);
+        $completedRequest = CharacterIconDesignRequest::query()->create([
+            'character_id' => $character->id,
+            'status' => 'completed',
+            'price_kiseki' => 40,
+            'form_data' => $this->validFormPayload(),
+            'purchased_at' => now(),
+            'submitted_at' => now(),
+            'completed_at' => now(),
+        ]);
+        CharacterIconEntitlement::query()->create([
+            'character_id' => $character->id,
+            'character_icon_design_request_id' => $completedRequest->id,
+            'icon_set_key' => 'permit-test-first',
+            'previous_icon_path' => '/images/chara/chara_001.webp',
+            'granted_at' => now(),
+        ]);
+        CharacterIconEntitlement::query()->create([
+            'character_id' => $character->id,
+            'icon_set_key' => 'permit-test-second',
+            'previous_icon_path' => '/images/chara/chara_001.webp',
+            'granted_at' => now(),
+        ]);
+
+        $this->actingAs($player)
+            ->post(route('admin.character-icon-design.additional-permit.store', $completedRequest))
+            ->assertRedirect('/admin/login');
+        $this->assertSame(1, CharacterIconDesignRequest::query()->count());
+
+        $this->actingAs($admin)
+            ->get(route('admin.character-icon-design.show', $completedRequest))
+            ->assertOk()
+            ->assertSee('制作済みセット')
+            ->assertSee('2 / 2')
+            ->assertSee('追加制作を1件許可');
+
+        $this->post(route('admin.character-icon-design.additional-permit.store', $completedRequest))
+            ->assertRedirect(route('admin.character-icon-design.show', $completedRequest))
+            ->assertSessionHas('status', '追加の制作依頼を1件許可しました。');
+
+        $permittedRequest = CharacterIconDesignRequest::query()
+            ->where('character_id', $character->id)
+            ->where('status', 'eligible')
+            ->firstOrFail();
+        $this->assertSame($admin->id, $permittedRequest->permit_granted_by_user_id);
+        $this->assertNotNull($permittedRequest->permit_granted_at);
+
+        $this->post(route('admin.character-icon-design.additional-permit.store', $completedRequest))
+            ->assertRedirect(route('admin.character-icon-design.show', $completedRequest))
+            ->assertSessionHas('error', 'すでに下書きまたは追加受付中の依頼があります。');
+        $this->assertSame(
+            2,
+            CharacterIconDesignRequest::query()->where('character_id', $character->id)->count()
+        );
+
+        $this->actingAs($player)
+            ->withSession(['current_character_id' => $character->id])
+            ->get(route('character-icon-design.show', ['view' => 'new']))
+            ->assertOk()
+            ->assertSee('管理人から追加受付の案内があります')
+            ->assertSee('data-character-icon-autosave', false);
+        $this->post(route('character-icon-design.form.save'), [
+            ...$this->validFormPayload(),
+            'intent' => 'confirm',
+        ])->assertRedirect(route('character-icon-design.form.confirm'));
+        $this->post(route('character-icon-design.form.submit'))
+            ->assertRedirect(route('character-icon-design.show', ['request' => $permittedRequest->id]));
+
+        $this->assertDatabaseHas('character_icon_design_requests', [
+            'id' => $permittedRequest->id,
+            'status' => 'submitted',
+            'permit_granted_by_user_id' => $admin->id,
+        ]);
+        $this->assertDatabaseCount('kiseki_transactions', 1);
     }
 
     public function test_player_can_revise_a_submitted_sheet_without_another_charge_and_admin_sees_update(): void

@@ -57,6 +57,16 @@
                 </p>
             </div>
 
+            <div class="border-b border-sky-200 bg-sky-50 px-4 py-4 sm:px-6">
+                <p class="text-sm font-black text-sky-950">制作回数について</p>
+                <p class="mt-1 text-sm font-bold leading-6 text-sky-900">
+                    より多くの冒険者へキャラアイコンをお届けするため、専用キャラアイコンの新規制作は、お一人につき原則{{ number_format($createdSetLimit) }}セットまでとさせていただいています。
+                </p>
+                <p class="mt-1 text-sm font-bold leading-6 text-sky-900">
+                    すでに{{ number_format($createdSetLimit) }}セット制作済みの場合は、新しい制作依頼の受付をいったんお休みさせていただきます。完成済みアイコンの不具合や軽微な修正については、個別にご相談ください。
+                </p>
+            </div>
+
             <nav class="grid grid-cols-2 gap-2 border-b border-violet-100 bg-slate-50 p-3 sm:p-4" aria-label="キャラアイコン制作の表示切り替え">
                 <a
                     href="{{ route('character-icon-design.show', ['view' => 'new']) }}"
@@ -66,6 +76,8 @@
                     <span>新規作成</span>
                     @if($draftRequest)
                         <span class="rounded-full px-2 py-0.5 text-[10px] {{ $viewMode === 'new' ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-800' }}">下書きあり</span>
+                    @elseif(!$newRequestAllowed)
+                        <span class="rounded-full px-2 py-0.5 text-[10px] {{ $viewMode === 'new' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-600' }}">受付休止中</span>
                     @endif
                 </a>
                 <a
@@ -78,7 +90,15 @@
                 </a>
             </nav>
 
-            @if(in_array($viewMode, ['new', 'edit'], true))
+            @if($viewMode === 'new' && !$newRequestAllowed && !$draftRequest)
+                <div class="p-3 sm:p-6">
+                    <div class="rounded-xl border border-sky-200 bg-sky-50 px-4 py-8 text-center sm:px-6">
+                        <span class="inline-flex rounded-full bg-sky-100 px-3 py-1 text-xs font-black text-sky-800">受付休止中</span>
+                        <p class="mt-3 text-base font-black text-sky-950">これまでに{{ number_format($createdSetCount) }}セット制作済みです</p>
+                        <p class="mx-auto mt-2 max-w-2xl text-sm font-bold leading-7 text-sky-900">{{ $newRequestLimitMessage }}</p>
+                    </div>
+                </div>
+            @elseif(in_array($viewMode, ['new', 'edit'], true))
                 <form method="POST" action="{{ route('character-icon-design.form.save') }}" class="space-y-4 p-3 sm:p-6" data-submit-lock @if($viewMode === 'new') data-character-icon-autosave @endif data-loading-text="保存中..." x-data="{ exampleModalOpen: false }">
                     @csrf
                     <input type="hidden" name="usage_scenes[]" value="game_avatar">
@@ -104,6 +124,15 @@
                         <div class="text-xs font-black text-slate-500">プレイヤー名</div>
                         <div class="mt-1 text-lg font-black text-slate-950">{{ $character->name }}</div>
                     </div>
+
+                    @if($viewMode === 'new' && $additionalRequestPermitted)
+                        <div class="rounded-xl border border-indigo-300 bg-indigo-50 p-4">
+                            <div class="text-sm font-black text-indigo-950">追加の制作依頼を受付中です</div>
+                            <p class="mt-1 text-sm font-bold leading-6 text-indigo-900">
+                                管理人から追加受付の案内があります。今回の1件は通常どおり提出できます。
+                            </p>
+                        </div>
+                    @endif
 
                     @if($viewMode === 'edit')
                         <div class="rounded-xl border border-indigo-300 bg-indigo-50 p-4">

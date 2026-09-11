@@ -2,6 +2,7 @@
 
 return [
     'submission_price_kiseki' => 40,
+    'max_created_sets_per_account' => 2,
     'max_message_attachments' => 4,
     'max_attachment_kilobytes' => 5120,
     'public_access_enabled' => true,
