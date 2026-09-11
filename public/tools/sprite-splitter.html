@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>スプライト分割ツール — ヴァルゼリアの冒険者</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <style>
@@ -17,6 +17,8 @@ body {
 }
 h1 { font-size: 1.2rem; font-weight: 700; color: #a78bfa; }
 h2 { font-size: 0.85rem; font-weight: 700; color: #c4b5fd; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
+.mobile-only { display: none; }
+.mobile-title { display: none; }
 
 /* Header */
 #header {
@@ -28,7 +30,7 @@ h2 { font-size: 0.85rem; font-weight: 700; color: #c4b5fd; text-transform: upper
   gap: 12px;
   height: 44px;
 }
-#header span { color: #7c7c9e; font-size: 0.78rem; }
+#header > span { color: #7c7c9e; font-size: 0.78rem; }
 
 /* Main layout */
 #main-layout {
@@ -298,45 +300,200 @@ h2 { font-size: 0.85rem; font-weight: 700; color: #c4b5fd; text-transform: upper
 }
 #toast.show { opacity: 1; }
 
-@media (max-width: 720px) {
-  body { overflow: auto; }
-  #header { height: auto; min-height: 44px; flex-wrap: wrap; }
-  #main-layout {
-    display: flex;
-    flex-direction: column;
-    height: auto;
-    min-height: calc(100vh - 44px);
+@media (max-width: 768px) {
+  html, body { height: 100%; }
+  body {
+    --mobile-header-height: calc(52px + env(safe-area-inset-top));
+    --mobile-tabbar-height: calc(64px + env(safe-area-inset-bottom));
+    min-height: 100dvh;
+    overflow: hidden;
   }
-  #left-panel {
-    height: auto;
+  #header {
+    height: var(--mobile-header-height);
+    min-height: var(--mobile-header-height);
+    padding: calc(8px + env(safe-area-inset-top)) 12px 8px;
+    gap: 8px;
+    flex-wrap: nowrap;
+  }
+  #header h1 {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 1rem;
+  }
+  #header .desktop-title { display: none; }
+  #header .mobile-title { display: inline; }
+  #header .desktop-subtitle { display: none; }
+  #mobile-view-label {
+    display: inline-flex;
+    margin-left: auto;
+    flex-shrink: 0;
+    padding: 4px 9px;
+    border: 1px solid #3d3d6e;
+    border-radius: 999px;
+    background: #1a1a3e;
+    color: #c4b5fd;
+    font-size: 0.72rem;
+    font-weight: 700;
+  }
+  #main-layout {
+    display: block;
+    height: calc(100dvh - var(--mobile-header-height) - var(--mobile-tabbar-height));
     min-height: 0;
-    overflow: visible;
+    overflow: hidden;
+  }
+  #left-panel, #right-panel, #bottom-panel {
+    display: none;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+  }
+  body[data-mobile-view="editor"] #left-panel { display: flex; }
+  body[data-mobile-view="settings"] #right-panel { display: block; }
+  body[data-mobile-view="output"] #bottom-panel { display: flex; }
+  #left-panel {
+    padding: 8px;
+    gap: 6px;
     border-right: none;
   }
+  #toolbar {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+    margin: 0 -8px;
+    padding: 0 8px 3px;
+  }
+  #toolbar::-webkit-scrollbar { display: none; }
+  #toolbar > .btn { flex: 0 0 auto; white-space: nowrap; }
+  #toolbar #btn-zip,
+  #toolbar #btn-indiv,
+  #toolbar #btn-savedir,
+  #toolbar #btn-sheet { display: none; }
+  #slot-strip-wrap { min-height: 52px; }
+  .slot-thumb { width: 48px; height: 48px; }
+  .slot-thumb .slot-del {
+    display: block;
+    width: 22px;
+    height: 22px;
+    font-size: 12px;
+    line-height: 22px;
+  }
   #canvas-wrapper {
-    flex: none;
-    height: 55vh;
-    min-height: 320px;
+    flex: 1;
+    height: auto;
+    min-height: 0;
+    border-radius: 5px;
+  }
+  #drop-zone { padding: 18px; text-align: center; }
+  #drop-zone .icon { font-size: 2.4rem; }
+  #detect-info {
+    min-height: 32px;
+    max-height: 36px;
+    overflow-y: auto;
+    line-height: 1.35;
   }
   #right-panel {
-    overflow: visible;
+    padding: 10px 10px 24px;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
     border-left: none;
-    border-top: 1px solid #2d2d5e;
+    border-bottom: none;
   }
+  #right-panel .section { padding: 14px 12px; }
+  .field input[type=number], .field input[type=text], .field select { min-height: 44px; }
+  .radio-row label { min-height: 44px; padding: 6px 0; }
+  .bg-swatch { width: 36px; height: 36px; }
   #bottom-panel {
-    min-height: 180px;
+    padding: 10px;
+    min-height: 0;
     overflow: hidden;
+    border-top: none;
+  }
+  #bottom-header { flex-wrap: wrap; }
+  #bottom-header .desktop-preview-note { display: none; }
+  #mobile-export-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    flex-shrink: 0;
+  }
+  #mobile-export-actions .btn { width: 100%; min-height: 48px; }
+  #mobile-export-actions .mobile-action-wide { grid-column: 1 / -1; }
+  #sprites-scroll {
+    min-height: 0;
+    overflow: auto;
+    overscroll-behavior: contain;
+  }
+  #sprites-container {
+    height: auto;
+    min-height: 100%;
+    flex-wrap: wrap;
+    align-content: flex-start;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 4px 0 12px;
+  }
+  #sprites-container > p {
+    max-width: 100%;
+    padding: 18px 12px;
+    white-space: normal !important;
+    text-align: center;
+    line-height: 1.6;
+  }
+  .sprite-del-btn {
+    display: block;
+    width: 22px;
+    height: 22px;
+    font-size: 12px;
+    line-height: 22px;
   }
   .btn { min-height: 44px; }
   .zoom-btn { width: 44px; height: 44px; }
+  #zoom-bar { justify-content: flex-end; }
+  #mobile-tabbar {
+    display: grid;
+    position: fixed;
+    z-index: 900;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: var(--mobile-tabbar-height);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+    padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
+    background: rgba(15, 15, 42, 0.98);
+    border-top: 1px solid #3d3d6e;
+    box-shadow: 0 -6px 18px rgba(0, 0, 0, 0.28);
+  }
+  .mobile-tab {
+    min-width: 0;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    background: transparent;
+    color: #8f8fb3;
+    font: inherit;
+    font-size: 0.72rem;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .mobile-tab span { display: block; margin-bottom: 2px; font-size: 1.15rem; line-height: 1; }
+  .mobile-tab[aria-selected="true"] {
+    border-color: #5b3aa5;
+    background: #2a1f4d;
+    color: #ddd6fe;
+  }
+  #toast { bottom: calc(var(--mobile-tabbar-height) + 10px); max-width: calc(100% - 24px); }
 }
 </style>
 </head>
-<body>
+<body data-mobile-view="editor">
 
 <div id="header">
-  <h1>🎮 スプライト分割ツール</h1>
-  <span>AI生成ドット絵 → 個別キャラクター切り出し（複数画像対応）</span>
+  <h1><span class="desktop-title">🎮 スプライト分割ツール</span><span class="mobile-title">スプライト分割</span></h1>
+  <span class="desktop-subtitle">AI生成ドット絵 → 個別キャラクター切り出し（複数画像対応）</span>
+  <span id="mobile-view-label" class="mobile-only" aria-live="polite">編集</span>
 </div>
 
 <div id="main-layout">
@@ -610,7 +767,14 @@ h2 { font-size: 0.85rem; font-weight: 700; color: #c4b5fd; text-transform: upper
     <div id="bottom-header">
       <h2 style="margin:0">切り出しプレビュー</h2>
       <span id="preview-count" style="font-size:0.72rem;color:#6060a0"></span>
-      <span style="font-size:0.68rem;color:#4a4a7a">（画像ごとに区切り線で分割表示）</span>
+      <span class="desktop-preview-note" style="font-size:0.68rem;color:#4a4a7a">（画像ごとに区切り線で分割表示）</span>
+    </div>
+    <div id="mobile-export-actions" class="mobile-only">
+      <button class="btn btn-success mobile-action-wide" id="mobile-btn-preview" onclick="runPreviewAll()" disabled>✂️ プレビューを生成</button>
+      <button class="btn btn-warning" id="mobile-btn-zip" onclick="downloadZip()" disabled>📦 ZIP保存</button>
+      <button class="btn btn-info" id="mobile-btn-indiv" onclick="downloadIndividual()" disabled>💾 個別保存</button>
+      <button class="btn btn-success mobile-action-wide" id="mobile-btn-savedir" onclick="saveToDirectory()" disabled>📁 フォルダへ連番保存</button>
+      <button class="btn btn-warning mobile-action-wide" id="mobile-btn-sheet" onclick="downloadSheet()" disabled>🖼 シート保存</button>
     </div>
     <div id="sprites-scroll">
       <div id="sprites-container">
@@ -622,6 +786,12 @@ h2 { font-size: 0.85rem; font-weight: 700; color: #c4b5fd; text-transform: upper
   </div>
 
 </div>
+
+<nav id="mobile-tabbar" class="mobile-only" aria-label="作業画面">
+  <button class="mobile-tab" type="button" data-mobile-view="editor" aria-controls="left-panel" aria-selected="true" onclick="setMobileView('editor')"><span aria-hidden="true">✂️</span>編集</button>
+  <button class="mobile-tab" type="button" data-mobile-view="settings" aria-controls="right-panel" aria-selected="false" onclick="setMobileView('settings')"><span aria-hidden="true">⚙️</span>設定</button>
+  <button class="mobile-tab" type="button" data-mobile-view="output" aria-controls="bottom-panel" aria-selected="false" onclick="setMobileView('output')"><span aria-hidden="true">🖼</span>出力</button>
+</nav>
 
 <div id="toast"></div>
 
@@ -644,6 +814,7 @@ let lassoMode = false;
 let lassoDraft = null;
 let lassoSelection = null;
 let losslessWebpEncoderPromise = null;
+let mobileView = 'editor';
 
 const LS_KEY = 'valzeria-sprite-splitter-settings';
 const IDB_NAME = 'valzeria-sprite-splitter';
@@ -664,6 +835,44 @@ function toast(msg, duration = 2200) {
   el.classList.add('show');
   clearTimeout(toast._t);
   toast._t = setTimeout(() => el.classList.remove('show'), duration);
+}
+
+function isMobileLayout() {
+  return window.matchMedia('(max-width: 768px)').matches;
+}
+
+function setMobileView(view) {
+  const labels = { editor: '編集', settings: '設定', output: '出力' };
+  if (!labels[view]) return;
+  mobileView = view;
+  document.body.dataset.mobileView = view;
+  document.getElementById('mobile-view-label').textContent = labels[view];
+  document.querySelectorAll('.mobile-tab').forEach(button => {
+    button.setAttribute('aria-selected', button.dataset.mobileView === view ? 'true' : 'false');
+  });
+}
+
+function syncMobileActionButtons() {
+  [
+    ['btn-preview', 'mobile-btn-preview'],
+    ['btn-zip', 'mobile-btn-zip'],
+    ['btn-indiv', 'mobile-btn-indiv'],
+    ['btn-savedir', 'mobile-btn-savedir'],
+    ['btn-sheet', 'mobile-btn-sheet'],
+  ].forEach(([sourceId, targetId]) => {
+    const source = document.getElementById(sourceId);
+    const target = document.getElementById(targetId);
+    target.disabled = source.disabled;
+    target.title = source.title;
+  });
+  document.getElementById('mobile-btn-savedir').textContent = document.getElementById('s-character-mode').checked
+    ? '📁 キャラ別フォルダへ保存'
+    : '📁 フォルダへ連番保存';
+}
+
+function setActionButtonDisabled(id, disabled) {
+  document.getElementById(id).disabled = disabled;
+  syncMobileActionButtons();
 }
 
 function createWorkingCanvas(img) {
@@ -850,7 +1059,8 @@ function loadFilesArray(files) {
       setActiveSlot(imageSlots.length - 1);
       if (loaded === files.length) {
         document.getElementById('drop-zone').style.display = 'none';
-        document.getElementById('btn-detect').disabled = false;
+        setActionButtonDisabled('btn-detect', false);
+        if (isMobileLayout()) setMobileView('editor');
         setInfo(`${files.length} 枚を読み込みました。合計 ${imageSlots.length} 枚。「全画像を検出」を押してください。`);
         toast(`${files.length} 枚読み込み完了`);
       }
@@ -914,7 +1124,7 @@ function deleteSlot(idx) {
     oc.width = 0; oc.height = 0;
     document.getElementById('drop-zone').style.display = '';
     setInfo('未検出 — 画像を読み込み後、「全画像を検出」を押してください');
-    document.getElementById('btn-detect').disabled = true;
+    setActionButtonDisabled('btn-detect', true);
     separatorMode = false;
     lassoMode = false;
   } else {
@@ -1468,7 +1678,7 @@ function reDetectActiveSlot(message) {
   renderSlotStrip();
   renderAllSpritePreviews();
   updateExportButtons();
-  document.getElementById('btn-preview').disabled = total === 0;
+  setActionButtonDisabled('btn-preview', total === 0);
   updateSeparatorControls();
   updateLassoControls();
   setInfo(total ? message : '分離後にキャラクターが検出されませんでした。分離線を取り消すか、検出設定を調整してください。', total ? 'ok' : 'err');
@@ -1502,10 +1712,10 @@ function runDetectAll() {
 
   if (totalFound === 0) {
     setInfo('全画像でキャラクターが検出されませんでした。しきい値やminAreaを調整してください。', 'err');
-    document.getElementById('btn-preview').disabled = true;
+    setActionButtonDisabled('btn-preview', true);
   } else {
     setInfo(`全 ${imageSlots.length} 枚から合計 ${totalFound} 体を検出。「分割プレビュー生成」を押してください。`, 'ok');
-    document.getElementById('btn-preview').disabled = false;
+    setActionButtonDisabled('btn-preview', false);
   }
 }
 
@@ -1988,6 +2198,7 @@ function runPreviewAll() {
   updateExportButtons();
   setInfo(`全 ${imageSlots.length} 枚・合計 ${total} 体の正規化完了。ダウンロードできます。`, 'ok');
   toast('プレビュー生成完了');
+  if (total > 0 && isMobileLayout()) setMobileView('output');
 }
 
 function normalizeSprite(srcCanvas, rect, cfg, mask = null) {
@@ -2254,6 +2465,7 @@ function updateExportButtons() {
     status.textContent = `4枚単位が必要（現在 ${count}枚・残り${missing}枚）`;
     status.style.color = '#fbbf24';
   }
+  syncMobileActionButtons();
 }
 
 function updateSize() {
@@ -2682,8 +2894,8 @@ function resetAll() {
   document.getElementById('drop-zone').style.display='';
   setInfo('未検出 — 画像を読み込み後、「全画像を検出」を押してください');
   renderSlotStrip(); updateRectList(); renderAllSpritePreviews(); updateExportButtons();
-  document.getElementById('btn-detect').disabled=true;
-  document.getElementById('btn-preview').disabled=true;
+  setActionButtonDisabled('btn-detect', true);
+  setActionButtonDisabled('btn-preview', true);
 
   // スライダーリセット
   [['s-white',245,'v-white'],['s-area',50,'v-area'],['s-merge',12,'v-merge'],
@@ -2704,6 +2916,7 @@ function resetAll() {
   zoomReset();
   updateSeparatorControls();
   updateLassoControls();
+  setMobileView('editor');
   toast('リセットしました');
 }
 
@@ -2751,6 +2964,8 @@ tryRestoreSaveDirectory();
 renderSlotStrip();
 updateSeparatorControls();
 updateLassoControls();
+setMobileView(mobileView);
+syncMobileActionButtons();
 </script>
 </body>
 </html>

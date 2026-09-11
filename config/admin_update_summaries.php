@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-09-11-sprite-splitter-mobile-ui',
+        'date' => '2026-09-11',
+        'category' => 'changed',
+        'title' => 'スプライト分割をスマホ操作向けに最適化',
+        'detail' => 'スマホでは編集・設定・出力を下部タブで切り替え、キャンバスや自由選択を広く操作できる専用画面にしました。プレビュー後の保存操作も出力画面へまとめています。',
+    ],
+    [
         'id' => '2026-09-11-map-publication-visibility',
         'date' => '2026-09-11',
         'category' => 'added',

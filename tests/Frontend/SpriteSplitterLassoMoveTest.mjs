@@ -23,7 +23,7 @@ function extractFunction(name) {
 test('lasso controls and editable source canvas are wired into the tool', () => {
     assert.match(html, /id="btn-lasso-mode"/);
     assert.match(html, /id="btn-lasso-undo"/);
-    assert.match(html, /@media \(max-width: 720px\)/);
+    assert.match(html, /@media \(max-width: 768px\)/);
     assert.match(html, /workingCanvas:\s*createWorkingCanvas\(img\)/);
     assert.match(extractFunction('sourceCanvasForSlot'), /slot\.workingCanvas/);
     assert.match(extractFunction('buildLassoSelection'), /maskContext\.fill\('evenodd'\)/);
