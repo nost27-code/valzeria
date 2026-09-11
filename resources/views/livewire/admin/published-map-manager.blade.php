@@ -82,6 +82,7 @@
                                     <div class="flex flex-wrap items-center gap-2">
                                         <h2 class="font-black text-slate-950">{{ $map->name }}</h2>
                                         <span class="rounded border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-black text-emerald-800">公開中</span>
+                                        <span class="rounded border border-sky-200 bg-sky-50 px-2 py-0.5 text-[11px] font-black text-sky-800">{{ $registration->visibilityLabel() }}</span>
                                     </div>
                                     <p class="mt-1 text-xs font-bold text-slate-500">発見者：{{ $map->owner?->name ?? '削除済み冒険者' }}　公開地図院：{{ $registration->town?->name ?? '不明' }}</p>
                                     <div class="mt-3 flex flex-wrap gap-1.5 text-[11px] font-bold">

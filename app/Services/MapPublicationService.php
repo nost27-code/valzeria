@@ -53,13 +53,20 @@ class MapPublicationService
 
         return collect($options)->unique('fee')->values()->all();
     }
-    public function publish(Character $character, TownMapRegistration $registration, int $fee): TownMapRegistration
+    public function publish(
+        Character $character,
+        TownMapRegistration $registration,
+        int $fee,
+        string $visibilityScope = TownMapRegistration::VISIBILITY_ALL,
+    ): TownMapRegistration
     {
-        return DB::transaction(function () use ($character, $registration, $fee) {
+        return DB::transaction(function () use ($character, $registration, $fee, $visibilityScope) {
             // Serialize publications by the same owner so the three-map limit cannot be bypassed by double submits.
             $character = Character::lockForUpdate()->findOrFail($character->id);
             $registration = TownMapRegistration::with(['map.owner', 'town'])->lockForUpdate()->findOrFail($registration->id);
             if ($registration->map->owner_character_id !== $character->id || $registration->status !== 'surveyed') throw new \RuntimeException('この地図は公開できません。');
+            $nationId = app(MapPublicationVisibilityService::class)->nationIdForPublication($character, $visibilityScope);
+            if ($visibilityScope === TownMapRegistration::VISIBILITY_OWNER) $fee = 0;
             if ($fee < 0 || $fee > $this->maxFee($registration)) throw new \RuntimeException('入場料が設定可能な上限を超えています。');
 
             $activePublicationCount = $this->activePublicationCount($character);
@@ -69,10 +76,10 @@ class MapPublicationService
             }
 
             $explorationLimit = max(1, (int) $registration->exploration_limit, (int) $registration->map->exploration_limit);
-            $registration->update(['entry_fee_per_exploration' => $fee, 'entry_fee_changed_at' => now(), 'published_at' => now(), 'expires_at' => now()->addHours((int) config('exploration_maps.public_hours')), 'remaining_explorations' => $explorationLimit, 'consumed_explorations' => 0, 'status' => 'published']);
+            $registration->update(['entry_fee_per_exploration' => $fee, 'entry_fee_changed_at' => now(), 'visibility_scope' => $visibilityScope, 'nation_id_snapshot' => $nationId, 'published_at' => now(), 'expires_at' => now()->addHours((int) config('exploration_maps.public_hours')), 'remaining_explorations' => $explorationLimit, 'consumed_explorations' => 0, 'status' => 'published']);
             $registration->map->update(['status' => 'published']);
             app(PublicLogService::class)->addMapPublishedLog($registration->map, $registration);
-            return $registration->fresh(['map.owner', 'town']);
+            return $registration->fresh(['map.owner', 'town', 'publicationNation']);
         });
     }
 

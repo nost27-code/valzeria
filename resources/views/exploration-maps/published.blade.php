@@ -47,11 +47,12 @@
                                     @elseif($isActive)
                                         <span class="rounded border border-indigo-200 bg-indigo-100 px-2 py-0.5 text-[11px] font-black text-indigo-800">入場中</span>
                                     @endif
+                                    <span class="rounded border border-sky-200 bg-sky-50 px-2 py-0.5 text-[11px] font-black text-sky-800">{{ $registration->visibilityLabel() }}</span>
                                 </div>
                                 <p class="mt-1 text-xs font-bold text-slate-500">公開地図院：{{ $registration->town->name }}　発見者：{{ $map->owner->name }}</p>
                                 <div class="mt-2 flex flex-wrap gap-1.5 text-[11px] font-bold">
                                     <span class="rounded border border-indigo-100 bg-indigo-50 px-2 py-1 text-indigo-800">{{ $isEnded ? '公開終了' : '残り ' . number_format($registration->remaining_explorations) . ' 回' }}</span>
-                                    <span class="rounded border border-emerald-100 bg-emerald-50 px-2 py-1 text-emerald-800">{{ $isEnded ? '入場できません' : ($isActive ? '入場中：追加料金なし' : ($owner ? '発見者は無料（他の冒険者：' . number_format($registration->entry_fee_per_exploration) . 'G）' : '入場料：' . number_format($registration->entry_fee_per_exploration) . 'G')) }}</span>
+                                    <span class="rounded border border-emerald-100 bg-emerald-50 px-2 py-1 text-emerald-800">{{ $isEnded ? '入場できません' : ($isActive ? '入場中：追加料金なし' : ($registration->visibilityScope() === \App\Models\TownMapRegistration::VISIBILITY_OWNER ? '自分だけの地図：無料' : ($owner ? '発見者は無料（共有相手：' . number_format($registration->entry_fee_per_exploration) . 'G）' : '入場料：' . number_format($registration->entry_fee_per_exploration) . 'G'))) }}</span>
                                     <span class="rounded border border-amber-100 bg-amber-50 px-2 py-1 text-amber-800">目安戦力：{{ $details['enemy_power_range'] }}</span>
                                     @if($details['reward'])
                                         <span class="rounded border border-violet-100 bg-violet-50 px-2 py-1 text-violet-800">報酬：{{ $details['reward'] }}</span>
@@ -75,7 +76,7 @@
 
                             <div class="mt-4 rounded-lg border p-3 {{ $isEnded ? 'border-red-200 bg-red-50' : 'border-emerald-200 bg-emerald-50' }}">
                                 <p class="text-sm font-black {{ $isEnded ? 'text-red-900' : 'text-emerald-950' }}">{{ $isEnded ? 'この地図の公開は終了しました' : ($isActive ? 'この地図を探索中です' : 'この地図に入場する') }}</p>
-                                <p class="mt-1 text-xs font-bold {{ $isEnded ? 'text-red-800' : 'text-emerald-800' }}">{{ $isEnded ? '終了した地図は、公開終了からしばらく一覧で確認できます。' : ($isActive ? 'このまま探索を続けられます。追加の入場料はかかりません。' : ($owner ? '発見者として無料で入場できます。他の冒険者の入場料：' . number_format($registration->entry_fee_per_exploration) . 'G' : '入場料：' . number_format($registration->entry_fee_per_exploration) . 'G（街へ戻るまで1回だけ）')) }}</p>
+                                <p class="mt-1 text-xs font-bold {{ $isEnded ? 'text-red-800' : 'text-emerald-800' }}">{{ $isEnded ? '終了した地図は、公開終了からしばらく一覧で確認できます。' : ($isActive ? 'このまま探索を続けられます。追加の入場料はかかりません。' : ($registration->visibilityScope() === \App\Models\TownMapRegistration::VISIBILITY_OWNER ? '発見者だけが無料で探索できます。' : ($owner ? '発見者として無料で入場できます。共有相手の入場料：' . number_format($registration->entry_fee_per_exploration) . 'G' : '入場料：' . number_format($registration->entry_fee_per_exploration) . 'G（街へ戻るまで1回だけ）'))) }}</p>
                                 @if(!$isEnded)
                                 <div class="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
                                     @foreach($exploreCounts as $count)

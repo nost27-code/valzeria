@@ -2,6 +2,12 @@
 
 Purpose: find relevant files quickly. Do not duplicate implementation details.
 
+## Exploration map publication visibility
+
+- `TownMapRegistration` stores `visibility_scope` and the publication-time `nation_id_snapshot`.
+- `MapPublicationVisibilityService` owns scope options, publication validation, list filtering, and direct access checks.
+- `MapPublicationService`, `ExplorationMapController`, `MapExplorationBatchService`, player map views, and `PublishedMapManager` apply and display the same scope. Tests: `ExplorationMapVisibilityTest`.
+
 ## Nation join policy and capacity waitlist
 
 - `app/Services/Nation/NationJoinApplicationService.php`, `NationProfileService.php`, `NationDissolutionService.php`, `NationService.php`: open application state, capacity-wait registration, manual approval with capacity recheck, profile policy, disband/founding guards.

@@ -20,6 +20,9 @@
                     'withdrawn' => '取り下げ済み',
                     default => $registration->isOpen() ? '公開中' : '終了',
                 } }}</div>
+                @if($registration->isPublished() || $registration->isWithdrawn())
+                    <div>公開範囲：{{ $registration->visibilityLabel() }}</div>
+                @endif
             </div>
             <p class="mt-3 border-t border-slate-100 pt-3 text-xs font-black text-amber-700">手持ち {{ number_format((int) $bankSummary['hand_gold']) }}G ／ 銀行 {{ number_format((int) $bankSummary['bank_gold']) }}G</p>
         </section>
@@ -68,14 +71,30 @@
 
             @if($owner && $registration->status === 'surveyed')
                 <section class="rounded-xl border border-indigo-200 bg-indigo-50 p-4">
-                    <form method="POST" action="{{ route('exploration-maps.publish', $registration) }}" x-data="{ fee: {{ $recommendedFee }} }">
+                    <form method="POST" action="{{ route('exploration-maps.publish', $registration) }}" x-data="{ fee: {{ $recommendedFee }}, visibilityScope: '{{ \App\Models\TownMapRegistration::VISIBILITY_ALL }}' }">
                         @csrf
-                        <input type="hidden" name="entry_fee" :value="fee">
+                        <input type="hidden" name="entry_fee" :value="visibilityScope === '{{ \App\Models\TownMapRegistration::VISIBILITY_OWNER }}' ? 0 : fee">
+                        <input type="hidden" name="visibility_scope" :value="visibilityScope">
                         <fieldset>
-                            <legend class="font-black text-indigo-950">入場料を設定して公開する</legend>
-                            <p class="mt-1 text-xs font-bold text-indigo-800">街から地図へ入るときの入場料を選んでください。入場中は×10探索を何度繰り返しても追加ではかかりません。街へ戻って入り直すと、もう一度入場料がかかります。公開後は変更できません。</p>
+                            <legend class="font-black text-indigo-950">公開範囲を選ぶ</legend>
+                            <p class="mt-1 text-xs font-bold text-indigo-800">公開した後は、範囲を変更できません。国家限定は、公開した時点で所属している国家の仲間に共有されます。</p>
+                            <div class="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
+                                @foreach($visibilityOptions as $option)
+                                    <label class="flex min-h-24 items-start gap-2 rounded-lg border border-indigo-200 bg-white p-3 {{ $option['enabled'] ? 'cursor-pointer' : 'cursor-not-allowed opacity-55' }}">
+                                        <input type="radio" name="visibility_scope_choice" value="{{ $option['value'] }}" x-model="visibilityScope" @disabled(!$option['enabled']) class="mt-1 border-indigo-300 text-indigo-700 focus:ring-indigo-600">
+                                        <span>
+                                            <span class="block text-sm font-black text-indigo-950">{{ $option['label'] }}</span>
+                                            <span class="mt-1 block text-xs font-bold leading-5 text-slate-600">{{ $option['description'] }}</span>
+                                        </span>
+                                    </label>
+                                @endforeach
+                            </div>
+                        </fieldset>
+                        <div class="mt-4 border-t border-indigo-200 pt-4">
+                            <p class="font-black text-indigo-950">入場料を選ぶ</p>
+                            <p class="mt-1 text-xs font-bold text-indigo-800">街から地図へ入るときに一度だけかかります。入場中の連続探索には追加料金がかかりません。</p>
                             <p class="mt-2 rounded-md border border-indigo-200 bg-white px-3 py-2 text-xs font-black text-indigo-950">公開枠：{{ $activePublicationCount }} / {{ $activePublicationLimit }}件 @if($activePublicationCount >= $activePublicationLimit) <span class="text-rose-700">（上限です。公開中の地図を取り下げると公開できます）</span> @endif</p>
-                            <div class="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                            <div x-cloak x-show="visibilityScope !== '{{ \App\Models\TownMapRegistration::VISIBILITY_OWNER }}'" class="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
                                 @foreach($feeOptions as $option)
                                     <button type="button" @click="fee = {{ $option['fee'] }}" :class="fee === {{ $option['fee'] }} ? 'border-indigo-700 bg-indigo-700 text-white' : 'border-indigo-200 bg-white text-indigo-950'" class="rounded-lg border px-3 py-3 text-center text-sm font-black">
                                         {{ $option['label'] }}
@@ -83,16 +102,17 @@
                                     </button>
                                 @endforeach
                             </div>
-                        <p class="mt-3 text-sm font-black text-indigo-950">設定中：<span x-text="Number(fee).toLocaleString()"></span>G / 1入場</p>
-                        </fieldset>
-                        <button @disabled($activePublicationCount >= $activePublicationLimit) class="mt-4 w-full rounded-lg bg-indigo-700 px-4 py-3 text-sm font-black text-white hover:bg-indigo-800 disabled:cursor-not-allowed disabled:bg-slate-400">この入場料で公開する</button>
+                            <p x-show="visibilityScope !== '{{ \App\Models\TownMapRegistration::VISIBILITY_OWNER }}'" class="mt-3 text-sm font-black text-indigo-950">設定中：<span x-text="Number(fee).toLocaleString()"></span>G / 1入場</p>
+                            <p x-cloak x-show="visibilityScope === '{{ \App\Models\TownMapRegistration::VISIBILITY_OWNER }}'" class="mt-3 rounded-md bg-white px-3 py-2 text-sm font-black text-indigo-950">自分だけで使う地図の入場料は無料です。</p>
+                        </div>
+                        <button @disabled($activePublicationCount >= $activePublicationLimit) class="mt-4 w-full rounded-lg bg-indigo-700 px-4 py-3 text-sm font-black text-white hover:bg-indigo-800 disabled:cursor-not-allowed disabled:bg-slate-400">この範囲で公開する</button>
                     </form>
                 </section>
             @endif
 
             @if($registration->isOpen())
                 <section class="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
-                    <p class="font-black text-emerald-950">{{ $isActiveMapEntry ? 'この地図へ入場中（追加料金なし）' : ($owner ? '発見者は無料（他の冒険者：' . number_format($registration->entry_fee_per_exploration) . 'G）' : '入場料：1入場 ' . number_format($registration->entry_fee_per_exploration) . 'G') }}</p>
+                    <p class="font-black text-emerald-950">{{ $isActiveMapEntry ? 'この地図へ入場中（追加料金なし）' : ($registration->visibilityScope() === \App\Models\TownMapRegistration::VISIBILITY_OWNER ? '自分だけの地図（入場料なし）' : ($owner ? '発見者は無料（共有相手：' . number_format($registration->entry_fee_per_exploration) . 'G）' : '入場料：1入場 ' . number_format($registration->entry_fee_per_exploration) . 'G')) }}</p>
                     @if($entryBankUsed > 0)
                         <p class="mt-1 text-xs font-bold text-amber-800">支払い内訳：手持ち {{ number_format($entryHandUsed) }}G・銀行 {{ number_format($entryBankUsed) }}G</p>
                     @endif

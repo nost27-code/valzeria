@@ -25,7 +25,7 @@ class PublishedMapManager extends Component
     public function render(ExplorationMapDisplayService $displayService)
     {
         $query = TownMapRegistration::query()
-            ->with(['map.owner', 'town'])
+            ->with(['map.owner', 'town', 'publicationNation'])
             ->where('status', 'published')
             ->where('remaining_explorations', '>', 0)
             ->where('expires_at', '>', now())

@@ -160,6 +160,9 @@
                             <div>
                                 <p class="font-black">{{ $map->status === 'uninvestigated' ? '未調査の探索地図' : $map->name }}</p>
                                 <p class="mt-1 text-xs font-bold text-slate-500">等級：{{ ['normal'=>'通常','rare'=>'希少','hero'=>'英雄','legend'=>'伝説'][$map->map_grade] ?? $map->map_grade }}　状態：{{ $status }}</p>
+                                @if($registration?->isPublished() || $registration?->isWithdrawn())
+                                    <p class="mt-1 text-xs font-black text-sky-700">公開範囲：{{ $registration->visibilityLabel() }}</p>
+                                @endif
                             </div>
                             <div class="flex shrink-0 flex-col items-end gap-2">
                                 @if(in_array($map->status, ['uninvestigated', 'surveyed'], true))

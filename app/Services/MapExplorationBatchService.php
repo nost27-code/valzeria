@@ -30,6 +30,10 @@ class MapExplorationBatchService
                 return $this->existingBatchForRequest($existing, $character, $registration);
             }
             if (!$registration->isOpen()) throw new \RuntimeException($registration->remaining_explorations <= 0 ? '他の冒険者による探索によって、この地図の探索可能回数は終了しました。今回の探索料金と探索力は消費されていません。' : 'この地図の公開期間は終了しました。');
+            $hasActiveEntry = app(MapExplorationItemService::class)->hasEntry($character, (int) $registration->id);
+            if (!app(MapPublicationVisibilityService::class)->canAccess($character, $registration, $hasActiveEntry)) {
+                throw new \RuntimeException('この地図の公開範囲には入っていません。');
+            }
             $reserved = min($requestedCount, (int) $registration->remaining_explorations);
             $entryFee = $character->id === $registration->map->owner_character_id ? 0 : (int) $registration->entry_fee_per_exploration;
             $total = $reserved > 0 && $chargeEntryFee ? $entryFee : 0;

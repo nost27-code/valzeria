@@ -11,6 +11,7 @@ use App\Services\MapExplorationBatchService;
 use App\Services\ExplorationMapDiscardService;
 use App\Services\ExplorationMapDisplayService;
 use App\Services\MapPublicationService;
+use App\Services\MapPublicationVisibilityService;
 use App\Services\MapExplorationItemService;
 use App\Services\MapSurveyService;
 use Illuminate\Contracts\Encryption\DecryptException;
@@ -19,6 +20,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 
 class ExplorationMapController extends Controller
 {
@@ -26,7 +28,7 @@ class ExplorationMapController extends Controller
     public function index(Request $request)
     {
         $character = $this->character();
-        $ownedMaps = ExplorationMap::with('registration.town')
+        $ownedMaps = ExplorationMap::with(['registration.town', 'registration.publicationNation'])
             ->where('owner_character_id', $character->id)
             ->where('status', '!=', 'discarded')
             ->latest()
@@ -173,7 +175,7 @@ class ExplorationMapController extends Controller
             ->latest('created_at')
             ->limit(1);
 
-        $published = TownMapRegistration::with(['map.owner', 'town'])
+        $publishedQuery = TownMapRegistration::with(['map.owner', 'town', 'publicationNation'])
             ->select('town_map_registrations.*')
             ->selectSub($lastExploration, 'last_entered_at')
             ->where('status', 'published')
@@ -187,14 +189,16 @@ class ExplorationMapController extends Controller
                 })->orWhere(function ($query) use ($recentlyClosedAfter) {
                     $query->where('expires_at', '<=', now())->where('expires_at', '>', $recentlyClosedAfter);
                 });
-            })
+            });
+        app(MapPublicationVisibilityService::class)->applyVisibleTo($publishedQuery, $character);
+        $published = $publishedQuery
             ->orderByRaw('CASE WHEN remaining_explorations > 0 AND expires_at > ? THEN 0 ELSE 1 END', [now()])
             ->orderByDesc('last_entered_at')
             ->latest('published_at')
             ->get();
 
         if ($activeRegistration && !$published->contains('id', $activeRegistration->id)) {
-            $published->push($activeRegistration->loadMissing(['map.owner', 'town']));
+            $published->push($activeRegistration->loadMissing(['map.owner', 'town', 'publicationNation']));
         }
 
         $enemyIds = $published
@@ -232,12 +236,14 @@ class ExplorationMapController extends Controller
     }
     public function show(TownMapRegistration $registration)
     {
-        $registration->load(['map.owner', 'town']);
-        abort_if($registration->map->status === 'discarded', 404);
-        abort_unless($registration->isOpen() || $registration->map->owner_character_id === $this->character()->id, 404);
-        $publicationService = app(MapPublicationService::class);
         $character = $this->character();
+        $registration->load(['map.owner', 'town', 'publicationNation']);
+        abort_if($registration->map->status === 'discarded', 404);
         $isActiveMapEntry = app(MapExplorationItemService::class)->hasEntry($character, (int) $registration->id);
+        $canViewPublishedMap = $registration->isOpen()
+            && app(MapPublicationVisibilityService::class)->canAccess($character, $registration, $isActiveMapEntry);
+        abort_unless($canViewPublishedMap || $registration->map->owner_character_id === $character->id, 404);
+        $publicationService = app(MapPublicationService::class);
         return view('exploration-maps.show', [
             'registration' => $registration,
             'character' => $character,
@@ -248,6 +254,7 @@ class ExplorationMapController extends Controller
             'activePublicationLimit' => $publicationService->activePublicationLimit(),
             'bankSummary' => app(\App\Services\BankService::class)->summary($character),
             'isActiveMapEntry' => $isActiveMapEntry,
+            'visibilityOptions' => app(MapPublicationVisibilityService::class)->optionsFor($character),
         ]);
     }
     public function startSurvey(Request $request, ExplorationMap $map)
@@ -313,8 +320,21 @@ class ExplorationMapController extends Controller
     }
     public function publish(Request $request, TownMapRegistration $registration)
     {
-        $request->validate(['entry_fee' => ['required', 'integer', 'min:0']]);
-        try { app(MapPublicationService::class)->publish($this->character(), $registration, $request->integer('entry_fee')); return redirect()->route('exploration-maps.show', $registration)->with('message', '地図を公開した。冒険者たちへ知らせが流れた！'); }
+        $validated = $request->validate([
+            'entry_fee' => ['required', 'integer', 'min:0'],
+            'visibility_scope' => ['nullable', Rule::in(TownMapRegistration::VISIBILITY_SCOPES)],
+        ]);
+        try {
+            $published = app(MapPublicationService::class)->publish(
+                $this->character(),
+                $registration,
+                $request->integer('entry_fee'),
+                (string) ($validated['visibility_scope'] ?? TownMapRegistration::VISIBILITY_ALL),
+            );
+
+            return redirect()->route('exploration-maps.show', $registration)
+                ->with('message', '公開範囲を「'.$published->visibilityLabel().'」にして地図を公開した。');
+        }
         catch (\RuntimeException $e) { return back()->with('error', $e->getMessage()); }
     }
     public function withdraw(TownMapRegistration $registration)

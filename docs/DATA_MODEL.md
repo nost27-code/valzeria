@@ -2,6 +2,8 @@
 
 Purpose: compressed DB/data contract map.
 
+Exploration map publication visibility（2026-09-11）: `town_map_registrations.visibility_scope`は`owner`・`nation`・`all`で、既定値`all`により既存公開を全体公開として維持する。nullable `nation_id_snapshot`は`nation`時だけ公開時の国家を保存し、国家削除時はNULLになる。
+
 Nation join policy / waitlist（2026-09-09）: `nations.join_policy`はnullable VARCHAR(100)の公開方針文。`nation_join_applications.status=waitlisted`は満員時の未処理申請で、既存の`(nation_id,status,requested_at)` indexから順番を導出する。`pending`と`waitlisted`は同じ取消・却下・承認・解散時取消の対象で、membership作成前に実効定員を再確認する。
 
 Equipment market directed listing（2026-09-09）: `equipment_market_listings.recipient_character_id`はnullable unsigned bigint。NULLは公開、値ありは宛先指定。宛先削除で公開化しないためFKを付けず、不変IDと`(recipient_character_id,status,expires_at)` indexを保持する。成立後の実購入者は従来どおり`buyer_character_id`とtransactionに記録する。

@@ -46,6 +46,10 @@ class PublicLogService
 
     public function addMapPublishedLog(\App\Models\ExplorationMap $map, \App\Models\TownMapRegistration $registration): void
     {
+        if ($registration->visibilityScope() !== \App\Models\TownMapRegistration::VISIBILITY_ALL) {
+            return;
+        }
+
         if (!in_array($map->map_grade, config('exploration_maps.public_log_grades', []), true)) {
             return;
         }
