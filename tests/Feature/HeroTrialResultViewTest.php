@@ -275,6 +275,7 @@ class HeroTrialResultViewTest extends TestCase
         $this->assertStringContainsString('月影二獣連続戦', $html);
         $this->assertStringContainsString('月喰影獣ルナグリムの月影を捉えた！', $html);
         $this->assertStringContainsString('images/jobbadge/jobbadge_071.webp', $html);
+        $this->assertStringContainsString('自動的に転職することはありません', $html);
         $this->assertStringContainsString('神殿で黒月の執行者を確認する', $html);
         $this->assertSame(1, substr_count($html, 'images/enemy/enemy_736.webp'));
         $this->assertSame(1, substr_count($html, 'images/enemy/enemy_724.webp'));

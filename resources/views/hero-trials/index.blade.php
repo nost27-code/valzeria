@@ -11,6 +11,7 @@
             <div class="text-xs font-black tracking-[0.25em] text-amber-300">HERO TRIAL HALL</div>
             <h1 class="mt-1 text-xl font-black">挑む試練を選べ</h1>
             <p class="mt-2 text-xs leading-relaxed text-slate-300">冠位を極めた者だけに、英雄へ至る道が姿を現す。</p>
+            <p class="mt-2 text-xs font-bold leading-relaxed text-amber-100">試練を越えると対応する英雄職が神殿に解放されます。勝利しただけで自動的に転職することはありません。</p>
         </section>
 
         <div class="grid gap-4 md:grid-cols-2">

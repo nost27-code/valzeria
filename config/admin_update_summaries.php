@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-09-11-hero-trial-unlock-copy',
+        'date' => '2026-09-11',
+        'category' => 'changed',
+        'title' => '英雄試練クリア後の転職案内を明確化',
+        'detail' => '英雄試練をクリアすると対応する英雄職が神殿に解放され、転職は自動では行われないことを試練殿と勝利結果に明記しました。',
+    ],
+    [
         'id' => '2026-09-11-exclusive-character-icon-053',
         'date' => '2026-09-11',
         'category' => 'internal',

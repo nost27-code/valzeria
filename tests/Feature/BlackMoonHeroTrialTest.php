@@ -208,6 +208,7 @@ class BlackMoonHeroTrialTest extends TestCase
             ->assertOk()
             ->assertSee('images/symbol/hero_trial_hall.webp', false)
             ->assertSeeText('英雄試練殿')
+            ->assertSeeText('勝利しただけで自動的に転職することはありません')
             ->assertSeeText('暁の試練場')
             ->assertSeeText('月蝕の試練場')
             ->assertDontSeeText('白銀の試練場')

@@ -229,7 +229,7 @@
             <section class="rounded-xl border-2 border-amber-300 bg-gradient-to-br from-amber-50 to-yellow-100 p-5 text-center shadow-lg">
                 <img src="{{ asset('images/'.($trial['job_badge_image'] ?? 'jobbadge/jobbadge_070.webp')) }}" alt="" class="mx-auto h-24 w-24 object-contain drop-shadow">
                 <h2 class="mt-3 text-2xl font-black text-amber-950">「{{ $trial['hero_job_name'] ?? '英雄職' }}」への道が開かれた！</h2>
-                <p class="mt-2 text-sm font-bold leading-relaxed text-amber-800">神殿へ向かえば、新たに刻まれた英雄職を選べる。</p>
+                <p class="mt-2 text-sm font-bold leading-relaxed text-amber-800">対応する英雄職が神殿に解放されました。自動的に転職することはありません。転職は神殿で好きな時に選べます。</p>
                 <a href="{{ route('jobs.index') }}" class="mt-5 inline-flex min-h-11 items-center justify-center rounded-lg border-2 border-amber-700 bg-amber-600 px-6 py-2 text-sm font-black text-white shadow transition hover:bg-amber-700 active:scale-95">
                     神殿で{{ $trial['hero_job_name'] ?? '英雄職' }}を確認する
                 </a>
