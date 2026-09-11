@@ -145,7 +145,30 @@ class WeaponTraitForgeServiceTest extends TestCase
         $this->assertStringNotContainsString('【逸品】になった。', $result['message']);
         $this->assertSame(1, PublicLog::query()->count());
         $this->assertSame(
-            "【逸品】{$character->name}さんが鍛冶で「{$beforeQualityDisplayName}」を逸品に仕上げました！",
+            "【逸品】{$character->name}さんが特攻磨きで「{$beforeQualityDisplayName}」を逸品に仕上げました！",
+            PublicLog::query()->value('message'),
+        );
+    }
+
+    public function test_engraving_forge_uses_its_operation_name_in_the_excellent_public_log(): void
+    {
+        config()->set('equipment_affix.forge_quality_upgrade_rates_bps.excellent', 10_000);
+        config()->set('equipment_affix.forge_quality_upgrade_rates_bps.good', 0);
+
+        $character = $this->createCharacter(100_000);
+        [$prefix, $suffix] = $this->affixes();
+        $base = $this->weapon($character, 'A', 'sword', $prefix, 1, $suffix, 1, quality: 'good');
+        $material = $this->weapon($character, 'A', 'sword', $prefix, 1, $suffix, 1);
+
+        app(WeaponTraitForgeService::class)->forge($character, 'engraving_forge', $base->id, $material->id);
+
+        $base->refresh()->load(['item', 'affixPrefix', 'affixSuffix']);
+        $beforeQuality = clone $base;
+        $beforeQuality->affix_quality = 'good';
+        $beforeQualityDisplayName = $beforeQuality->displayName();
+        $this->assertSame('excellent', $base->affix_quality);
+        $this->assertSame(
+            "【逸品】{$character->name}さんが銘鍛錬で「{$beforeQualityDisplayName}」を逸品に仕上げました！",
             PublicLog::query()->value('message'),
         );
     }

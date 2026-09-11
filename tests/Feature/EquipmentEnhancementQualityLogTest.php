@@ -65,7 +65,7 @@ class EquipmentEnhancementQualityLogTest extends TestCase
         $characterItem->refresh()->load(['item', 'affixPrefix', 'affixSuffix']);
         $this->assertSame('excellent', $characterItem->affix_quality);
         $this->assertSame(
-            "【逸品】{$character->name}さんが鍛冶で「{$beforeQualityDisplayName}」を逸品に仕上げました！",
+            "【逸品】{$character->name}さんが通常強化で「{$beforeQualityDisplayName}」を逸品に仕上げました！",
             PublicLog::query()->value('message'),
         );
     }

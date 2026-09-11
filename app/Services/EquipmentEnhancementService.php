@@ -230,7 +230,7 @@ class EquipmentEnhancementService
                 if ($qualityUpgrade === 'excellent') {
                     app(PublicLogService::class)->addLog(
                         'drop',
-                        "【逸品】{$lockedCharacter->name}さんが鍛冶で「{$beforeQualityDisplayName}」を逸品に仕上げました！",
+                        "【逸品】{$lockedCharacter->name}さんが通常強化で「{$beforeQualityDisplayName}」を逸品に仕上げました！",
                         $lockedCharacter,
                         3,
                     );

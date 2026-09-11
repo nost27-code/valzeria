@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-09-12-excellent-forge-log-operation-labels',
+        'date' => '2026-09-12',
+        'category' => 'changed',
+        'title' => '逸品完成アナウンスを鍛錬別に表示',
+        'detail' => '鍛冶で武器が逸品へ仕上がった際、通常強化・銘鍛錬・特攻磨きのうち、実際に行った操作をアナウンスへ表示するようにしました。品質昇格率・性能・素材・Goldは変更していません。',
+    ],
+    [
         'id' => '2026-09-11-character-icon-request-limit',
         'date' => '2026-09-11',
         'category' => 'changed',
