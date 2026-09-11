@@ -144,6 +144,12 @@ h2 { font-size: 0.85rem; font-weight: 700; color: #c4b5fd; text-transform: upper
   cursor: cell;
   touch-action: none;
 }
+#canvas-wrapper.lasso-mode {
+  cursor: crosshair;
+  touch-action: none;
+}
+#canvas-wrapper.lasso-mode.lasso-has-selection { cursor: grab; }
+#canvas-wrapper.lasso-mode.lasso-dragging { cursor: grabbing; }
 #canvas-inner { position: relative; transform-origin: 0 0; width: max-content; height: max-content; }
 #canvas-wrapper canvas { display: block; }
 #overlay-canvas { position: absolute; top: 0; left: 0; pointer-events: none; }
@@ -291,6 +297,39 @@ h2 { font-size: 0.85rem; font-weight: 700; color: #c4b5fd; text-transform: upper
   opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 999;
 }
 #toast.show { opacity: 1; }
+
+@media (max-width: 720px) {
+  body { overflow: auto; }
+  #header { height: auto; min-height: 44px; flex-wrap: wrap; }
+  #main-layout {
+    display: flex;
+    flex-direction: column;
+    height: auto;
+    min-height: calc(100vh - 44px);
+  }
+  #left-panel {
+    height: auto;
+    min-height: 0;
+    overflow: visible;
+    border-right: none;
+  }
+  #canvas-wrapper {
+    flex: none;
+    height: 55vh;
+    min-height: 320px;
+  }
+  #right-panel {
+    overflow: visible;
+    border-left: none;
+    border-top: 1px solid #2d2d5e;
+  }
+  #bottom-panel {
+    min-height: 180px;
+    overflow: hidden;
+  }
+  .btn { min-height: 44px; }
+  .zoom-btn { width: 44px; height: 44px; }
+}
 </style>
 </head>
 <body>
@@ -308,6 +347,7 @@ h2 { font-size: 0.85rem; font-weight: 700; color: #c4b5fd; text-transform: upper
     <div id="toolbar">
       <button class="btn btn-primary"  onclick="openFilePicker()">📂 画像を追加</button>
       <button class="btn btn-info"     id="btn-detect"  onclick="runDetectAll()" disabled>🔍 全画像を検出</button>
+      <button class="btn btn-info"     id="btn-lasso-mode" onclick="toggleLassoMode()" disabled>〰 自由選択・移動</button>
       <button class="btn btn-warning"  id="btn-separator-mode" onclick="toggleSeparatorMode()" disabled>✏️ 分離線</button>
       <button class="btn btn-success"  id="btn-preview" onclick="runPreviewAll()" disabled>✂️ 分割プレビュー</button>
       <button class="btn btn-warning"  id="btn-zip"     onclick="downloadZip()" disabled>📦 ZIP</button>
@@ -396,6 +436,15 @@ h2 { font-size: 0.85rem; font-weight: 700; color: #c4b5fd; text-transform: upper
           <div class="val-badge" id="v-pad">4</div>
         </div>
       </div>
+    </div>
+
+    <div class="section">
+      <h2>自由選択・移動</h2>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
+        <button class="btn btn-ghost" id="btn-lasso-undo" onclick="undoLassoMove()" disabled>↶ 移動を戻す</button>
+        <button class="btn btn-ghost" id="btn-lasso-cancel" onclick="cancelLassoSelection()" disabled>選択解除</button>
+      </div>
+      <p class="how-to">「〰 自由選択・移動」をONにし、移動したいキャラを一筆で囲みます。現在の背景透過設定で囲み内のキャラ部分だけを抽出し、ドラッグ先へ移動します。移動すると手動分離線はいったん消え、Undoで移動前の線も復元します。</p>
     </div>
 
     <div class="section">
@@ -542,6 +591,7 @@ h2 { font-size: 0.85rem; font-weight: 700; color: #c4b5fd; text-transform: upper
         <li>「画像を追加」で複数枚同時選択（またはD&D）</li>
         <li>「全画像を検出」で全枚まとめて矩形検出</li>
         <li>設定調整 → 再検出で精度を上げる</li>
+        <li>間隔がないキャラは「〰 自由選択・移動」で囲んで離す</li>
         <li>接触して1体になった箇所は「✏️ 分離線」で境目をなぞる</li>
         <li>「分割プレビュー生成」で下部に全スプライット表示</li>
         <li>キャラ4差分なら「キャラクターモード」をONにする</li>
@@ -578,7 +628,7 @@ h2 { font-size: 0.85rem; font-weight: 700; color: #c4b5fd; text-transform: upper
 <script>
 /* =============================================================
    State
-   imageSlots: [{img, imgW, imgH, name, thumbUrl, rects, masks, separatorStrokes, normalized}]
+   imageSlots: [{img, workingCanvas, editHistory, imgW, imgH, name, thumbUrl, rects, masks, separatorStrokes, normalized}]
    activeIdx: 現在左パネルに表示中のスロット番号
 ============================================================= */
 let imageSlots  = [];
@@ -590,6 +640,9 @@ let characterDirHandles = [];
 let characterRestoreRequested = new Set();
 let separatorMode = false;
 let separatorStrokeDraft = null;
+let lassoMode = false;
+let lassoDraft = null;
+let lassoSelection = null;
 let losslessWebpEncoderPromise = null;
 
 const LS_KEY = 'valzeria-sprite-splitter-settings';
@@ -611,6 +664,16 @@ function toast(msg, duration = 2200) {
   el.classList.add('show');
   clearTimeout(toast._t);
   toast._t = setTimeout(() => el.classList.remove('show'), duration);
+}
+
+function createWorkingCanvas(img) {
+  const canvas = document.createElement('canvas');
+  canvas.width = img.naturalWidth;
+  canvas.height = img.naturalHeight;
+  const context = canvas.getContext('2d');
+  context.imageSmoothingEnabled = false;
+  context.drawImage(img, 0, 0);
+  return canvas;
 }
 
 function syncVal(sliderId, badgeId) {
@@ -769,6 +832,8 @@ function loadFilesArray(files) {
     img.onload = () => {
       const slot = {
         img,
+        workingCanvas: createWorkingCanvas(img),
+        editHistory: [],
         imgW: img.naturalWidth,
         imgH: img.naturalHeight,
         name: file.name,
@@ -823,6 +888,8 @@ function onCanvasWheel(e) {
    Slot management
 ============================================================= */
 function setActiveSlot(idx) {
+  lassoDraft = null;
+  lassoSelection = null;
   activeIdx = idx;
   if (idx < 0 || idx >= imageSlots.length) return;
   separatorStrokeDraft = null;
@@ -831,9 +898,12 @@ function setActiveSlot(idx) {
   updateRectList();
   renderSlotStrip(); // update active highlight
   updateSeparatorControls();
+  updateLassoControls();
 }
 
 function deleteSlot(idx) {
+  lassoDraft = null;
+  lassoSelection = null;
   URL.revokeObjectURL(imageSlots[idx].thumbUrl);
   imageSlots.splice(idx, 1);
   if (imageSlots.length === 0) {
@@ -846,6 +916,7 @@ function deleteSlot(idx) {
     setInfo('未検出 — 画像を読み込み後、「全画像を検出」を押してください');
     document.getElementById('btn-detect').disabled = true;
     separatorMode = false;
+    lassoMode = false;
   } else {
     setActiveSlot(Math.min(idx, imageSlots.length - 1));
   }
@@ -853,6 +924,7 @@ function deleteSlot(idx) {
   renderAllSpritePreviews();
   updateExportButtons();
   updateSeparatorControls();
+  updateLassoControls();
 }
 
 function renderSlotStrip() {
@@ -905,7 +977,17 @@ function drawSource() {
   oc.width  = slot.imgW; oc.height = slot.imgH;
   const ctx = mc.getContext('2d');
   ctx.imageSmoothingEnabled = false;
-  ctx.drawImage(slot.img, 0, 0);
+  ctx.clearRect(0, 0, mc.width, mc.height);
+  if (lassoSelection?.slotIdx === activeIdx) {
+    ctx.drawImage(lassoSelection.baseCanvas, 0, 0);
+    ctx.drawImage(
+      lassoSelection.contentCanvas,
+      lassoSelection.rect.x + lassoSelection.dx,
+      lassoSelection.rect.y + lassoSelection.dy,
+    );
+  } else {
+    ctx.drawImage(sourceCanvasForSlot(slot), 0, 0);
+  }
 }
 
 function drawOverlay() {
@@ -914,7 +996,7 @@ function drawOverlay() {
   const oc   = document.getElementById('overlay-canvas');
   const ctx  = oc.getContext('2d');
   ctx.clearRect(0, 0, oc.width, oc.height);
-  if (!slot.rects.length && !slot.separatorStrokes.length && !separatorStrokeDraft) return;
+  if (!slot.rects.length && !slot.separatorStrokes.length && !separatorStrokeDraft && !lassoDraft && !lassoSelection) return;
 
   const lw = Math.max(1, Math.round(Math.min(slot.imgW, slot.imgH) / 400));
   const fs = Math.max(10, Math.round(slot.imgW / 60));
@@ -931,6 +1013,10 @@ function drawOverlay() {
 
   slot.separatorStrokes.forEach(stroke => drawSeparatorStroke(ctx, stroke));
   if (separatorStrokeDraft?.slotIdx === activeIdx) drawSeparatorStroke(ctx, separatorStrokeDraft, true);
+  if (lassoDraft?.slotIdx === activeIdx) drawLassoPath(ctx, lassoDraft.points, 0, 0, true);
+  if (lassoSelection?.slotIdx === activeIdx) {
+    drawLassoPath(ctx, lassoSelection.points, lassoSelection.dx, lassoSelection.dy, false);
+  }
 }
 
 function drawSeparatorStroke(ctx, stroke, isDraft = false) {
@@ -947,6 +1033,329 @@ function drawSeparatorStroke(ctx, stroke, isDraft = false) {
   ctx.restore();
 }
 
+function drawLassoPath(ctx, points, dx = 0, dy = 0, isDraft = false) {
+  if (points.length < 2) return;
+  ctx.save();
+  ctx.strokeStyle = isDraft ? 'rgba(56,189,248,0.82)' : 'rgba(14,165,233,1)';
+  ctx.fillStyle = 'rgba(14,165,233,0.08)';
+  ctx.lineWidth = Math.max(1, Math.round(Math.min(ctx.canvas.width, ctx.canvas.height) / 500));
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.setLineDash(isDraft ? [] : [6, 4]);
+  ctx.beginPath();
+  ctx.moveTo(points[0].x + dx, points[0].y + dy);
+  points.slice(1).forEach(point => ctx.lineTo(point.x + dx, point.y + dy));
+  if (!isDraft && points.length >= 3) {
+    ctx.closePath();
+    ctx.fill();
+  }
+  ctx.stroke();
+  ctx.restore();
+}
+
+/* =============================================================
+   Freehand selection and move
+============================================================= */
+function pointInPolygon(point, polygon) {
+  let inside = false;
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    const a = polygon[j];
+    const b = polygon[i];
+    const cross = (point.x - a.x) * (b.y - a.y) - (point.y - a.y) * (b.x - a.x);
+    const withinX = point.x >= Math.min(a.x, b.x) && point.x <= Math.max(a.x, b.x);
+    const withinY = point.y >= Math.min(a.y, b.y) && point.y <= Math.max(a.y, b.y);
+    if (Math.abs(cross) < 1e-6 && withinX && withinY) return true;
+
+    const intersects = (b.y > point.y) !== (a.y > point.y)
+      && point.x < (a.x - b.x) * (point.y - b.y) / (a.y - b.y) + b.x;
+    if (intersects) inside = !inside;
+  }
+  return inside;
+}
+
+function lassoBoundingRect(points, imageWidth, imageHeight) {
+  if (!points.length || imageWidth <= 0 || imageHeight <= 0) return null;
+  const minX = Math.max(0, Math.floor(Math.min(...points.map(point => point.x))));
+  const minY = Math.max(0, Math.floor(Math.min(...points.map(point => point.y))));
+  const maxX = Math.min(imageWidth - 1, Math.ceil(Math.max(...points.map(point => point.x))));
+  const maxY = Math.min(imageHeight - 1, Math.ceil(Math.max(...points.map(point => point.y))));
+  if (maxX < minX || maxY < minY) return null;
+  return { x: minX, y: minY, w: maxX - minX + 1, h: maxY - minY + 1 };
+}
+
+function clampLassoOffset(rect, dx, dy, imageWidth, imageHeight) {
+  return {
+    dx: Math.max(-rect.x, Math.min(imageWidth - rect.x - rect.w, Math.round(dx))),
+    dy: Math.max(-rect.y, Math.min(imageHeight - rect.y - rect.h, Math.round(dy))),
+  };
+}
+
+function toggleLassoMode() {
+  if (activeIdx < 0) return;
+  lassoMode = !lassoMode;
+  lassoDraft = null;
+  lassoSelection = null;
+  if (lassoMode) {
+    separatorMode = false;
+    separatorStrokeDraft = null;
+    setInfo('移動したいキャラを一筆で囲んでください。背景透過設定でキャラ部分を抽出し、その内側をドラッグして移動できます。', 'warn');
+  }
+  drawSource();
+  drawOverlay();
+  updateSeparatorControls();
+  updateLassoControls();
+}
+
+function updateLassoControls() {
+  const hasActiveSlot = activeIdx >= 0 && activeIdx < imageSlots.length;
+  const history = hasActiveSlot ? imageSlots[activeIdx].editHistory : [];
+  const modeButton = document.getElementById('btn-lasso-mode');
+  modeButton.disabled = !hasActiveSlot;
+  modeButton.classList.toggle('is-active', lassoMode && hasActiveSlot);
+  modeButton.textContent = lassoMode && hasActiveSlot ? '〰 自由選択・移動: ON' : '〰 自由選択・移動';
+  document.getElementById('btn-lasso-undo').disabled = !history.length;
+  document.getElementById('btn-lasso-cancel').disabled = !lassoDraft && !lassoSelection;
+
+  const wrapper = document.getElementById('canvas-wrapper');
+  wrapper.classList.toggle('lasso-mode', lassoMode && hasActiveSlot);
+  wrapper.classList.toggle('lasso-has-selection', Boolean(lassoSelection));
+  wrapper.classList.toggle('lasso-dragging', Boolean(lassoSelection?.dragging));
+}
+
+function buildLassoSelection(points) {
+  if (activeIdx < 0 || points.length < 3) return null;
+  const slot = imageSlots[activeIdx];
+  const rect = lassoBoundingRect(points, slot.imgW, slot.imgH);
+  if (!rect || rect.w < 2 || rect.h < 2) return null;
+
+  const source = sourceCanvasForSlot(slot);
+  const contentCanvas = document.createElement('canvas');
+  contentCanvas.width = rect.w;
+  contentCanvas.height = rect.h;
+  const selectionMask = document.createElement('canvas');
+  selectionMask.width = rect.w;
+  selectionMask.height = rect.h;
+  const maskContext = selectionMask.getContext('2d');
+  maskContext.fillStyle = '#fff';
+  maskContext.beginPath();
+  maskContext.moveTo(points[0].x - rect.x, points[0].y - rect.y);
+  points.slice(1).forEach(point => maskContext.lineTo(point.x - rect.x, point.y - rect.y));
+  maskContext.closePath();
+  maskContext.fill('evenodd');
+  const maskData = maskContext.getImageData(0, 0, rect.w, rect.h);
+  for (let index = 0; index < rect.w * rect.h; index++) {
+    const alphaOffset = index * 4 + 3;
+    maskData.data[alphaOffset] = maskData.data[alphaOffset] >= 128 ? 255 : 0;
+  }
+  maskContext.putImageData(maskData, 0, 0);
+
+  const contentContext = contentCanvas.getContext('2d');
+  contentContext.drawImage(source, -rect.x, -rect.y);
+  contentContext.globalCompositeOperation = 'destination-in';
+  contentContext.drawImage(selectionMask, 0, 0);
+  contentContext.globalCompositeOperation = 'source-over';
+  removeBackground(contentCanvas, settings());
+
+  const cleanedData = contentContext.getImageData(0, 0, rect.w, rect.h);
+  const eraseCanvas = document.createElement('canvas');
+  eraseCanvas.width = rect.w;
+  eraseCanvas.height = rect.h;
+  const eraseContext = eraseCanvas.getContext('2d');
+  const eraseData = eraseContext.createImageData(rect.w, rect.h);
+  let movablePixels = 0;
+  for (let index = 0; index < rect.w * rect.h; index++) {
+    if (cleanedData.data[index * 4 + 3] === 0) continue;
+    eraseData.data[index * 4 + 3] = 255;
+    movablePixels++;
+  }
+  if (!movablePixels) return null;
+  eraseContext.putImageData(eraseData, 0, 0);
+
+  const baseCanvas = document.createElement('canvas');
+  baseCanvas.width = slot.imgW;
+  baseCanvas.height = slot.imgH;
+  const baseContext = baseCanvas.getContext('2d');
+  baseContext.imageSmoothingEnabled = false;
+  baseContext.drawImage(source, 0, 0);
+  baseContext.globalCompositeOperation = 'destination-out';
+  baseContext.drawImage(eraseCanvas, rect.x, rect.y);
+  baseContext.globalCompositeOperation = 'source-over';
+
+  return {
+    slotIdx: activeIdx,
+    points,
+    rect,
+    contentCanvas,
+    baseCanvas,
+    dx: 0,
+    dy: 0,
+    pointerId: null,
+    dragging: false,
+    dragStart: null,
+  };
+}
+
+function onLassoPointerDown(event) {
+  if (!lassoMode || !event.isPrimary || event.button !== 0 || activeIdx < 0) return;
+  const point = sourcePointFromEvent(event, false, true);
+  if (!point) return;
+  event.preventDefault();
+
+  if (lassoSelection?.slotIdx === activeIdx) {
+    const relativePoint = { x: point.x - lassoSelection.dx, y: point.y - lassoSelection.dy };
+    if (pointInPolygon(relativePoint, lassoSelection.points)) {
+      lassoSelection.pointerId = event.pointerId;
+      lassoSelection.dragging = true;
+      lassoSelection.dragStart = {
+        point,
+        dx: lassoSelection.dx,
+        dy: lassoSelection.dy,
+      };
+      document.getElementById('canvas-wrapper').setPointerCapture?.(event.pointerId);
+      updateLassoControls();
+      return;
+    }
+  }
+
+  lassoSelection = null;
+  lassoDraft = { slotIdx: activeIdx, pointerId: event.pointerId, points: [point] };
+  document.getElementById('canvas-wrapper').setPointerCapture?.(event.pointerId);
+  drawSource();
+  drawOverlay();
+  updateLassoControls();
+}
+
+function onLassoPointerMove(event) {
+  if (lassoDraft?.pointerId === event.pointerId) {
+    const point = sourcePointFromEvent(event, true, true);
+    if (!point) return;
+    event.preventDefault();
+    const previous = lassoDraft.points.at(-1);
+    if (Math.hypot(point.x - previous.x, point.y - previous.y) < 0.5) return;
+    lassoDraft.points.push(point);
+    drawOverlay();
+    return;
+  }
+
+  if (!lassoSelection?.dragging || lassoSelection.pointerId !== event.pointerId) return;
+  const point = sourcePointFromEvent(event, true, true);
+  if (!point) return;
+  event.preventDefault();
+  const offset = clampLassoOffset(
+    lassoSelection.rect,
+    lassoSelection.dragStart.dx + point.x - lassoSelection.dragStart.point.x,
+    lassoSelection.dragStart.dy + point.y - lassoSelection.dragStart.point.y,
+    imageSlots[activeIdx].imgW,
+    imageSlots[activeIdx].imgH,
+  );
+  lassoSelection.dx = offset.dx;
+  lassoSelection.dy = offset.dy;
+  drawSource();
+  drawOverlay();
+}
+
+function finishLassoPointer(event, cancelled = false) {
+  const wrapper = document.getElementById('canvas-wrapper');
+  if (lassoDraft?.pointerId === event.pointerId) {
+    const draft = lassoDraft;
+    lassoDraft = null;
+    if (wrapper.hasPointerCapture?.(event.pointerId)) wrapper.releasePointerCapture(event.pointerId);
+    if (!cancelled && draft.slotIdx === activeIdx && draft.points.length >= 3) {
+      lassoSelection = buildLassoSelection(draft.points);
+      if (lassoSelection) {
+        setInfo('選択できました。囲みの内側をドラッグし、移動先で指を離してください。', 'warn');
+      } else {
+        toast('囲みの中に移動できる画像がありません');
+      }
+    }
+    drawSource();
+    drawOverlay();
+    updateLassoControls();
+    return;
+  }
+
+  if (!lassoSelection?.dragging || lassoSelection.pointerId !== event.pointerId) return;
+  const selection = lassoSelection;
+  selection.pointerId = null;
+  selection.dragging = false;
+  selection.dragStart = null;
+  if (wrapper.hasPointerCapture?.(event.pointerId)) wrapper.releasePointerCapture(event.pointerId);
+  if (cancelled) {
+    selection.dx = 0;
+    selection.dy = 0;
+    drawSource();
+    drawOverlay();
+    updateLassoControls();
+    return;
+  }
+  if (selection.dx !== 0 || selection.dy !== 0) {
+    commitLassoMove();
+    return;
+  }
+  setInfo('囲みの内側をドラッグすると移動できます。', 'warn');
+  updateLassoControls();
+}
+
+function commitLassoMove() {
+  if (!lassoSelection || lassoSelection.slotIdx !== activeIdx) return;
+  const slot = imageSlots[activeIdx];
+  const selection = lassoSelection;
+  const targetX = selection.rect.x + selection.dx;
+  const targetY = selection.rect.y + selection.dy;
+  const workingContext = slot.workingCanvas.getContext('2d');
+  const historyRects = [
+    selection.rect,
+    { x: targetX, y: targetY, w: selection.rect.w, h: selection.rect.h },
+  ].filter((rect, index, rects) => index === 0 || rect.x !== rects[0].x || rect.y !== rects[0].y);
+  slot.editHistory.push({
+    separatorStrokes: slot.separatorStrokes.map(stroke => ({
+      width: stroke.width,
+      points: stroke.points.map(point => ({ ...point })),
+    })),
+    patches: historyRects.map(rect => ({
+      ...rect,
+      imageData: workingContext.getImageData(rect.x, rect.y, rect.w, rect.h),
+    })),
+  });
+  if (slot.editHistory.length > 20) slot.editHistory.shift();
+
+  workingContext.clearRect(0, 0, slot.imgW, slot.imgH);
+  workingContext.drawImage(selection.baseCanvas, 0, 0);
+  workingContext.drawImage(selection.contentCanvas, targetX, targetY);
+  slot.separatorStrokes = [];
+  lassoSelection = null;
+  drawSource();
+  reDetectActiveSlot('選択したキャラを移動し、検出結果を更新しました。');
+  updateLassoControls();
+  toast('キャラを移動しました');
+}
+
+function undoLassoMove() {
+  if (activeIdx < 0) return;
+  const slot = imageSlots[activeIdx];
+  const history = slot.editHistory.pop();
+  if (!history) return;
+  lassoDraft = null;
+  lassoSelection = null;
+  const workingContext = slot.workingCanvas.getContext('2d');
+  history.patches.forEach(patch => workingContext.putImageData(patch.imageData, patch.x, patch.y));
+  slot.separatorStrokes = history.separatorStrokes;
+  drawSource();
+  reDetectActiveSlot('直前の移動を取り消し、検出結果を更新しました。');
+  updateLassoControls();
+  toast('直前の移動を戻しました');
+}
+
+function cancelLassoSelection(showMessage = true) {
+  if (!lassoDraft && !lassoSelection) return;
+  lassoDraft = null;
+  lassoSelection = null;
+  drawSource();
+  drawOverlay();
+  updateLassoControls();
+  if (showMessage) setInfo('選択を解除しました。画像は変更していません。');
+}
+
 /* =============================================================
    Manual separator strokes
 ============================================================= */
@@ -954,7 +1363,14 @@ function toggleSeparatorMode() {
   if (activeIdx < 0) return;
   separatorMode = !separatorMode;
   separatorStrokeDraft = null;
+  if (separatorMode) {
+    lassoMode = false;
+    lassoDraft = null;
+    lassoSelection = null;
+  }
+  drawSource();
   updateSeparatorControls();
+  updateLassoControls();
   drawOverlay();
 }
 
@@ -970,15 +1386,18 @@ function updateSeparatorControls() {
   document.getElementById('canvas-wrapper').classList.toggle('separator-mode', separatorMode && hasActiveSlot);
 }
 
-function sourcePointFromEvent(event) {
+function sourcePointFromEvent(event, clampToCanvas = false, continuous = false) {
   if (activeIdx < 0) return null;
   const canvas = document.getElementById('main-canvas');
   const rect = canvas.getBoundingClientRect();
-  if (!rect.width || !rect.height || event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) return null;
+  if (!rect.width || !rect.height) return null;
+  if (!clampToCanvas && (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom)) return null;
   const slot = imageSlots[activeIdx];
+  const rawX = (event.clientX - rect.left) * slot.imgW / rect.width;
+  const rawY = (event.clientY - rect.top) * slot.imgH / rect.height;
   return {
-    x: Math.max(0, Math.min(slot.imgW - 1, Math.round((event.clientX - rect.left) * slot.imgW / rect.width))),
-    y: Math.max(0, Math.min(slot.imgH - 1, Math.round((event.clientY - rect.top) * slot.imgH / rect.height))),
+    x: Math.max(0, Math.min(continuous ? slot.imgW : slot.imgW - 1, continuous ? rawX : Math.round(rawX))),
+    y: Math.max(0, Math.min(continuous ? slot.imgH : slot.imgH - 1, continuous ? rawY : Math.round(rawY))),
   };
 }
 
@@ -1043,6 +1462,7 @@ function reDetectActiveSlot(message) {
   slot.masks = detected.masks;
   imageSlots.forEach(item => { item.normalized = []; });
   const total = imageSlots.reduce((sum, item) => sum + item.rects.length, 0);
+  drawSource();
   drawOverlay();
   updateRectList();
   renderSlotStrip();
@@ -1050,17 +1470,13 @@ function reDetectActiveSlot(message) {
   updateExportButtons();
   document.getElementById('btn-preview').disabled = total === 0;
   updateSeparatorControls();
+  updateLassoControls();
   setInfo(total ? message : '分離後にキャラクターが検出されませんでした。分離線を取り消すか、検出設定を調整してください。', total ? 'ok' : 'err');
 }
 
 function sourceCanvasForSlot(slot) {
-  const canvas = document.createElement('canvas');
-  canvas.width = slot.imgW;
-  canvas.height = slot.imgH;
-  const context = canvas.getContext('2d');
-  context.imageSmoothingEnabled = false;
-  context.drawImage(slot.img, 0, 0);
-  return canvas;
+  if (!slot.workingCanvas) slot.workingCanvas = createWorkingCanvas(slot.img);
+  return slot.workingCanvas;
 }
 
 /* =============================================================
@@ -2254,6 +2670,9 @@ function resetAll() {
   imageSlots = []; activeIdx = -1;
   separatorMode = false;
   separatorStrokeDraft = null;
+  lassoMode = false;
+  lassoDraft = null;
+  lassoSelection = null;
 
   const mc=document.getElementById('main-canvas');
   mc.width=0; mc.height=0;
@@ -2284,6 +2703,7 @@ function resetAll() {
   updateCharacterMode(false);
   zoomReset();
   updateSeparatorControls();
+  updateLassoControls();
   toast('リセットしました');
 }
 
@@ -2295,6 +2715,11 @@ document.getElementById('canvas-wrapper').addEventListener('pointerdown', onSepa
 document.getElementById('canvas-wrapper').addEventListener('pointermove', onSeparatorPointerMove);
 document.getElementById('canvas-wrapper').addEventListener('pointerup', event => finishSeparatorStroke(event));
 document.getElementById('canvas-wrapper').addEventListener('pointercancel', event => finishSeparatorStroke(event, true));
+document.getElementById('canvas-wrapper').addEventListener('pointerdown', onLassoPointerDown);
+document.getElementById('canvas-wrapper').addEventListener('pointermove', onLassoPointerMove);
+document.getElementById('canvas-wrapper').addEventListener('pointerup', event => finishLassoPointer(event));
+document.getElementById('canvas-wrapper').addEventListener('pointercancel', event => finishLassoPointer(event, true));
+document.getElementById('canvas-wrapper').addEventListener('lostpointercapture', event => finishLassoPointer(event, true));
 
 // 設定変更を自動記憶（次回アクセス時に直前の設定を復元）
 document.getElementById('right-panel').addEventListener('input', persistSettings);
@@ -2325,6 +2750,7 @@ applyZoom();
 tryRestoreSaveDirectory();
 renderSlotStrip();
 updateSeparatorControls();
+updateLassoControls();
 </script>
 </body>
 </html>

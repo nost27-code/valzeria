@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-09-11-sprite-splitter-lasso-move',
+        'date' => '2026-09-11',
+        'category' => 'added',
+        'title' => 'スプライトを自由線で選択して移動可能に',
+        'detail' => 'スプライト分割ツールで、間隔のないキャラクターを自由線で囲み、ドラッグして離せるようにしました。移動後は検出結果を自動更新し、直前の移動は最大20回まで戻せます。',
+    ],
+    [
         'id' => '2026-09-11-hero-trial-unlock-copy',
         'date' => '2026-09-11',
         'category' => 'changed',
