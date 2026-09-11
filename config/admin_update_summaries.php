@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-09-11-exclusive-character-icon-052',
+        'date' => '2026-09-11',
+        'category' => 'internal',
+        'title' => '桜色の猫専用のキャラアイコンを追加',
+        'detail' => '桜色の猫さん専用の通常・勝利・戦闘・敗北の4ポーズキャラアイコンを追加しました。',
+    ],
+    [
         'id' => '2026-09-11-sprite-splitter-mobile-ui',
         'date' => '2026-09-11',
         'category' => 'changed',
