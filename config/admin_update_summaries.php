@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-09-12-exclusive-character-icon-055',
+        'date' => '2026-09-12',
+        'category' => 'internal',
+        'title' => 'まや専用のキャラアイコンを追加',
+        'detail' => 'まやさん専用の通常・勝利・戦闘・敗北の4ポーズキャラアイコンを追加しました。',
+    ],
+    [
         'id' => '2026-09-12-excellent-forge-log-operation-labels',
         'date' => '2026-09-12',
         'category' => 'changed',
