@@ -28,6 +28,7 @@ class AdminWebPushSourceEventTest extends TestCase
         $this->actingAs($reporter)
             ->withSession(['current_character_id' => $reporterCharacter->id])
             ->post(route('bug-reports.store'), [
+                'kind' => BugReport::KIND_BUG,
                 'body' => '戦闘結果画面で表示が崩れる不具合があります。',
             ])
             ->assertRedirect(route('bug-reports.create'));
@@ -80,6 +81,23 @@ class AdminWebPushSourceEventTest extends TestCase
 
         $this->assertNull($notification);
         $this->assertDatabaseCount('character_notifications', 0);
+    }
+
+    public function test_suggestion_uses_a_suggestion_admin_notification_title(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $recipient = $this->createCharacter($admin, 'ヴァル');
+        config()->set('web_push.admin_recipient_character_id', $recipient->id);
+        $suggestion = BugReport::query()->create([
+            'kind' => BugReport::KIND_SUGGESTION,
+            'body' => '国家レイドを改善してほしいです。',
+            'status' => 'new',
+        ]);
+
+        $notification = app(AdminWebPushNotificationService::class)->notifyBugReport($suggestion);
+
+        $this->assertNotNull($notification);
+        $this->assertSame('新しい改善要望があります', $notification->title);
     }
 
     private function createCharacter(User $user, string $name): Character

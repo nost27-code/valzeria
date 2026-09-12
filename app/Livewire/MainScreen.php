@@ -823,7 +823,7 @@ class MainScreen extends Component
             ['group' => '持ち物', 'name' => '倉庫', 'icon_image' => 'menu/menu_storage.webp', 'icon' => '📦', 'desc' => '素材や探索用アイテムを確認する', 'route' => 'inventory.index', 'status' => 'active'],
             ['group' => '交流', 'name' => '個人チャット', 'icon_image' => 'menu/menu_messages.webp', 'icon' => '✉️', 'desc' => '冒険者同士でメッセージをやり取りする', 'tab' => 'message', 'status' => 'active'],
             ['group' => '案内', 'name' => 'ヘルプ', 'icon_image' => 'menu/menu_help.webp', 'icon' => '📘', 'desc' => '遊び方や施設の説明を確認する', 'route' => 'town.guide', 'status' => 'active'],
-            ['group' => '案内', 'name' => '不具合報告', 'icon_image' => 'icon/icon_033.webp', 'icon' => '!', 'desc' => '不具合や表示崩れを管理人へ報告する', 'route' => 'bug-reports.create', 'status' => 'active'],
+            ['group' => '案内', 'name' => 'ご意見・不具合', 'icon_image' => 'icon/icon_033.webp', 'icon' => '!', 'desc' => '改善の要望や不具合を管理人へ届ける', 'route' => 'bug-reports.create', 'status' => 'active'],
             ...($characterIconDesignItem ? [$characterIconDesignItem] : []),
             ['group' => '設定', 'name' => '設定', 'icon_image' => 'menu/menu_settings.webp', 'icon' => '⚙️', 'desc' => '名前やアイコンなどを変更する', 'tab' => 'settings', 'status' => 'active'],
             ['group' => '設定', 'name' => 'スマホ通知', 'icon_image' => 'icon/icon_279.webp', 'icon_image_class' => 'h-6 w-6 object-contain', 'icon' => '🔔', 'desc' => '端末への通知と受け取る種類を設定する', 'route' => 'smartphone-notifications.edit', 'status' => 'active'],

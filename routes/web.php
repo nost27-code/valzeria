@@ -261,7 +261,9 @@ Route::middleware('auth')->group(function () {
             ->name('nation-raid.trial.battle');
 
         Route::get('/bug-reports/create', [\App\Http\Controllers\BugReportController::class, 'create'])->name('bug-reports.create');
-        Route::post('/bug-reports', [\App\Http\Controllers\BugReportController::class, 'store'])->name('bug-reports.store');
+        Route::post('/bug-reports', [\App\Http\Controllers\BugReportController::class, 'store'])
+            ->middleware('throttle:10,1')
+            ->name('bug-reports.store');
         Route::get('/character-icon-design', [\App\Http\Controllers\CharacterIconDesignController::class, 'show'])->name('character-icon-design.show');
         Route::post('/character-icon-design/form', [\App\Http\Controllers\CharacterIconDesignController::class, 'saveForm'])->name('character-icon-design.form.save');
         Route::get('/character-icon-design/confirm', [\App\Http\Controllers\CharacterIconDesignController::class, 'confirm'])->name('character-icon-design.form.confirm');

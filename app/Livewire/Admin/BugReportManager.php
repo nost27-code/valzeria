@@ -14,6 +14,8 @@ class BugReportManager extends Component
 
     public string $status = 'new';
 
+    public string $kind = 'all';
+
     public string $search = '';
 
     public ?int $selectedReportId = null;
@@ -21,6 +23,12 @@ class BugReportManager extends Component
     public string $replyMessage = '';
 
     public function updatedStatus(): void
+    {
+        $this->resetPage();
+        $this->selectedReportId = null;
+    }
+
+    public function updatedKind(): void
     {
         $this->resetPage();
         $this->selectedReportId = null;
@@ -59,7 +67,15 @@ class BugReportManager extends Component
             return;
         }
 
-        $logService->addAdminPrivateMessage(trim($this->replyMessage), $report->character);
+        $notificationContext = $report->isSuggestion()
+            ? '改善要望への返答'
+            : '不具合フォームへの返答';
+
+        $logService->addAdminPrivateMessage(
+            trim($this->replyMessage),
+            $report->character,
+            $notificationContext,
+        );
 
         if ($report->status === 'new') {
             $report->update(['status' => 'read', 'read_at' => now()]);
@@ -88,13 +104,22 @@ class BugReportManager extends Component
             ? explode('?', $report->reported_url, 2)[0]
             : '未取得';
 
+        $title = $report->isSuggestion() ? '# 改善要望の検討依頼' : '# 不具合調査依頼';
+        $intro = $report->isSuggestion()
+            ? '「ヴァルゼリアの冒険者」の現行仕様と関連実装を確認し、以下の改善要望を検討してください。'
+            : '「ヴァルゼリアの冒険者」の現行コードを確認し、以下の報告を調査してください。';
+        $request = $report->isSuggestion()
+            ? '要望の目的、現在の仕様、影響範囲、最小実装案、確認方法を日本語で整理してください。未確定の仕様や数値は推測せず、要裁定として示してください。'
+            : '現在の仕様、原因、再現条件、影響範囲、問題なら最小修正案と確認方法を日本語で報告してください。';
+
         return implode("\n", [
-            '# 不具合調査依頼',
+            $title,
             '',
-            '「ヴァルゼリアの冒険者」の現行コードを確認し、以下の報告を調査してください。',
-            '現在の仕様、原因、再現条件、影響範囲、問題なら最小修正案と確認方法を日本語で報告してください。',
+            $intro,
+            $request,
             '',
             '## 報告情報',
+            '- 種類: ' . $report->kindLabel(),
             '- 報告者: ' . ($report->character?->name ?? 'キャラクター不明'),
             '- 送信日時: ' . $report->created_at->format('Y/m/d H:i'),
             '- 職業: ' . ($report->character?->jobClass?->name ?? '未取得'),
@@ -106,7 +131,7 @@ class BugReportManager extends Component
             $report->body,
             '',
             '## 添付画像について',
-            '必要に応じて、この依頼文を貼り付けた後に不具合フォームの添付画像を続けて貼り付けます。',
+            '必要に応じて、この依頼文を貼り付けた後に添付画像を続けて貼り付けます。',
         ]);
     }
 
@@ -116,6 +141,10 @@ class BugReportManager extends Component
 
         if ($this->status !== 'all') {
             $query->where('status', $this->status);
+        }
+
+        if (in_array($this->kind, BugReport::KINDS, true)) {
+            $query->where('kind', $this->kind);
         }
 
         if ($this->search !== '') {
@@ -146,17 +175,27 @@ class BugReportManager extends Component
                 ->get()
             : collect();
 
+        $statusCountQuery = BugReport::query();
+        if (in_array($this->kind, BugReport::KINDS, true)) {
+            $statusCountQuery->where('kind', $this->kind);
+        }
+
         return view('livewire.admin.bug-report-manager', [
             'reports' => $reports,
             'selectedReport' => $selectedReport,
             'adminConversation' => $adminConversation,
             'codexInvestigationText' => $selectedReport ? $this->codexInvestigationText($selectedReport) : '',
             'counts' => [
-                'new' => BugReport::where('status', 'new')->count(),
-                'read' => BugReport::where('status', 'read')->count(),
-                'resolved' => BugReport::where('status', 'resolved')->count(),
-                'archived' => BugReport::where('status', 'archived')->count(),
+                'new' => (clone $statusCountQuery)->where('status', 'new')->count(),
+                'read' => (clone $statusCountQuery)->where('status', 'read')->count(),
+                'resolved' => (clone $statusCountQuery)->where('status', 'resolved')->count(),
+                'archived' => (clone $statusCountQuery)->where('status', 'archived')->count(),
+                'all' => (clone $statusCountQuery)->count(),
+            ],
+            'kindCounts' => [
                 'all' => BugReport::count(),
+                BugReport::KIND_SUGGESTION => BugReport::where('kind', BugReport::KIND_SUGGESTION)->count(),
+                BugReport::KIND_BUG => BugReport::where('kind', BugReport::KIND_BUG)->count(),
             ],
         ])->layout('components.layouts.admin');
     }

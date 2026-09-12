@@ -1,4 +1,4 @@
-<x-layouts.facility title="不具合報告" headerIcon="!" bgImage="images/bg-castle.webp" :showGameHeader="true">
+<x-layouts.facility title="ご意見・不具合" headerIcon="!" bgImage="images/bg-castle.webp" :showGameHeader="true">
     <div class="mx-auto w-full max-w-3xl px-3 py-5 sm:px-6 sm:py-8">
         @if(session('status'))
             <div class="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-black text-emerald-800">
@@ -7,11 +7,12 @@
         @endif
 
         <section class="rounded-xl border border-amber-200 bg-white p-4 shadow-sm sm:p-6">
-            <h2 class="text-xl font-black text-slate-950">不具合を報告する</h2>
-            <p class="mt-2 text-sm font-bold leading-7 text-slate-600">発生した画面、操作、表示内容などをできるだけ詳しく教えてください。</p>
+            <h2 class="text-xl font-black text-slate-950">ご意見・不具合を送る</h2>
+            <p class="mt-2 text-sm font-bold leading-7 text-slate-600">レイドや国家などの改善案、不具合や表示崩れを管理人へ届けられます。</p>
+            <p class="mt-1 text-xs font-bold leading-6 text-slate-500">改善の要望はすべてに個別回答できない場合がありますが、今後の検討に活用します。</p>
 
             <section class="mt-4 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3" aria-label="送信時に記録される情報">
-                <div class="text-xs font-black tracking-wide text-slate-500">今回の報告と一緒に記録される情報</div>
+                <div class="text-xs font-black tracking-wide text-slate-500">今回の送信と一緒に記録される情報</div>
                 <dl class="mt-2 grid gap-2 text-sm sm:grid-cols-[8rem_minmax(0,1fr)]">
                     <dt class="font-black text-slate-700">キャラクター名</dt>
                     <dd class="font-bold text-slate-900">{{ $character?->name ?? '取得できませんでした' }}</dd>
@@ -25,12 +26,34 @@
                 <div class="mt-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">入力内容を確認してください。</div>
             @endif
 
-            <form method="POST" action="{{ route('bug-reports.store') }}" enctype="multipart/form-data" class="mt-5 space-y-5" data-submit-lock data-loading-text="送信中...">
+            <form method="POST" action="{{ route('bug-reports.store') }}" enctype="multipart/form-data" class="mt-5 space-y-5" data-submit-lock data-loading-text="送信中..." x-data="{ reportKind: @js(old('kind', '')) }">
                 @csrf
+                <fieldset>
+                    <legend class="block text-sm font-black text-slate-800">送りたい内容</legend>
+                    <div class="mt-1.5 grid grid-cols-2 gap-2 rounded-lg bg-slate-100 p-1">
+                        <label class="flex min-h-12 cursor-pointer items-center justify-center rounded-md px-3 text-center text-sm font-black transition"
+                               :class="reportKind === 'suggestion' ? 'bg-white text-amber-900 shadow-sm ring-1 ring-amber-200' : 'text-slate-600 hover:bg-white/70'">
+                            <input type="radio" name="kind" value="suggestion" x-model="reportKind" class="sr-only" required @checked(old('kind') === 'suggestion')>
+                            改善の要望
+                        </label>
+                        <label class="flex min-h-12 cursor-pointer items-center justify-center rounded-md px-3 text-center text-sm font-black transition"
+                               :class="reportKind === 'bug' ? 'bg-white text-rose-800 shadow-sm ring-1 ring-rose-200' : 'text-slate-600 hover:bg-white/70'">
+                            <input type="radio" name="kind" value="bug" x-model="reportKind" class="sr-only" required @checked(old('kind') === 'bug')>
+                            不具合報告
+                        </label>
+                    </div>
+                    @error('kind')<div class="mt-1 text-xs font-bold text-red-600">{{ $message }}</div>@enderror
+                </fieldset>
+
                 <div>
-                    <label for="body" class="block text-sm font-black text-slate-800">不具合の内容</label>
-                    <textarea id="body" name="body" rows="10" required minlength="10" maxlength="5000" placeholder="例：探索後に報酬画面でボタンを押すと、画面が進まなくなりました。&#10;発生した時間：&#10;操作手順：" class="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-3 text-sm font-semibold leading-7 text-slate-800 shadow-sm focus:border-amber-500 focus:ring-amber-500">{{ old('body') }}</textarea>
-                    <div class="mt-1 flex justify-between text-xs font-bold text-slate-400"><span>発生時刻・操作手順・表示内容があると確認しやすくなります。</span><span>最大5,000文字</span></div>
+                    <label for="body" class="block text-sm font-black text-slate-800" x-text="reportKind === 'suggestion' ? '改善してほしいこと' : (reportKind === 'bug' ? '不具合の内容' : '内容')">内容</label>
+                    <textarea id="body" name="body" rows="10" required minlength="10" maxlength="5000" placeholder="どの画面や機能について、何を改善してほしいか、または何が起きたかを入力してください。" class="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-3 text-sm font-semibold leading-7 text-slate-800 shadow-sm focus:border-amber-500 focus:ring-amber-500">{{ old('body') }}</textarea>
+                    <div class="mt-1 flex items-start justify-between gap-3 text-xs font-bold text-slate-400">
+                        <span x-show="reportKind === 'suggestion'" x-cloak>今困っていることと、どうなると遊びやすいかが分かると検討しやすくなります。</span>
+                        <span x-show="reportKind === 'bug'" x-cloak>発生時刻・操作手順・表示内容があると確認しやすくなります。</span>
+                        <span x-show="reportKind === ''">先に送りたい内容を選んでください。</span>
+                        <span class="shrink-0">最大5,000文字</span>
+                    </div>
                     @error('body')<div class="mt-1 text-xs font-bold text-red-600">{{ $message }}</div>@enderror
                 </div>
 
@@ -92,7 +115,7 @@
                 </div>
 
                 <button type="submit" class="inline-flex min-h-12 w-full items-center justify-center rounded-lg bg-slate-950 px-5 text-sm font-black text-white shadow transition hover:bg-slate-800 sm:w-auto">
-                    不具合を報告する
+                    <span x-text="reportKind === 'suggestion' ? '改善の要望を送る' : (reportKind === 'bug' ? '不具合を報告する' : '管理人へ送る')">管理人へ送る</span>
                 </button>
             </form>
         </section>

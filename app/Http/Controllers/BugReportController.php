@@ -23,12 +23,15 @@ class BugReportController extends Controller
     public function store(Request $request, AdminWebPushNotificationService $adminNotifications)
     {
         $validated = $request->validate([
+            'kind' => ['required', 'string', 'in:'.implode(',', BugReport::KINDS)],
             'body' => ['required', 'string', 'min:10', 'max:5000'],
             'attachments' => ['nullable', 'array', 'max:5'],
             'attachments.*' => ['file', 'image', 'mimes:jpg,jpeg,png,webp,gif', 'max:5120'],
         ], [
-            'body.required' => '不具合の内容を入力してください。',
-            'body.min' => '状況が分かるよう、10文字以上で入力してください。',
+            'kind.required' => '送りたい内容の種類を選んでください。',
+            'kind.in' => '送りたい内容の種類を選び直してください。',
+            'body.required' => '内容を入力してください。',
+            'body.min' => '内容が分かるよう、10文字以上で入力してください。',
             'attachments.max' => '画像は5枚まで添付できます。',
             'attachments.*.uploaded' => '画像のアップロードに失敗しました。画像1枚は5MB以内で選び直してください。',
             'attachments.*.image' => '画像ファイルのみ添付できます。',
@@ -42,6 +45,7 @@ class BugReportController extends Controller
             $report = BugReport::create([
                 'user_id' => $user->id,
                 'character_id' => $character?->id,
+                'kind' => $validated['kind'],
                 'body' => trim($validated['body']),
                 'status' => 'new',
                 'reported_url' => $request->headers->get('referer'),
@@ -66,10 +70,13 @@ class BugReportController extends Controller
         });
 
         $adminNotifications->notifyBugReport($report);
+        $statusMessage = $validated['kind'] === BugReport::KIND_SUGGESTION
+            ? '改善の要望を受け付けました。届けていただきありがとうございます。今後の改善検討に活用します。'
+            : '不具合報告を受け付けました。ご協力ありがとうございます。';
 
         return redirect()
             ->route('bug-reports.create')
-            ->with('status', '不具合報告を受け付けました。ご協力ありがとうございます。');
+            ->with('status', $statusMessage);
     }
 
     public function attachment(BugReportAttachment $attachment)

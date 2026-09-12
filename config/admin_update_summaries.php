@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-09-13-in-game-feedback-suggestions',
+        'date' => '2026-09-13',
+        'category' => 'added',
+        'title' => 'ゲーム内から改善要望を送信可能に',
+        'detail' => '冒険者メニューの「ご意見・不具合」から、改善の要望または不具合報告を選んで管理人へ送れるようにしました。画像添付と管理人との個人チャットも引き続き利用できます。',
+    ],
+    [
         'id' => '2026-09-12-exclusive-character-icon-055',
         'date' => '2026-09-12',
         'category' => 'internal',

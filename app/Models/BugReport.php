@@ -8,6 +8,15 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class BugReport extends Model
 {
+    public const KIND_BUG = 'bug';
+
+    public const KIND_SUGGESTION = 'suggestion';
+
+    public const KINDS = [
+        self::KIND_BUG,
+        self::KIND_SUGGESTION,
+    ];
+
     protected $guarded = [];
 
     protected $casts = [
@@ -28,5 +37,15 @@ class BugReport extends Model
     public function attachments(): HasMany
     {
         return $this->hasMany(BugReportAttachment::class);
+    }
+
+    public function isSuggestion(): bool
+    {
+        return $this->kind === self::KIND_SUGGESTION;
+    }
+
+    public function kindLabel(): string
+    {
+        return $this->isSuggestion() ? '改善の要望' : '不具合報告';
     }
 }

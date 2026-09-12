@@ -88,7 +88,7 @@
                 'items' => [
                     ['route' => 'admin.security-anomalies', 'label' => '異常検知・不正調査', 'abbr' => 'P1'],
                     ['route' => 'admin.players', 'label' => 'プレイヤー一覧', 'abbr' => 'P'],
-                    ['route' => 'admin.bug-reports', 'label' => '不具合フォーム', 'abbr' => '!'],
+                    ['route' => 'admin.bug-reports', 'label' => 'ご意見・不具合', 'abbr' => '!'],
                     ['route' => 'admin.character-icon-design.index', 'active' => 'admin.character-icon-design.*', 'label' => 'キャラアイコン制作', 'abbr' => 'CI'],
                     ['route' => 'admin.user-investigation', 'label' => 'ユーザー調査', 'abbr' => 'U'],
                     ['route' => 'admin.player-controls', 'label' => '輝石付与・プレイヤー調整', 'abbr' => 'C'],

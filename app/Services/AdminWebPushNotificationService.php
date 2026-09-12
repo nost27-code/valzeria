@@ -54,7 +54,9 @@ class AdminWebPushNotificationService
     {
         return $this->notify(
             type: self::TYPE_BUG_REPORT,
-            title: '新しい不具合報告があります',
+            title: $report->isSuggestion()
+                ? '新しい改善要望があります'
+                : '新しい不具合報告があります',
             actionRoute: 'admin.bug-reports',
             sourceType: 'bug_report',
             sourceId: (int) $report->getKey(),
