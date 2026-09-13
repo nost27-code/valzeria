@@ -1204,9 +1204,12 @@
                                                         @csrf
                                                         <input type="hidden" name="batch_count" x-bind:value="effectiveCount" value="1">
 
-                                                        <div class="mb-1 text-left text-[11px] font-black text-slate-700">探索回数</div>
-                                                        <div class="grid grid-cols-3 overflow-hidden rounded border border-slate-300 bg-white"
-                                                             x-bind:style="customSelected ? 'grid-template-columns: 42px 42px minmax(124px, 1fr)' : 'grid-template-columns: repeat(3, minmax(0, 1fr))'"
+                                                        <div class="mb-1 flex items-center justify-between gap-2 text-[10px] font-black text-slate-600">
+                                                            <span>探索回数</span>
+                                                            <span class="text-slate-500">直接入力（2〜50回）</span>
+                                                        </div>
+                                                        <div class="grid h-11 overflow-hidden rounded border border-slate-300 bg-white"
+                                                             style="grid-template-columns: 48px 48px minmax(144px, 1fr);"
                                                              role="group"
                                                              aria-label="探索回数">
                                                             @foreach($quickRepeatCounts as $repeatCount)
@@ -1214,55 +1217,46 @@
                                                                         @click="selectFixedCount({{ $repeatCount }})"
                                                                         x-bind:aria-pressed="!customSelected && selectedCount === {{ $repeatCount }}"
                                                                         x-bind:class="!customSelected && selectedCount === {{ $repeatCount }} ? 'bg-sky-700 text-white shadow-inner' : 'bg-white text-slate-700 hover:bg-slate-50'"
-                                                                        class="min-h-11 border-r border-slate-200 px-0.5 py-1.5 text-xs font-black transition last:border-r-0">
+                                                                        class="min-h-11 border-r border-slate-200 px-0.5 py-1.5 text-[11px] font-black transition last:border-r-0">
                                                                     {{ $repeatCount }}回
                                                                 </button>
                                                             @endforeach
-                                                            <div class="min-w-0">
+                                                            <div class="flex h-11 min-w-0 items-stretch transition focus-within:ring-2 focus-within:ring-inset focus-within:ring-sky-300"
+                                                                 x-bind:class="customSelected ? 'bg-sky-700 text-white shadow-inner' : 'bg-white text-slate-700'"
+                                                                 role="group"
+                                                                 aria-label="任意の探索回数を調整">
                                                                 <button type="button"
-                                                                        x-show="!customSelected"
-                                                                        @click="selectCustomCount()"
-                                                                        x-bind:aria-pressed="customSelected"
-                                                                        class="flex min-h-11 w-full flex-col items-center justify-center gap-0.5 px-0.5 py-1 font-black text-slate-700 transition hover:bg-slate-50">
-                                                                    <span class="text-xs leading-none">回数指定</span>
-                                                                    <span class="text-[9px] font-bold leading-none text-slate-500">（2〜50回）</span>
+                                                                        @click="adjustCustomCount(-1)"
+                                                                        x-bind:disabled="effectiveCount <= {{ $minCustomRepeatCount }}"
+                                                                        aria-label="探索回数を1減らす"
+                                                                        class="inline-flex h-11 w-11 shrink-0 touch-manipulation items-center justify-center border-r border-slate-300 text-lg font-black leading-none transition hover:bg-black/10 disabled:cursor-not-allowed disabled:opacity-40">
+                                                                    <span aria-hidden="true">−</span>
                                                                 </button>
-                                                                <div x-show="customSelected"
-                                                                     style="display:none"
-                                                                     class="flex h-11 min-w-0 items-stretch bg-sky-700 text-white shadow-inner focus-within:ring-2 focus-within:ring-inset focus-within:ring-sky-300"
-                                                                     role="group"
-                                                                     aria-label="任意の探索回数を調整">
-                                                                    <span class="sr-only">2〜50回</span>
-                                                                    <button type="button"
-                                                                            @click="adjustCustomCount(-1)"
-                                                                            x-bind:disabled="effectiveCount <= {{ $minCustomRepeatCount }}"
-                                                                            aria-label="探索回数を1減らす"
-                                                                            class="inline-flex h-11 w-11 shrink-0 touch-manipulation items-center justify-center border-r border-sky-500 bg-sky-700 text-xl font-black leading-none text-white transition hover:bg-sky-800 active:bg-sky-900 disabled:cursor-not-allowed disabled:text-sky-300 disabled:opacity-60">
-                                                                        <span aria-hidden="true">−</span>
-                                                                    </button>
-                                                                    <label class="flex h-11 min-w-0 flex-1 items-center justify-center">
-                                                                        <span class="sr-only">探索回数</span>
-                                                                        <input type="number"
-                                                                               min="{{ $minCustomRepeatCount }}"
-                                                                               max="{{ $maxRepeatCount }}"
-                                                                               step="1"
-                                                                               inputmode="numeric"
-                                                                               aria-label="任意の探索回数（2〜50回）"
-                                                                               x-model.number="customCount"
-                                                                               @focus="$event.target.select()"
-                                                                               @input="customSelected = true"
-                                                                               @change="normalizeCustomCount()"
-                                                                               @blur="normalizeCustomCount()"
-                                                                               class="h-11 min-w-0 w-full border-0 bg-sky-700 px-0.5 text-center text-sm font-black text-white [appearance:textfield] focus:outline-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none">
-                                                                    </label>
-                                                                    <button type="button"
-                                                                            @click="adjustCustomCount(1)"
-                                                                            x-bind:disabled="effectiveCount >= {{ $maxRepeatCount }}"
-                                                                            aria-label="探索回数を1増やす"
-                                                                            class="inline-flex h-11 w-11 shrink-0 touch-manipulation items-center justify-center border-l border-sky-500 bg-sky-700 text-xl font-black leading-none text-white transition hover:bg-sky-800 active:bg-sky-900 disabled:cursor-not-allowed disabled:text-sky-300 disabled:opacity-60">
-                                                                        <span aria-hidden="true">＋</span>
-                                                                    </button>
-                                                                </div>
+                                                                <label class="flex h-11 min-w-0 flex-1 items-center justify-center">
+                                                                    <span class="sr-only">探索回数</span>
+                                                                    <input type="number"
+                                                                           min="{{ $minCustomRepeatCount }}"
+                                                                           max="{{ $maxRepeatCount }}"
+                                                                           step="1"
+                                                                           inputmode="numeric"
+                                                                           data-exploration-repeat-count
+                                                                           aria-label="任意の探索回数（2〜50回）"
+                                                                           x-model.number="customCount"
+                                                                           @focus="selectCustomCount(); $event.target.select()"
+                                                                           @input="customSelected = true"
+                                                                           @change="normalizeCustomCount()"
+                                                                           @blur="normalizeCustomCount()"
+                                                                           @keydown.enter.prevent="normalizeCustomCount()"
+                                                                           class="h-11 min-w-0 w-full border-0 bg-transparent px-1 text-right text-sm font-black tabular-nums text-current [appearance:textfield] focus:outline-none focus:ring-0 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none">
+                                                                    <span class="pr-2 text-[11px] font-black">回</span>
+                                                                </label>
+                                                                <button type="button"
+                                                                        @click="adjustCustomCount(1)"
+                                                                        x-bind:disabled="effectiveCount >= {{ $maxRepeatCount }}"
+                                                                        aria-label="探索回数を1増やす"
+                                                                        class="inline-flex h-11 w-11 shrink-0 touch-manipulation items-center justify-center border-l border-slate-300 text-lg font-black leading-none transition hover:bg-black/10 disabled:cursor-not-allowed disabled:opacity-40">
+                                                                    <span aria-hidden="true">＋</span>
+                                                                </button>
                                                             </div>
                                                         </div>
 

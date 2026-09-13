@@ -473,7 +473,17 @@
                                             remainingQty: {{ (int) $cm->quantity }},
                                             maxQty: {{ max(1, (int) $cm->quantity) }},
                                             unitPrice: {{ $unitSalePrice }},
-                                            setSaleQty(v) { this.saleQty = Math.max(0, Math.min(this.remainingQty, parseInt(v) || 0)); if (this.saleQty > 0) this.$store.matSales.set({{ $cm->id }}, this.saleQty, this.unitPrice); else this.$store.matSales.remove({{ $cm->id }}); },
+                                            setSaleQty(v, allowEmpty = false) {
+                                                const raw = String(v ?? '').trim();
+                                                if (allowEmpty && raw === '') {
+                                                    this.saleQty = '';
+                                                    this.$store.matSales.remove({{ $cm->id }});
+                                                    return;
+                                                }
+                                                const parsed = Number.parseInt(raw, 10);
+                                                this.saleQty = Math.max(0, Math.min(this.remainingQty, Number.isFinite(parsed) ? parsed : 0));
+                                                if (this.saleQty > 0) this.$store.matSales.set({{ $cm->id }}, this.saleQty, this.unitPrice); else this.$store.matSales.remove({{ $cm->id }});
+                                            },
                                             decrease() { this.discardQty = Math.max(1, this.discardQty - 1); },
                                             increase() { this.discardQty = Math.min(this.maxQty, this.discardQty + 1); },
                                             setQty(v) { this.discardQty = Math.max(1, Math.min(this.maxQty, parseInt(v) || 1)); },
@@ -552,36 +562,54 @@
                                         @if($canSellMaterial)
                                             <div class="mt-2 pt-2 border-t border-slate-100">
                                                 <div class="flex items-center justify-between mb-1.5">
-                                                    <span class="text-[11px] text-slate-400">
-                                                        {{ number_format($unitSalePrice) }}G/個
+                                                    <span class="text-[11px] font-bold text-slate-600">
+                                                        売却数 <strong class="font-black text-slate-900 tabular-nums" x-text="saleQty || 0">0</strong>個
+                                                    </span>
+                                                    <span class="text-right text-[11px] text-slate-400">
+                                                        単価 {{ number_format($unitSalePrice) }}G
                                                         <template x-if="saleQty > 0">
                                                             <span> → 合計 <span class="font-bold text-amber-700" x-text="(saleQty * unitPrice).toLocaleString()"></span>G</span>
                                                         </template>
                                                     </span>
-                                                    <div class="flex gap-1">
-                                                        <button type="button" @click="setSaleQty(1)" class="text-[10px] text-slate-400 hover:text-slate-600 px-1">1</button>
-                                                        <button type="button" @click="setSaleQty(Math.ceil(remainingQty / 2))" class="text-[10px] text-slate-400 hover:text-slate-600 px-1">半</button>
-                                                        <button type="button" @click="setSaleQty(remainingQty)" class="text-[10px] text-slate-400 hover:text-slate-600 px-1">全</button>
-                                                    </div>
                                                 </div>
-                                                <div class="flex items-center gap-1.5">
-                                                    <button type="button" @click="setSaleQty(saleQty - 1)"
+                                                <div class="flex items-center gap-1.5" role="group" aria-label="素材の売却数">
+                                                    <button type="button" @click="setSaleQty((Number.parseInt(saleQty, 10) || 0) - 1)"
                                                         :disabled="saleQty <= 0"
-                                                        class="w-7 h-7 shrink-0 rounded border border-slate-300 bg-slate-50 text-sm font-bold text-slate-600 hover:bg-slate-100 disabled:opacity-30 flex items-center justify-center">−</button>
-                                                    <input type="range" min="0" :max="remainingQty" :value="saleQty"
-                                                        @input="setSaleQty($event.target.value)"
-                                                        class="flex-1 h-2 accent-amber-500 cursor-pointer">
-                                                    <button type="button" @click="setSaleQty(saleQty + 1)"
+                                                        class="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-slate-300 bg-slate-50 text-lg font-black text-slate-700 hover:bg-slate-100 disabled:opacity-30"
+                                                        aria-label="売却数を1個減らす">−</button>
+                                                    <label class="flex h-11 min-w-0 flex-1 items-center overflow-hidden rounded-lg border border-slate-300 bg-white focus-within:border-amber-500 focus-within:ring-2 focus-within:ring-amber-100">
+                                                        <span class="sr-only">売却数</span>
+                                                        <input type="number" min="0" :max="remainingQty" step="1" inputmode="numeric"
+                                                            :value="saleQty"
+                                                            data-inventory-sale-quantity
+                                                            @input="setSaleQty($event.target.value, true)"
+                                                            @focus="$event.target.select()"
+                                                            @change="setSaleQty($event.target.value)"
+                                                            @blur="setSaleQty($event.target.value)"
+                                                            class="h-11 min-w-0 w-full border-0 px-2 text-right text-sm font-black tabular-nums text-slate-900 [appearance:textfield] focus:ring-0 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none">
+                                                        <span class="pr-3 text-xs font-black text-slate-500">個</span>
+                                                    </label>
+                                                    <button type="button" @click="setSaleQty((Number.parseInt(saleQty, 10) || 0) + 1)"
                                                         :disabled="saleQty >= remainingQty"
-                                                        class="w-7 h-7 shrink-0 rounded border border-slate-300 bg-slate-50 text-sm font-bold text-slate-600 hover:bg-slate-100 disabled:opacity-30 flex items-center justify-center">+</button>
+                                                        class="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-slate-300 bg-slate-50 text-lg font-black text-slate-700 hover:bg-slate-100 disabled:opacity-30"
+                                                        aria-label="売却数を1個増やす">＋</button>
                                                     <form method="POST" action="{{ route('inventory.sell') }}" class="shrink-0">
                                                         @csrf
                                                         <input type="hidden" name="character_material_id" value="{{ $cm->id }}">
-                                                        <input type="hidden" name="quantity" :value="saleQty">
+                                                        <input type="hidden" name="quantity" :value="saleQty || 0">
                                                         <button type="submit"
                                                             :disabled="saleQty <= 0"
-                                                            class="rounded bg-amber-600 px-2.5 py-1.5 text-xs font-extrabold text-white shadow-sm hover:bg-amber-700 disabled:opacity-30 disabled:cursor-not-allowed">売る</button>
+                                                            class="h-11 rounded-lg bg-amber-600 px-3 text-xs font-extrabold text-white shadow-sm hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-30">売る</button>
                                                     </form>
+                                                </div>
+                                                <input type="range" min="0" :max="remainingQty" :value="saleQty || 0"
+                                                    @input="setSaleQty($event.target.value)"
+                                                    aria-label="売却数をスライダーで選ぶ"
+                                                    class="mt-2 h-2 w-full cursor-pointer accent-amber-500">
+                                                <div class="mt-2 grid grid-cols-3 gap-1.5" role="group" aria-label="売却数をすばやく選ぶ">
+                                                    <button type="button" @click="setSaleQty(1)" class="min-h-9 rounded-md border border-slate-200 bg-slate-50 px-2 text-[11px] font-black text-slate-600 hover:bg-slate-100">1個</button>
+                                                    <button type="button" @click="setSaleQty(Math.ceil(remainingQty / 2))" class="min-h-9 rounded-md border border-slate-200 bg-slate-50 px-2 text-[11px] font-black text-slate-600 hover:bg-slate-100">半分</button>
+                                                    <button type="button" @click="setSaleQty(remainingQty)" class="min-h-9 rounded-md border border-slate-200 bg-slate-50 px-2 text-[11px] font-black text-slate-600 hover:bg-slate-100">全部</button>
                                                 </div>
                                             </div>
                                         @else

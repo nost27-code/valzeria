@@ -662,17 +662,38 @@
                                     </div>
                                     <form method="POST" action="{{ route('valmons.feed.material', [$partner, $row]) }}"
                                           class="flex flex-col items-end gap-2 sm:flex-row sm:items-center"
-                                          x-data="{ qty: 1, max: {{ (int) $row->quantity }} }"
-                                          @submit="if (feedSubmitting) { $event.preventDefault(); return; } feedSubmitting = true">
+                                          x-data="{
+                                              qty: 1,
+                                              max: {{ (int) $row->quantity }},
+                                              normalizeQty() {
+                                                  const parsed = Number.parseInt(this.qty, 10);
+                                                  this.qty = Number.isFinite(parsed)
+                                                      ? Math.min(this.max, Math.max(1, parsed))
+                                                      : 1;
+                                                  return this.qty;
+                                              }
+                                          }"
+                                          @submit="
+                                              if (feedSubmitting) { $event.preventDefault(); return; }
+                                              qty = normalizeQty();
+                                              $refs.quantity.value = qty;
+                                              feedSubmitting = true;
+                                          ">
                                         @csrf
                                         <div class="flex items-center overflow-hidden rounded-lg border border-slate-300 bg-white shadow-sm">
                                             <button type="button" class="flex h-11 w-11 items-center justify-center border-r border-slate-200 text-lg font-black text-slate-700 hover:bg-slate-50 disabled:text-slate-300"
-                                                @click="qty = Math.max(1, qty - 1)" :disabled="qty <= 1">-</button>
-                                            <input type="number" name="quantity" x-model.number="qty" min="1" max="{{ $row->quantity }}"
-                                                class="h-11 w-14 border-0 p-0 text-center text-sm font-black text-slate-900 focus:ring-0"
-                                                @input="qty = Math.min(max, Math.max(1, Number(qty) || 1))">
+                                                @click="qty = Math.max(1, (Number.parseInt(qty, 10) || 1) - 1)" :disabled="qty <= 1">−</button>
+                                            <input type="number" name="quantity" x-model="qty" min="1" max="{{ $row->quantity }}" step="1" inputmode="numeric" required
+                                                x-ref="quantity"
+                                                data-valmon-material-feed-quantity
+                                                aria-label="{{ $row->material?->displayName() }}を餌にする個数"
+                                                class="h-11 w-16 border-0 p-0 text-center text-sm font-black text-slate-900 [appearance:textfield] focus:ring-0 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                                                @focus="$event.target.select()"
+                                                @blur="normalizeQty()"
+                                                @change="normalizeQty()"
+                                                @keydown.enter.prevent="normalizeQty(); $nextTick(() => $refs.quantity.form.requestSubmit())">
                                             <button type="button" class="flex h-11 w-11 items-center justify-center border-l border-slate-200 text-lg font-black text-slate-700 hover:bg-slate-50 disabled:text-slate-300"
-                                                @click="qty = Math.min(max, qty + 1)" :disabled="qty >= max">+</button>
+                                                @click="qty = Math.min(max, (Number.parseInt(qty, 10) || 1) + 1)" :disabled="qty >= max">＋</button>
                                         </div>
                                         <button type="submit"
                                                 :disabled="feedSubmitting"
