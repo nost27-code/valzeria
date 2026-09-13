@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-09-13-exclusive-character-icon-057',
+        'date' => '2026-09-13',
+        'category' => 'internal',
+        'title' => 'ユーリィ専用のキャラアイコンを追加',
+        'detail' => 'ユーリィさん専用の通常・勝利・戦闘・敗北の4ポーズキャラアイコンを追加しました。',
+    ],
+    [
         'id' => '2026-09-13-numeric-input-usability',
         'date' => '2026-09-13',
         'category' => 'fixed',
