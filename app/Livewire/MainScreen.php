@@ -15,6 +15,7 @@ use App\Services\EquipmentService;
 use App\Services\BeginnerMissionService;
 use App\Services\StorageCapacityService;
 use App\Services\HomeActionService;
+use App\Services\InnService;
 use App\Services\Nation\NationChatService;
 use App\Services\JobArtService;
 use App\Services\StarTreeTowerService;
@@ -931,9 +932,14 @@ class MainScreen extends Component
 
         $explorationSupportEnabled = app(\App\Services\ExplorationSupportService::class)->isEnabled();
         $accountLoginStatus = app(AuthService::class)->loginMethodStatus(Auth::user());
+        $innService = app(InnService::class);
+        $innBeginnerFee = max(1, (int) config('inn.beginner.fee', 10));
+        $innBeginnerLevelMax = max(0, (int) config('inn.beginner.level_max', 20));
+        $innBeginnerPeriodDays = max(0, (int) config('inn.beginner.period_days', 10));
+        $innFeePerLevel = max(1, (int) config('inn.fee_per_level', 10));
 
         $townFacilities = [
-            ['category' => '休息・補給', 'name' => '宿屋', 'symbol_image' => 'facilities/facility_inn_300.webp', 'desc' => 'HPとSPを全回復して次の冒険に備える', 'details' => ['Lv20まで10G', 'Lv21以降: Lv × 10G'], 'badge' => ($this->character && $resolveTownState ? app(\App\Services\InnService::class)->fee($this->character) . 'G' : null), 'bg_image' => 'facilities/inn.webp', 'status' => 'active', 'action' => '休む', 'route' => 'inn.rest', 'is_post' => true, 'rest_blocked' => $innRestBlocked, 'rest_block_message' => $innRestBlockMessage],
+            ['category' => '休息・補給', 'name' => '宿屋', 'symbol_image' => 'facilities/facility_inn_300.webp', 'desc' => 'HPとSPを全回復して次の冒険に備える', 'details' => ["Lv{$innBeginnerLevelMax}まで: {$innBeginnerFee}G", "冒険開始から{$innBeginnerPeriodDays}日間も{$innBeginnerFee}G", "通常料金: Lv × {$innFeePerLevel}G"], 'badge' => ($this->character && $resolveTownState ? $innService->fee($this->character) . 'G' : null), 'bg_image' => 'facilities/inn.webp', 'status' => 'active', 'action' => '休む', 'route' => 'inn.rest', 'is_post' => true, 'rest_blocked' => $innRestBlocked, 'rest_block_message' => $innRestBlockMessage],
             ['category' => '休息・補給', 'name' => '補給所', 'symbol_image' => 'facilities/facility_supply_300.webp', 'desc' => '毎日の回復アイテム補給と残りストックを受け取る', 'details' => ['薬草・回復薬・魔力水', '各10個/日'], 'bg_image' => 'facilities/item.webp', 'status' => 'active', 'action' => '受け取る', 'route' => 'shop.items', 'is_post' => false],
             ...($hasEquipmentShop && !$isFerdiaSimpleBase ? [
                 ['category' => '装備', 'name' => '装備屋', 'symbol_image' => 'facilities/facility_equipment_shop.webp', 'desc' => 'この街で作られた店売り装備をGoldで購入する', 'details' => ['進化不可', '+5強化可'], 'bg_image' => 'facilities/item.webp', 'status' => 'active', 'action' => '入る', 'route' => 'shop.equipment', 'is_post' => false],

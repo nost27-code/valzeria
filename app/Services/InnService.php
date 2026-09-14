@@ -12,13 +12,27 @@ class InnService
 
     public function fee(Character $character): int
     {
-        $level = max(1, (int) $character->level);
+        return $this->quote($character)['fee'];
+    }
 
-        if ($level <= 20) {
-            return 10;
+    /** @return array{fee: int, pricing_rule: string} */
+    public function quote(Character $character): array
+    {
+        $level = max(1, (int) $character->level);
+        $beginnerFee = max(1, (int) config('inn.beginner.fee', 10));
+        $beginnerLevelMax = max(0, (int) config('inn.beginner.level_max', 20));
+
+        if ($level <= $beginnerLevelMax) {
+            return ['fee' => $beginnerFee, 'pricing_rule' => 'beginner_level'];
         }
 
-        return $level * 10;
+        if ($this->isWithinBeginnerPeriod($character)) {
+            return ['fee' => $beginnerFee, 'pricing_rule' => 'beginner_period'];
+        }
+
+        $feePerLevel = max(1, (int) config('inn.fee_per_level', 10));
+
+        return ['fee' => $level * $feePerLevel, 'pricing_rule' => 'regular'];
     }
 
     /**
@@ -55,7 +69,8 @@ class InnService
             return ['success' => false, 'message' => 'HP/SPが満タンです。宿屋で休む必要はありません。'];
         }
 
-        $fee         = $this->fee($character);
+        $quote       = $this->quote($character);
+        $fee         = $quote['fee'];
         $handGold    = (int) ($character->money ?? 0);
         $totalWealth = $handGold + (int) ($character->bank_gold ?? 0);
 
@@ -95,6 +110,7 @@ class InnService
                 'paid' => $paid,
                 'rescued' => $rescued,
                 'level' => (int) $character->level,
+                'pricing_rule' => $quote['pricing_rule'],
             ]);
         }
 
@@ -117,5 +133,18 @@ class InnService
             'rescued'          => $rescued,
             'rescue_streak'    => (int) ($character->inn_rescue_streak ?? 0),
         ];
+    }
+
+    private function isWithinBeginnerPeriod(Character $character): bool
+    {
+        $periodDays = max(0, (int) config('inn.beginner.period_days', 10));
+        $createdAt = $character->created_at;
+        if ($periodDays === 0 || $createdAt === null) {
+            return false;
+        }
+
+        $now = now();
+
+        return $createdAt->lte($now) && $now->lt($createdAt->copy()->addHours($periodDays * 24));
     }
 }

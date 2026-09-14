@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-09-14-inn-beginner-ten-day-fee',
+        'date' => '2026-09-14',
+        'category' => 'balance',
+        'title' => '冒険開始10日間の宿代を10Gに調整',
+        'detail' => 'Lv20以下に加え、キャラクター作成から10日間は、レベルに関係なく宿屋を10Gで利用できるようにしました。10日経過後のLv21以上は従来どおりLv×10Gです。HP/SPの回復量、銀行案内、救済宿泊の条件は変更していません。',
+    ],
+    [
         'id' => '2026-09-14-exclusive-character-icon-058',
         'date' => '2026-09-14',
         'category' => 'internal',

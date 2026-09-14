@@ -243,6 +243,7 @@ class HeroTrialRequirementRecoveryTest extends TestCase
             'money' => 1000,
             'bank_gold' => 0,
         ]);
+        $character->forceFill(['created_at' => now()->subDays(11)])->save();
         CharacterJob::query()->create([
             'character_id' => $character->id,
             'job_class_id' => $requiredJob->id,
