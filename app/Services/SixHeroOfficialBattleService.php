@@ -79,6 +79,8 @@ final class SixHeroOfficialBattleService
             throw $exception;
         }
 
+        app(GameplayMetricService::class)->recordJobArtBattle($attacker, 'pvp', $resolution->result);
+
         try {
             $rankChange = $this->applyOutcomeIfOfficialStartValid(
                 (int) $season->getKey(),

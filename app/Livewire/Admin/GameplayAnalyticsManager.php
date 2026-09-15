@@ -10,6 +10,12 @@ class GameplayAnalyticsManager extends Component
 {
     public string $activityWindow = '30';
 
+    public string $battleContext = 'all';
+
+    public int $currentJobId = 0;
+
+    public string $levelBand = 'all';
+
     public function mount(): void
     {
         $this->assertAdmin();
@@ -21,7 +27,12 @@ class GameplayAnalyticsManager extends Component
 
         return view(
             'livewire.admin.gameplay-analytics-manager',
-            app(GameplayAnalyticsService::class)->analyze($this->activityWindow),
+            app(GameplayAnalyticsService::class)->analyze([
+                'activity_window' => $this->activityWindow,
+                'battle_context' => $this->battleContext,
+                'current_job_id' => $this->currentJobId,
+                'level_band' => $this->levelBand,
+            ]),
         )->layout('components.layouts.admin');
     }
 

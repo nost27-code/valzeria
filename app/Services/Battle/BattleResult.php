@@ -33,10 +33,14 @@ class BattleResult
     public int $playerMpBefore = 0;
     public int $damageDealt = 0; // プレイヤーが敵に与えた合計ダメージ
     public int $damageTaken = 0; // プレイヤーが受けた合計ダメージ
+    public ?int $playerLevelAtStart = null;
+    public ?int $playerJobIdAtStart = null;
 
     /** 奥義v2の表示専用スナップショット。戦闘判定には使用しない。 */
     public ?array $jobArtV2Hud = null;
     /** @var list<array<string,mixed>> 実績計測専用。戦闘判定には使用しない。 */
     public array $jobArtUsage = [];
+    /** @var list<array{slot_no:int,skill_id:int,name:string,origin:string}> 実績計測専用。 */
+    public array $jobArtLoadout = [];
     public array $enemyDurability = []; // ['hp'=>float,'def_spr'=>float,'atk_mag'=>float,'tier'=>string]
 }

@@ -194,6 +194,10 @@ class BattleService
     ): BattleResult
     {
         $result = new BattleResult();
+        $result->playerLevelAtStart = (int) $character->level;
+        $result->playerJobIdAtStart = $character->current_job_id !== null
+            ? (int) $character->current_job_id
+            : null;
         $persistCharacterState = (bool) ($options['persist_character_state'] ?? true);
         $rewardsEnabled = (bool) ($options['rewards_enabled'] ?? true);
         $explorationSupportEnabled = (bool) ($options['exploration_support_enabled'] ?? true);
@@ -493,6 +497,7 @@ class BattleService
         $result->damageTaken = $playerActor->totalDamageTaken;
         $result->jobArtV2Hud = $this->jobArtV2BattleHudService->present($state);
         $result->jobArtUsage = $state->jobArtUsageFor($state->player);
+        $result->jobArtLoadout = $state->jobArtLoadoutFor($state->player);
 
         if ($explorationSupportEnabled) {
             app(ExplorationSupportService::class)->persistBattleProcs($character, $state->explorationSupportSnapshot);
@@ -815,9 +820,7 @@ class BattleService
             $this->executeEnemyAction($attacker, $defender, $state);
         }
         } finally {
-            $this->jobArtV2DefenseService->completeDirectAttackAction($attacker, $state);
-            $this->jobArtV2ResourceService->finishAction($attacker, $state);
-            $this->jobArtV2UltimateCounterplayService->finishAction($attacker, $state);
+            $this->jobArtBattleSupport->finishAction($attacker, $state);
         }
     }
 

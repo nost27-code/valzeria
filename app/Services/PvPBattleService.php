@@ -264,6 +264,10 @@ class PvPBattleService
     ): PvPBattleResolution {
         $context ??= PvPBattleExecutionContext::arena();
         $result = new BattleResult();
+        $result->playerLevelAtStart = (int) $attackerChar->level;
+        $result->playerJobIdAtStart = $attackerChar->current_job_id !== null
+            ? (int) $attackerChar->current_job_id
+            : null;
 
         // アタッカーアクターの生成
         $attackerStats = $this->statusService->getFinalStats($attackerChar);
@@ -404,6 +408,7 @@ class PvPBattleService
         $result->turnCount = $state->turnCount;
         $result->jobArtV2Hud = $this->jobArtBattleSupport->battleHud($state);
         $result->jobArtUsage = $state->jobArtUsageFor($attackerActor);
+        $result->jobArtLoadout = $state->jobArtLoadoutFor($attackerActor);
 
         return new PvPBattleResolution(
             result: $result,

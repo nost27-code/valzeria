@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-09-15-job-art-gameplay-rollups',
+        'date' => '2026-09-15',
+        'category' => 'internal',
+        'title' => '戦技実績のDB集計と比較項目を改善',
+        'detail' => '戦闘開始時の職業・Lv帯・戦技構成を基準に、勝率・平均ターン・戦技によるHP/SP回復量を管理画面で比較できるようにしました。六英雄の公式戦もPvP実績へ含めます。戦技の発動率・威力・効果は変更していません。',
+    ],
+    [
         'id' => '2026-09-14-inn-beginner-ten-day-fee',
         'date' => '2026-09-14',
         'category' => 'balance',

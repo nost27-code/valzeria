@@ -3,14 +3,18 @@
 namespace App\Services\Admin;
 
 use App\Models\GameplayMetric;
+use App\Models\JobClass;
 use App\Models\Skill;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Collection;
+use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
+use Illuminate\Database\Query\Builder;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 class GameplayAnalyticsService
 {
     private const WINDOWS = ['7', '30', '90', 'all'];
+
+    private const LEVEL_BANDS = ['all', '1-49', '50-99', '100-149', '150-199', '200-255'];
 
     private const JOB_ART_CONTEXT_LABELS = [
         'normal' => '通常探索',
@@ -20,7 +24,7 @@ class GameplayAnalyticsService
         'map' => '探索の地図',
         'tower' => '星樹の塔',
         'hero_trial' => '英雄試練',
-        'pvp' => 'プレイヤー闘技場',
+        'pvp' => 'プレイヤーPvP（六英雄戦を含む）',
         'champ' => 'チャンプ戦',
         'arena_npc' => 'NPCランク戦',
     ];
@@ -32,39 +36,280 @@ class GameplayAnalyticsService
         'map' => '探索の地図',
     ];
 
-    /** @return array<string,mixed> */
-    public function analyze(string $window = '30'): array
+    /** @param array<string,mixed>|string $filters @return array<string,mixed> */
+    public function analyze(array|string $filters = []): array
     {
-        $window = in_array($window, self::WINDOWS, true) ? $window : '30';
-        if (! Schema::hasTable('gameplay_metrics')) {
-            return $this->emptyAnalysis($window);
+        $filters = $this->normalizeFilters($filters);
+        if (! $this->tablesReady()) {
+            return $this->emptyAnalysis($filters);
         }
 
-        $records = $this->metricQuery($window)
-            ->with('character.user:id,role,email')
-            ->orderBy('id')
-            ->get()
-            ->reject(fn (GameplayMetric $record): bool => $record->character?->isExcludedFromPublicLogs() ?? true)
-            ->values();
-        $jobArtRecords = $records->where('metric_type', GameplayMetric::TYPE_JOB_ART_BATTLE)->values();
-        $explorationRecords = $records->where('metric_type', GameplayMetric::TYPE_EXPLORATION_REQUEST)->values();
+        $jobArtMeasurementStartedAt = DB::table('gameplay_job_art_rollups')->min('bucket_started_at');
+        $explorationMeasurementStartedAt = GameplayMetric::query()
+            ->where('metric_type', GameplayMetric::TYPE_EXPLORATION_REQUEST)
+            ->min('created_at');
 
         return [
             'ready' => true,
-            'window' => $window,
+            'filters' => $filters,
+            'window' => $filters['activity_window'],
             'generatedAt' => now(),
-            'measurementStartedAt' => GameplayMetric::query()->min('created_at'),
-            'jobArt' => $this->jobArtAnalysis($jobArtRecords),
-            'exploration' => $this->explorationAnalysis($explorationRecords),
+            'measurementStartedAt' => $jobArtMeasurementStartedAt ?? $explorationMeasurementStartedAt,
+            'jobArtMeasurementStartedAt' => $jobArtMeasurementStartedAt,
+            'explorationMeasurementStartedAt' => $explorationMeasurementStartedAt,
+            'jobOptions' => JobClass::query()->orderBy('id')->get(['id', 'name']),
+            'contextOptions' => self::JOB_ART_CONTEXT_LABELS,
+            'levelBandOptions' => self::LEVEL_BANDS,
+            'jobArt' => $this->jobArtAnalysis($filters),
+            'exploration' => $this->explorationAnalysis($filters['activity_window']),
         ];
     }
 
-    private function metricQuery(string $window): Builder
+    /** @param array<string,mixed> $filters */
+    private function jobArtAnalysis(array $filters): array
+    {
+        $base = $this->rollupQuery('gameplay_job_art_rollups', $filters);
+        $cardsRow = (clone $base)->selectRaw(implode(', ', [
+            'COALESCE(SUM(battles), 0) AS battles',
+            'COALESCE(SUM(art_battles), 0) AS art_battles',
+            'COALESCE(SUM(wins), 0) AS wins',
+            'COALESCE(SUM(art_wins), 0) AS art_wins',
+            'COALESCE(SUM(turns), 0) AS turns',
+            'COALESCE(SUM(activations), 0) AS activations',
+            'COALESCE(SUM(hp_recovered), 0) AS hp_recovered',
+            'COALESCE(SUM(sp_recovered), 0) AS sp_recovered',
+        ]))->first();
+
+        $battles = (int) ($cardsRow->battles ?? 0);
+        $artBattles = (int) ($cardsRow->art_battles ?? 0);
+        $wins = (int) ($cardsRow->wins ?? 0);
+        $artWins = (int) ($cardsRow->art_wins ?? 0);
+        $withoutArtBattles = max(0, $battles - $artBattles);
+        $withoutArtWins = max(0, $wins - $artWins);
+
+        $contextRows = (clone $base)
+            ->select('context')
+            ->selectRaw(implode(', ', [
+                'SUM(battles) AS battles',
+                'SUM(art_battles) AS art_battles',
+                'SUM(wins) AS wins',
+                'SUM(turns) AS turns',
+                'SUM(activations) AS activations',
+            ]))
+            ->groupBy('context')
+            ->orderByDesc('battles')
+            ->get()
+            ->map(function (object $row): array {
+                $battles = (int) $row->battles;
+                $artBattles = (int) $row->art_battles;
+
+                return [
+                    'context' => (string) $row->context,
+                    'label' => self::JOB_ART_CONTEXT_LABELS[(string) $row->context] ?? (string) $row->context,
+                    'battles' => $battles,
+                    'art_battles' => $artBattles,
+                    'activations' => (int) $row->activations,
+                    'activation_battle_rate' => $this->rate($artBattles, $battles),
+                    'win_rate' => $this->rate((int) $row->wins, $battles),
+                    'average_turns' => $this->average((int) $row->turns, $battles),
+                ];
+            })->all();
+
+        $loadoutRows = (clone $base)
+            ->select('loadout_signature')
+            ->selectRaw(implode(', ', [
+                'MAX(loadout) AS loadout',
+                'SUM(battles) AS battles',
+                'SUM(art_battles) AS art_battles',
+                'SUM(wins) AS wins',
+                'SUM(turns) AS turns',
+                'SUM(activations) AS activations',
+                'SUM(hp_recovered) AS hp_recovered',
+                'SUM(sp_recovered) AS sp_recovered',
+            ]))
+            ->groupBy('loadout_signature')
+            ->orderByDesc('battles')
+            ->limit(20)
+            ->get()
+            ->map(function (object $row): array {
+                $battles = (int) $row->battles;
+                $loadout = $this->decodeLoadout($row->loadout ?? '[]');
+
+                return [
+                    'signature' => (string) $row->loadout_signature,
+                    'loadout' => $loadout,
+                    'label' => $loadout === []
+                        ? '戦技未設定'
+                        : collect($loadout)->pluck('name')->implode(' → '),
+                    'battles' => $battles,
+                    'art_battles' => (int) $row->art_battles,
+                    'activations' => (int) $row->activations,
+                    'activation_battle_rate' => $this->rate((int) $row->art_battles, $battles),
+                    'win_rate' => $this->rate((int) $row->wins, $battles),
+                    'average_turns' => $this->average((int) $row->turns, $battles),
+                    'hp_recovered_per_battle' => $this->average((int) $row->hp_recovered, $battles),
+                    'sp_recovered_per_battle' => $this->average((int) $row->sp_recovered, $battles),
+                ];
+            })->all();
+
+        $skillBase = $this->rollupQuery('gameplay_job_art_skill_rollups', $filters);
+        $skillRows = (clone $skillBase)
+            ->select('skill_id')
+            ->selectRaw(implode(', ', [
+                'MAX(skill_name) AS skill_name',
+                'SUM(battles) AS battles',
+                'SUM(wins) AS wins',
+                'SUM(turns) AS turns',
+                'SUM(activations) AS activations',
+                'SUM(hits) AS hits',
+                'SUM(misses) AS misses',
+                'SUM(evades) AS evades',
+                'SUM(no_resolution) AS no_resolution',
+                'SUM(vital_hits) AS vital_hits',
+                'SUM(hp_recovered) AS hp_recovered',
+                'SUM(sp_recovered) AS sp_recovered',
+            ]))
+            ->groupBy('skill_id')
+            ->orderByDesc('activations')
+            ->orderByDesc('battles')
+            ->limit(30)
+            ->get();
+        $masterNames = Skill::query()->whereKey($skillRows->pluck('skill_id'))->pluck('name', 'id');
+        $skillRows = $skillRows->map(function (object $row) use ($masterNames): array {
+            $battles = (int) $row->battles;
+            $hits = (int) $row->hits;
+            $resolved = $hits + (int) $row->misses + (int) $row->evades;
+
+            return [
+                'skill_id' => (int) $row->skill_id,
+                'name' => (string) ($masterNames[(int) $row->skill_id] ?? $row->skill_name),
+                'battles' => $battles,
+                'activations' => (int) $row->activations,
+                'hits' => $hits,
+                'misses' => (int) $row->misses,
+                'evades' => (int) $row->evades,
+                'no_resolution' => (int) $row->no_resolution,
+                'vital_hits' => (int) $row->vital_hits,
+                'hit_rate' => $resolved > 0 ? $this->rate($hits, $resolved) : null,
+                'vital_hit_rate' => $hits > 0 ? $this->rate((int) $row->vital_hits, $hits) : null,
+                'win_rate' => $this->rate((int) $row->wins, $battles),
+                'average_turns' => $this->average((int) $row->turns, $battles),
+                'hp_recovered_per_battle' => $this->average((int) $row->hp_recovered, $battles),
+                'sp_recovered_per_battle' => $this->average((int) $row->sp_recovered, $battles),
+            ];
+        })->all();
+
+        return [
+            'cards' => [
+                'battles' => $battles,
+                'art_battles' => $artBattles,
+                'activation_battle_rate' => $this->rate($artBattles, $battles),
+                'activations' => (int) ($cardsRow->activations ?? 0),
+                'with_art_win_rate' => $artBattles > 0 ? $this->rate($artWins, $artBattles) : null,
+                'without_art_win_rate' => $withoutArtBattles > 0 ? $this->rate($withoutArtWins, $withoutArtBattles) : null,
+                'average_turns' => $this->average((int) ($cardsRow->turns ?? 0), $battles),
+                'hp_recovered_per_battle' => $this->average((int) ($cardsRow->hp_recovered ?? 0), $battles),
+                'sp_recovered_per_battle' => $this->average((int) ($cardsRow->sp_recovered ?? 0), $battles),
+            ],
+            'skillRows' => $skillRows,
+            'contextRows' => $contextRows,
+            'loadoutRows' => $loadoutRows,
+        ];
+    }
+
+    /** @param array<string,mixed> $filters */
+    private function rollupQuery(string $table, array $filters): Builder
+    {
+        $query = DB::table($table);
+        if ($filters['activity_window'] !== 'all') {
+            $query->where('bucket_started_at', '>=', now()->subDays((int) $filters['activity_window'])->startOfHour());
+        }
+        if ($filters['battle_context'] !== 'all') {
+            $query->where('context', $filters['battle_context']);
+        }
+        if ($filters['current_job_id'] > 0) {
+            $query->where('current_job_id', $filters['current_job_id']);
+        }
+        if ($filters['level_band'] !== 'all') {
+            $query->where('level_band', $filters['level_band']);
+        }
+
+        return $query;
+    }
+
+    private function explorationAnalysis(string $window): array
+    {
+        $base = $this->explorationQuery($window);
+        $requested = $this->jsonInteger('$.requested_count');
+        $mode = "CASE WHEN {$requested} = 1 THEN 'single' ELSE 'batch' END";
+        $aggregates = $this->explorationAggregateSql();
+
+        $modeRows = (clone $base)
+            ->selectRaw("{$mode} AS aggregate_key, {$aggregates}")
+            ->groupByRaw($mode)
+            ->get()
+            ->map(fn (object $row): array => $this->finishExplorationGroup(
+                $this->explorationGroupFromRow($row),
+                $row->aggregate_key === 'single' ? '1回探索' : 'まとめて探索',
+            ))
+            ->sortBy(fn (array $row): int => $row['key'] === 'single' ? 0 : 1)
+            ->values()
+            ->all();
+
+        $contextRows = (clone $base)
+            ->selectRaw("context AS aggregate_key, {$aggregates}")
+            ->groupBy('context')
+            ->get()
+            ->map(fn (object $row): array => $this->finishExplorationGroup(
+                $this->explorationGroupFromRow($row),
+                self::EXPLORATION_CONTEXT_LABELS[(string) $row->aggregate_key] ?? (string) $row->aggregate_key,
+            ))
+            ->sortByDesc('requests')
+            ->values()
+            ->all();
+
+        $stopReason = $this->jsonScalar('$.stop_reason');
+        $stopRows = (clone $base)
+            ->whereRaw("{$stopReason} IS NOT NULL AND TRIM({$stopReason}) <> ''")
+            ->selectRaw("{$stopReason} AS reason, COUNT(*) AS aggregate_count")
+            ->groupByRaw($stopReason)
+            ->orderByDesc('aggregate_count')
+            ->get()
+            ->map(fn (object $row): array => [
+                'reason' => (string) $row->reason,
+                'label' => $this->stopReasonLabel((string) $row->reason),
+                'count' => (int) $row->aggregate_count,
+            ])->all();
+
+        $requests = collect($modeRows)->sum('requests');
+        $requestedRuns = collect($modeRows)->sum('requested');
+        $completedRuns = collect($modeRows)->sum('completed');
+
+        return [
+            'cards' => [
+                'requests' => $requests,
+                'requested_runs' => $requestedRuns,
+                'completed_runs' => $completedRuns,
+                'completion_rate' => $this->rate($completedRuns, $requestedRuns),
+                'single_requests' => (int) (collect($modeRows)->firstWhere('key', 'single')['requests'] ?? 0),
+                'batch_requests' => (int) (collect($modeRows)->firstWhere('key', 'batch')['requests'] ?? 0),
+            ],
+            'modeRows' => $modeRows,
+            'contextRows' => $contextRows,
+            'stopRows' => $stopRows,
+        ];
+    }
+
+    private function explorationQuery(string $window): EloquentBuilder
     {
         $query = GameplayMetric::query()
-            ->whereHas('character.user', function (Builder $query): void {
-                $query->where(function (Builder $query): void {
+            ->where('metric_type', GameplayMetric::TYPE_EXPLORATION_REQUEST)
+            ->whereHas('character.user', function (EloquentBuilder $query): void {
+                $query->where(function (EloquentBuilder $query): void {
                     $query->whereNull('role')->orWhere('role', '!=', 'admin');
+                })->where(function (EloquentBuilder $query): void {
+                    $query->whereRaw('LOWER(SUBSTR(email, 1, 7)) <> ?', ['tester_'])
+                        ->orWhereRaw('LOWER(SUBSTR(email, -15)) <> ?', ['@valzeria.local']);
                 });
             });
 
@@ -75,210 +320,95 @@ class GameplayAnalyticsService
         return $query;
     }
 
-    /** @param Collection<int,GameplayMetric> $records */
-    private function jobArtAnalysis(Collection $records): array
+    private function explorationAggregateSql(): string
     {
-        $battles = $records->count();
-        $withArt = $records->filter(fn (GameplayMetric $record): bool => (int) data_get($record->payload, 'activation_count', 0) > 0);
-        $withoutArt = $records->reject(fn (GameplayMetric $record): bool => (int) data_get($record->payload, 'activation_count', 0) > 0);
-        $activationCount = $records->sum(fn (GameplayMetric $record): int => (int) data_get($record->payload, 'activation_count', 0));
-        $skills = [];
-        $contexts = [];
+        $requested = $this->jsonInteger('$.requested_count');
+        $completed = $this->jsonInteger('$.completed_count');
+        $dangerBefore = $this->jsonNullableInteger('$.danger_before');
+        $dangerAfter = $this->jsonNullableInteger('$.danger_after');
+        $staminaBefore = $this->jsonNullableInteger('$.stamina_before');
+        $staminaAfter = $this->jsonNullableInteger('$.stamina_after');
 
-        foreach ($records as $record) {
-            $context = (string) $record->context;
-            $contexts[$context] ??= ['context' => $context, 'battles' => 0, 'art_battles' => 0, 'activations' => 0, 'wins' => 0];
-            $contexts[$context]['battles']++;
-            $contextActivations = (int) data_get($record->payload, 'activation_count', 0);
-            $contexts[$context]['activations'] += $contextActivations;
-            $contexts[$context]['art_battles'] += $contextActivations > 0 ? 1 : 0;
-            $contexts[$context]['wins'] += $record->result === 'victory' ? 1 : 0;
-
-            foreach ((array) data_get($record->payload, 'skills', []) as $usage) {
-                $skillId = (int) ($usage['skill_id'] ?? 0);
-                if ($skillId <= 0) {
-                    continue;
-                }
-                $skills[$skillId] ??= [
-                    'skill_id' => $skillId,
-                    'name' => (string) ($usage['name'] ?? '不明な戦技'),
-                    'battles' => 0,
-                    'activations' => 0,
-                    'hits' => 0,
-                    'misses' => 0,
-                    'evades' => 0,
-                    'no_resolution' => 0,
-                    'vital_hits' => 0,
-                    'wins' => 0,
-                ];
-                $skills[$skillId]['battles']++;
-                $skills[$skillId]['activations'] += (int) ($usage['activation_count'] ?? 0);
-                $skills[$skillId]['hits'] += (int) ($usage['hit_count'] ?? 0);
-                $skills[$skillId]['misses'] += (int) ($usage['miss_count'] ?? 0);
-                $skills[$skillId]['evades'] += (int) ($usage['evade_count'] ?? 0);
-                $skills[$skillId]['no_resolution'] += (int) ($usage['no_resolution_count'] ?? 0);
-                $skills[$skillId]['vital_hits'] += (int) ($usage['vital_hit_count'] ?? 0);
-                $skills[$skillId]['wins'] += $record->result === 'victory' ? 1 : 0;
-            }
-        }
-
-        $masterNames = Skill::query()->whereKey(array_keys($skills))->pluck('name', 'id');
-        $skillRows = collect($skills)->map(function (array $row) use ($masterNames): array {
-            $resolved = $row['hits'] + $row['misses'] + $row['evades'];
-            $row['name'] = (string) ($masterNames[$row['skill_id']] ?? $row['name']);
-            $row['hit_rate'] = $resolved > 0 ? round($row['hits'] / $resolved * 100, 1) : null;
-            $row['vital_hit_rate'] = $row['hits'] > 0
-                ? round($row['vital_hits'] / $row['hits'] * 100, 1)
-                : null;
-            $row['win_rate'] = $row['battles'] > 0 ? round($row['wins'] / $row['battles'] * 100, 1) : 0.0;
-
-            return $row;
-        })->sort(fn (array $left, array $right): int => [-$left['activations'], -$left['battles'], $left['name']] <=> [-$right['activations'], -$right['battles'], $right['name']])
-            ->take(30)->values()->all();
-
-        $contextRows = collect($contexts)->map(function (array $row): array {
-            $row['label'] = self::JOB_ART_CONTEXT_LABELS[$row['context']] ?? $row['context'];
-            $row['activation_battle_rate'] = $row['battles'] > 0 ? round($row['art_battles'] / $row['battles'] * 100, 1) : 0.0;
-            $row['win_rate'] = $row['battles'] > 0 ? round($row['wins'] / $row['battles'] * 100, 1) : 0.0;
-
-            return $row;
-        })->sortByDesc('battles')->values()->all();
-
-        return [
-            'cards' => [
-                'battles' => $battles,
-                'art_battles' => $withArt->count(),
-                'activation_battle_rate' => $battles > 0 ? round($withArt->count() / $battles * 100, 1) : 0.0,
-                'activations' => $activationCount,
-                'with_art_win_rate' => $this->winRate($withArt),
-                'without_art_win_rate' => $this->winRate($withoutArt),
-            ],
-            'skillRows' => $skillRows,
-            'contextRows' => $contextRows,
-        ];
+        return implode(', ', [
+            'COUNT(*) AS requests',
+            "SUM({$requested}) AS requested",
+            "SUM({$completed}) AS completed",
+            'SUM('.$this->jsonInteger('$.outcomes.wins').') AS wins',
+            'SUM('.$this->jsonInteger('$.outcomes.defeats').') AS defeats',
+            'SUM('.$this->jsonInteger('$.outcomes.timeouts').') AS timeouts',
+            'SUM('.$this->jsonInteger('$.outcomes.events').') AS events',
+            'SUM('.$this->jsonInteger('$.rewards.exp').') AS exp',
+            'SUM('.$this->jsonInteger('$.rewards.gold').') AS gold',
+            'SUM('.$this->jsonInteger('$.rewards.job_exp').') AS job_exp',
+            'SUM('.$this->jsonInteger('$.drops.equipment').') AS equipment',
+            'SUM('.$this->jsonInteger('$.drops.materials').') AS materials',
+            'SUM('.$this->jsonInteger('$.drops.monster_marks').') AS monster_marks',
+            'SUM('.$this->jsonInteger('$.drops.maps').') AS maps',
+            "SUM(CASE WHEN {$completed} > 0 AND {$dangerBefore} IS NOT NULL AND {$dangerAfter} IS NOT NULL THEN {$dangerAfter} - {$dangerBefore} ELSE 0 END) AS danger_delta_total",
+            "SUM(CASE WHEN {$completed} > 0 AND {$dangerBefore} IS NOT NULL AND {$dangerAfter} IS NOT NULL THEN {$completed} ELSE 0 END) AS danger_completed",
+            "SUM(CASE WHEN {$completed} > 0 AND {$staminaBefore} IS NOT NULL AND {$staminaAfter} IS NOT NULL THEN {$staminaBefore} - {$staminaAfter} ELSE 0 END) AS stamina_delta_total",
+            "SUM(CASE WHEN {$completed} > 0 AND {$staminaBefore} IS NOT NULL AND {$staminaAfter} IS NOT NULL THEN {$completed} ELSE 0 END) AS stamina_completed",
+        ]);
     }
 
-    /** @param Collection<int,GameplayMetric> $records */
-    private function explorationAnalysis(Collection $records): array
+    private function jsonScalar(string $path): string
     {
-        $groups = [];
-        $contexts = [];
-        $stops = [];
-
-        foreach ($records as $record) {
-            $payload = (array) $record->payload;
-            $requested = max(1, (int) ($payload['requested_count'] ?? 1));
-            $completed = max(0, (int) ($payload['completed_count'] ?? 0));
-            $mode = $requested === 1 ? 'single' : 'batch';
-            $groups[$mode] ??= $this->emptyExplorationGroup($mode);
-            $this->accumulateExploration($groups[$mode], $payload);
-
-            $context = (string) $record->context;
-            $contexts[$context] ??= $this->emptyExplorationGroup($context);
-            $this->accumulateExploration($contexts[$context], $payload);
-
-            $stopReason = trim((string) ($payload['stop_reason'] ?? ''));
-            if ($stopReason !== '') {
-                $stops[$stopReason] = ($stops[$stopReason] ?? 0) + 1;
-            }
-        }
-
-        $modeRows = collect($groups)->map(fn (array $group): array => $this->finishExplorationGroup(
-            $group,
-            $group['key'] === 'single' ? '1回探索' : 'まとめて探索',
-        ))->values()->all();
-        $contextRows = collect($contexts)->map(fn (array $group): array => $this->finishExplorationGroup(
-            $group,
-            self::EXPLORATION_CONTEXT_LABELS[$group['key']] ?? $group['key'],
-        ))->sortByDesc('requests')->values()->all();
-        $stopRows = collect($stops)->map(fn (int $count, string $reason): array => [
-            'reason' => $reason,
-            'label' => $this->stopReasonLabel($reason),
-            'count' => $count,
-        ])->sortByDesc('count')->values()->all();
-
-        $requestedTotal = $records->sum(fn (GameplayMetric $record): int => (int) data_get($record->payload, 'requested_count', 0));
-        $completedTotal = $records->sum(fn (GameplayMetric $record): int => (int) data_get($record->payload, 'completed_count', 0));
-
-        return [
-            'cards' => [
-                'requests' => $records->count(),
-                'requested_runs' => $requestedTotal,
-                'completed_runs' => $completedTotal,
-                'completion_rate' => $requestedTotal > 0 ? round($completedTotal / $requestedTotal * 100, 1) : 0.0,
-                'single_requests' => collect($groups)->get('single')['requests'] ?? 0,
-                'batch_requests' => collect($groups)->get('batch')['requests'] ?? 0,
-            ],
-            'modeRows' => $modeRows,
-            'contextRows' => $contextRows,
-            'stopRows' => $stopRows,
-        ];
+        return DB::connection()->getDriverName() === 'sqlite'
+            ? "NULLIF(json_extract(payload, '{$path}'), 'null')"
+            : "NULLIF(JSON_UNQUOTE(JSON_EXTRACT(payload, '{$path}')), 'null')";
     }
 
-    private function emptyExplorationGroup(string $key): array
+    private function jsonInteger(string $path): string
     {
-        return [
-            'key' => $key,
-            'requests' => 0,
-            'requested' => 0,
-            'completed' => 0,
-            'wins' => 0,
-            'defeats' => 0,
-            'timeouts' => 0,
-            'events' => 0,
-            'exp' => 0,
-            'gold' => 0,
-            'job_exp' => 0,
-            'equipment' => 0,
-            'materials' => 0,
-            'monster_marks' => 0,
-            'maps' => 0,
-            'danger_delta_total' => 0,
-            'danger_completed' => 0,
-            'stamina_delta_total' => 0,
-            'stamina_completed' => 0,
-        ];
+        $value = $this->jsonScalar($path);
+
+        return DB::connection()->getDriverName() === 'sqlite'
+            ? "COALESCE(CAST({$value} AS INTEGER), 0)"
+            : "COALESCE(CAST({$value} AS UNSIGNED), 0)";
     }
 
-    /** @param array<string,mixed> $group @param array<string,mixed> $payload */
-    private function accumulateExploration(array &$group, array $payload): void
+    private function jsonNullableInteger(string $path): string
     {
-        $group['requests']++;
-        $group['requested'] += (int) ($payload['requested_count'] ?? 0);
-        $group['completed'] += (int) ($payload['completed_count'] ?? 0);
-        foreach (['wins', 'defeats', 'timeouts', 'events'] as $key) {
-            $group[$key] += (int) data_get($payload, 'outcomes.'.$key, 0);
-        }
-        foreach (['exp', 'gold', 'job_exp'] as $key) {
-            $group[$key] += (int) data_get($payload, 'rewards.'.$key, 0);
-        }
-        foreach (['equipment', 'materials', 'monster_marks', 'maps'] as $key) {
-            $group[$key] += (int) data_get($payload, 'drops.'.$key, 0);
-        }
+        $value = $this->jsonScalar($path);
 
-        $completed = max(0, (int) ($payload['completed_count'] ?? 0));
-        if ($completed > 0
-            && is_int($payload['danger_before'] ?? null)
-            && is_int($payload['danger_after'] ?? null)) {
-            $group['danger_delta_total'] += $payload['danger_after'] - $payload['danger_before'];
-            $group['danger_completed'] += $completed;
-        }
-        if ($completed > 0
-            && is_int($payload['stamina_before'] ?? null)
-            && is_int($payload['stamina_after'] ?? null)) {
-            $group['stamina_delta_total'] += $payload['stamina_before'] - $payload['stamina_after'];
-            $group['stamina_completed'] += $completed;
-        }
+        return DB::connection()->getDriverName() === 'sqlite'
+            ? "CAST({$value} AS INTEGER)"
+            : "CAST({$value} AS SIGNED)";
+    }
+
+    private function explorationGroupFromRow(object $row): array
+    {
+        return [
+            'key' => (string) $row->aggregate_key,
+            'requests' => (int) $row->requests,
+            'requested' => (int) $row->requested,
+            'completed' => (int) $row->completed,
+            'wins' => (int) $row->wins,
+            'defeats' => (int) $row->defeats,
+            'timeouts' => (int) $row->timeouts,
+            'events' => (int) $row->events,
+            'exp' => (int) $row->exp,
+            'gold' => (int) $row->gold,
+            'job_exp' => (int) $row->job_exp,
+            'equipment' => (int) $row->equipment,
+            'materials' => (int) $row->materials,
+            'monster_marks' => (int) $row->monster_marks,
+            'maps' => (int) $row->maps,
+            'danger_delta_total' => (int) $row->danger_delta_total,
+            'danger_completed' => (int) $row->danger_completed,
+            'stamina_delta_total' => (int) $row->stamina_delta_total,
+            'stamina_completed' => (int) $row->stamina_completed,
+        ];
     }
 
     private function finishExplorationGroup(array $group, string $label): array
     {
         $completed = max(0, (int) $group['completed']);
         $group['label'] = $label;
-        $group['completion_rate'] = $group['requested'] > 0 ? round($completed / $group['requested'] * 100, 1) : 0.0;
-        $group['exp_per_run'] = $completed > 0 ? round($group['exp'] / $completed, 1) : 0.0;
-        $group['gold_per_run'] = $completed > 0 ? round($group['gold'] / $completed, 1) : 0.0;
-        $group['job_exp_per_run'] = $completed > 0 ? round($group['job_exp'] / $completed, 1) : 0.0;
+        $group['completion_rate'] = $this->rate($completed, (int) $group['requested']);
+        $group['exp_per_run'] = $this->average((int) $group['exp'], $completed);
+        $group['gold_per_run'] = $this->average((int) $group['gold'], $completed);
+        $group['job_exp_per_run'] = $this->average((int) $group['job_exp'], $completed);
         foreach (['equipment', 'materials', 'monster_marks', 'maps'] as $key) {
             $group[$key.'_per_100'] = $completed > 0 ? round($group[$key] / $completed * 100, 2) : 0.0;
         }
@@ -292,14 +422,54 @@ class GameplayAnalyticsService
         return $group;
     }
 
-    /** @param Collection<int,GameplayMetric> $records */
-    private function winRate(Collection $records): ?float
+    /** @param array<string,mixed>|string $filters @return array<string,mixed> */
+    private function normalizeFilters(array|string $filters): array
     {
-        if ($records->isEmpty()) {
-            return null;
+        if (is_string($filters)) {
+            $filters = ['activity_window' => $filters];
         }
 
-        return round($records->where('result', 'victory')->count() / $records->count() * 100, 1);
+        $window = (string) ($filters['activity_window'] ?? '30');
+        $context = (string) ($filters['battle_context'] ?? 'all');
+        $levelBand = (string) ($filters['level_band'] ?? 'all');
+
+        return [
+            'activity_window' => in_array($window, self::WINDOWS, true) ? $window : '30',
+            'battle_context' => $context === 'all' || array_key_exists($context, self::JOB_ART_CONTEXT_LABELS)
+                ? $context
+                : 'all',
+            'current_job_id' => max(0, (int) ($filters['current_job_id'] ?? 0)),
+            'level_band' => in_array($levelBand, self::LEVEL_BANDS, true) ? $levelBand : 'all',
+        ];
+    }
+
+    private function tablesReady(): bool
+    {
+        return Schema::hasTable('gameplay_metrics')
+            && Schema::hasTable('gameplay_job_art_rollups')
+            && Schema::hasTable('gameplay_job_art_skill_rollups');
+    }
+
+    /** @return list<array{slot_no:int,skill_id:int,name:string,origin:string}> */
+    private function decodeLoadout(mixed $value): array
+    {
+        if (is_array($value)) {
+            return array_values($value);
+        }
+
+        $decoded = json_decode((string) $value, true);
+
+        return is_array($decoded) ? array_values($decoded) : [];
+    }
+
+    private function rate(int $numerator, int $denominator): float
+    {
+        return $denominator > 0 ? round($numerator / $denominator * 100, 1) : 0.0;
+    }
+
+    private function average(int $total, int $count): float
+    {
+        return $count > 0 ? round($total / $count, 1) : 0.0;
     }
 
     private function stopReasonLabel(string $reason): string
@@ -322,14 +492,21 @@ class GameplayAnalyticsService
         ][$reason] ?? $reason;
     }
 
-    private function emptyAnalysis(string $window): array
+    /** @param array<string,mixed> $filters */
+    private function emptyAnalysis(array $filters): array
     {
         return [
             'ready' => false,
-            'window' => $window,
+            'filters' => $filters,
+            'window' => $filters['activity_window'],
             'generatedAt' => now(),
             'measurementStartedAt' => null,
-            'jobArt' => ['cards' => [], 'skillRows' => [], 'contextRows' => []],
+            'jobArtMeasurementStartedAt' => null,
+            'explorationMeasurementStartedAt' => null,
+            'jobOptions' => collect(),
+            'contextOptions' => self::JOB_ART_CONTEXT_LABELS,
+            'levelBandOptions' => self::LEVEL_BANDS,
+            'jobArt' => ['cards' => [], 'skillRows' => [], 'contextRows' => [], 'loadoutRows' => []],
             'exploration' => ['cards' => [], 'modeRows' => [], 'contextRows' => [], 'stopRows' => []],
         ];
     }

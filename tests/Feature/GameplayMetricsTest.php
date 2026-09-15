@@ -24,6 +24,14 @@ class GameplayMetricsTest extends TestCase
         $battle = new BattleResult;
         $battle->result = 'victory';
         $battle->turnCount = 4;
+        $battle->playerLevelAtStart = 48;
+        $battle->playerJobIdAtStart = (int) $art->job_id;
+        $battle->jobArtLoadout = [[
+            'slot_no' => 1,
+            'skill_id' => $art->id,
+            'name' => $art->name,
+            'origin' => 'current',
+        ]];
         $battle->jobArtUsage = [[
             'skill_id' => $art->id,
             'name' => $art->name,
@@ -34,6 +42,8 @@ class GameplayMetricsTest extends TestCase
             'evade_count' => 0,
             'no_resolution_count' => 0,
             'vital_hit_count' => 1,
+            'hp_recovered' => 120,
+            'sp_recovered' => 8,
         ]];
 
         $service = app(GameplayMetricService::class);
@@ -74,8 +84,14 @@ class GameplayMetricsTest extends TestCase
         $jobArtMetric = GameplayMetric::query()
             ->where('metric_type', GameplayMetric::TYPE_JOB_ART_BATTLE)
             ->sole();
-        $this->assertSame(2, data_get($jobArtMetric->payload, 'version'));
         $this->assertSame(1, data_get($jobArtMetric->payload, 'skills.0.vital_hit_count'));
+        $this->assertSame(3, data_get($jobArtMetric->payload, 'version'));
+        $this->assertSame(48, data_get($jobArtMetric->payload, 'character_level_at_start'));
+        $this->assertSame((int) $art->job_id, data_get($jobArtMetric->payload, 'current_job_id_at_start'));
+        $this->assertSame('1-49', data_get($jobArtMetric->payload, 'level_band_at_start'));
+        $this->assertSame(120.0, $analysis['jobArt']['loadoutRows'][0]['hp_recovered_per_battle']);
+        $this->assertSame(8.0, $analysis['jobArt']['loadoutRows'][0]['sp_recovered_per_battle']);
+        $this->assertSame(4.0, $analysis['jobArt']['loadoutRows'][0]['average_turns']);
         $this->assertSame(2, $analysis['exploration']['cards']['requests']);
         $this->assertSame(51, $analysis['exploration']['cards']['requested_runs']);
         $this->assertSame(41, $analysis['exploration']['cards']['completed_runs']);
@@ -84,7 +100,7 @@ class GameplayMetricsTest extends TestCase
         $this->assertSame('HP低下', $analysis['exploration']['stopRows'][0]['label']);
     }
 
-    public function test_admin_and_tester_characters_are_not_recorded_and_page_is_admin_only(): void
+    public function test_admin_and_tester_characters_are_not_recorded(): void
     {
         $service = app(GameplayMetricService::class);
         $admin = User::factory()->create(['role' => 'admin']);
@@ -115,35 +131,31 @@ class GameplayMetricsTest extends TestCase
             'created_at' => now(),
         ]);
         $legacyArt = $this->createArt();
-        GameplayMetric::query()->create([
-            'character_id' => $similarEmailCharacter->id,
-            'metric_type' => GameplayMetric::TYPE_JOB_ART_BATTLE,
-            'context' => 'pvp',
-            'result' => 'victory',
-            'payload' => [
-                'version' => 1,
-                'turn_count' => 2,
-                'activation_count' => 2,
-                'skills' => [[
-                    'skill_id' => $legacyArt->id,
-                    'name' => $legacyArt->name,
-                    'origin' => 'current',
-                    'activation_count' => 2,
-                    'hit_count' => 1,
-                    'miss_count' => 1,
-                    'evade_count' => 0,
-                    'no_resolution_count' => 0,
-                ]],
-            ],
-            'created_at' => now(),
-        ]);
+        $legacyShapeBattle = new BattleResult;
+        $legacyShapeBattle->result = 'victory';
+        $legacyShapeBattle->turnCount = 2;
+        $legacyShapeBattle->jobArtUsage = [[
+            'skill_id' => $legacyArt->id,
+            'name' => $legacyArt->name,
+            'origin' => 'current',
+            'activation_count' => 2,
+            'hit_count' => 1,
+            'miss_count' => 1,
+            'evade_count' => 0,
+            'no_resolution_count' => 0,
+        ]];
+        $service->recordJobArtBattle($similarEmailCharacter, 'pvp', $legacyShapeBattle);
         $this->assertDatabaseCount('gameplay_metrics', 3);
         $analysis = app(GameplayAnalyticsService::class)->analyze('all');
         $this->assertSame(2, $analysis['jobArt']['cards']['battles']);
         $this->assertSame(50.0, $analysis['jobArt']['skillRows'][0]['hit_rate']);
         $this->assertSame(0, $analysis['jobArt']['skillRows'][0]['vital_hits']);
         $this->assertSame(0.0, $analysis['jobArt']['skillRows'][0]['vital_hit_rate']);
+    }
 
+    public function test_gameplay_metrics_page_is_admin_only(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
         $this->get(route('admin.gameplay-analytics'))->assertRedirect();
         $normalUser = User::factory()->create(['role' => 'user']);
         $this->actingAs($normalUser)->get(route('admin.gameplay-analytics'))->assertRedirect('/admin/login');
@@ -238,6 +250,94 @@ class GameplayMetricsTest extends TestCase
         $this->assertSame(10.0, $rows['batch']['average_danger_delta']);
         $this->assertSame(1.0, $rows['single']['average_stamina_cost']);
         $this->assertSame(1.0, $rows['batch']['average_stamina_cost']);
+    }
+
+    public function test_battle_time_job_and_level_filters_do_not_follow_later_character_changes(): void
+    {
+        $character = $this->createCharacter();
+        $battleJob = JobClass::query()->create([
+            'key' => 'battle-time-job-'.str()->random(6),
+            'name' => '戦闘時の職',
+            'rank' => 'basic',
+            'max_job_level' => 10,
+        ]);
+        $laterJob = JobClass::query()->create([
+            'key' => 'later-job-'.str()->random(6),
+            'name' => '後からの職',
+            'rank' => 'basic',
+            'max_job_level' => 10,
+        ]);
+        $battle = new BattleResult;
+        $battle->result = 'victory';
+        $battle->turnCount = 3;
+        $battle->playerLevelAtStart = 99;
+        $battle->playerJobIdAtStart = (int) $battleJob->id;
+
+        app(GameplayMetricService::class)->recordJobArtBattle($character, 'normal', $battle);
+        $character->forceFill(['level' => 220, 'current_job_id' => $laterJob->id])->save();
+
+        $battleTime = app(GameplayAnalyticsService::class)->analyze([
+            'activity_window' => 'all',
+            'battle_context' => 'normal',
+            'current_job_id' => $battleJob->id,
+            'level_band' => '50-99',
+        ]);
+        $laterState = app(GameplayAnalyticsService::class)->analyze([
+            'activity_window' => 'all',
+            'battle_context' => 'normal',
+            'current_job_id' => $laterJob->id,
+            'level_band' => '200-255',
+        ]);
+
+        $this->assertSame(1, $battleTime['jobArt']['cards']['battles']);
+        $this->assertSame(0, $laterState['jobArt']['cards']['battles']);
+    }
+
+    public function test_loadout_rollup_keeps_slot_order_and_aggregates_matching_signatures(): void
+    {
+        $character = $this->createCharacter();
+        $opening = $this->createArt();
+        $link = Skill::query()->create([
+            'job_id' => $opening->job_id,
+            'name' => '計測の連携',
+            'skill_type' => 'job_art',
+            'learn_rank' => 5,
+        ]);
+        $service = app(GameplayMetricService::class);
+
+        foreach ([
+            ['result' => 'victory', 'turn_count' => 3, 'skills' => [$opening, $link]],
+            ['result' => 'defeat', 'turn_count' => 5, 'skills' => [$opening, $link]],
+            ['result' => 'victory', 'turn_count' => 2, 'skills' => [$link, $opening]],
+        ] as $case) {
+            $battle = new BattleResult;
+            $battle->result = $case['result'];
+            $battle->turnCount = $case['turn_count'];
+            $battle->playerLevelAtStart = 120;
+            $battle->playerJobIdAtStart = (int) $opening->job_id;
+            $battle->jobArtLoadout = collect($case['skills'])
+                ->values()
+                ->map(fn (Skill $skill, int $index): array => [
+                    'slot_no' => $index + 1,
+                    'skill_id' => (int) $skill->id,
+                    'name' => (string) $skill->name,
+                    'origin' => 'current',
+                ])->all();
+            $service->recordJobArtBattle($character, 'normal', $battle);
+        }
+
+        $rows = collect(app(GameplayAnalyticsService::class)->analyze([
+            'activity_window' => 'all',
+            'battle_context' => 'normal',
+            'current_job_id' => $opening->job_id,
+            'level_band' => '100-149',
+        ])['jobArt']['loadoutRows'])->keyBy('label');
+
+        $this->assertCount(2, $rows);
+        $this->assertSame(2, $rows['計測の構え → 計測の連携']['battles']);
+        $this->assertSame(50.0, $rows['計測の構え → 計測の連携']['win_rate']);
+        $this->assertSame(4.0, $rows['計測の構え → 計測の連携']['average_turns']);
+        $this->assertSame(1, $rows['計測の連携 → 計測の構え']['battles']);
     }
 
     public function test_malformed_telemetry_payloads_do_not_escape_into_gameplay_flow(): void

@@ -102,6 +102,8 @@ final class SixHeroPracticeBattleServiceTest extends TestCase
         ));
         $this->assertDatabaseCount('six_hero_daily_usages', 0);
         $this->assertDatabaseCount('six_hero_battle_logs', 0);
+        $this->assertDatabaseCount('gameplay_metrics', 0);
+        $this->assertDatabaseCount('gameplay_job_art_rollups', 0);
     }
 
     public function test_pending_previous_month_blocks_practice_without_competitive_side_effects(): void

@@ -474,6 +474,11 @@ class TowerBattleService extends BattleService
             'player_mp_after' => max(0, $player->mp),
             'job_art_v2_hud' => $this->jobArtV2BattleHudService->present($state),
             'job_art_usage' => $state->jobArtUsageFor($player),
+            'job_art_loadout' => $state->jobArtLoadoutFor($player),
+            'character_level_at_start' => (int) $character->level,
+            'current_job_id_at_start' => $character->current_job_id !== null
+                ? (int) $character->current_job_id
+                : null,
             'enemy_stats' => $enemyStats,
             'enemy_base_stats' => $enemyBaseStats,
             'player_start_stats' => [

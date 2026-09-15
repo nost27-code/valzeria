@@ -101,6 +101,10 @@ class ArenaNpcBattleService
         $npcRanking->loadMissing('npc');
 
         $result = new BattleResult();
+        $result->playerLevelAtStart = (int) $attacker->level;
+        $result->playerJobIdAtStart = $attacker->current_job_id !== null
+            ? (int) $attacker->current_job_id
+            : null;
         $attackerActor = $this->makePlayerActor($attacker);
         $npcActor = $this->makeNpcActor($attacker, $npcRanking);
         $state = new BattleState($attackerActor, $npcActor, 'arena_npc');
@@ -168,6 +172,7 @@ class ArenaNpcBattleService
         $result->turnCount = $state->turnCount;
         $result->jobArtV2Hud = $this->jobArtBattleSupport->battleHud($state);
         $result->jobArtUsage = $state->jobArtUsageFor($attackerActor);
+        $result->jobArtLoadout = $state->jobArtLoadoutFor($attackerActor);
 
         DB::transaction(function () use ($attacker, $npcRanking, $isAttackerWin): void {
             $attackerRanking = ArenaRanking::where('character_id', $attacker->id)->lockForUpdate()->firstOrFail();

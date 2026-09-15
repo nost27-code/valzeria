@@ -12,29 +12,59 @@
                     ・更新 {{ $generatedAt->format('Y/m/d H:i:s') }}
                 </p>
             </div>
-            <label class="text-xs font-black text-slate-600">
-                集計期間
-                <select wire:model.live="activityWindow" class="mt-1 rounded-md border-slate-300 bg-white text-sm font-bold">
-                    <option value="7">直近7日</option>
-                    <option value="30">直近30日</option>
-                    <option value="90">直近90日</option>
-                    <option value="all">全期間</option>
-                </select>
-            </label>
+            <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
+                <label class="text-xs font-black text-slate-600">
+                    集計期間
+                    <select wire:model.live="activityWindow" class="mt-1 w-full rounded-md border-slate-300 bg-white text-sm font-bold">
+                        <option value="7">直近7日</option>
+                        <option value="30">直近30日</option>
+                        <option value="90">直近90日</option>
+                        <option value="all">全期間</option>
+                    </select>
+                </label>
+                <label class="text-xs font-black text-slate-600">
+                    戦闘経路
+                    <select wire:model.live="battleContext" class="mt-1 w-full rounded-md border-slate-300 bg-white text-sm font-bold">
+                        <option value="all">すべて</option>
+                        @foreach($contextOptions as $key => $label)<option value="{{ $key }}">{{ $label }}</option>@endforeach
+                    </select>
+                </label>
+                <label class="text-xs font-black text-slate-600">
+                    戦闘時の職業
+                    <select wire:model.live="currentJobId" class="mt-1 w-full rounded-md border-slate-300 bg-white text-sm font-bold">
+                        <option value="0">すべて</option>
+                        @foreach($jobOptions as $job)<option value="{{ $job->id }}">{{ $job->name }}</option>@endforeach
+                    </select>
+                </label>
+                <label class="text-xs font-black text-slate-600">
+                    戦闘時のLv帯
+                    <select wire:model.live="levelBand" class="mt-1 w-full rounded-md border-slate-300 bg-white text-sm font-bold">
+                        @foreach($levelBandOptions as $band)<option value="{{ $band }}">{{ $band === 'all' ? 'すべて' : 'Lv'.$band }}</option>@endforeach
+                    </select>
+                </label>
+            </div>
         </div>
     </header>
 
     @unless($ready)
         <div class="rounded-md border border-amber-200 bg-amber-50 p-5 text-sm font-bold text-amber-900">
-            計測テーブルがまだ準備されていません。migration後から実績の記録を開始します。
+            DB集計テーブルがまだ準備されていません。migration後から戦闘時点の詳細実績を記録します。
         </div>
     @else
+        <div class="rounded-md border border-sky-200 bg-sky-50 p-4 text-xs font-bold leading-5 text-sky-900">
+            戦技欄はDB集計の開始後に行われた実戦だけを対象にします。旧ログは保持していますが、戦闘時の職業・Lv・セットを復元できないため合算しません。
+            六英雄戦の公式戦は「プレイヤーPvP」に含み、相性確認・訓練所・管理者検証は含みません。
+            @if($jobArtMeasurementStartedAt)
+                詳細集計開始 {{ \Illuminate\Support\Carbon::parse($jobArtMeasurementStartedAt)->format('Y/m/d H:i') }}
+            @endif
+        </div>
+
         <section class="space-y-4">
             <div>
                 <h2 class="text-xl font-black text-slate-950">戦技の実戦実績</h2>
                 <p class="mt-1 text-xs font-bold text-slate-500">戦技が一度でも発動した戦闘と、発動しなかった戦闘を同じ母数で比較します。</p>
             </div>
-            <div class="grid grid-cols-2 gap-3 lg:grid-cols-6">
+            <div class="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-9">
                 @foreach([
                     ['戦闘数', number_format($jobArt['cards']['battles'])],
                     ['戦技発動戦', number_format($jobArt['cards']['art_battles'])],
@@ -42,12 +72,34 @@
                     ['総発動数', number_format($jobArt['cards']['activations'])],
                     ['発動あり勝率', $jobArt['cards']['with_art_win_rate'] === null ? '-' : $jobArt['cards']['with_art_win_rate'].'%'],
                     ['発動なし勝率', $jobArt['cards']['without_art_win_rate'] === null ? '-' : $jobArt['cards']['without_art_win_rate'].'%'],
+                    ['平均ターン', number_format($jobArt['cards']['average_turns'], 1)],
+                    ['戦技HP回復/戦', number_format($jobArt['cards']['hp_recovered_per_battle'], 1)],
+                    ['戦技SP回復/戦', number_format($jobArt['cards']['sp_recovered_per_battle'], 1)],
                 ] as [$label, $value])
                     <div class="rounded-md border border-slate-200 bg-white p-4 shadow-sm">
                         <div class="text-[11px] font-black text-slate-500">{{ $label }}</div>
                         <div class="mt-2 text-xl font-black text-slate-950">{{ $value }}</div>
                     </div>
                 @endforeach
+            </div>
+
+            <div class="overflow-hidden rounded-md border border-slate-200 bg-white shadow-sm">
+                <div class="border-b border-slate-100 px-5 py-4">
+                    <h3 class="font-black text-slate-950">定番構成の実戦比較</h3>
+                    <p class="mt-1 text-xs font-bold text-slate-400">同じ枠順のセットを1構成として集計します。平均ターンが少ないほど周回は速い傾向ですが、敵・エリア差を含むため単独で強弱を確定しません。</p>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="min-w-[980px] w-full text-left text-xs">
+                        <thead class="bg-slate-50 font-black text-slate-500"><tr><th class="px-4 py-3">構成（枠順）</th><th class="px-3 py-3 text-right">戦闘</th><th class="px-3 py-3 text-right">発動戦率</th><th class="px-3 py-3 text-right">勝率</th><th class="px-3 py-3 text-right">平均ターン</th><th class="px-3 py-3 text-right">HP回復/戦</th><th class="px-3 py-3 text-right">SP回復/戦</th></tr></thead>
+                        <tbody class="divide-y divide-slate-100">
+                            @forelse($jobArt['loadoutRows'] as $row)
+                                <tr><td class="px-4 py-3 font-black text-slate-900">{{ $row['label'] }}</td><td class="px-3 py-3 text-right">{{ number_format($row['battles']) }}</td><td class="px-3 py-3 text-right">{{ $row['activation_battle_rate'] }}%</td><td class="px-3 py-3 text-right font-black">{{ $row['win_rate'] }}%</td><td class="px-3 py-3 text-right">{{ number_format($row['average_turns'], 1) }}</td><td class="px-3 py-3 text-right">{{ number_format($row['hp_recovered_per_battle'], 1) }}</td><td class="px-3 py-3 text-right">{{ number_format($row['sp_recovered_per_battle'], 1) }}</td></tr>
+                            @empty
+                                <tr><td colspan="7" class="px-4 py-10 text-center font-bold text-slate-400">条件に合う詳細実績はまだありません。</td></tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
             </div>
 
             <div class="grid grid-cols-1 gap-4 xl:grid-cols-[1.4fr_1fr]">
@@ -57,13 +109,13 @@
                         <p class="mt-1 text-xs font-bold text-slate-400">命中率はHIT/MISS/EVADEを返す攻撃型だけを母数にします。急所命中率はHITを母数にし、支援型は「判定なし」です。</p>
                     </div>
                     <div class="overflow-x-auto">
-                        <table class="min-w-full text-left text-xs">
-                            <thead class="bg-slate-50 font-black text-slate-500"><tr><th class="px-4 py-3">戦技</th><th class="px-3 py-3 text-right">戦闘</th><th class="px-3 py-3 text-right">発動</th><th class="px-3 py-3 text-right">命中率</th><th class="px-3 py-3 text-right">急所命中</th><th class="px-3 py-3 text-right">勝率</th></tr></thead>
+                        <table class="min-w-[980px] w-full text-left text-xs">
+                            <thead class="bg-slate-50 font-black text-slate-500"><tr><th class="px-4 py-3">戦技</th><th class="px-3 py-3 text-right">発動戦</th><th class="px-3 py-3 text-right">発動</th><th class="px-3 py-3 text-right">命中率</th><th class="px-3 py-3 text-right">急所命中</th><th class="px-3 py-3 text-right">勝率</th><th class="px-3 py-3 text-right">平均ターン</th><th class="px-3 py-3 text-right">HP回復/戦</th><th class="px-3 py-3 text-right">SP回復/戦</th></tr></thead>
                             <tbody class="divide-y divide-slate-100">
                                 @forelse($jobArt['skillRows'] as $row)
-                                    <tr><td class="px-4 py-3 font-black text-slate-900">{{ $row['name'] }}</td><td class="px-3 py-3 text-right font-bold">{{ number_format($row['battles']) }}</td><td class="px-3 py-3 text-right font-bold">{{ number_format($row['activations']) }}</td><td class="px-3 py-3 text-right font-bold">{{ $row['hit_rate'] === null ? '判定なし' : $row['hit_rate'].'%' }}</td><td class="px-3 py-3 text-right font-bold">{{ $row['vital_hit_rate'] === null ? '—' : $row['vital_hit_rate'].'%（'.number_format($row['vital_hits']).'回）' }}</td><td class="px-3 py-3 text-right font-bold">{{ $row['win_rate'] }}%</td></tr>
+                                    <tr><td class="px-4 py-3 font-black text-slate-900">{{ $row['name'] }}</td><td class="px-3 py-3 text-right font-bold">{{ number_format($row['battles']) }}</td><td class="px-3 py-3 text-right font-bold">{{ number_format($row['activations']) }}</td><td class="px-3 py-3 text-right font-bold">{{ $row['hit_rate'] === null ? '判定なし' : $row['hit_rate'].'%' }}</td><td class="px-3 py-3 text-right font-bold">{{ $row['vital_hit_rate'] === null ? '—' : $row['vital_hit_rate'].'%（'.number_format($row['vital_hits']).'回）' }}</td><td class="px-3 py-3 text-right font-bold">{{ $row['win_rate'] }}%</td><td class="px-3 py-3 text-right">{{ number_format($row['average_turns'], 1) }}</td><td class="px-3 py-3 text-right">{{ number_format($row['hp_recovered_per_battle'], 1) }}</td><td class="px-3 py-3 text-right">{{ number_format($row['sp_recovered_per_battle'], 1) }}</td></tr>
                                 @empty
-                                    <tr><td colspan="6" class="px-4 py-10 text-center font-bold text-slate-400">期間内の戦技発動実績はありません。</td></tr>
+                                    <tr><td colspan="9" class="px-4 py-10 text-center font-bold text-slate-400">期間内の戦技発動実績はありません。</td></tr>
                                 @endforelse
                             </tbody>
                         </table>
@@ -74,7 +126,7 @@
                     <div class="divide-y divide-slate-100">
                         @forelse($jobArt['contextRows'] as $row)
                             <div class="grid grid-cols-[1fr_auto] gap-3 px-4 py-3">
-                                <div><div class="font-black text-slate-900">{{ $row['label'] }}</div><div class="mt-1 text-[11px] font-bold text-slate-500">{{ number_format($row['battles']) }}戦・{{ number_format($row['activations']) }}回発動</div></div>
+                                <div><div class="font-black text-slate-900">{{ $row['label'] }}</div><div class="mt-1 text-[11px] font-bold text-slate-500">{{ number_format($row['battles']) }}戦・{{ number_format($row['activations']) }}回発動・平均{{ number_format($row['average_turns'], 1) }}ターン</div></div>
                                 <div class="text-right text-xs font-black text-violet-700">発動戦 {{ $row['activation_battle_rate'] }}%<br><span class="text-slate-500">勝率 {{ $row['win_rate'] }}%</span></div>
                             </div>
                         @empty

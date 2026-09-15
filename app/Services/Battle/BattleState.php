@@ -102,11 +102,14 @@ class BattleState
     /** @var array<int, BattleActionResult> */
     private array $battleActionResults = [];
 
-    /** @var array<string, array{skill_id:int,name:string,origin:string,activation_count:int,hit_count:int,miss_count:int,evade_count:int,no_resolution_count:int,vital_hit_count:int}> */
+    /** @var array<string, array{skill_id:int,name:string,origin:string,activation_count:int,hit_count:int,miss_count:int,evade_count:int,no_resolution_count:int,vital_hit_count:int,hp_recovered:int,sp_recovered:int}> */
     private array $jobArtUsage = [];
 
     /** @var array<string, string> actor/source action => usage key */
     private array $pendingJobArtUsage = [];
+
+    /** @var array<string, array{usage_key:string,hp_healed_before:int,mp_after_cost:int}> */
+    private array $pendingJobArtRecoveryObservations = [];
 
     /** @var array<string, true> */
     private array $claimedSpPressureEvents = [];
@@ -768,11 +771,19 @@ class BattleState
             'evade_count' => 0,
             'no_resolution_count' => 0,
             'vital_hit_count' => 0,
+            'hp_recovered' => 0,
+            'sp_recovered' => 0,
         ];
         $this->jobArtUsage[$usageKey]['activation_count']++;
 
         $sourceActionId = $this->currentSourceActionId ?? $this->sourceActionSequence;
-        $this->pendingJobArtUsage[$actorKey.':'.$sourceActionId] = $usageKey;
+        $pendingKey = $actorKey.':'.$sourceActionId;
+        $this->pendingJobArtUsage[$pendingKey] = $usageKey;
+        $this->pendingJobArtRecoveryObservations[$pendingKey] = [
+            'usage_key' => $usageKey,
+            'hp_healed_before' => $actor->totalHpHealed,
+            'mp_after_cost' => $actor->mp,
+        ];
     }
 
     public function completeJobArtActivation(
@@ -802,7 +813,32 @@ class BattleState
         unset($this->pendingJobArtUsage[$pendingKey]);
     }
 
-    /** @return list<array{skill_id:int,name:string,origin:string,activation_count:int,hit_count:int,miss_count:int,evade_count:int,no_resolution_count:int,vital_hit_count:int}> */
+    public function completeJobArtRecoveryObservation(BattleActor $actor): void
+    {
+        $actorKey = $this->actorKey($actor);
+        $sourceActionId = $this->currentSourceActionId ?? $this->sourceActionSequence;
+        $pendingKey = $actorKey.':'.$sourceActionId;
+        $observation = $this->pendingJobArtRecoveryObservations[$pendingKey] ?? null;
+        if ($observation === null) {
+            return;
+        }
+
+        $usageKey = $observation['usage_key'];
+        if (isset($this->jobArtUsage[$usageKey])) {
+            $this->jobArtUsage[$usageKey]['hp_recovered'] += max(
+                0,
+                $actor->totalHpHealed - $observation['hp_healed_before'],
+            );
+            $this->jobArtUsage[$usageKey]['sp_recovered'] += max(
+                0,
+                $actor->mp - $observation['mp_after_cost'],
+            );
+        }
+
+        unset($this->pendingJobArtRecoveryObservations[$pendingKey]);
+    }
+
+    /** @return list<array{skill_id:int,name:string,origin:string,activation_count:int,hit_count:int,miss_count:int,evade_count:int,no_resolution_count:int,vital_hit_count:int,hp_recovered:int,sp_recovered:int}> */
     public function jobArtUsageFor(BattleActor $actor): array
     {
         $prefix = $this->actorKey($actor).':';
@@ -812,6 +848,27 @@ class BattleState
             static fn (array $row, string $key): bool => str_starts_with($key, $prefix),
             ARRAY_FILTER_USE_BOTH,
         ));
+    }
+
+    /** @return list<array{slot_no:int,skill_id:int,name:string,origin:string}> */
+    public function jobArtLoadoutFor(BattleActor $actor): array
+    {
+        $loadout = [];
+
+        foreach (array_values($actor->jobArts) as $index => $skill) {
+            if (! $skill instanceof \App\Models\Skill || (int) $skill->id <= 0) {
+                continue;
+            }
+
+            $loadout[] = [
+                'slot_no' => $index + 1,
+                'skill_id' => (int) $skill->id,
+                'name' => (string) $skill->name,
+                'origin' => (string) ($actor->jobArtOrigins[(int) $skill->id] ?? 'current'),
+            ];
+        }
+
+        return $loadout;
     }
 
     public function claimSpPressureEvent(

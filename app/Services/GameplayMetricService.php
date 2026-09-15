@@ -7,11 +7,16 @@ use App\Models\CharacterExplorationState;
 use App\Models\CharacterSubAreaExplorationState;
 use App\Models\GameplayMetric;
 use App\Services\Battle\BattleResult;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
 class GameplayMetricService
 {
+    private const JOB_ART_ROLLUP_TABLE = 'gameplay_job_art_rollups';
+
+    private const JOB_ART_SKILL_ROLLUP_TABLE = 'gameplay_job_art_skill_rollups';
+
     /** @return array{danger_rate:?int,stamina:?int} */
     public function explorationSnapshot(
         Character $character,
@@ -77,17 +82,55 @@ class GameplayMetricService
             return;
         }
 
-        $this->record($character, [
+        $characterLevelAtStart = $battle instanceof BattleResult
+            ? $battle->playerLevelAtStart
+            : ($battle['character_level_at_start'] ?? null);
+        $characterLevelAtStart = is_numeric($characterLevelAtStart) && (int) $characterLevelAtStart > 0
+            ? (int) $characterLevelAtStart
+            : null;
+        $currentJobIdAtStart = $battle instanceof BattleResult
+            ? $battle->playerJobIdAtStart
+            : ($battle['current_job_id_at_start'] ?? null);
+        $currentJobIdAtStart = is_numeric($currentJobIdAtStart) && (int) $currentJobIdAtStart > 0
+            ? (int) $currentJobIdAtStart
+            : null;
+        $loadout = $this->normalizeLoadout($battle instanceof BattleResult
+            ? $battle->jobArtLoadout
+            : (array) ($battle['job_art_loadout'] ?? []));
+        $levelBandAtStart = $this->levelBandFor($characterLevelAtStart);
+        $normalizedResult = $this->normalizeBattleResult($result);
+        $activationCount = collect($usage)->sum(
+            fn (array $row): int => max(0, (int) ($row['activation_count'] ?? 0)),
+        );
+
+        $recorded = $this->record($character, [
             'metric_type' => GameplayMetric::TYPE_JOB_ART_BATTLE,
             'context' => $context,
-            'result' => $this->normalizeBattleResult($result),
+            'result' => $normalizedResult,
             'payload' => [
-                'version' => 2,
+                'version' => 3,
                 'turn_count' => max(0, $turnCount),
-                'activation_count' => collect($usage)->sum(fn (array $row): int => (int) ($row['activation_count'] ?? 0)),
+                'activation_count' => $activationCount,
+                'character_level_at_start' => $characterLevelAtStart,
+                'current_job_id_at_start' => $currentJobIdAtStart,
+                'level_band_at_start' => $levelBandAtStart,
+                'loadout' => $loadout,
                 'skills' => array_values($usage),
             ],
         ]);
+
+        if ($recorded) {
+            $this->recordJobArtRollups(
+                context: $context,
+                result: $normalizedResult,
+                turnCount: max(0, $turnCount),
+                activationCount: $activationCount,
+                characterLevelAtStart: $characterLevelAtStart,
+                currentJobIdAtStart: $currentJobIdAtStart,
+                loadout: $loadout,
+                usage: array_values($usage),
+            );
+        }
     }
 
     /** @param array<string,mixed> $result */
@@ -220,17 +263,17 @@ class GameplayMetricService
     }
 
     /** @param array{metric_type:string,context:string,result:?string,payload:array<string,mixed>} $attributes */
-    private function record(Character $character, array $attributes): void
+    private function record(Character $character, array $attributes): bool
     {
         try {
             if (! app(SchemaStateService::class)->hasTable('gameplay_metrics')) {
-                return;
+                return false;
             }
 
             // 呼び出し元でuserが一部カラムだけload済みでも、除外判定を弱めない。
             $character->load('user:id,role,email');
             if ($character->isExcludedFromPublicLogs()) {
-                return;
+                return false;
             }
 
             GameplayMetric::query()->create([
@@ -238,9 +281,172 @@ class GameplayMetricService
                 ...$attributes,
                 'created_at' => now(),
             ]);
+
+            return true;
         } catch (Throwable $e) {
             $this->logFailure($attributes['metric_type'], $attributes['context'], $e);
+
+            return false;
         }
+    }
+
+    /**
+     * @param  list<array{slot_no:int,skill_id:int,name:string,origin:string}>  $loadout
+     * @param  list<array<string,mixed>>  $usage
+     */
+    private function recordJobArtRollups(
+        string $context,
+        string $result,
+        int $turnCount,
+        int $activationCount,
+        ?int $characterLevelAtStart,
+        ?int $currentJobIdAtStart,
+        array $loadout,
+        array $usage,
+    ): void {
+        if (! app(SchemaStateService::class)->hasTable(self::JOB_ART_ROLLUP_TABLE)
+            || ! app(SchemaStateService::class)->hasTable(self::JOB_ART_SKILL_ROLLUP_TABLE)
+        ) {
+            return;
+        }
+
+        $now = now();
+        $bucket = $now->copy()->startOfHour();
+        $levelBand = $this->levelBandFor($characterLevelAtStart);
+        $jobId = $currentJobIdAtStart ?? 0;
+        $loadoutJson = json_encode($loadout, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
+        $loadoutSignature = hash('sha256', $loadoutJson);
+        $hpRecovered = collect($usage)->sum(
+            fn (array $row): int => max(0, (int) ($row['hp_recovered'] ?? 0)),
+        );
+        $spRecovered = collect($usage)->sum(
+            fn (array $row): int => max(0, (int) ($row['sp_recovered'] ?? 0)),
+        );
+        $won = $result === 'victory' ? 1 : 0;
+        $artBattle = $activationCount > 0 ? 1 : 0;
+
+        $this->additiveUpsert(
+            self::JOB_ART_ROLLUP_TABLE,
+            [[
+                'bucket_started_at' => $bucket,
+                'context' => $context,
+                'current_job_id' => $jobId,
+                'level_band' => $levelBand,
+                'loadout_signature' => $loadoutSignature,
+                'loadout' => $loadoutJson,
+                'battles' => 1,
+                'art_battles' => $artBattle,
+                'wins' => $won,
+                'art_wins' => $artBattle * $won,
+                'turns' => $turnCount,
+                'activations' => $activationCount,
+                'hp_recovered' => $hpRecovered,
+                'sp_recovered' => $spRecovered,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]],
+            ['bucket_started_at', 'context', 'current_job_id', 'level_band', 'loadout_signature'],
+            ['battles', 'art_battles', 'wins', 'art_wins', 'turns', 'activations', 'hp_recovered', 'sp_recovered'],
+            ['loadout', 'updated_at'],
+        );
+
+        $skillRows = [];
+        foreach ($usage as $row) {
+            $skillId = max(0, (int) ($row['skill_id'] ?? 0));
+            $activations = max(0, (int) ($row['activation_count'] ?? 0));
+            if ($skillId <= 0 || $activations <= 0) {
+                continue;
+            }
+
+            $skillRows[] = [
+                'bucket_started_at' => $bucket,
+                'context' => $context,
+                'current_job_id' => $jobId,
+                'level_band' => $levelBand,
+                'skill_id' => $skillId,
+                'skill_name' => mb_substr((string) ($row['name'] ?? '不明な戦技'), 0, 255),
+                'battles' => 1,
+                'wins' => $won,
+                'turns' => $turnCount,
+                'activations' => $activations,
+                'hits' => max(0, (int) ($row['hit_count'] ?? 0)),
+                'misses' => max(0, (int) ($row['miss_count'] ?? 0)),
+                'evades' => max(0, (int) ($row['evade_count'] ?? 0)),
+                'no_resolution' => max(0, (int) ($row['no_resolution_count'] ?? 0)),
+                'vital_hits' => max(0, (int) ($row['vital_hit_count'] ?? 0)),
+                'hp_recovered' => max(0, (int) ($row['hp_recovered'] ?? 0)),
+                'sp_recovered' => max(0, (int) ($row['sp_recovered'] ?? 0)),
+                'created_at' => $now,
+                'updated_at' => $now,
+            ];
+        }
+
+        if ($skillRows !== []) {
+            $this->additiveUpsert(
+                self::JOB_ART_SKILL_ROLLUP_TABLE,
+                $skillRows,
+                ['bucket_started_at', 'context', 'current_job_id', 'level_band', 'skill_id'],
+                ['battles', 'wins', 'turns', 'activations', 'hits', 'misses', 'evades', 'no_resolution', 'vital_hits', 'hp_recovered', 'sp_recovered'],
+                ['skill_name', 'updated_at'],
+            );
+        }
+    }
+
+    /**
+     * @param  list<array<string,mixed>>  $rows
+     * @param  list<string>  $uniqueBy
+     * @param  list<string>  $incrementColumns
+     * @param  list<string>  $replaceColumns
+     */
+    private function additiveUpsert(
+        string $table,
+        array $rows,
+        array $uniqueBy,
+        array $incrementColumns,
+        array $replaceColumns,
+    ): void {
+        $driver = DB::connection()->getDriverName();
+        $updates = $replaceColumns;
+        foreach ($incrementColumns as $column) {
+            $updates[$column] = match ($driver) {
+                'mysql' => DB::raw("`{$column}` + values(`{$column}`)"),
+                default => DB::raw("\"{$column}\" + excluded.\"{$column}\""),
+            };
+        }
+
+        DB::table($table)->upsert($rows, $uniqueBy, $updates);
+    }
+
+    /** @param array<int,mixed> $loadout @return list<array{slot_no:int,skill_id:int,name:string,origin:string}> */
+    private function normalizeLoadout(array $loadout): array
+    {
+        $normalized = [];
+        foreach (array_values($loadout) as $index => $row) {
+            if (! is_array($row) || (int) ($row['skill_id'] ?? 0) <= 0) {
+                continue;
+            }
+
+            $normalized[] = [
+                'slot_no' => max(1, (int) ($row['slot_no'] ?? $index + 1)),
+                'skill_id' => (int) $row['skill_id'],
+                'name' => mb_substr((string) ($row['name'] ?? '不明な戦技'), 0, 255),
+                'origin' => mb_substr((string) ($row['origin'] ?? 'current'), 0, 40),
+            ];
+        }
+
+        return $normalized;
+    }
+
+    private function levelBandFor(?int $level): string
+    {
+        return match (true) {
+            $level === null || $level <= 0 => 'unknown',
+            $level <= 49 => '1-49',
+            $level <= 99 => '50-99',
+            $level <= 149 => '100-149',
+            $level <= 199 => '150-199',
+            default => '200-255',
+        };
     }
 
     private function logFailure(string $metricType, string $context, Throwable $exception): void

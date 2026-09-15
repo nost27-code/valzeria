@@ -68,6 +68,12 @@ final class SixHeroOfficialBattleServiceTest extends TestCase
             $characters,
         );
         $battleResult = new BattleResult;
+        $battleResult->result = 'victory';
+        $battleResult->turnCount = 7;
+        $battleResult->playerLevelAtStart = (int) $characters[3]->level;
+        $battleResult->playerJobIdAtStart = $characters[3]->current_job_id === null
+            ? null
+            : (int) $characters[3]->current_job_id;
         $battleResult->logs = [str_repeat('巨大な戦闘ログ', 2000)];
         $resolution = new PvPBattleResolution(
             result: $battleResult,
@@ -179,6 +185,15 @@ final class SixHeroOfficialBattleServiceTest extends TestCase
         $this->assertTrue($log->defender->is($characters[1]));
         $this->assertDatabaseCount('arena_logs', 0);
         $this->assertDatabaseCount('arena_rankings', 0);
+        $this->assertDatabaseHas('gameplay_metrics', [
+            'character_id' => $characters[3]->id,
+            'metric_type' => 'job_art_battle',
+            'context' => 'pvp',
+            'result' => 'victory',
+        ]);
+        $this->assertSame(1, (int) DB::table('gameplay_job_art_rollups')
+            ->where('context', 'pvp')
+            ->sum('battles'));
         $this->assertDatabaseHas('public_logs', [
             'type' => 'arena',
             'character_id' => $characters[3]->id,
