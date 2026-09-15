@@ -62,7 +62,8 @@ final readonly class NationRaidApprovedCoordinationCurveUpgradeService
                 && $current->current_hp > 0 && $current->current_hp <= $current->max_hp,
                 \DomainException::class, '現在の再臨個体を確認できません。');
 
-            $newHash = $this->rules->rulesetHash();
+            // 初回開催には次回用の無料出撃・兵站・侵攻契約を後付けしない。
+            $newHash = $this->rules->previousRulesetHash();
             if (hash_equals($event->ruleset_hash, $newHash)) {
                 $this->assertStoredState($event, $current);
 
@@ -97,8 +98,8 @@ final readonly class NationRaidApprovedCoordinationCurveUpgradeService
 
             $hpBefore = ['max_hp' => $current->max_hp, 'current_hp' => $current->current_hp];
             $event->fill([
-                'ruleset_version' => NationRaidRules::RULESET_VERSION,
-                'ruleset_snapshot' => $this->rules->rulesetSnapshot(),
+                'ruleset_version' => NationRaidRules::PREVIOUS_RULESET_VERSION,
+                'ruleset_snapshot' => $this->rules->previousRulesetSnapshot(),
                 'ruleset_hash' => $newHash,
                 'balance_approved_at' => now(),
                 'balance_approved_by_user_id' => $admin->id,

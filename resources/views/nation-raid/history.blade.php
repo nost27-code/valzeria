@@ -24,6 +24,9 @@
                     <article class="py-4">
                         <h3 class="break-words font-bold">{{ $entry['event']->name }}</h3>
                         <p class="mt-1 text-xs text-slate-500">{{ $entry['event']->starts_at->format('Y/n/j') }} 〜 {{ $entry['event']->ends_at->format('Y/n/j') }}</p>
+                        @if($entry['outcome_label'])
+                            <p class="mt-2 text-sm font-black text-sky-800">結果：{{ $entry['outcome_label'] }}（{{ number_format($entry['event']->result_progress_bps / 100, 2) }}%）</p>
+                        @endif
                         @if($entry['record_unavailable'])
                             <p class="mt-3 text-sm text-amber-800">戦果の記録を確認できません。時間をおいて確認してください。</p>
                         @elseif($entry['record'] !== null)

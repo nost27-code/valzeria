@@ -240,7 +240,7 @@ final class NationRaidRewardTest extends TestCase
         $this->assertSame(2, NationRaidPersonalReward::where('reward_key', 'max_first')->count());
         $this->assertSame(0, NationRaidNationReward::where('reward_key', 'like', '%per_capita%')->count());
         config()->set('features.nation_competitive_raid_enabled', true);
-        app(NationRaidRewardService::class)->claim($event, $character, $this->reward($event, 'damage2m')->id);
+        app(NationRaidRewardService::class)->claim($event, $character, $this->reward($event, 'damage2m', $character)->id);
         $this->assertDatabaseHas('titles', ['unlock_type' => 'nation_raid_honor', 'target_id' => 'damage2m', 'name' => '黒天竜を穿つ者']);
         $this->assertSame(1, $character->titles()->count());
         $this->assertSame(0, $nation->fresh()->development_exp);
@@ -337,7 +337,7 @@ final class NationRaidRewardTest extends TestCase
         $response = $this->actingAs($character->user)->get(route('nation-raid.rewards', $event));
         $response->assertOk()->assertSee('報酬一覧')->assertSee('条件未達')->assertSee('250,000')
             ->assertSee('14 / 15')->assertSee('2,100,000')->assertSee('探索力の小瓶 ×3')
-            ->assertSee('イベント終了後の戦果確定')->assertDontSee('探索力の小瓶 ×99')
+            ->assertSee('条件を満たした時点で獲得')->assertDontSee('探索力の小瓶 ×99')
             ->assertDontSee('data-raid-claim-button', false)->assertDontSee('name="selection"', false);
         $this->assertCount(9, $response->viewData('rewardScreen')['rows']);
         foreach ($response->viewData('rewardScreen')['rows'] as $row) {
@@ -513,7 +513,7 @@ final class NationRaidRewardTest extends TestCase
         $queries = DB::getQueryLog();
         DB::disableQueryLog();
         $inserts = array_filter($queries, fn ($query) => str_starts_with(strtolower($query['query']), 'insert into "nation_raid_personal_rewards"'));
-        $this->assertCount(1, $inserts);
+        $this->assertCount(8, $inserts);
         $otherParticipation = $event->participations()->where('character_id', $other->id)->sole();
         $record = app(\App\Services\Nation\Raid\NationRaidFinalResultService::class)->forParticipant($completed, $otherParticipation);
         $this->assertFalse($record['qualified']);
@@ -604,9 +604,11 @@ final class NationRaidRewardTest extends TestCase
         }
     }
 
-    private function reward(NationRaidEvent $event, string $key): NationRaidPersonalReward
+    private function reward(NationRaidEvent $event, string $key, ?Character $character = null): NationRaidPersonalReward
     {
-        return NationRaidPersonalReward::where('event_id', $event->id)->where('reward_key', $key)->firstOrFail();
+        return NationRaidPersonalReward::where('event_id', $event->id)->where('reward_key', $key)
+            ->when($character, fn ($query) => $query->where('character_id_snapshot', $character->id))
+            ->firstOrFail();
     }
 
     private function character(): Character

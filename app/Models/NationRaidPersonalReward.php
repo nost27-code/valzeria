@@ -20,6 +20,7 @@ final class NationRaidPersonalReward extends Model
             'character_id_snapshot' => 'integer',
             'reward_snapshot' => 'array',
             'balance_after_snapshot' => 'array',
+            'available_at' => 'datetime',
             'claimed_at' => 'datetime',
         ];
     }

@@ -47,4 +47,18 @@ final class NationRaidEntryService
 
         return $event;
     }
+
+    public function featuredEvent(): ?NationRaidEvent
+    {
+        $active = $this->activeEvent();
+        if ($active) {
+            return $active;
+        }
+        if (! config('features.nation_competitive_raid_enabled', false) || ! Schema::hasTable('nation_raid_events')) {
+            return null;
+        }
+
+        return NationRaidEvent::query()->where('status', NationRaidEvent::STATUS_SCHEDULED)
+            ->where('starts_at', '>', now())->orderBy('starts_at')->first();
+    }
 }

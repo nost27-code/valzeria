@@ -10,7 +10,6 @@ use App\Models\NationRaidDailyUsage;
 use App\Models\NationRaidEvent;
 use App\Models\NationRaidParticipation;
 use App\Services\AuthService;
-use App\Services\ExplorationStaminaService;
 use App\Services\Nation\CompetitionEventCoordinatorService;
 use Illuminate\Support\Facades\Log;
 use Throwable;
@@ -26,7 +25,7 @@ class NationRaidSortieService
         private readonly NationRaidSortieCombatService $combat,
         private readonly NationRaidSettlementService $settlement,
         private readonly NationRaidBattleViewService $view,
-        private readonly ExplorationStaminaService $stamina,
+        private readonly NationRaidSortieCostService $costs,
         private readonly AuthService $auth,
         private readonly NationRaidRules $rules,
         private readonly NationRaidStrategyPolicy $strategies,
@@ -108,17 +107,21 @@ class NationRaidSortieService
             $lineage = $this->lineageForDay($event, $day);
             throw_unless(($cycle->parameter_snapshot['ruleset_hash'] ?? null) === $event->ruleset_hash,
                 \DomainException::class, 'ボスの開始情報を確認できません。');
-            $cost = (int) config('nation_raid.event.sortie_stamina_cost', 10);
-            $stamina = $this->stamina->consumeRequired($locked, $cost, "レイドボスへの出撃には探索力{$cost}が必要です。");
-            throw_unless($stamina['ok'], \DomainException::class, $stamina['error'] ?? '探索力が足りません。');
+            $cost = $this->costs->consumeLocked($event, $participation, $locked, $day);
             $seed = bin2hex(random_bytes(32));
             $admission = [
-                'schema' => 'nation-raid-admission-v2', 'ruleset_hash' => $event->ruleset_hash,
+                'schema' => 'nation-raid-admission-v3', 'ruleset_hash' => $event->ruleset_hash,
                 'cycle_id' => $cycle->id,
                 'encounter' => ['stage' => $cycle->stage_no ?? $event->stage_count,
                     'current_hp' => $cycle->current_hp, 'max_hp' => $cycle->max_hp],
                 'engine_seed' => (int) hexdec(substr($seed, 0, 7)),
-                'stamina_cost' => $cost, 'stamina' => $stamina['stamina'],
+                'cost_type' => $cost['type'],
+                'stamina_cost' => $cost['stamina_cost'],
+                'stamina' => $cost['stamina'],
+                'free_balance_before' => $cost['free_balance_before'],
+                'free_balance_after' => $cost['free_balance_after'],
+                'free_daily_grant' => $cost['daily_grant'],
+                'free_balance_cap' => $cost['balance_cap'],
             ];
             $battle = SavedBattle::query()->create([
                 'event_id' => $event->id, 'participation_id' => $participation->id,
@@ -130,6 +133,7 @@ class NationRaidSortieService
                 'target_stage_no' => $cycle->stage_no, 'target_echo_no' => $cycle->echo_no,
                 'target_form' => $cycle->current_form, 'target_parameter_snapshot' => $cycle->parameter_snapshot,
                 'boss_species_key' => $cycle->boss_species_key, 'strategy' => $strategy, 'dominant_lineage' => $lineage,
+                'sortie_cost_type' => $cost['type'], 'stamina_cost' => $cost['stamina_cost'],
                 'summary' => ['admission' => $admission],
                 'started_at' => now(), 'resolution_deadline_at' => now()->addMinutes((int) config('nation_raid.event.resolution_grace_minutes', 10)),
             ]);

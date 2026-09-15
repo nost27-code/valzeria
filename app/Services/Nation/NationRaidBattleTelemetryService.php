@@ -16,7 +16,7 @@ use Illuminate\Support\Str;
  */
 final class NationRaidBattleTelemetryService
 {
-    public const SCHEMA_VERSION = '1.1';
+    public const SCHEMA_VERSION = '1.2';
 
     /** @var list<string> */
     private const LINEAGES = [
@@ -383,7 +383,9 @@ final class NationRaidBattleTelemetryService
         $keys = [
             'boss_name', 'boss_max_hp', 'boss_attack', 'boss_defense', 'boss_magic',
             'boss_spirit', 'boss_agility', 'boss_luck', 'max_turns', 'attempts_per_day',
-            'duration_days', 'stamina_cost', 'valid_participation_sorties', 'reward_thresholds',
+            'duration_days', 'stamina_cost', 'sortie_cost_type', 'free_balance_before',
+            'free_balance_after', 'free_daily_grant', 'free_balance_cap',
+            'valid_participation_sorties', 'reward_thresholds',
             'turn_stages', 'phase_config', 'adaptive_mapping', 'ruleset_hash',
             'measurement_contract', 'stage_no', 'echo_no', 'cycle_kind', 'strategy', 'boss_species_key',
             'killer_raw_rate', 'killer_effective_rate', 'killer_rate_cap', 'killer_rate_multiplier', 'armor_resistance_rate',

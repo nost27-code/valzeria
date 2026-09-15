@@ -20,6 +20,7 @@ final readonly class NationRaidScreenService
         private NationRaidCoordinationService $coordination,
         private ExplorationStaminaService $stamina,
         private NationRaidRankingService $rankings,
+        private NationRaidSortieCostService $costs,
     ) {}
 
     public function screen(NationRaidEvent $event, Character $character): array
@@ -62,6 +63,7 @@ final readonly class NationRaidScreenService
             $votes[] = ['label' => $this->view->lineageLabel($key), 'count' => $count];
         }
         $nextSwitch = $day !== null && $day < 7 ? $event->starts_at->copy()->addDays($day)->format('n/j H:i') : null;
+        $cost = $this->costs->status($event, $participation, $day);
 
         return [
             'official' => true, 'event_id' => $event->id,
@@ -77,7 +79,8 @@ final readonly class NationRaidScreenService
             'character' => $player['character'], 'abilities' => $player['abilities'], 'equipment' => $player['equipment'],
             'boss_set' => $player['boss_set'], 'counterplay_enabled' => $player['counterplay_enabled'],
             'coordination' => $this->view->coordinationPresentation($character, $this->coordination->snapshot($event, $participation)),
-            'sortie_stamina_cost' => (int) config('nation_raid.event.sortie_stamina_cost', 10),
+            'sortie_stamina_cost' => $cost['stamina_cost'],
+            'sortie_cost' => $cost,
             'exploration_stamina' => $this->stamina->summary($character),
             'standings' => $standings,
             'own_progress' => collect($standings['personal_total'] ?? [])->firstWhere('account_id', (int) $character->user_id),

@@ -5,6 +5,7 @@ namespace App\Services\Nation\Raid;
 use App\Models\Character;
 use App\Models\Nation;
 use App\Models\NationRaidEvent;
+use App\Models\NationRaidNationPreparation;
 use App\Models\NationRaidParticipation;
 use App\Services\AuthService;
 use Carbon\CarbonImmutable;
@@ -45,6 +46,11 @@ final class NationRaidParticipationSnapshotService
         $publishedCounts = $event->published_nation_counts_snapshot ?? [];
         $startedCounts = $this->nationCountsAt($at);
         $activeSince = $at->subDays((int) config('nation_raid.event.active_window_days', 7));
+        $preparations = NationRaidNationPreparation::query()->where('event_id', $event->id)->get()->keyBy('nation_id_snapshot');
+        $freeRules = $event->ruleset_snapshot['raid_cycle']['free_sorties'] ?? [
+            'daily_grant' => (int) config('nation_raid.free_sorties.daily_grant', 3),
+            'balance_cap' => (int) config('nation_raid.free_sorties.balance_cap', 9),
+        ];
         $created = 0;
 
         foreach ($this->normalCharacters() as $character) {
@@ -52,9 +58,9 @@ final class NationRaidParticipationSnapshotService
             $nationKey = $nation ? (string) $nation->id : null;
             $published = $nationKey ? (int) ($publishedCounts[$nationKey]['active_count'] ?? 0) : 0;
             $started = $nationKey ? (int) ($startedCounts[$nationKey]['active_count'] ?? 0) : 0;
-            $eligible = $nation !== null
-                && $character->last_battle_at !== null
-                && $character->last_battle_at->gte($activeSince);
+            $recentlyActive = $character->last_battle_at !== null && $character->last_battle_at->gte($activeSince);
+            $eligible = $nation !== null && $recentlyActive;
+            $preparation = $nationKey ? $preparations->get((int) $nationKey) : null;
 
             $row = NationRaidParticipation::query()->firstOrCreate(
                 ['event_id' => $event->id, 'account_id' => $character->user_id],
@@ -65,11 +71,20 @@ final class NationRaidParticipationSnapshotService
                     'nation_id' => $nation?->id,
                     'is_nation_eligible' => $eligible,
                     'is_late_entry' => false,
+                    'is_recently_active_snapshot' => $recentlyActive,
                     'published_active_count' => $published,
                     'started_active_count' => $started,
                     'reference_active_count' => max($published, $started),
                     'character_name_snapshot' => $character->name,
                     'nation_name_snapshot' => $nation?->display_name,
+                    'readiness_percent_snapshot' => $eligible ? (int) ($preparation?->readiness_percent ?? 0) : 0,
+                    'raid_benefits_held_snapshot' => $eligible ? (bool) ($preparation?->benefits_held ?? false) : false,
+                    'free_sortie_daily_grant_snapshot' => $eligible
+                        ? (int) ($preparation?->applied_daily_free_grant ?? $freeRules['daily_grant'])
+                        : (int) $freeRules['daily_grant'],
+                    'free_sortie_balance_cap_snapshot' => $eligible
+                        ? (int) ($preparation?->applied_free_balance_cap ?? $freeRules['balance_cap'])
+                        : (int) $freeRules['balance_cap'],
                 ],
             );
             if ($row->wasRecentlyCreated) {
@@ -109,16 +124,21 @@ final class NationRaidParticipationSnapshotService
             'nation_id' => null,
             'is_nation_eligible' => false,
             'is_late_entry' => true,
+            'is_recently_active_snapshot' => false,
             'published_active_count' => 0,
             'started_active_count' => 0,
             'reference_active_count' => 0,
             'character_name_snapshot' => $character->name,
             'nation_name_snapshot' => null,
+            'free_sortie_daily_grant_snapshot' => (int) ($event->ruleset_snapshot['raid_cycle']['free_sorties']['daily_grant']
+                ?? config('nation_raid.free_sorties.daily_grant', 3)),
+            'free_sortie_balance_cap_snapshot' => (int) ($event->ruleset_snapshot['raid_cycle']['free_sorties']['balance_cap']
+                ?? config('nation_raid.free_sorties.balance_cap', 9)),
         ]);
     }
 
     /** @return Collection<int, Character> */
-    private function normalCharacters(): Collection
+    public function normalCharacters(): Collection
     {
         $characters = Character::query()
             ->with(['user', 'nationMembership.nation'])

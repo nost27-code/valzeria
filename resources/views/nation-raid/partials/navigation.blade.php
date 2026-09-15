@@ -1,7 +1,7 @@
 <nav class="grid grid-cols-4 gap-1 rounded-xl border border-slate-200 bg-white p-1 text-center text-xs font-bold sm:text-sm" aria-label="レイドメニュー" data-nation-raid-navigation>
     @foreach(['top' => 'TOP', 'show' => '戦闘', 'rankings' => 'ランキング', 'rewards' => '報酬'] as $page => $label)
-        @if($page === 'show' && ($finished ?? false))
-            <span aria-disabled="true" class="flex min-h-11 items-center justify-center rounded-lg text-slate-400">戦闘終了</span>
+        @if($page === 'show' && (($finished ?? false) || (($event->status ?? null) === 'scheduled')))
+            <span aria-disabled="true" class="flex min-h-11 items-center justify-center rounded-lg text-slate-400">{{ (($event->status ?? null) === 'scheduled') ? '開戦待ち' : '戦闘終了' }}</span>
         @else
             <a href="{{ route('nation-raid.'.$page, $eventId) }}"
                 @if($active === $page) aria-current="page" @endif

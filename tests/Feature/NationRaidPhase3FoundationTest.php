@@ -57,6 +57,7 @@ final class NationRaidPhase3FoundationTest extends TestCase
         $event = $service->createDraft('legacy-hp-contract', '旧HP検証', now()->addDays(4));
         $snapshot = $event->ruleset_snapshot;
         $snapshot['version'] = 'nation-raid-phase1-v4-equipment-resistance';
+        unset($snapshot['raid_cycle']);
         foreach ($snapshot['stages'] as &$stage) {
             unset($stage['max_hp']);
         }
@@ -342,9 +343,9 @@ final class NationRaidPhase3FoundationTest extends TestCase
         $this->assertSame(NationRaidEvent::STATUS_FINALIZING, $finalizing->status);
         $this->assertFalse($finalizing->acceptsNewSortiesAt($finalizing->ends_at));
 
-        $this->travelTo($finalizing->ends_at->copy()->addMinutes(10));
+        $this->travelTo($finalizing->ends_at->copy()->addMinutes(30));
         app(\App\Services\Nation\Raid\NationRaidDailyLineageService::class)->finalizeDue();
-        $completed = app(NationRaidEventService::class)->completeFinalization($finalizing, $finalizing->ends_at->addMinutes(10));
+        $completed = app(NationRaidEventService::class)->completeFinalization($finalizing, $finalizing->ends_at->addMinutes(30));
         $this->assertSame(NationRaidEvent::STATUS_COMPLETED, $completed->status);
         $this->assertNotNull($completed->finalized_at);
         $this->assertNull(CompetitionEventCoordinator::query()->sole()->active_type);

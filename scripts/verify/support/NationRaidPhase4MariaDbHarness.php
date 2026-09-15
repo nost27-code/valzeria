@@ -85,6 +85,7 @@ final class NationRaidPhase4MariaDbHarness
 
         $this->scenario('same_token_admission_and_settlement', fn () => $this->duplicate());
         $this->scenario('different_tokens_one_pending', fn () => $this->onePending());
+        $this->scenario('free_then_voluntary_cost_and_refund', fn () => $this->sortieCosts());
         $this->scenario('player_capture_releases_global_admission_lock', fn () => $this->captureConcurrency());
         $this->scenario('concurrent_carry_and_nation_coordination', fn () => $this->coordination($citizens));
         $this->scenario('stage10_stage20_echo_and_replay', fn () => $this->milestones());
@@ -130,15 +131,16 @@ final class NationRaidPhase4MariaDbHarness
         $this->outcomes($rows, ['created', 'existing']);
         $this->check(count(array_unique(array_column($rows, 'battle'))) === 1, 'Duplicate admission created multiple rows.');
         $battle = SavedBattle::query()->where('battle_token', $token)->sole();
-        $this->assertUsage($character, 1, 0, 0, 240);
+        $this->assertUsage($character, 1, 0, 0, 250);
+        $this->assertFreeUsage($battle->participation, 2, 1, 0);
         $before = $this->damage();
         $job = ['op' => 'resolve', 'battle' => $battle->id, 'damage' => 11_111];
         $rows = $this->race([$job, $job]);
         $this->outcomes($rows, ['resolved', 'resolved']);
         $this->check($this->damage() - $before === 11_111, 'Duplicate settlement added damage more than once.');
-        $this->assertUsage($character, 1, 1, 0, 240);
+        $this->assertUsage($character, 1, 1, 0, 250);
 
-        return ['admission_rows' => 1, 'applied_damage' => 11_111, 'stamina_spent' => 10];
+        return ['admission_rows' => 1, 'applied_damage' => 11_111, 'cost_type' => 'daily_free', 'stamina_spent' => 0];
     }
 
     private function onePending(): array
@@ -150,11 +152,37 @@ final class NationRaidPhase4MariaDbHarness
         ]);
         $this->outcomes($rows, ['created', 'blocked_pending']);
         $battle = SavedBattle::query()->where('character_id', $character->id)->sole();
-        $this->assertUsage($character, 1, 0, 0, 240);
+        $this->assertUsage($character, 1, 0, 0, 250);
         app(NationRaidSettlementService::class)->refund($battle, 'synthetic_test_cleanup');
         $this->assertUsage($character, 0, 0, 1, 250);
+        $this->assertFreeUsage($battle->participation, 3, 1, 1);
 
         return ['pending_rows' => 1, 'refunds' => 1];
+    }
+
+    private function sortieCosts(): array
+    {
+        $character = $this->character();
+        $costTypes = [];
+        foreach (range(1, 3) as $sortie) {
+            $battle = $this->start($character);
+            $costTypes[] = $battle->sortie_cost_type;
+            $this->settle($battle, 0);
+        }
+        $this->assertUsage($character, 3, 3, 0, 250);
+        $this->assertFreeUsage(NationRaidParticipation::where('event_id', $this->event->id)
+            ->where('account_id', $character->user_id)->sole(), 0, 3, 0);
+
+        $voluntary = $this->start($character);
+        $costTypes[] = $voluntary->sortie_cost_type;
+        $this->assertUsage($character, 4, 3, 0, 240);
+        app(NationRaidSettlementService::class)->refund($voluntary, 'synthetic_cost_refund');
+        $this->assertUsage($character, 3, 3, 1, 250);
+        $this->assertFreeUsage($voluntary->participation, 0, 3, 0);
+        $this->check($costTypes === ['daily_free', 'daily_free', 'daily_free', 'voluntary_stamina'],
+            'Free-first cost order differs from the frozen event contract.');
+
+        return ['cost_types' => $costTypes, 'voluntary_stamina_refunded' => 10];
     }
 
     private function coordination(array $citizens): array
@@ -222,17 +250,17 @@ final class NationRaidPhase4MariaDbHarness
         $this->outcomes($rows, ['created', 'blocked_pending']);
         $last = SavedBattle::query()->where('character_id', $character->id)->where('status', 'started')->sole();
         $this->settle($last, 0);
-        $this->assertUsage($character, 5, 5, 0, 200);
+        $this->assertUsage($character, 5, 5, 0, 230);
         $rows = $this->race([['op' => 'start', 'character' => $character->id, 'token' => bin2hex(random_bytes(32))]]);
         $this->outcomes($rows, ['created']);
         $sixth = SavedBattle::query()->where('character_id', $character->id)->where('status', 'started')->sole();
         $this->settle($sixth, 0);
-        $this->assertUsage($character, 6, 6, 0, 190);
+        $this->assertUsage($character, 6, 6, 0, 220);
         $ordinals = SavedBattle::query()->where('character_id', $character->id)->orderBy('id')->get()
             ->map(fn ($battle) => $battle->summary['daily_resolution_no'])->all();
         $this->check($ordinals === [1, 2, 3, 4, 5, 6], 'Daily resolution ordinals are not unique and contiguous.');
 
-        return ['used' => 6, 'stamina_spent' => 60, 'resolution_ordinals' => $ordinals, 'former_limit_rejected' => false];
+        return ['used' => 6, 'stamina_spent' => 30, 'free_sorties' => 3, 'resolution_ordinals' => $ordinals, 'former_limit_rejected' => false];
     }
 
     private function refundRace(): array
@@ -249,7 +277,7 @@ final class NationRaidPhase4MariaDbHarness
         $this->outcomes($rows, [$battle->status, $battle->status]);
         $resolved = $battle->status === 'resolved';
         $this->check($this->damage() - $before === ($resolved ? 1_000 : 0), 'Refund race double-committed or lost damage.');
-        $this->assertUsage($character, $resolved ? 1 : 0, $resolved ? 1 : 0, $resolved ? 0 : 1, $resolved ? 240 : 250);
+        $this->assertUsage($character, $resolved ? 1 : 0, $resolved ? 1 : 0, $resolved ? 0 : 1, 250);
 
         return ['outcome' => $battle->status, 'exactly_one_terminal_effect' => true];
     }
@@ -368,7 +396,7 @@ final class NationRaidPhase4MariaDbHarness
             $this->check(array_unique($observed->timeouts) === [3], 'Retry did not use the approved three-second session timeout.');
             $this->check($observed->waitLevels === [0, 0, 0, 0], 'Backoff ran while a transaction remained open.');
             $this->check($battle->refresh()->status === 'started' && $this->damage() === $before, 'Exhaustion partially committed.');
-            $this->assertUsage($character, 1, 0, 0, 240);
+            $this->assertUsage($character, 1, 0, 0, 250);
         } finally {
             touch($group['directory'].'/release');
             $this->finish($group);
@@ -378,8 +406,8 @@ final class NationRaidPhase4MariaDbHarness
         $job = ['op' => 'recover', 'public_enabled' => false];
         $this->race([$job, $job]);
         $this->check($battle->refresh()->status === 'refunded' && filled($battle->refund_key), 'Expired sortie was not recovered.');
-        // Ten minutes of natural recovery + the complete original cost, not a capped refund.
-        $this->assertUsage($character, 0, 0, 1, 260);
+        // A free sortie returns the same free unit and never changes exploration stamina.
+        $this->assertUsage($character, 0, 0, 1, 250);
         $this->check($this->damage() === $before, 'Recovery changed shared HP.');
 
         return ['database_errors' => $observed->errors, 'attempts' => $observed->attempts,
@@ -701,6 +729,16 @@ final class NationRaidPhase4MariaDbHarness
         $usage = NationRaidDailyUsage::query()->where('event_id', $this->event->id)->where('account_id', $character->user_id)->sole();
         $this->check([$usage->used_count, $usage->resolved_count, $usage->refunded_count, $character->refresh()->explore_stamina]
             === [$used, $resolved, $refunded, $stamina], 'Stamina or daily usage differs from the expected terminal effect.');
+    }
+
+    private function assertFreeUsage(NationRaidParticipation $participation, int $balance, int $used, int $refunded): void
+    {
+        $participation->refresh();
+        $this->check([
+            $participation->free_sortie_balance,
+            $participation->free_sorties_used,
+            $participation->free_sorties_refunded,
+        ] === [$balance, $used, $refunded], 'Free-sortie counters differ from the expected terminal effect.');
     }
 
     private function outcomes(array $rows, array $expected): void

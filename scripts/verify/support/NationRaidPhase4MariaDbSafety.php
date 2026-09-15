@@ -34,6 +34,9 @@ final class NationRaidPhase4MariaDbSafety
             'nation_raid_events', 'nation_raid_boss_cycles', 'nation_raid_participations', 'nation_raid_daily_usages',
             'nation_raid_battle_results', 'nation_raid_daily_lineage_snapshots', 'nation_raid_coordination_participants',
             'nation_raid_personal_rewards', 'nation_raid_nation_rewards', 'nation_resource_transactions',
+            'nation_raid_nation_preparations', 'nation_raid_preparation_members',
+            'nation_raid_preparation_contributions', 'nation_raid_invasion_damages',
+            'nation_raid_reconstruction_contributions',
             'nation_activity_logs', 'nation_achievements', 'character_notifications', 'character_consumable_items',
             'character_materials', 'materials', 'kiseki_transactions', 'titles', 'character_titles'];
     }

@@ -7,6 +7,10 @@ use App\Models\NationRaidEvent;
 /** Frozen policy → reward goals. Shared by read-only previews and final entitlement creation. */
 final class NationRaidPersonalRewardCatalog
 {
+    public const AVAILABILITY_IMMEDIATE = 'immediate';
+
+    public const AVAILABILITY_FINALIZATION = 'finalization';
+
     public function participationMinimum(array $policy): int
     {
         return $policy['version'] === 2 ? $policy['participation_minimum_resolved_sorties'] : $policy['minimum_resolved_sorties'];
@@ -77,6 +81,12 @@ final class NationRaidPersonalRewardCatalog
                     }
                 }
             }
+            $usesImmediateRewards = ! $event->exists
+                || ($event->ruleset_snapshot['version'] ?? null) === NationRaidRules::RULESET_VERSION;
+            $definition['availability_type'] = $usesImmediateRewards
+                && ! in_array($key, ['personal_first', 'personal_top3', 'max_first'], true)
+                    ? self::AVAILABILITY_IMMEDIATE
+                    : self::AVAILABILITY_FINALIZATION;
         }
         unset($definition);
 

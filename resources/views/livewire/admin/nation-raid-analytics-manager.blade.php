@@ -11,7 +11,7 @@
                     </p>
                 </div>
                 <div class="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-xs font-bold leading-6 text-amber-900 xl:max-w-lg">
-                    現時点では国家対抗レイドの戦闘本体は未実装です。将来の戦闘終了処理から計測サービスを呼ぶと、この画面へ実データが蓄積されます。計測失敗で戦闘・共有HP・報酬を失敗させない設計です。
+                    参加・無料出撃・自主出撃は開催回全体で集計し、それ以外の戦闘指標は下の絞り込みを反映します。計測失敗で戦闘・共有HP・報酬を失敗させない設計です。
                 </div>
             </div>
         </header>
@@ -142,6 +142,26 @@
         </section>
 
         @if($has_records)
+            <section class="rounded-lg border border-sky-200 bg-white p-5 shadow-sm">
+                <div class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                    <div>
+                        <h2 class="font-black">参加と出撃負担（開催回全体）</h2>
+                        <p class="mt-1 text-xs font-bold text-slate-500">参加率の分母は兵站開始時の活動者です。無料枠利用率は、出撃方式を記録できた確定出撃に占める無料出撃の割合です。</p>
+                    </div>
+                    @if(($raid_engagement['unclassified_sorties'] ?? 0) > 0)
+                        <p class="text-xs font-bold text-amber-700">旧形式・未分類 {{ number_format($raid_engagement['unclassified_sorties']) }}件</p>
+                    @endif
+                </div>
+                <dl class="mt-4 grid grid-cols-2 gap-3 text-xs font-bold sm:grid-cols-3 xl:grid-cols-6">
+                    <div class="rounded-md bg-sky-50 p-3"><dt class="text-slate-500">参加率</dt><dd class="mt-1 text-lg text-slate-950">{{ ($raid_engagement['participation_rate'] ?? null) === null ? '算出不能' : $raid_engagement['participation_rate'].'%' }}</dd><dd class="mt-1 text-[10px] text-slate-400">{{ ($raid_engagement['reference_participants'] ?? null) === null ? '-' : number_format($raid_engagement['reference_participants']) }}人 / {{ ($raid_engagement['reference_active_members'] ?? null) === null ? '-' : number_format($raid_engagement['reference_active_members']) }}人（全参加 {{ number_format($raid_engagement['participants'] ?? 0) }}人）</dd></div>
+                    <div class="rounded-md bg-sky-50 p-3"><dt class="text-slate-500">5回以上参加率</dt><dd class="mt-1 text-lg text-slate-950">{{ ($raid_engagement['effective_participation_rate'] ?? null) === null ? '算出不能' : $raid_engagement['effective_participation_rate'].'%' }}</dd><dd class="mt-1 text-[10px] text-slate-400">{{ number_format($raid_engagement['effective_participants'] ?? 0) }}人</dd></div>
+                    <div class="rounded-md bg-emerald-50 p-3"><dt class="text-slate-500">無料枠利用率</dt><dd class="mt-1 text-lg text-slate-950">{{ ($raid_engagement['free_sortie_usage_rate'] ?? null) === null ? '算出不能' : $raid_engagement['free_sortie_usage_rate'].'%' }}</dd><dd class="mt-1 text-[10px] text-slate-400">無料 {{ number_format($raid_engagement['free_sorties'] ?? 0) }}出撃</dd></div>
+                    <div class="rounded-md bg-emerald-50 p-3"><dt class="text-slate-500">無料枠利用者率</dt><dd class="mt-1 text-lg text-slate-950">{{ ($raid_engagement['free_user_rate'] ?? null) === null ? '算出不能' : $raid_engagement['free_user_rate'].'%' }}</dd><dd class="mt-1 text-[10px] text-slate-400">{{ number_format($raid_engagement['free_users'] ?? 0) }}人</dd></div>
+                    <div class="rounded-md bg-amber-50 p-3"><dt class="text-slate-500">自主出撃</dt><dd class="mt-1 text-lg text-slate-950">{{ number_format($raid_engagement['voluntary_sorties'] ?? 0) }}回</dd><dd class="mt-1 text-[10px] text-slate-400">無料枠後の追加出撃</dd></div>
+                    <div class="rounded-md bg-amber-50 p-3"><dt class="text-slate-500">探索力消費</dt><dd class="mt-1 text-lg text-slate-950">{{ number_format($raid_engagement['stamina_consumed'] ?? 0) }}</dd><dd class="mt-1 text-[10px] text-slate-400">自主1回平均 {{ ($raid_engagement['stamina_per_voluntary_sortie'] ?? null) === null ? '-' : number_format($raid_engagement['stamina_per_voluntary_sortie'], 1) }}</dd></div>
+                </dl>
+            </section>
+
             <div class="grid grid-cols-1 gap-5 2xl:grid-cols-2">
                 <section class="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
                     <div class="border-b border-slate-100 px-5 py-4"><h2 class="font-black">日別・形態別</h2></div>
@@ -199,6 +219,7 @@
                         <div class="flex justify-between gap-3"><dt>累計P90</dt><dd>{{ number_format($participant_distribution['p90_cumulative_damage'] ?? 0) }}</dd></div>
                         <div class="flex justify-between gap-3"><dt>最大累計</dt><dd>{{ number_format($participant_distribution['max_cumulative_damage'] ?? 0) }}</dd></div>
                         <div class="flex justify-between gap-3"><dt>上位1人の比率</dt><dd>{{ $participant_distribution['top_one_damage_share'] ?? '-' }}{{ ($participant_distribution['top_one_damage_share'] ?? null) === null ? '' : '%' }}</dd></div>
+                        <div class="flex justify-between gap-3"><dt>上位10人の比率</dt><dd>{{ $participant_distribution['top_ten_fixed_damage_share'] ?? '-' }}{{ ($participant_distribution['top_ten_fixed_damage_share'] ?? null) === null ? '' : '%' }}</dd></div>
                         <div class="flex justify-between gap-3"><dt>上位10%の比率</dt><dd>{{ $participant_distribution['top_ten_percent_damage_share'] ?? '-' }}{{ ($participant_distribution['top_ten_percent_damage_share'] ?? null) === null ? '' : '%' }}</dd></div>
                     </dl>
                 </section>

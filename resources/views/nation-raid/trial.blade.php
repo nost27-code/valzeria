@@ -32,6 +32,7 @@
         $coordinationPercent = (int) round(((float) ($resultCoordination['bonus_rate'] ?? 0)) * 100);
         $battleLog = is_array($lastResult['battle_log'] ?? null) ? $lastResult['battle_log'] : null;
         $sortieStaminaCost = (int) ($screen['sortie_stamina_cost'] ?? 10);
+        $sortieCost = is_array($screen['sortie_cost'] ?? null) ? $screen['sortie_cost'] : ['enabled' => false, 'free_balance' => 0, 'next_cost_type' => 'voluntary_stamina'];
         $stamina = is_array($screen['exploration_stamina'] ?? null) ? $screen['exploration_stamina'] : ['current' => 0, 'max' => 0];
         $resultStamina = is_array($lastResult['exploration_stamina'] ?? null) ? $lastResult['exploration_stamina'] : $stamina;
     @endphp
@@ -47,7 +48,13 @@
             <p>本開催と同じ情報配置を確認する試遊画面です。探索力{{ number_format($sortieStaminaCost) }}は実際に消費します。レイド進行・出撃回数・報酬・ランキングは保存されません。</p>
         </aside>
         @else
-            <p class="px-1 text-xs font-bold text-slate-600" data-nation-raid-official-notice>出撃回数・戦闘記録・ボスへのダメージが保存されます。報酬はイベント終了後の戦果確定をお待ちください。</p>
+            <p class="px-1 text-xs font-bold text-slate-600" data-nation-raid-official-notice>
+                @if($sortieCost['enabled'] ?? false)
+                    出撃回数・戦闘記録・ボスへのダメージが保存されます。達成報酬は条件を満たした時点で獲得できます。
+                @else
+                    出撃回数・戦闘記録・ボスへのダメージが保存されます。報酬はイベント終了後の戦果確定をお待ちください。
+                @endif
+            </p>
         @endif
 
         <section class="overflow-hidden rounded-xl border border-slate-800 bg-slate-950 text-white shadow-lg" data-nation-raid-event-status>
@@ -113,7 +120,12 @@
                     <div class="text-[9px] font-black text-slate-400">出撃回数</div>
                     <div class="mt-1 text-sm font-black">回数制限なし</div>
                     @if($isOfficial)<div class="mt-0.5 text-[9px] text-slate-300">本日 {{ number_format($screen['used_sorties']) }}回出撃</div>@endif
-                    <div class="mt-0.5 text-[9px] font-bold text-amber-200">現在の探索力 {{ number_format((int) $stamina['current']) }} / {{ number_format((int) $stamina['max']) }}・1回{{ number_format($sortieStaminaCost) }}</div>
+                    @if($isOfficial && ($sortieCost['enabled'] ?? false))
+                        <div class="mt-0.5 text-[9px] font-bold text-amber-200">無料枠 {{ number_format((int) $sortieCost['free_balance']) }}回分（繰越上限{{ number_format((int) $sortieCost['balance_cap']) }}）</div>
+                        <div class="mt-0.5 text-[9px] text-slate-300">無料枠後は探索力{{ number_format($sortieStaminaCost) }}で自主出撃</div>
+                    @else
+                        <div class="mt-0.5 text-[9px] font-bold text-amber-200">現在の探索力 {{ number_format((int) $stamina['current']) }} / {{ number_format((int) $stamina['max']) }}・1回{{ number_format($sortieStaminaCost) }}</div>
+                    @endif
                 </div>
                 <div class="px-2 py-3">
                     <div class="text-[9px] font-black text-slate-400">残り時間</div>
@@ -132,9 +144,9 @@
             <p class="rounded-lg bg-amber-50 p-4 text-sm font-bold text-amber-900">{{ $screen['unavailable_reason'] }}</p>
         @endif
         @if(in_array($sortieStatus, ['started', 'aborted'], true))
-            <p class="rounded-lg bg-amber-50 p-4 text-sm font-bold text-amber-900">出撃結果を確認中です。画面を再読み込みしてください。確定できない場合は探索力と出撃回数が返却されます。</p>
+            <p class="rounded-lg bg-amber-50 p-4 text-sm font-bold text-amber-900">出撃結果を確認中です。画面を再読み込みしてください。確定できない場合は使用した出撃枠と出撃回数が返却されます。</p>
         @elseif($sortieStatus === 'refunded')
-            <p class="rounded-lg bg-sky-50 p-4 text-sm font-bold text-sky-900">出撃を確定できなかったため、探索力と出撃回数を返却しました。</p>
+            <p class="rounded-lg bg-sky-50 p-4 text-sm font-bold text-sky-900">出撃を確定できなかったため、使用した出撃枠と出撃回数を返却しました。</p>
         @endif
 
         @if($errors->any())
@@ -491,8 +503,15 @@
                         </div>
 
                         <div class="mt-3 text-xs font-black text-amber-700">
-                            探索力 -{{ number_format((int) $lastResult['exploration_stamina_cost']) }}（残り {{ number_format((int) $resultStamina['current']) }} / {{ number_format((int) $resultStamina['max']) }}）
+                            @if(($lastResult['sortie_cost_type'] ?? 'voluntary_stamina') === 'daily_free')
+                                基本無料出撃を使用
+                            @else
+                                探索力 -{{ number_format((int) $lastResult['exploration_stamina_cost']) }}（残り {{ number_format((int) $resultStamina['current']) }} / {{ number_format((int) $resultStamina['max']) }}）
+                            @endif
                         </div>
+                        @if($isOfficial)
+                            <a href="{{ route('nation-raid.rewards', $screen['event_id']) }}" class="mt-3 inline-flex min-h-11 items-center text-xs font-black text-sky-800 underline underline-offset-4">獲得した報酬を確認する</a>
+                        @endif
                         <p class="mt-2 border-l-2 border-amber-300 pl-3 text-[10px] font-bold leading-relaxed text-slate-500">
                             @if($isOfficial)
                                 ボスへのダメージと出撃記録を保存しました。ボスの残りHPは、この出撃を確定した時点の値です。

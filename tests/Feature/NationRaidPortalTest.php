@@ -77,6 +77,19 @@ final class NationRaidPortalTest extends TestCase
         $this->assertDatabaseCount('nation_raid_personal_rewards', 0);
     }
 
+    public function test_index_keeps_the_running_event_ahead_of_a_later_scheduled_event(): void
+    {
+        $character = $this->character();
+        $active = $this->event();
+        $events = app(NationRaidEventService::class);
+        $scheduled = $events->createDraft('portal-next', '次回予告', $active->ends_at->copy()->addDay());
+        $scheduled = $events->approveBalance($scheduled, User::factory()->create(['role' => 'admin']), 'test fixture only');
+        $events->schedule($scheduled, now());
+
+        $this->actingAs($character->user)->get(route('nation-raid.index'))
+            ->assertRedirect(route('nation-raid.top', $active));
+    }
+
     public function test_rankings_include_coordination_keep_ties_and_highlight_frozen_nation(): void
     {
         $character = $this->character();
@@ -179,11 +192,15 @@ final class NationRaidPortalTest extends TestCase
         $character = $this->character();
         $event = $this->event();
         $this->actingAs($character->user);
-        foreach (['draft', 'scheduled', 'cancelled'] as $status) {
+        foreach (['draft', 'cancelled'] as $status) {
             $event->update(['status' => $status]);
             foreach (['top', 'rankings'] as $page) {
                 $this->get(route('nation-raid.'.$page, $event))->assertNotFound();
             }
+        }
+        $event->update(['status' => 'scheduled']);
+        foreach (['top', 'rankings'] as $page) {
+            $this->get(route('nation-raid.'.$page, $event))->assertOk();
         }
         $event->update(['status' => 'active']);
         config()->set('features.nation_competitive_raid_enabled', false);

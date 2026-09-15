@@ -3,6 +3,9 @@
 namespace App\Services\Admin;
 
 use App\Models\NationRaidBattleTelemetryLog;
+use App\Models\NationRaidEvent;
+use App\Models\NationRaidPreparationMember;
+use App\Services\Nation\Raid\NationRaidSortieCostService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Schema;
@@ -81,6 +84,13 @@ final class NationRaidAnalyticsService
     public function metricDefinitions(): array
     {
         return [
+            [
+                'category' => '参加と出撃負担',
+                'collect' => '兵站開始時の活動人数、参加人数、5回以上参加、無料出撃、自主出撃、探索力消費',
+                'reveals' => '参加率と無料枠利用率、探索力負担が参加を止めていないか',
+                'improves' => '無料付与数、繰越上限、自主出撃の探索力消費、侵攻軽減条件を調整する',
+                'guardrail' => '参加率の分母は兵站開始時に固定した活動者とし、無料枠利用率は全確定出撃に占める無料出撃比として示す',
+            ],
             [
                 'category' => '討伐成立性',
                 'collect' => '出撃数、参加者数、実適用ダメージ、個体番号、共有HP前後、日別参加',
@@ -227,6 +237,7 @@ final class NationRaidAnalyticsService
             ->first(fn (NationRaidBattleTelemetryLog $row): bool => is_array($row->event_snapshot) && $row->event_snapshot !== [])
             ?->event_snapshot ?? [];
         $resolvedRows = $rows->where('result_status', 'resolved')->values();
+        $eventResolvedRows = $eventRows->where('result_status', 'resolved')->values();
         $analysis = [
             'table_available' => true,
             'has_records' => $rows->isNotEmpty(),
@@ -255,6 +266,7 @@ final class NationRaidAnalyticsService
             'nation_sizes' => $this->nationSizeStats($resolvedRows),
             'nation_competition' => $this->nationCompetitionStats($resolvedRows),
             'participant_distribution' => $this->participantDistribution($resolvedRows),
+            'raid_engagement' => $this->raidEngagement($eventKey, $eventResolvedRows),
             'reward_reach' => $this->rewardReach($resolvedRows, $eventSnapshot),
             'power_quantiles' => $this->powerQuantiles($resolvedRows),
             'data_quality' => $this->dataQuality($rows),
@@ -291,6 +303,7 @@ final class NationRaidAnalyticsService
             'nation_sizes' => $analysis['nation_sizes'] ?? [],
             'nation_competition' => $analysis['nation_competition'] ?? [],
             'participant_distribution' => $analysis['participant_distribution'] ?? [],
+            'raid_engagement' => $analysis['raid_engagement'] ?? [],
             'reward_reach' => $analysis['reward_reach'] ?? [],
             'power_quantiles' => $analysis['power_quantiles'] ?? [],
             'data_quality' => $analysis['data_quality'] ?? [],
@@ -700,6 +713,7 @@ final class NationRaidAnalyticsService
         $totals = $participants->pluck('total_damage')->map(fn ($value): int => (int) $value)->all();
         $grandTotal = array_sum($totals);
         $topTenCount = $participants->isEmpty() ? 0 : max(1, (int) ceil($participants->count() * 0.10));
+        $topTenFixedCount = min(10, $participants->count());
 
         return [
             'participants' => $participants->count(),
@@ -716,7 +730,107 @@ final class NationRaidAnalyticsService
                 (int) $participants->take($topTenCount)->sum('total_damage'),
                 $grandTotal,
             ),
+            'top_ten_fixed_count' => $topTenFixedCount,
+            'top_ten_fixed_damage_share' => $this->rate(
+                (int) $participants->take($topTenFixedCount)->sum('total_damage'),
+                $grandTotal,
+            ),
         ];
+    }
+
+    /** 開催回全体の参加導線を、画面の戦闘絞り込みとは独立して集計する。 */
+    private function raidEngagement(string $eventKey, Collection $resolvedRows): array
+    {
+        $empty = [
+            'scope' => 'event',
+            'reference_active_members' => null,
+            'participants' => $resolvedRows->whereNotNull('character_id')->pluck('character_id')->unique()->count(),
+            'reference_participants' => null,
+            'participation_rate' => null,
+            'effective_participants' => 0,
+            'effective_participation_rate' => null,
+            'effective_sorties' => 5,
+            'free_sorties' => 0,
+            'voluntary_sorties' => 0,
+            'unclassified_sorties' => $resolvedRows->count(),
+            'free_sortie_usage_rate' => null,
+            'free_users' => 0,
+            'free_user_rate' => null,
+            'stamina_consumed' => 0,
+            'stamina_per_voluntary_sortie' => null,
+            'median_stamina_per_participant' => null,
+        ];
+
+        if (! Schema::hasTable('nation_raid_events')) {
+            return $empty;
+        }
+
+        $event = NationRaidEvent::query()->where('event_key', $eventKey)->first();
+        if ($event === null) {
+            return $empty;
+        }
+        $effectiveSorties = (int) ($event->ruleset_snapshot['raid_cycle']['outcome']['effective_participation_sorties'] ?? 5);
+
+        $participantRows = $resolvedRows
+            ->filter(fn (NationRaidBattleTelemetryLog $row): bool => $row->character_id !== null)
+            ->groupBy('character_id');
+        $costType = static fn (NationRaidBattleTelemetryLog $row): ?string => isset($row->event_snapshot['sortie_cost_type'])
+            ? (string) $row->event_snapshot['sortie_cost_type']
+            : null;
+        $freeRows = $resolvedRows->filter(fn (NationRaidBattleTelemetryLog $row): bool => $costType($row) === NationRaidSortieCostService::TYPE_FREE);
+        $voluntaryRows = $resolvedRows->filter(fn (NationRaidBattleTelemetryLog $row): bool => $costType($row) === NationRaidSortieCostService::TYPE_STAMINA);
+        $classified = $freeRows->count() + $voluntaryRows->count();
+        $staminaByParticipant = $voluntaryRows
+            ->filter(fn (NationRaidBattleTelemetryLog $row): bool => $row->character_id !== null)
+            ->groupBy('character_id')
+            ->map(fn (Collection $rows): int => (int) $rows->sum(
+                fn (NationRaidBattleTelemetryLog $row): int => max(0, (int) ($row->event_snapshot['stamina_cost'] ?? 0)),
+            ))
+            ->values()
+            ->all();
+
+        $referenceIds = collect();
+        if (Schema::hasTable('nation_raid_preparation_members')) {
+            $referenceIds = NationRaidPreparationMember::query()
+                ->where('event_id', $event->id)
+                ->pluck('character_id_snapshot')
+                ->map(fn ($id): int => (int) $id)
+                ->unique();
+        }
+        $referenceCount = $referenceIds->isNotEmpty() ? $referenceIds->count() : null;
+        $resolvedReference = $referenceCount === null
+            ? collect()
+            : $participantRows->keys()->map(fn ($id): int => (int) $id)->intersect($referenceIds);
+        $effectiveReference = $referenceCount === null
+            ? collect()
+            : $resolvedReference->filter(fn (int $id): bool => ($participantRows->get((string) $id) ?? collect())->count() >= $effectiveSorties);
+        $freeUsers = $freeRows->whereNotNull('character_id')->pluck('character_id')->unique()->count();
+
+        return array_replace($empty, [
+            'reference_active_members' => $referenceCount,
+            'participants' => $participantRows->count(),
+            'reference_participants' => $referenceCount === null ? null : $resolvedReference->count(),
+            'participation_rate' => $referenceCount === null ? null : $this->rate($resolvedReference->count(), $referenceCount),
+            'effective_participants' => $referenceCount === null
+                ? $participantRows->filter(fn (Collection $rows): bool => $rows->count() >= $effectiveSorties)->count()
+                : $effectiveReference->count(),
+            'effective_participation_rate' => $referenceCount === null ? null : $this->rate($effectiveReference->count(), $referenceCount),
+            'effective_sorties' => $effectiveSorties,
+            'free_sorties' => $freeRows->count(),
+            'voluntary_sorties' => $voluntaryRows->count(),
+            'unclassified_sorties' => max(0, $resolvedRows->count() - $classified),
+            'free_sortie_usage_rate' => $this->rate($freeRows->count(), $classified),
+            'free_users' => $freeUsers,
+            'free_user_rate' => $this->rate($freeUsers, $participantRows->count()),
+            'stamina_consumed' => (int) $voluntaryRows->sum(
+                fn (NationRaidBattleTelemetryLog $row): int => max(0, (int) ($row->event_snapshot['stamina_cost'] ?? 0)),
+            ),
+            'stamina_per_voluntary_sortie' => $voluntaryRows->isEmpty() ? null : $this->average(
+                $voluntaryRows->map(fn (NationRaidBattleTelemetryLog $row): int => max(0, (int) ($row->event_snapshot['stamina_cost'] ?? 0)))->all(),
+                2,
+            ),
+            'median_stamina_per_participant' => $this->percentile($staminaByParticipant, 0.50),
+        ]);
     }
 
     /** @param Collection<int, NationRaidBattleTelemetryLog> $rows @return array<string, mixed> */
@@ -956,6 +1070,7 @@ final class NationRaidAnalyticsService
             'nation_sizes' => [],
             'nation_competition' => [],
             'participant_distribution' => [],
+            'raid_engagement' => [],
             'reward_reach' => [],
             'power_quantiles' => [],
             'data_quality' => ['warnings' => ['対象データがまだありません。']],

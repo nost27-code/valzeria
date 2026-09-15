@@ -94,6 +94,7 @@ final class NationRaidApprovedHpCurveUpgradeTest extends TestCase
             2 => 0.03, 3 => 0.06, 4 => 0.09, 5 => 0.12,
         ];
         $snapshot['fixed']['total_target_hp'] = 600_000_000;
+        unset($snapshot['raid_cycle']);
         foreach ($snapshot['stages'] as $index => &$stage) {
             $stage['max_hp'] = 10_000_000 * (1 + intdiv($index, 4));
         }

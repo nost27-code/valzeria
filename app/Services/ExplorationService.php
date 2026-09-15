@@ -12,6 +12,7 @@ use App\Models\Item;
 use App\Models\Material;
 use App\Models\MaterialDrop;
 use App\Services\Battle\BattleResult;
+use App\Services\Nation\Raid\NationRaidExplorationContributionService;
 use App\Support\CharacterIconCatalog;
 use Illuminate\Support\Facades\DB;
 
@@ -846,6 +847,9 @@ class ExplorationService
             $this->battleLogService->telemetryFor($character, $battleResult),
             !$isEventOnly && $specialEvent === null
         );
+        if ($isWin && !$isBossBattle && !$isRegionDepthDungeon && !$isNonCombatEvent) {
+            app(NationRaidExplorationContributionService::class)->record($character, $battleLog);
+        }
         if ($kisekiDrop && !empty($kisekiDrop['transaction_id'])) {
             $this->kisekiDropService->attachBattleLog((int) $kisekiDrop['transaction_id'], $battleLog->id);
         }

@@ -39,8 +39,14 @@
                     全報酬の共通条件：有効出撃{{ $rewardScreen['minimum_sorties'] }}回。
                 @endif
                 </p>
-                <p>受取はイベント終了後の戦果確定から。個人累計に国家連携分は含みません。</p>
-                @if($event->status !== 'completed')
+                @if($rewardScreen['immediate_rewards_enabled'])
+                    <p>参加・個人ダメージ・全体到達報酬は、条件を満たした時点で獲得できます。個人累計に国家連携分は含みません。</p>
+                @else
+                    <p>受取はイベント終了後の戦果確定から。個人累計に国家連携分は含みません。</p>
+                @endif
+                @if($event->status !== 'completed' && $rewardScreen['immediate_rewards_enabled'])
+                    <p>順位称号と国家報酬は終了後に確定します。</p>
+                @elseif($event->status !== 'completed')
                     <p>達成した報酬は「確定待ち」。順位は終了時に決まります。</p>
                 @else
                     <p>届いた戦果を受け取ろう。報酬の受取期限はありません。</p>

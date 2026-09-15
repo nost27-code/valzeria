@@ -8,7 +8,6 @@ use App\Models\NationRaidBossCycle;
 use App\Models\NationRaidDailyUsage;
 use App\Models\NationRaidEvent;
 use App\Models\NationRaidParticipation;
-use App\Services\ExplorationStaminaService;
 use App\Services\Nation\CompetitionEventCoordinatorService;
 use App\Services\Nation\NationRaidBattleTelemetryService;
 use Illuminate\Support\Facades\Log;
@@ -21,9 +20,10 @@ class NationRaidSettlementService
         private readonly NationRaidSharedHpService $hp,
         private readonly NationRaidCoordinationService $coordination,
         private readonly NationRaidBattleViewService $view,
-        private readonly ExplorationStaminaService $stamina,
+        private readonly NationRaidSortieCostService $costs,
         private readonly NationRaidBattleTelemetryService $telemetry,
         private readonly NationRaidTelemetryAdapter $telemetryAdapter,
+        private readonly NationRaidRewardService $rewards,
     ) {}
 
     public function resolve(SavedBattle $reference, array $calculation): SavedBattle
@@ -54,6 +54,8 @@ class NationRaidSettlementService
                 true,
                 (string) $admission['ruleset_hash'],
             );
+            $stage10ReachedBefore = $event->stage10_reached_at !== null;
+            $completedBefore = $event->completed_at !== null;
             $bonus = (int) floor($engine->calculatedBossDamage * $coordination['bonus_rate']);
             $personal = $this->hp->apply($event, $cycle, $engine->calculatedBossDamage, 'personal');
             $linked = $this->hp->apply($event, $personal['cycle'], $bonus, 'coordination');
@@ -76,7 +78,7 @@ class NationRaidSettlementService
             $coordination = $this->view->coordinationPresentation($displayCharacter, $coordination);
             $display = $this->view->result($engine, $admission['player'], $admission['encounter'],
                 $calculation['player_battle_logs'], $coordination, $event->boss_name,
-                $admission['stamina_cost'], $admission['stamina']);
+                $admission['stamina_cost'], $admission['stamina'], $admission['cost_type'] ?? NationRaidSortieCostService::TYPE_STAMINA);
             $target = NationRaidBossCycle::query()->where('event_id', $event->id)->where('cycle_no', $battle->target_cycle_no)->firstOrFail();
             $display['boss_remaining_hp'] = $target->current_hp;
             $display['shared_hp_after'] = ['cycle_no' => $current->cycle_no, 'hp' => $current->current_hp, 'max_hp' => $current->max_hp];
@@ -92,6 +94,11 @@ class NationRaidSettlementService
                 'summary' => [...$battle->summary, 'daily_resolution_no' => $dailyResolutionNo, 'calculation' => $calculation, 'display' => $display],
                 'settlement_attempts' => $attempt, 'resolved_at' => now(),
             ])->save();
+            $this->rewards->prepareImmediateLocked($event, $participation);
+            if ((! $stage10ReachedBefore && $event->stage10_reached_at !== null)
+                || (! $completedBefore && $event->completed_at !== null)) {
+                $this->rewards->prepareImmediateGlobalLocked($event);
+            }
             $newlyResolved = true;
 
             return $battle;
@@ -107,7 +114,7 @@ class NationRaidSettlementService
     public function refund(SavedBattle $reference, string $reason = 'stale_started'): SavedBattle
     {
         return $this->transactions->run(function (int $attempt) use ($reference, $reason): SavedBattle {
-            [, , , $usage, $battle] = $this->lock($reference);
+            [, , $participation, $usage, $battle] = $this->lock($reference);
             if (in_array($battle->status, [SavedBattle::STATUS_RESOLVED, SavedBattle::STATUS_REFUNDED], true)) {
                 return $battle;
             }
@@ -115,10 +122,8 @@ class NationRaidSettlementService
             $character = Character::query()->whereKey($battle->character_id)->lockForUpdate()->firstOrFail();
             throw_unless((int) $character->user_id === $battle->account_id && $usage->used_count > 0,
                 \LogicException::class, 'Raid refund owner or usage does not match.');
-            $cost = (int) $battle->summary['admission']['stamina_cost'];
             $battle->fill(['status' => SavedBattle::STATUS_ABORTED, 'aborted_at' => $battle->aborted_at ?? now(), 'failure_code' => $reason])->save();
-            $refund = $this->stamina->refundForExplore($character, $cost);
-            throw_unless($refund['refunded'] === $cost, \LogicException::class, 'Raid stamina refund is incomplete.');
+            $this->costs->refundLocked($participation, $character, $battle->summary['admission']);
             $usage->used_count--;
             $usage->refunded_count++;
             $usage->save();

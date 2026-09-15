@@ -59,8 +59,8 @@ final class NationRaidApprovedCoordinationCurveUpgradeTest extends TestCase
             $cycle->refresh();
             $this->assertSame($eventBefore, $this->rawOnly($event, $eventFields));
             $this->assertSame($cycleBefore, $this->rawOnly($cycle, $cycleFields));
-            $this->assertSame(app(NationRaidRules::class)->rulesetHash(), $event->ruleset_hash);
-            $this->assertSame(NationRaidRules::RULESET_VERSION, $event->ruleset_version);
+            $this->assertSame(app(NationRaidRules::class)->previousRulesetHash(), $event->ruleset_hash);
+            $this->assertSame(NationRaidRules::PREVIOUS_RULESET_VERSION, $event->ruleset_version);
             $this->assertSame(NationRaidRules::COORDINATION_DAMAGE_RATES,
                 $event->ruleset_snapshot['fixed']['coordination_damage_rates']);
             $this->assertSame($event->ruleset_hash, $cycle->parameter_snapshot['ruleset_hash']);
@@ -115,9 +115,9 @@ final class NationRaidApprovedCoordinationCurveUpgradeTest extends TestCase
         $this->assertSame(0.12, $coordination->snapshot($event, $participation, false, $oldHash)['bonus_rate']);
 
         $event->update([
-            'ruleset_version' => NationRaidRules::RULESET_VERSION,
-            'ruleset_snapshot' => app(NationRaidRules::class)->rulesetSnapshot(),
-            'ruleset_hash' => app(NationRaidRules::class)->rulesetHash(),
+            'ruleset_version' => NationRaidRules::PREVIOUS_RULESET_VERSION,
+            'ruleset_snapshot' => app(NationRaidRules::class)->previousRulesetSnapshot(),
+            'ruleset_hash' => app(NationRaidRules::class)->previousRulesetHash(),
         ]);
         $this->assertSame(0.21, $coordination->snapshot($event->fresh(), $participation)['bonus_rate']);
     }
@@ -151,6 +151,7 @@ final class NationRaidApprovedCoordinationCurveUpgradeTest extends TestCase
         $snapshot['fixed']['coordination_damage_rates'] = [
             2 => 0.03, 3 => 0.06, 4 => 0.09, 5 => 0.12,
         ];
+        unset($snapshot['raid_cycle']);
         $oldHash = hash('sha256', NationRaidJson::encode($snapshot, JSON_UNESCAPED_UNICODE));
         $event->update([
             'ruleset_version' => $snapshot['version'],

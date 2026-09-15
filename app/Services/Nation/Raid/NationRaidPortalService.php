@@ -17,6 +17,9 @@ final readonly class NationRaidPortalService
         private NationRaidCoordinationService $coordination,
         private NationRaidBattleViewService $battleViews,
         private NationRaidSortieService $sorties,
+        private NationRaidPreparationService $preparations,
+        private NationRaidReconstructionService $reconstruction,
+        private NationRaidOutcomeService $outcomes,
     ) {}
 
     public function build(NationRaidEvent $event, Character $character): array
@@ -31,7 +34,11 @@ final readonly class NationRaidPortalService
         }
         $status = match (true) {
             $event->status === NationRaidEvent::STATUS_COMPLETED => '戦果確定',
-            $event->status === NationRaidEvent::STATUS_FINALIZING => '戦果集計中',
+            $event->status === NationRaidEvent::STATUS_FINALIZING => '戦果集計中（終了30分後を目安に確定）',
+            $event->status === NationRaidEvent::STATUS_SCHEDULED
+                && is_array($event->ruleset_snapshot['raid_cycle'] ?? null)
+                && $at->gte($this->preparations->preparationStartsAt($event)) => 'レイド兵站準備中',
+            $event->status === NationRaidEvent::STATUS_SCHEDULED => '開催予告',
             $event->ends_at->lte($at) => '出撃受付終了',
             $event->sorties_paused_at !== null => '出撃一時停止',
             $canPrepare => '開催中',
@@ -71,12 +78,17 @@ final readonly class NationRaidPortalService
         if ($cycle?->cycle_kind === NationRaidBossCycle::KIND_ECHO) {
             $encounter['stage_name'] = '残響';
         }
+        $preparation = $this->preparations->forCharacter($event, $character);
+
         return [
             'status_label' => $status, 'can_prepare' => $canPrepare, 'encounter' => $encounter,
             'hp_percent' => $cycle !== null && $cycle->max_hp > 0 ? round(100 * $cycle->current_hp / $cycle->max_hp, 2) : 0,
             'as_of' => $at->format('n/j H:i'), 'standings' => $standings, 'nations' => $nations,
             'own_nation' => $ownNation,
-            'own_nation_name' => $ownNationId === null ? null : $participation->nation_name_snapshot,
+            'own_nation_name' => $ownNationId === null ? ($preparation['nation_name'] ?? null) : $participation->nation_name_snapshot,
+            'preparation' => $preparation,
+            'outcome' => $this->outcomes->presentation($event),
+            'reconstruction' => $this->reconstruction->outstandingForCharacter($character),
             'own_progress' => collect($standings['personal_total'] ?? [])->first(
                 fn ($row) => (int) $row['account_id'] === (int) $character->user_id
                     && (int) $row['character_id'] === (int) $character->id,

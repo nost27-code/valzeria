@@ -28,6 +28,7 @@ final class NationRaidBattleResult extends Model
             'target_stage_no' => 'integer',
             'target_echo_no' => 'integer',
             'target_parameter_snapshot' => 'array',
+            'stamina_cost' => 'integer',
             'killer_raw_rate' => 'float',
             'killer_effective_rate' => 'float',
             'turn_count' => 'integer',

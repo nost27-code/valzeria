@@ -20,7 +20,9 @@ final class NationRaidRules
     /** 第1再臨の既定HP。個体生成にはstageMaxHp()を使う。 */
     public const BOSS_MAX_HP = 10_000_000;
 
-    public const RULESET_VERSION = 'nation-raid-v7-coordination-curve';
+    public const RULESET_VERSION = 'nation-raid-v8-next-cycle-systems';
+
+    public const PREVIOUS_RULESET_VERSION = 'nation-raid-v7-coordination-curve';
 
     public function stageMaxHp(int $stage): int
     {
@@ -60,6 +62,40 @@ final class NationRaidRules
     public const ARMOR_SPECIES_RESISTANCE_RATE_CAP = 0.35;
 
     public const COORDINATION_WINDOW_MINUTES = 180;
+
+    public const FREE_SORTIE_DAILY_GRANT = 3;
+
+    public const FREE_SORTIE_BALANCE_CAP = 9;
+
+    public const FREE_SORTIE_READINESS_GRANT_THRESHOLD = 50;
+
+    public const FREE_SORTIE_READINESS_DAILY_GRANT = 4;
+
+    public const FREE_SORTIE_READINESS_CAP_THRESHOLD = 80;
+
+    public const FREE_SORTIE_READINESS_BALANCE_CAP = 12;
+
+    public const VOLUNTARY_SORTIE_STAMINA_COST = 10;
+
+    public const LOGISTICS_PREPARATION_HOURS = 72;
+
+    public const REFERENCE_ACTIVE_WINDOW_DAYS = 7;
+
+    public const LOGISTICS_REQUIRED_PER_ACTIVE_MEMBER = 2;
+
+    public const LOGISTICS_MAX_CONTRIBUTIONS_PER_MEMBER = 3;
+
+    public const REPELLED_THRESHOLD_PERCENT = 80;
+
+    public const MINIMUM_INVASION_DAMAGE = 10;
+
+    public const EFFECTIVE_PARTICIPATION_SORTIES = 5;
+
+    public const RECONSTRUCTION_DAMAGE_DIVISOR = 10;
+
+    public const RECONSTRUCTION_DAILY_CAP = 3;
+
+    public const AUTOMATIC_FINALIZATION_DELAY_MINUTES = 30;
 
     /** @var array<int, float> */
     public const COORDINATION_DAMAGE_RATES = [
@@ -526,7 +562,7 @@ final class NationRaidRules
 
     public function coordinationDamageRateForRulesetHash(string $hash, int $uniqueParticipants): float
     {
-        if (hash_equals($this->rulesetHash(), $hash)) {
+        if (hash_equals($this->rulesetHash(), $hash) || hash_equals($this->previousRulesetHash(), $hash)) {
             return self::coordinationDamageRate($uniqueParticipants);
         }
         if ($this->matchesCombatRulesetHash($hash)) {
@@ -591,6 +627,38 @@ final class NationRaidRules
             'basic_actions' => self::BASIC_ACTIONS,
             'counter_actions' => self::COUNTER_ACTIONS,
             'counterplay_arts' => self::COUNTERPLAY_ARTS,
+            'raid_cycle' => [
+                'free_sorties' => [
+                    'daily_grant' => self::FREE_SORTIE_DAILY_GRANT,
+                    'balance_cap' => self::FREE_SORTIE_BALANCE_CAP,
+                    'readiness_daily_grant_threshold_percent' => self::FREE_SORTIE_READINESS_GRANT_THRESHOLD,
+                    'readiness_daily_grant' => self::FREE_SORTIE_READINESS_DAILY_GRANT,
+                    'readiness_balance_cap_threshold_percent' => self::FREE_SORTIE_READINESS_CAP_THRESHOLD,
+                    'readiness_balance_cap' => self::FREE_SORTIE_READINESS_BALANCE_CAP,
+                    'voluntary_stamina_cost' => self::VOLUNTARY_SORTIE_STAMINA_COST,
+                ],
+                'logistics_preparation' => [
+                    'duration_hours' => self::LOGISTICS_PREPARATION_HOURS,
+                    'active_window_days' => self::REFERENCE_ACTIVE_WINDOW_DAYS,
+                    'required_contributions_per_active_member' => self::LOGISTICS_REQUIRED_PER_ACTIVE_MEMBER,
+                    'max_contributions_per_member' => self::LOGISTICS_MAX_CONTRIBUTIONS_PER_MEMBER,
+                ],
+                'outcome' => [
+                    'repelled_threshold_percent' => self::REPELLED_THRESHOLD_PERCENT,
+                    'invasion_damage' => [
+                        ['minimum_progress_percent' => 60, 'damage' => 20],
+                        ['minimum_progress_percent' => 30, 'damage' => 40],
+                        ['minimum_progress_percent' => 0, 'damage' => 60],
+                    ],
+                    'readiness_mitigation' => [80 => 5, 100 => 10],
+                    'participation_mitigation' => [50 => 5, 75 => 10],
+                    'minimum_invasion_damage' => self::MINIMUM_INVASION_DAMAGE,
+                    'effective_participation_sorties' => self::EFFECTIVE_PARTICIPATION_SORTIES,
+                    'reconstruction_damage_divisor' => self::RECONSTRUCTION_DAMAGE_DIVISOR,
+                    'reconstruction_daily_cap' => self::RECONSTRUCTION_DAILY_CAP,
+                ],
+                'automatic_finalization_delay_minutes' => self::AUTOMATIC_FINALIZATION_DELAY_MINUTES,
+            ],
         ];
     }
 
@@ -604,6 +672,10 @@ final class NationRaidRules
     public function matchesCombatRulesetHash(string $hash): bool
     {
         if (hash_equals($this->rulesetHash(), $hash)) {
+            return true;
+        }
+
+        if (hash_equals($this->previousRulesetHash(), $hash)) {
             return true;
         }
 
@@ -632,6 +704,17 @@ final class NationRaidRules
         return hash('sha256', NationRaidJson::encode($this->previousStagedHpRulesetSnapshot(), JSON_UNESCAPED_UNICODE));
     }
 
+    public function previousRulesetHash(): string
+    {
+        return hash('sha256', NationRaidJson::encode($this->previousRulesetSnapshot(), JSON_UNESCAPED_UNICODE));
+    }
+
+    public function supportsNextCycleSystems(array $snapshot): bool
+    {
+        return ($snapshot['version'] ?? null) === self::RULESET_VERSION
+            && is_array($snapshot['raid_cycle'] ?? null);
+    }
+
     public function previousLiveHpRulesetHash(): string
     {
         return hash('sha256', NationRaidJson::encode($this->previousLiveHpRulesetSnapshot(), JSON_UNESCAPED_UNICODE));
@@ -640,7 +723,7 @@ final class NationRaidRules
     /** HP増加後から共闘調整前まで本番eventへ固定したruleset。 */
     private function previousLiveHpRulesetSnapshot(): array
     {
-        $snapshot = $this->rulesetSnapshot();
+        $snapshot = $this->previousRulesetSnapshot();
         $snapshot['version'] = 'nation-raid-v6-live-staged-hp';
         $snapshot['fixed']['coordination_damage_rates'] = self::PREVIOUS_COORDINATION_DAMAGE_RATES;
 
@@ -657,6 +740,16 @@ final class NationRaidRules
             $stage['max_hp'] = self::BOSS_MAX_HP * (1 + intdiv($index, 4));
         }
         unset($stage);
+
+        return $snapshot;
+    }
+
+    /** 2026-09-15以前の開催へ新しい出撃・兵站契約を後付けしない。 */
+    public function previousRulesetSnapshot(): array
+    {
+        $snapshot = $this->rulesetSnapshot();
+        $snapshot['version'] = self::PREVIOUS_RULESET_VERSION;
+        unset($snapshot['raid_cycle']);
 
         return $snapshot;
     }

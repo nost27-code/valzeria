@@ -10,6 +10,7 @@ use App\Models\Material;
 use App\Models\Nation;
 use App\Models\NationRaidEvent;
 use App\Models\NationRaidNationReward;
+use App\Models\NationRaidParticipation;
 use App\Models\NationRaidPersonalReward;
 use App\Models\NationResourceTransaction;
 use App\Models\Title;
@@ -20,12 +21,59 @@ use App\Services\StorageCapacityService;
 use App\Services\TitleService;
 use Illuminate\Support\Facades\DB;
 
-/** 終了時に権利を固定。個人の受取と残高・既存台帳・通知は常に同じtransaction。 */
+/** 達成時または終了時に権利を固定。個人の受取と残高・既存台帳・通知は常に同じtransaction。 */
 final readonly class NationRaidRewardService
 {
     public function __construct(private NationRaidRewardPolicy $policies, private CharacterNotificationService $notifications,
         private StorageCapacityService $storage, private TitleService $titles, private NationRaidTransactionRunner $transactions,
-        private NationRaidPersonalRewardCatalog $catalog) {}
+        private NationRaidPersonalRewardCatalog $catalog, private NationRaidRules $rules) {}
+
+    /** settlementのevent/participation lock内で、順位に依存しない達成済み権利だけを作る。 */
+    public function prepareImmediateLocked(NationRaidEvent $event, NationRaidParticipation $participation): int
+    {
+        throw_unless(DB::transactionLevel() > 0
+            && in_array($event->status, [NationRaidEvent::STATUS_ACTIVE, NationRaidEvent::STATUS_FINALIZING], true),
+            \LogicException::class, 'Immediate reward preparation requires a locked running event.');
+        if (! $this->rules->supportsNextCycleSystems($event->ruleset_snapshot)) {
+            return 0;
+        }
+
+        $policy = $this->policies->forEvent($event);
+        $player = [
+            'participation_id' => (int) $participation->id,
+            'account_id' => (int) $participation->account_id,
+            'character_id' => (int) ($participation->character_id_snapshot ?? $participation->character_id),
+            'name' => (string) $participation->character_name_snapshot,
+            'damage' => (int) $participation->personal_damage_total,
+            'resolved_sorties' => (int) $participation->resolved_sorties,
+            'rank' => null,
+        ];
+        $created = $this->storeMetPersonalRewards($event, $policy, $player, null, true);
+        if ($created > 0) {
+            $character = Character::query()->whereKey($player['character_id'])->where('user_id', $player['account_id'])->first();
+            if ($character) {
+                try {
+                    $this->notifications->create($character, 'system', 'nation_raid_rewards_ready', 'レイド報酬を獲得した！',
+                        '達成した戦果を受け取れます。', '報酬を確認', route('nation-raid.rewards', $event), ['event_id' => $event->id]);
+                } catch (\Throwable $exception) {
+                    report($exception); // 通知失敗で戦闘・権利を巻き戻さない。
+                }
+            }
+        }
+
+        return $created;
+    }
+
+    /** 第10再臨・討滅の全体条件が初めて成立したtransactionだけで既参加者を追認する。 */
+    public function prepareImmediateGlobalLocked(NationRaidEvent $event): int
+    {
+        $created = 0;
+        foreach (NationRaidParticipation::query()->where('event_id', $event->id)->orderBy('id')->lockForUpdate()->get() as $participation) {
+            $created += $this->prepareImmediateLocked($event, $participation);
+        }
+
+        return $created;
+    }
 
     /** coordinator → eventをlock済みのfinalization transaction専用。 */
     public function prepareLocked(NationRaidEvent $event, array $standings): void
@@ -33,37 +81,19 @@ final readonly class NationRaidRewardService
         throw_unless(DB::transactionLevel() > 0 && $event->status === NationRaidEvent::STATUS_FINALIZING,
             \LogicException::class, 'Reward preparation requires a locked finalizing event.');
         $policy = $this->policies->forEvent($event);
-        throw_if(NationRaidPersonalReward::where('event_id', $event->id)->exists()
-            || NationRaidNationReward::where('event_id', $event->id)->exists(),
+        throw_if(NationRaidNationReward::where('event_id', $event->id)->exists(),
             \DomainException::class, '終了未確定の報酬履歴が存在します。運営による整合性確認が必要です。');
         $maxRanks = collect($standings['max_action'])->keyBy('participation_id');
         foreach ($standings['personal_total'] as $player) {
-            $grants = [];
-            foreach ($this->catalog->definitions($event, $policy, $player, $maxRanks[$player['participation_id']]['rank'] ?? null) as $key => $definition) {
-                if ($definition['met']) {
-                    $grants[$key] = $definition['payload'];
-                }
-            }
-            if ($grants === []) {
+            $maxRank = $maxRanks[$player['participation_id']]['rank'] ?? null;
+            $created = $this->storeMetPersonalRewards($event, $policy, $player, $maxRank, false);
+            $hasGrant = collect($this->catalog->definitions($event, $policy, $player, $maxRank))->contains('met', true);
+            if (! $hasGrant) {
                 continue;
             }
             throw_unless((int) $player['character_id'] > 0, \DomainException::class, '報酬受取人の開始時記録がありません。');
             $character = Character::query()->whereKey($player['character_id'])->where('user_id', $player['account_id'])->first();
-            $rows = [];
-            foreach ($grants as $key => $grant) {
-                $payload = [...$grant, 'policy_hash' => $event->reward_policy_hash, 'character_name' => $player['name'],
-                    'rank' => $key === 'max_first' ? $maxRanks[$player['participation_id']]['rank'] : $player['rank']];
-                $rows[] = [
-                    'event_id' => $event->id, 'character_id_snapshot' => $player['character_id'], 'reward_key' => $key,
-                    'account_id_snapshot' => $player['account_id'], 'character_id' => $character?->id,
-                    'reward_snapshot' => NationRaidJson::encode($payload, JSON_UNESCAPED_UNICODE),
-                    'idempotency_key' => hash('sha256', "raid:{$event->id}:personal:{$player['character_id']}:{$key}"),
-                    'status' => NationRaidPersonalReward::STATUS_PENDING, 'created_at' => now(), 'updated_at' => now()];
-            }
-            // Event排他lockと冒頭の既存権利検査の内側。対象の権利を1文で保存する。
-            // UNIQUE違反は握り潰さず全rollback。upsertで既存権利を上書きしない。
-            NationRaidPersonalReward::insert($rows);
-            if ($character && collect($grants)->isNotEmpty()) {
+            if ($character && $created > 0) {
                 // prepareLockedはcompletedと同時commit。個別受取はまだ行わない。
                 $notification = $this->notifications->create($character, 'system', 'nation_raid_rewards_ready', 'レイドの戦果が届いた！',
                     '黒天竜との戦いが終結。報酬を確認しよう。', '報酬を確認', route('nation-raid.rewards', $event), ['event_id' => $event->id]);
@@ -110,6 +140,59 @@ final readonly class NationRaidRewardService
         }
     }
 
+    /** @param array<string,mixed> $policy @param array<string,mixed> $player */
+    private function storeMetPersonalRewards(
+        NationRaidEvent $event,
+        array $policy,
+        array $player,
+        ?int $maxRank,
+        bool $immediateOnly,
+    ): int {
+        throw_unless((int) ($player['character_id'] ?? 0) > 0, \DomainException::class, '報酬受取人の開始時記録がありません。');
+        $character = Character::query()->whereKey($player['character_id'])->where('user_id', $player['account_id'])->first();
+        $created = 0;
+        foreach ($this->catalog->definitions($event, $policy, $player, $maxRank) as $key => $definition) {
+            if (! $definition['met'] || ($immediateOnly && $definition['availability_type'] !== NationRaidPersonalRewardCatalog::AVAILABILITY_IMMEDIATE)) {
+                continue;
+            }
+            $rank = $this->rules->supportsNextCycleSystems($event->ruleset_snapshot)
+                ? match ($key) {
+                    'personal_first', 'personal_top3' => $player['rank'] ?? null,
+                    'max_first' => $maxRank,
+                    default => null,
+                }
+            : ($key === 'max_first' ? $maxRank : ($player['rank'] ?? null));
+            $payload = [...$definition['payload'], 'policy_hash' => $event->reward_policy_hash,
+                'character_name' => $player['name'], 'rank' => $rank];
+            $attributes = [
+                'account_id_snapshot' => $player['account_id'],
+                'character_id' => $character?->id,
+                'reward_snapshot' => $payload,
+                'idempotency_key' => hash('sha256', "raid:{$event->id}:personal:{$player['character_id']}:{$key}"),
+                'status' => NationRaidPersonalReward::STATUS_PENDING,
+                'availability_type' => $definition['availability_type'],
+                'available_at' => now(),
+            ];
+            $reward = NationRaidPersonalReward::query()->firstOrCreate([
+                'event_id' => $event->id,
+                'character_id_snapshot' => $player['character_id'],
+                'reward_key' => $key,
+            ], $attributes);
+            throw_unless(
+                $reward->account_id_snapshot === (int) $player['account_id']
+                    && $reward->reward_snapshot === $payload
+                    && hash_equals((string) $reward->idempotency_key, $attributes['idempotency_key'])
+                    && ($reward->availability_type === $definition['availability_type']
+                        || ! $this->rules->supportsNextCycleSystems($event->ruleset_snapshot)),
+                \DomainException::class,
+                '保存済みの個人報酬権利が一致しません。',
+            );
+            $created += (int) $reward->wasRecentlyCreated;
+        }
+
+        return $created;
+    }
+
     public function claim(NationRaidEvent $reference, Character $actor, int $rewardId, ?string $selection = null): NationRaidPersonalReward
     {
         throw_unless(config('features.nation_competitive_raid_enabled', false), \DomainException::class, '国家対抗レイドは現在準備中です。');
@@ -122,12 +205,15 @@ final readonly class NationRaidRewardService
             // 所有者の在庫はCharacter → entitlementの順で保護する。
             $event = NationRaidEvent::whereKey($reference->id)
                 ->firstOrFail(['id', 'status', 'reward_policy_snapshot', 'reward_policy_hash']);
-            throw_unless($event->status === NationRaidEvent::STATUS_COMPLETED, \DomainException::class, '報酬は戦果の最終確定後に受け取れます。');
             $this->policies->forEvent($event);
             $reward = NationRaidPersonalReward::whereKey($rewardId)->where('event_id', $event->id)->lockForUpdate()->first();
             throw_unless($reward && $reward->account_id_snapshot === (int) $character->user_id
                 && $reward->character_id_snapshot === (int) $character->id && (int) $actor->user_id === (int) $character->user_id,
                 \DomainException::class, 'この報酬の受取人ではありません。');
+            $availableImmediately = $reward->availability_type === NationRaidPersonalRewardCatalog::AVAILABILITY_IMMEDIATE
+                && $reward->available_at !== null && $reward->available_at->lte(now());
+            throw_unless($event->status === NationRaidEvent::STATUS_COMPLETED || $availableImmediately,
+                \DomainException::class, 'この報酬は戦果の最終確定後に受け取れます。');
             throw_if($character->is_frozen || $character->isExcludedFromPublicLogs(), \DomainException::class, 'この冒険者は報酬を受け取れません。');
             if ($reward->status === NationRaidPersonalReward::STATUS_CLAIMED) {
                 throw_unless($reward->selection_key === $selection, \DomainException::class, '受取済みの報酬は選択を変更できません。');

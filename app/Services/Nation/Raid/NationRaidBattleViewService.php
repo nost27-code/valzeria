@@ -66,7 +66,7 @@ final readonly class NationRaidBattleViewService
     public function result(
         NationRaidBattleResult $battle, array $player, array $encounter,
         array $playerBattleLogs, array $coordination, string $bossName,
-        int $staminaCost, ?array $stamina = null,
+        int $staminaCost, ?array $stamina = null, string $costType = NationRaidSortieCostService::TYPE_STAMINA,
     ): array {
         $stage = $battle->stage;
         $form = $battle->form;
@@ -122,6 +122,7 @@ final readonly class NationRaidBattleViewService
             'ultimate_denial_reasons' => $battle->ultimateDenialReasons,
             'exploration_stamina_cost' => $staminaCost,
             'exploration_stamina' => $stamina,
+            'sortie_cost_type' => $costType,
             'player_battle_logs' => $playerBattleLogs,
             'battle_log' => $this->battleLogPresenter->present(
                 $battle,

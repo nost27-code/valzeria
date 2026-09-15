@@ -120,6 +120,7 @@ final class NationRaidLocalEventUpgradeTest extends TestCase
         $snapshot['fixed']['coordination_damage_rates'] = [
             2 => 0.03, 3 => 0.06, 4 => 0.09, 5 => 0.12,
         ];
+        unset($snapshot['raid_cycle']);
         unset($snapshot['fixed']['total_target_hp']);
         foreach ($snapshot['stages'] as &$stage) {
             unset($stage['max_hp']);

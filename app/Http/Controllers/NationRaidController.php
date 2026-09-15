@@ -26,8 +26,13 @@ class NationRaidController extends Controller
             return redirect()->route('nation-raid.preview');
         }
         $this->gate();
-        $event = NationRaidEvent::query()->whereIn('status', [NationRaidEvent::STATUS_ACTIVE, NationRaidEvent::STATUS_FINALIZING, NationRaidEvent::STATUS_COMPLETED])
-            ->orderByDesc('starts_at')->first();
+        $event = NationRaidEvent::query()
+            ->whereIn('status', [NationRaidEvent::STATUS_ACTIVE, NationRaidEvent::STATUS_FINALIZING])
+            ->orderByDesc('starts_at')->first()
+            ?? NationRaidEvent::query()->where('status', NationRaidEvent::STATUS_SCHEDULED)
+                ->where('starts_at', '>', now())->orderBy('starts_at')->first()
+            ?? NationRaidEvent::query()->where('status', NationRaidEvent::STATUS_COMPLETED)
+                ->orderByDesc('starts_at')->first();
 
         return $event ? redirect()->route('nation-raid.top', $event) : view('nation-raid.unavailable');
     }
@@ -101,7 +106,7 @@ class NationRaidController extends Controller
     public function rewards(Request $request, NationRaidEvent $event, NationRaidRankingService $rankings, NationRaidRewardScreenService $screens)
     {
         $this->gate();
-        abort_unless(in_array($event->status, [NationRaidEvent::STATUS_ACTIVE, NationRaidEvent::STATUS_FINALIZING, NationRaidEvent::STATUS_COMPLETED], true), 404);
+        abort_unless(in_array($event->status, [NationRaidEvent::STATUS_SCHEDULED, NationRaidEvent::STATUS_ACTIVE, NationRaidEvent::STATUS_FINALIZING, NationRaidEvent::STATUS_COMPLETED], true), 404);
         $character = $request->user()->currentCharacter();
         $standings = $rankings->standings($event);
         $rewards = NationRaidPersonalReward::where('event_id', $event->id)->where('account_id_snapshot', $request->user()->id)
@@ -138,6 +143,6 @@ class NationRaidController extends Controller
     private function visibleEvent(NationRaidEvent $event): void
     {
         $this->gate();
-        abort_unless(in_array($event->status, [NationRaidEvent::STATUS_ACTIVE, NationRaidEvent::STATUS_FINALIZING, NationRaidEvent::STATUS_COMPLETED], true), 404);
+        abort_unless(in_array($event->status, [NationRaidEvent::STATUS_SCHEDULED, NationRaidEvent::STATUS_ACTIVE, NationRaidEvent::STATUS_FINALIZING, NationRaidEvent::STATUS_COMPLETED], true), 404);
     }
 }

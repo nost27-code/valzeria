@@ -61,7 +61,10 @@ final readonly class NationRaidRewardScreenService
             $payload = $reward?->reward_snapshot ?? $definition['payload'];
             $state = $definition['met'] ? ($completed ? 'unavailable' : 'awaiting') : 'unmet';
             if ($reward !== null) {
-                $valid = $completed && ($payload['policy_hash'] ?? null) === $event->reward_policy_hash;
+                $availableImmediately = $reward->availability_type === NationRaidPersonalRewardCatalog::AVAILABILITY_IMMEDIATE
+                    && $reward->available_at !== null && $reward->available_at->lte(now());
+                $valid = ($completed || $availableImmediately)
+                    && ($payload['policy_hash'] ?? null) === $event->reward_policy_hash;
                 $state = match (true) {
                     $valid && $reward->status === NationRaidPersonalReward::STATUS_CLAIMED => 'claimed',
                     $valid && ! $restricted && $reward->status === NationRaidPersonalReward::STATUS_PENDING => 'claimable',
@@ -74,7 +77,7 @@ final readonly class NationRaidRewardScreenService
                 'contents' => array_column($items, 'label'), 'items' => $items,
                 'condition' => $definition['condition'], 'progress' => $definition['progress'],
                 'state' => $state, 'status_label' => match ($state) {
-                    'claimable' => '未受取', 'claimed' => '受取済み', 'awaiting' => '確定待ち',
+                    'claimable' => '受取可能', 'claimed' => '受取済み', 'awaiting' => '確定待ち',
                     'unavailable' => '受取確認中', default => '条件未達',
                 },
                 'selected_label' => $payload['choices'][$reward?->selection_key]['label'] ?? null,
@@ -91,6 +94,7 @@ final readonly class NationRaidRewardScreenService
 
         return ['rows' => $rows, 'groups' => $groups, 'next_damage_goal' => $nextDamage,
             'own_progress' => $own, 'minimum_sorties' => $minimum,
+            'immediate_rewards_enabled' => ($event->ruleset_snapshot['version'] ?? null) === NationRaidRules::RULESET_VERSION,
             'participation_minimum_sorties' => $this->catalog->participationMinimum($policy),
             'resolved_sorties' => $sorties, 'personal_damage' => $damage, 'qualified' => $qualified];
     }

@@ -102,15 +102,15 @@ final class NationRaidLifecycleTest extends TestCase
         $this->assertSame(1, $result['closing']);
         $this->assertSame('finalizing', $event->fresh()->status);
         $this->assertSame('started', $battle->fresh()->status);
-        $this->assertSame(240, $character->fresh()->explore_stamina);
+        $this->assertSame(250, $character->fresh()->explore_stamina);
         $this->artisan('nation-raid:recover-sorties')->assertSuccessful();
         $this->assertSame('started', $battle->fresh()->status);
         $this->travelTo($battle->resolution_deadline_at);
         $this->artisan('nation-raid:recover-sorties')->assertSuccessful();
         $this->artisan('nation-raid:recover-sorties')->assertSuccessful();
         $this->assertSame('refunded', $battle->fresh()->status);
-        // 期限までの自然回復で250へ戻った後、消費した10を上限で切らず返す既存契約。
-        $this->assertSame(260, $character->fresh()->explore_stamina);
+        // 無料出撃を返却するため、探索力は増減しない。
+        $this->assertSame(250, $character->fresh()->explore_stamina);
         $this->assertSame(0, app(NationRaidLifecycleService::class)->advanceDue()['closing']);
         $this->assertSame('finalizing', $event->fresh()->status);
         $this->assertNull($event->fresh()->finalized_at);

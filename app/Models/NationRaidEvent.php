@@ -22,6 +22,12 @@ final class NationRaidEvent extends Model
 
     public const STATUS_CANCELLED = 'cancelled';
 
+    public const RESULT_EXTERMINATED = 'exterminated';
+
+    public const RESULT_REPELLED = 'repelled';
+
+    public const RESULT_INVASION = 'invasion';
+
     public const RESERVED_STATUSES = [self::STATUS_SCHEDULED, self::STATUS_ACTIVE, self::STATUS_FINALIZING];
 
     protected $guarded = [];
@@ -33,6 +39,7 @@ final class NationRaidEvent extends Model
             'starts_at' => 'datetime',
             'ends_at' => 'datetime',
             'activated_at' => 'datetime',
+            'preparation_frozen_at' => 'datetime',
             'stage10_reached_at' => 'datetime',
             'completed_at' => 'datetime',
             'sorties_paused_at' => 'datetime',
@@ -47,6 +54,8 @@ final class NationRaidEvent extends Model
             'ruleset_snapshot' => 'array',
             'reward_policy_snapshot' => 'array',
             'final_standings_snapshot' => 'array',
+            'result_progress_bps' => 'integer',
+            'result_snapshot' => 'array',
             'published_nation_counts_snapshot' => 'array',
             'balance_approved_at' => 'datetime',
             'state_version' => 'integer',
@@ -71,6 +80,16 @@ final class NationRaidEvent extends Model
     public function battleResults(): HasMany
     {
         return $this->hasMany(NationRaidBattleResult::class, 'event_id');
+    }
+
+    public function nationPreparations(): HasMany
+    {
+        return $this->hasMany(NationRaidNationPreparation::class, 'event_id');
+    }
+
+    public function invasionDamages(): HasMany
+    {
+        return $this->hasMany(NationRaidInvasionDamage::class, 'event_id');
     }
 
     public function balanceApprover(): BelongsTo

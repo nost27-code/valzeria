@@ -20,6 +20,8 @@ final class NationRaidEventService
         private readonly NationRaidRules $rules,
         private readonly NationRaidDailyLineageService $lineages,
         private readonly NationRaidRewardPolicy $rewardPolicy,
+        private readonly NationRaidPreparationService $preparations,
+        private readonly NationRaidOutcomeService $outcomes,
     ) {}
 
     public function createDraft(
@@ -174,6 +176,10 @@ final class NationRaidEventService
             $this->assertActivationPreflight();
             $this->coordinator->assertRaidWindowAvailable($locked->starts_at, $locked->ends_at, $locked->id);
 
+            if ($this->rules->supportsNextCycleSystems($locked->ruleset_snapshot)) {
+                $this->preparations->freezeLocked($locked, $at);
+                $this->preparations->finalizeLocked($locked, $at);
+            }
             $this->participations->freezeAtStart($locked, $at);
             $this->lineages->recordObservationDay($locked, $at);
             $cycleSnapshot = $this->cycleParameterSnapshot(1, $locked);
@@ -203,6 +209,23 @@ final class NationRaidEventService
             $this->coordinator->refreshLocked($coordinator);
 
             return $locked->refresh()->load(['cycles', 'participations']);
+        }, 3);
+    }
+
+    public function freezePreparation(NationRaidEvent $event, ?DateTimeInterface $at = null): NationRaidEvent
+    {
+        $at = $at ? CarbonImmutable::instance($at) : CarbonImmutable::now();
+
+        return DB::transaction(function () use ($event, $at): NationRaidEvent {
+            $this->coordinator->lock();
+            $locked = NationRaidEvent::query()->whereKey($event->id)->lockForUpdate()->firstOrFail();
+            if ($locked->preparation_frozen_at !== null || ! $this->rules->supportsNextCycleSystems($locked->ruleset_snapshot)) {
+                return $locked;
+            }
+            throw_unless($locked->status === NationRaidEvent::STATUS_SCHEDULED, \DomainException::class, '開催予約済みではないイベントは兵站準備を開始できません。');
+            $this->preparations->freezeLocked($locked, $at);
+
+            return $locked->refresh();
         }, 3);
     }
 
@@ -297,11 +320,17 @@ final class NationRaidEventService
                 \DomainException::class,
                 '未確定または未返却の出撃が残っているためイベントを確定できません。',
             );
+            if ($this->rules->supportsNextCycleSystems($locked->ruleset_snapshot)) {
+                $delay = (int) $locked->ruleset_snapshot['raid_cycle']['automatic_finalization_delay_minutes'];
+                throw_if($at->lt($locked->ends_at->copy()->addMinutes($delay)), \DomainException::class,
+                    "戦果はイベント終了{$delay}分後を目安に確定します。");
+            }
             $this->rewardPolicy->forEvent($locked);
             $days = \App\Models\NationRaidDailyLineageSnapshot::where('event_id', $locked->id)->whereNotNull('determined_at')->orderBy('raid_day')->pluck('raid_day')->all();
             throw_unless($days === range(1, 7), \DomainException::class, '日次系譜がすべて確定していません。');
             $standings = app(NationRaidRankingService::class)->standings($locked);
             $standings['is_final'] = true;
+            $this->outcomes->finalizeLocked($locked);
             app(NationRaidFinalResultService::class)->storeLocked($locked, $standings);
             app(NationRaidRewardService::class)->prepareLocked($locked, $standings);
             $locked->update([
