@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-09-15-job-art-strategy-choice-copy',
+        'date' => '2026-09-15',
+        'category' => 'changed',
+        'title' => '戦技の選び方を分かりやすく改善',
+        'detail' => '戦技設定の「おまかせ／こだわり設定」を「ゲームに任せる／優先順を決める」に改め、各選択で変わる内容と変わらない内容、保存方法を画面内で確認できるようにしました。戦技の威力やSP出力は変更していません。',
+    ],
+    [
         'id' => '2026-09-15-job-art-lineage-activation-shadow',
         'date' => '2026-09-15',
         'category' => 'internal',

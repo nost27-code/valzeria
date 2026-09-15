@@ -4,13 +4,47 @@ namespace Tests\Unit;
 
 use App\Models\CharacterJobArtSlot;
 use App\Models\Skill;
+use App\Services\JobArtService;
 use App\Services\JobArtV2LineageGuideCatalog;
 use App\Services\JobArtV2LoadoutPresenter;
 use App\Services\JobArtV2SlotConditionCatalog;
+use App\Services\JobArtV2StrategyService;
 use Tests\TestCase;
 
 class JobArtV2LoadoutViewTest extends TestCase
 {
+    public function test_detailed_strategy_explains_the_choice_and_what_it_does_not_change(): void
+    {
+        $strategyService = app(JobArtV2StrategyService::class);
+        $jobArtService = app(JobArtService::class);
+        $html = view('job-arts.partials.strategy-settings', [
+            'slotContext' => 'normal',
+            'contextStrategies' => [
+                'normal' => [
+                    'mode' => 'auto',
+                    'sp_policy' => 'aggressive',
+                    'settings' => $strategyService->autoSettings(),
+                ],
+            ],
+            'strategyModeLabels' => $strategyService->modeLabels(),
+            'activationPolicyLabels' => $jobArtService->activationPolicyLabels(),
+            'activationPolicyDescriptions' => $jobArtService->activationPolicyDescriptions(),
+            'strategySettingDefinitions' => $strategyService->settingDefinitions(),
+        ])->render();
+
+        $this->assertStringContainsString('通常戦での戦技の選び方', $html);
+        $this->assertStringContainsString('ゲームに任せる', $html);
+        $this->assertStringContainsString('優先順を決める', $html);
+        $this->assertStringContainsString('装備中で発動条件を満たした戦技から、どれを先に判定するか', $html);
+        $this->assertStringContainsString('SP条件は「積極」', $html);
+        $this->assertStringContainsString('戦技の威力', $html);
+        $this->assertStringContainsString('SP出力', $html);
+        $this->assertStringContainsString('この選び方を保存', $html);
+        $this->assertStringNotContainsString('おまかせの判断', $html);
+        $this->assertStringNotContainsString('こだわり設定', $html);
+        $this->assertStringNotContainsString('巡回順', $html);
+    }
+
     public function test_v2_slot_card_shows_role_lineage_cost_resource_and_priority_without_duplicate_stats_or_legacy_limits(): void
     {
         $skill = $this->skill(24, 9);
@@ -194,7 +228,7 @@ class JobArtV2LoadoutViewTest extends TestCase
         $this->assertStringContainsString('data-job-art-compact-settings', $view);
         $this->assertStringContainsString('data-job-art-selected-list-heading', $view);
         $this->assertStringContainsString('<strong class="text-slate-700">発動順：</strong>上から / 奥義優先', $view);
-        $this->assertStringContainsString('変更は自動保存されます', $view);
+        $this->assertStringContainsString('戦技のセット変更は自動保存。「戦技の選び方」は保存ボタンで確定します', $view);
         $this->assertStringNotContainsString('class="shrink-0 rounded-lg border border-amber-200 bg-amber-50', $view);
         $this->assertStringNotContainsString('class="mt-3 rounded-lg border border-sky-100 bg-sky-50/80', $view);
         $this->assertStringNotContainsString('class="mt-3 rounded-lg border border-indigo-100 bg-indigo-50/70', $view);

@@ -821,7 +821,7 @@ class JobArtController extends Controller
         } catch (ValidationException $e) {
             if ($request->expectsJson()) {
                 return response()->json([
-                    'message' => collect($e->errors())->flatten()->first() ?: '戦略を保存できませんでした。',
+                    'message' => collect($e->errors())->flatten()->first() ?: '戦技の選び方を保存できませんでした。',
                     'errors' => $e->errors(),
                 ], 422);
             }
@@ -831,13 +831,13 @@ class JobArtController extends Controller
 
         if ($request->expectsJson()) {
             return response()->json([
-                'message' => '戦略を保存しました。',
+                'message' => '戦技の選び方を保存しました。',
                 'slot_context' => (string) $data['slot_context'],
             ]);
         }
 
         return redirect()->route('job-arts.index', ['context' => $data['slot_context']])
-            ->with('message', '戦略を保存しました。');
+            ->with('message', '戦技の選び方を保存しました。');
     }
 
     /**

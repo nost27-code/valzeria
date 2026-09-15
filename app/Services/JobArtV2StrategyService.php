@@ -42,7 +42,7 @@ final class JobArtV2StrategyService
             'label' => '普段の戦技',
             'description' => '特別な状況がない時に、装備中のどの段階の戦技を優先するかを選びます。',
             'options' => [
-                'balanced' => '標準の巡回順',
+                'balanced' => '画面の順番を基本にする',
                 'starter' => '始動を優先',
                 'combo' => '連携を優先',
             ],
@@ -62,7 +62,7 @@ final class JobArtV2StrategyService
             'options' => [
                 'ready_guaranteed' => '満タン後の初回奥義を優先（発動判定100%）',
                 'normal_rate' => '準備完了後も通常発動率',
-                'slot_order' => '特別扱いせず巡回順',
+                'slot_order' => '特別扱いせず画面の順番',
             ],
         ],
         'heal_policy' => [
@@ -71,7 +71,7 @@ final class JobArtV2StrategyService
             'options' => [
                 'hp_50' => 'HP50%以下で優先',
                 'hp_30' => 'HP30%以下で優先',
-                'slot_order' => '特別扱いせず巡回順',
+                'slot_order' => '特別扱いせず画面の順番',
             ],
         ],
         'guard_policy' => [
@@ -80,7 +80,7 @@ final class JobArtV2StrategyService
             'options' => [
                 'telegraph' => '敵の大技予告中に優先',
                 'hp_50' => 'HP50%以下で優先',
-                'slot_order' => '特別扱いせず巡回順',
+                'slot_order' => '特別扱いせず画面の順番',
             ],
         ],
         'cleanse_policy' => [
@@ -88,23 +88,23 @@ final class JobArtV2StrategyService
             'description' => '装備中の浄化効果を持つ戦技を、有害状態や崩し印がある時に優先するかを選びます。',
             'options' => [
                 'immediate' => '浄化できる時は優先',
-                'slot_order' => '特別扱いせず巡回順',
+                'slot_order' => '特別扱いせず画面の順番',
             ],
         ],
         'buff_policy' => [
             'label' => '強化型戦技の優先',
-            'description' => '装備中の自分を強化する戦技を、通常の巡回順より先に判定するかを選びます。',
+            'description' => '装備中の自分を強化する戦技を、通常の画面順より先に判定するかを選びます。',
             'options' => [
                 'priority' => '強化型戦技を優先',
-                'slot_order' => '特別扱いせず巡回順',
+                'slot_order' => '特別扱いせず画面の順番',
             ],
         ],
         'debuff_policy' => [
             'label' => '弱体型戦技の優先',
-            'description' => '装備中の相手を弱体化する戦技を、通常の巡回順より先に判定するかを選びます。',
+            'description' => '装備中の相手を弱体化する戦技を、通常の画面順より先に判定するかを選びます。',
             'options' => [
                 'priority' => '弱体型戦技を優先',
-                'slot_order' => '特別扱いせず巡回順',
+                'slot_order' => '特別扱いせず画面の順番',
             ],
         ],
         'counter_policy' => [
@@ -112,7 +112,7 @@ final class JobArtV2StrategyService
             'description' => '相手の奥義予告または敵の大技予告に対応できる、装備中の対策戦技を優先するかを選びます。',
             'options' => [
                 'priority' => '対応できる時は最優先',
-                'slot_order' => '特別扱いせず巡回順',
+                'slot_order' => '特別扱いせず画面の順番',
             ],
         ],
     ];
@@ -133,8 +133,8 @@ final class JobArtV2StrategyService
     public function modeLabels(): array
     {
         return [
-            self::MODE_AUTO => 'おまかせ',
-            self::MODE_CUSTOM => 'こだわり設定',
+            self::MODE_AUTO => 'ゲームに任せる',
+            self::MODE_CUSTOM => '優先順を決める',
         ];
     }
 
@@ -210,7 +210,7 @@ final class JobArtV2StrategyService
             }
         }
 
-        // SP出力は「おまかせ／こだわり設定」と独立したcontext設定。
+        // SP出力は「ゲームに任せる／優先順を決める」と独立したcontext設定。
         // 自動戦術でも保存値を採用し、候補順の切替では上書きしない。
         $base['sp_output'] = $spOutput;
 
@@ -249,7 +249,7 @@ final class JobArtV2StrategyService
     public function validateMode(string $mode): string
     {
         if (! in_array($mode, self::MODES, true)) {
-            throw ValidationException::withMessages(['strategy_mode' => '戦略モードが正しくありません。']);
+            throw ValidationException::withMessages(['strategy_mode' => '戦技の選び方が正しくありません。']);
         }
 
         return $mode;

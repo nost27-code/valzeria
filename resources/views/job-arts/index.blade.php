@@ -74,7 +74,7 @@
                     @if($jobArtV2UiEnabled)
                         <p class="mt-3 inline-flex items-center gap-2 text-xs font-bold text-slate-500">
                             <span class="inline-flex h-5 w-5 items-center justify-center rounded-full bg-indigo-600 text-[11px] text-white" aria-hidden="true">✓</span>
-                            <span>変更は自動保存されます</span>
+                            <span>戦技のセット変更は自動保存。「戦技の選び方」は保存ボタンで確定します</span>
                         </p>
                     @else
                         <p class="mt-1 text-xs font-bold leading-relaxed text-slate-500">選ぶとその場で自動保存されます。最大{{ $maxSlots }}つまで。</p>
@@ -1632,7 +1632,7 @@
                 })
                     .then(async (response) => {
                         const payload = await response.json().catch(() => ({}));
-                        if (!response.ok) throw new Error(payload.message || '戦略を保存できませんでした。');
+                        if (!response.ok) throw new Error(payload.message || '戦技の選び方を保存できませんでした。');
                         if (status) {
                             status.textContent = '保存しました';
                             status.classList.remove('text-slate-500', 'text-rose-600');
