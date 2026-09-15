@@ -147,14 +147,44 @@ final class SixHeroHallScreenTest extends TestCase
             ->assertSet('mode', ArenaHub::MODE_SIX_HEROES)
             ->assertSee('六英雄戦')
             ->assertSee('通常闘技場')
-            ->assertSee('8月はプレシーズンとして競技を行いますが、英雄記録の対象外です。')
-            ->assertSee('月間英雄の記録は9月より開始し、通常闘技場は8月末で停止します。')
+            ->assertSee('六英雄戦は月間6部門、通常闘技場は特殊ルールなしの通算ランキングです。')
             ->assertSeeHtml('data-arena-schedule-notice')
             ->call('selectMode', ArenaHub::MODE_LEGACY)
             ->assertSet('mode', ArenaHub::MODE_LEGACY)
             ->assertSeeHtml('data-legacy-arena-home-tab')
             ->assertDontSeeHtml('data-six-hero-home-tab')
             ->assertSessionHas('colosseum_mode', ArenaHub::MODE_LEGACY);
+    }
+
+    public function test_legacy_arena_reopens_in_october_alongside_six_heroes(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-10-01 00:00:00', 'Asia/Tokyo'));
+        $viewer = $this->character('十月闘技場確認者');
+        session(['current_character_id' => $viewer->id]);
+        $this->withoutMiddleware(CheckCharacterSelected::class);
+        $this->actingAs($viewer->user);
+        $this->readySeason();
+
+        Livewire::test(ArenaHub::class)
+            ->assertSet('mode', ArenaHub::MODE_SIX_HEROES)
+            ->assertSeeHtml('data-arena-mode-switcher')
+            ->assertSeeHtml('data-six-hero-home-tab')
+            ->assertDontSeeHtml('data-arena-reopening-notice')
+            ->call('selectMode', ArenaHub::MODE_LEGACY)
+            ->assertSet('mode', ArenaHub::MODE_LEGACY)
+            ->assertSeeHtml('data-legacy-arena-home-tab')
+            ->assertSee('ランク戦に挑む');
+
+        $this->post('/battle/pvp-random')
+            ->assertRedirect(route('home'))
+            ->assertSessionHas('error');
+        $this->post('/battle/pvp/'.$viewer->id)
+            ->assertRedirect(route('home'))
+            ->assertSessionHas('error', '自分自身とは戦えません。');
+        $this->get('/battle/pvp-result')->assertRedirect(route('home'));
+        $this->get('/colosseum/ranking')
+            ->assertOk()
+            ->assertSee('闘技場ランキング');
     }
 
     public function test_legacy_arena_battle_endpoints_remain_available_while_six_heroes_is_enabled(): void
@@ -197,7 +227,9 @@ final class SixHeroHallScreenTest extends TestCase
             ->assertSet('mode', ArenaHub::MODE_SIX_HEROES)
             ->assertSeeHtml('data-six-hero-home-tab')
             ->assertDontSeeHtml('data-legacy-arena-home-tab')
-            ->assertDontSeeHtml('data-arena-mode-switcher');
+            ->assertDontSeeHtml('data-arena-mode-switcher')
+            ->assertSeeHtml('data-arena-reopening-notice')
+            ->assertSee('通常闘技場は10月1日 0:00から再開します。');
         $this->post('/battle/pvp-random')->assertNotFound();
         $this->post('/battle/pvp/'.$viewer->id)->assertNotFound();
         $this->get('/battle/pvp-result')->assertNotFound();
@@ -225,7 +257,7 @@ final class SixHeroHallScreenTest extends TestCase
             ->assertRedirect(route('home'));
     }
 
-    public function test_home_tab_uses_the_light_six_hero_screen_and_legacy_npc_updates_continue_during_coexistence(): void
+    public function test_home_tab_uses_the_light_six_hero_screen_and_legacy_npc_updates_stay_paused_after_reopening(): void
     {
         $mainScreen = (string) file_get_contents(resource_path('views/livewire/main-screen.blade.php'));
         $arenaHub = (string) file_get_contents(resource_path('views/livewire/arena-hub.blade.php'));
@@ -259,7 +291,7 @@ final class SixHeroHallScreenTest extends TestCase
             $this->assertStringNotContainsString('text-slate-300', $lightScreen);
             $this->assertStringNotContainsString('text-amber-200', $lightScreen);
         }
-        $this->assertStringContainsString('SixHeroCompetitionRules::legacyArenaAvailable()', $schedule);
+        $this->assertStringContainsString('SixHeroCompetitionRules::legacyArenaNpcAutoBattlesAvailable()', $schedule);
         $this->assertSame(3, substr_count($schedule, 'arena:npc-auto-battles'));
 
         foreach (SixHeroRoomKey::cases() as $room) {

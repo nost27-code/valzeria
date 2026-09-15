@@ -35,6 +35,27 @@ final class SixHeroCompetitionRulesTest extends TestCase
         ));
     }
 
+    public function test_legacy_arena_reopens_in_october_without_resuming_npc_auto_battles(): void
+    {
+        config(['app.timezone' => 'Asia/Tokyo']);
+
+        $this->assertTrue(SixHeroCompetitionRules::legacyArenaNpcAutoBattlesAvailable(
+            CarbonImmutable::parse('2026-08-31 23:59:59', 'Asia/Tokyo'),
+        ));
+        $this->assertFalse(SixHeroCompetitionRules::legacyArenaAvailable(
+            CarbonImmutable::parse('2026-09-30 23:59:59', 'Asia/Tokyo'),
+        ));
+        $this->assertFalse(SixHeroCompetitionRules::legacyArenaNpcAutoBattlesAvailable(
+            CarbonImmutable::parse('2026-09-01 00:00:00', 'Asia/Tokyo'),
+        ));
+        $this->assertTrue(SixHeroCompetitionRules::legacyArenaAvailable(
+            CarbonImmutable::parse('2026-10-01 00:00:00', 'Asia/Tokyo'),
+        ));
+        $this->assertFalse(SixHeroCompetitionRules::legacyArenaNpcAutoBattlesAvailable(
+            CarbonImmutable::parse('2026-10-01 00:00:00', 'Asia/Tokyo'),
+        ));
+    }
+
     public function test_invalid_recording_start_season_is_rejected(): void
     {
         config(['six_heroes.champion_recording_starts_from_season' => 'September']);

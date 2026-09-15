@@ -23,6 +23,9 @@ final class SixHeroCompetitionRules
 
     public const LEGACY_ARENA_STOPS_AT = '2026-09-01 00:00:00';
 
+    /** 通常闘技場を六英雄戦と再び併設する日時。 */
+    public const LEGACY_ARENA_REOPENS_AT = '2026-10-01 00:00:00';
+
     public static function championRecordingStartsFromSeasonKey(): string
     {
         $seasonKey = (string) config(
@@ -43,13 +46,35 @@ final class SixHeroCompetitionRules
 
     public static function legacyArenaAvailable(?CarbonInterface $at = null): bool
     {
+        $current = self::atInAppTimezone($at);
+
+        return $current->lessThan(self::legacyArenaStopsAt())
+            || $current->greaterThanOrEqualTo(self::legacyArenaReopensAt());
+    }
+
+    public static function legacyArenaNpcAutoBattlesAvailable(?CarbonInterface $at = null): bool
+    {
+        // 六英雄戦との併設再開後も、受動的な順位低下を起こすNPC自動戦は休止を維持する。
+        return self::atInAppTimezone($at)->lessThan(self::legacyArenaStopsAt());
+    }
+
+    public static function legacyArenaReopensAt(): CarbonImmutable
+    {
+        return CarbonImmutable::parse(self::LEGACY_ARENA_REOPENS_AT, (string) config('app.timezone'));
+    }
+
+    private static function legacyArenaStopsAt(): CarbonImmutable
+    {
+        return CarbonImmutable::parse(self::LEGACY_ARENA_STOPS_AT, (string) config('app.timezone'));
+    }
+
+    private static function atInAppTimezone(?CarbonInterface $at): CarbonImmutable
+    {
         $timezone = (string) config('app.timezone');
-        $current = $at === null
+
+        return $at === null
             ? CarbonImmutable::now($timezone)
             : CarbonImmutable::instance($at)->setTimezone($timezone);
-        $stopsAt = CarbonImmutable::parse(self::LEGACY_ARENA_STOPS_AT, $timezone);
-
-        return $current->lessThan($stopsAt);
     }
 
     public static function remainingOfficialAttempts(int $used): int

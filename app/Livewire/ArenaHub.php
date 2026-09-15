@@ -42,6 +42,7 @@ final class ArenaHub extends Component
         return view('livewire.arena-hub', [
             'sixHeroesEnabled' => $this->sixHeroesEnabled(),
             'legacyArenaAvailable' => $this->legacyArenaAvailable(),
+            'legacyArenaReopensAtLabel' => SixHeroCompetitionRules::legacyArenaReopensAt()->format('n月j日 G:i'),
         ]);
     }
 

@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-09-15-legacy-arena-october-reopening',
+        'date' => '2026-09-15',
+        'category' => 'changed',
+        'title' => '通常闘技場を10月から再開',
+        'detail' => '10月1日0:00から、六英雄戦と切り替えて通常闘技場を再び遊べるようにします。以前の通算ランキングと対戦ルールは引き継ぎ、NPCによる自動順位戦は再開しません。',
+    ],
+    [
         'id' => '2026-09-15-bug-report-codex-copy-selection',
         'date' => '2026-09-15',
         'category' => 'internal',

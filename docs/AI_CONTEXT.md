@@ -2,7 +2,7 @@
 
 Purpose: compressed current-state snapshot for ChatGPT and Codex.
 Source of truth: current behavior = code / intended spec = DOMAIN_RULES.md + human rulings (see AGENTS.md "Source of truth"). On conflict, report 要裁定 — do not pick a side.
-Last updated: 2026-09-11
+Last updated: 2026-09-15
 Branch: main
 
 - 探索地図の公開範囲（2026-09-11）: 公開時に「自分だけ」「国家限定」「すべての冒険者」を選ぶ。個人限定は入場料0、国家限定は公開時の国家IDを固定し、公開者の移籍後も共有先を変えない。範囲外の一覧・詳細・新規入場を止める一方、国家を離れる前に入場済みならその入場を継続できる。既存公開は全体公開を維持し、英雄・伝説地図の全体ログも全体公開だけに出す。公開枠は範囲合計で発見者ごとに3件。
@@ -23,7 +23,7 @@ Branch: main
 ## Six Heroes / 六極殿（本番公開）
 
 - 六英雄戦は6つの独立Room、Room別月次Ranking、各Room1日5回の公式戦、相性確認、月次英雄・空位確定、翌月順位引継ぎ、殿堂・冠・連覇、管理診断まで実装済み
-- `SIX_HERO_UI_ENABLED`のコード既定値はOFF、本番設定はON。2026年8月中はhomeの「闘技場」タブ内で六英雄戦と通常闘技場を切り替えられ、旧対戦Route・Ranking・NPC自動順位戦も維持する。2026-09-01 00:00以降はON時の通常闘技場導線・対戦Route・NPC自動順位戦を停止し、六英雄戦だけを表示する。緊急時にflagをOFFへ戻すと従来闘技場へ復帰する
+- `SIX_HERO_UI_ENABLED`のコード既定値はOFF、本番設定はON。通常闘技場は2026-09-01 00:00から2026-10-01 00:00まで休止し、10月1日以降は同じ「闘技場」タブで六英雄戦と切り替えて再び利用できる。既存の通算Ranking・対戦Route・DB履歴・対戦ルールを継続し、六英雄戦ON時のNPC自動順位戦は再開しない。緊急時にflagをOFFへ戻すと従来闘技場とNPC自動順位戦へ復帰する
 - 2026年8月は公式戦・順位変動を行うプレシーズンだが、英雄・空位の永久snapshotは作らない。8月最終順位は9月へ引き継ぎ、英雄・空位・殿堂・冠・連覇の記録は2026年9月Seasonから開始する
 - 戦闘計算は副作用なしの`PvPBattleService::resolveBattle()`へ統一し、通常闘技場は`NullPvPRoomRule`、六英雄戦だけfreshな6種RoomRuleを注入する。通常闘技場の順位・ログ副作用は既存facadeに残す
 - 六英雄戦の通常攻撃は表示威力100%、ランク戦基準ダメージへ0.5倍を掛けた値を基準とし、戦技の表示威力をその基準へ線形適用する。`PVP_SPEED_BREAKTHROUGH_ENABLED`はコード既定OFF・本番ON。六英雄戦ContextとのANDでだけ有効になり、行動開始時の実効敏捷比が1.30を超えた分へ係数1.25を掛けて名目突破率を最大30%とする。既存防御無視と乗算合成した総無視率は最大50%とし、既存無視適用済みの参照防御（物理なら防御、魔力なら精神）へ、総率へ到達するための追加分だけを1行動1回snapshotして適用する。多段Hitは同じsnapshot、追加行動は別snapshotを使う。通常闘技場・訓練所・チャンプ戦・NPC闘技場・PvEは対象外

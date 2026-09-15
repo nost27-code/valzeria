@@ -33,9 +33,17 @@
                 class="mt-1.5 px-1 text-center text-[10px] font-medium leading-relaxed text-slate-500"
                 data-arena-schedule-notice
             >
-                <span class="block sm:inline">※ 8月はプレシーズンとして競技を行いますが、英雄記録の対象外です。</span>
-                <span class="block sm:ml-1 sm:inline">月間英雄の記録は9月より開始し、通常闘技場は8月末で停止します。</span>
+                六英雄戦は月間6部門、通常闘技場は特殊ルールなしの通算ランキングです。
             </p>
+        </div>
+    @endif
+
+    @if($sixHeroesEnabled && ! $legacyArenaAvailable)
+        <div
+            class="mb-4 rounded-xl border border-amber-200 bg-amber-50/70 px-3 py-2 text-center text-xs font-bold leading-relaxed text-amber-900 shadow-sm"
+            data-arena-reopening-notice
+        >
+            通常闘技場は{{ $legacyArenaReopensAtLabel }}から再開します。
         </div>
     @endif
 
