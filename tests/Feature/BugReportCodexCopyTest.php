@@ -40,4 +40,39 @@ class BugReportCodexCopyTest extends TestCase
             ->assertSee('装備市場で取り消し後の表示がおかしいです。')
             ->assertSee('添付画像は必要なものを続けて貼り付けてください');
     }
+
+    public function test_codex_copy_component_is_recreated_for_the_open_report(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $openReporter = Character::query()->create([
+            'user_id' => User::factory()->create()->id,
+            'name' => '開いている冒険者',
+            'explore_stamina' => 0,
+        ]);
+        $latestReporter = Character::query()->create([
+            'user_id' => User::factory()->create()->id,
+            'name' => '最新の冒険者',
+            'explore_stamina' => 0,
+        ]);
+        $openReport = BugReport::query()->create([
+            'character_id' => $openReporter->id,
+            'body' => '開いている送信内容です。',
+            'status' => 'new',
+            'kind' => BugReport::KIND_SUGGESTION,
+        ]);
+        BugReport::query()->create([
+            'character_id' => $latestReporter->id,
+            'body' => '一覧で最新の送信内容です。',
+            'status' => 'new',
+            'kind' => BugReport::KIND_SUGGESTION,
+        ]);
+
+        $this->actingAs($admin);
+
+        Livewire::test(BugReportManager::class)
+            ->call('selectReport', $openReport->id)
+            ->assertSet('selectedReportId', $openReport->id)
+            ->assertSee('Codex検討用にコピー')
+            ->assertSeeHtml('wire:key="bug-report-codex-copy-' . $openReport->id . '"');
+    }
 }

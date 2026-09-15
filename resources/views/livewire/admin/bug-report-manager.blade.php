@@ -55,7 +55,7 @@
                         <p class="mt-1 text-xs font-bold text-slate-400">送信 {{ $selectedReport->created_at->format('Y/m/d H:i') }} @if($selectedReport->character?->jobClass) / {{ $selectedReport->character->jobClass->name }} @endif</p>
                     </div>
                     <div class="flex flex-wrap gap-2">
-                        <div x-data="{ copied: false, failed: false, copy() { if (!navigator.clipboard?.writeText) { this.failed = true; return; } navigator.clipboard.writeText(@js($codexInvestigationText)).then(() => { this.copied = true; this.failed = false; setTimeout(() => this.copied = false, 2500); }).catch(() => { this.failed = true; this.copied = false; }); } }">
+                        <div wire:key="bug-report-codex-copy-{{ $selectedReport->id }}" x-data="{ copied: false, failed: false, copy() { if (!navigator.clipboard?.writeText) { this.failed = true; return; } navigator.clipboard.writeText(@js($codexInvestigationText)).then(() => { this.copied = true; this.failed = false; setTimeout(() => this.copied = false, 2500); }).catch(() => { this.failed = true; this.copied = false; }); } }">
                             <button type="button" x-on:click="copy" class="rounded-md bg-sky-600 px-3 py-2 text-xs font-black text-white shadow-sm hover:bg-sky-700">
                                 <span x-show="!copied && !failed">{{ $selectedReport->isSuggestion() ? 'Codex検討用にコピー' : 'Codex調査用にコピー' }}</span>
                                 <span x-cloak x-show="copied">コピーしました</span>

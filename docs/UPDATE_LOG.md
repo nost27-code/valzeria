@@ -6,6 +6,10 @@ Do not record tiny refactors, formatting-only changes, or AI docs-only edits.
 
 ## Unreleased
 
+### Fixed: 開いている送信内容をCodex用にコピー（2026-09-15）
+
+- 管理画面の「ご意見・不具合」で過去の送信を開いた際、Codex用コピーに最新の送信内容が残る場合がある問題を修正しました。現在開いている送信の本文・報告者・送信情報がコピーされます。
+
 ### Internal: 戦技実績のDB集計と比較項目を改善（2026-09-15）
 
 - 管理画面の戦技実績をDBの時間単位集計から読み込むようにし、大量の生ログを画面上で展開しない構成にしました。

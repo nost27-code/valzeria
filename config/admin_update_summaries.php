@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-09-15-bug-report-codex-copy-selection',
+        'date' => '2026-09-15',
+        'category' => 'internal',
+        'title' => '開いている送信のCodexコピー対象を修正',
+        'detail' => '管理画面の「ご意見・不具合」で過去の送信を開いた際、Codex用コピーに最新の送信内容が残る場合がある問題を修正しました。現在開いている送信の内容をコピーします。',
+    ],
+    [
         'id' => '2026-09-15-job-art-gameplay-rollups',
         'date' => '2026-09-15',
         'category' => 'internal',
