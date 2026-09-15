@@ -105,6 +105,9 @@ class BattleState
     /** @var array<string, array{skill_id:int,name:string,origin:string,activation_count:int,hit_count:int,miss_count:int,evade_count:int,no_resolution_count:int,vital_hit_count:int,hp_recovered:int,sp_recovered:int}> */
     private array $jobArtUsage = [];
 
+    /** @var array<string, array{skill_id:int,name:string,effective_rate:int,activation_roll:int,activated:bool,current_lineage:string,skill_lineage:string,is_same_lineage:bool|null,lineage_relation:string,attempt_count:int}> */
+    private array $jobArtActivationAttempts = [];
+
     /** @var array<string, string> actor/source action => usage key */
     private array $pendingJobArtUsage = [];
 
@@ -786,6 +789,50 @@ class BattleState
         ];
     }
 
+    public function recordJobArtActivationAttempt(
+        BattleActor $actor,
+        \App\Models\Skill $skill,
+        int $effectiveRate,
+        int $activationRoll,
+        ?string $currentLineage,
+        ?string $skillLineage,
+    ): void {
+        $actorKey = $this->actorKey($actor);
+        $effectiveRate = max(0, min(100, $effectiveRate));
+        $activationRoll = max(1, min(100, $activationRoll));
+        $currentLineage = trim((string) $currentLineage) ?: 'unknown';
+        $skillLineage = trim((string) $skillLineage) ?: 'unknown';
+        $isSameLineage = $currentLineage === 'unknown' || $skillLineage === 'unknown'
+            ? null
+            : $currentLineage === $skillLineage;
+        $lineageRelation = match ($isSameLineage) {
+            true => 'same',
+            false => 'off',
+            null => 'unknown',
+        };
+        $key = implode(':', [
+            $actorKey,
+            (int) $skill->id,
+            $effectiveRate,
+            $activationRoll,
+            $currentLineage,
+            $skillLineage,
+        ]);
+        $this->jobArtActivationAttempts[$key] ??= [
+            'skill_id' => (int) $skill->id,
+            'name' => (string) $skill->name,
+            'effective_rate' => $effectiveRate,
+            'activation_roll' => $activationRoll,
+            'activated' => $activationRoll <= $effectiveRate,
+            'current_lineage' => $currentLineage,
+            'skill_lineage' => $skillLineage,
+            'is_same_lineage' => $isSameLineage,
+            'lineage_relation' => $lineageRelation,
+            'attempt_count' => 0,
+        ];
+        $this->jobArtActivationAttempts[$key]['attempt_count']++;
+    }
+
     public function completeJobArtActivation(
         BattleActor $actor,
         ?HitResult $hitResult,
@@ -845,6 +892,18 @@ class BattleState
 
         return array_values(array_filter(
             $this->jobArtUsage,
+            static fn (array $row, string $key): bool => str_starts_with($key, $prefix),
+            ARRAY_FILTER_USE_BOTH,
+        ));
+    }
+
+    /** @return list<array{skill_id:int,name:string,effective_rate:int,activation_roll:int,activated:bool,current_lineage:string,skill_lineage:string,is_same_lineage:bool|null,lineage_relation:string,attempt_count:int}> */
+    public function jobArtActivationAttemptsFor(BattleActor $actor): array
+    {
+        $prefix = $this->actorKey($actor).':';
+
+        return array_values(array_filter(
+            $this->jobArtActivationAttempts,
             static fn (array $row, string $key): bool => str_starts_with($key, $prefix),
             ARRAY_FILTER_USE_BOTH,
         ));

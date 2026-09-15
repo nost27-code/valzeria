@@ -40,6 +40,8 @@ class BattleResult
     public ?array $jobArtV2Hud = null;
     /** @var list<array<string,mixed>> 実績計測専用。戦闘判定には使用しない。 */
     public array $jobArtUsage = [];
+    /** @var list<array<string,mixed>> 発動率の影響試算専用。戦闘判定には使用しない。 */
+    public array $jobArtActivationAttempts = [];
     /** @var list<array{slot_no:int,skill_id:int,name:string,origin:string}> 実績計測専用。 */
     public array $jobArtLoadout = [];
     public array $enemyDurability = []; // ['hp'=>float,'def_spr'=>float,'atk_mag'=>float,'tier'=>string]

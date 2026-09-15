@@ -497,6 +497,7 @@ class BattleService
         $result->damageTaken = $playerActor->totalDamageTaken;
         $result->jobArtV2Hud = $this->jobArtV2BattleHudService->present($state);
         $result->jobArtUsage = $state->jobArtUsageFor($state->player);
+        $result->jobArtActivationAttempts = $state->jobArtActivationAttemptsFor($state->player);
         $result->jobArtLoadout = $state->jobArtLoadoutFor($state->player);
 
         if ($explorationSupportEnabled) {

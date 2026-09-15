@@ -24,6 +24,7 @@ class JobArtV2SelectionService
     private readonly JobArtV2FeatureGate $featureGate;
     private readonly JobArtV2Rank5V6Catalog $rank5V6Catalog;
     private readonly JobArtV2StrategyService $strategyService;
+    private readonly JobArtLineageCatalog $lineageCatalog;
 
     public function __construct(
         private readonly JobArtV2RandomSource $random,
@@ -44,6 +45,7 @@ class JobArtV2SelectionService
         ?JobArtV2FeatureGate $featureGate = null,
         ?JobArtV2Rank5V6Catalog $rank5V6Catalog = null,
         ?JobArtV2StrategyService $strategyService = null,
+        ?JobArtLineageCatalog $lineageCatalog = null,
     ) {
         $this->resourceService = $resourceService ?? app(JobArtV2ResourceService::class);
         $this->fieldService = $fieldService ?? app(JobArtV2FieldService::class);
@@ -61,6 +63,7 @@ class JobArtV2SelectionService
         $this->featureGate = $featureGate ?? app(JobArtV2FeatureGate::class);
         $this->rank5V6Catalog = $rank5V6Catalog ?? app(JobArtV2Rank5V6Catalog::class);
         $this->strategyService = $strategyService ?? app(JobArtV2StrategyService::class);
+        $this->lineageCatalog = $lineageCatalog ?? app(JobArtLineageCatalog::class);
     }
 
     public function selectForTurn(
@@ -127,7 +130,16 @@ class JobArtV2SelectionService
                         $this->originFor($actor, $skill),
                     ),
                 ));
-            $activated = $this->random->percentRoll() <= $activationRate;
+            $activationRoll = $this->random->percentRoll();
+            $activated = $activationRoll <= $activationRate;
+            $state->recordJobArtActivationAttempt(
+                actor: $actor,
+                skill: $skill,
+                effectiveRate: $activationRate,
+                activationRoll: $activationRoll,
+                currentLineage: $this->lineageCatalog->forJob($actor->currentJobId)['lineage_key'] ?? null,
+                skillLineage: $this->lineageCatalog->forArt($skill)['lineage_key'] ?? null,
+            );
             if (! $activated) {
                 $this->markRank5V6Attempted($actor, $skill);
                 $actor->clearPendingJobArtSpScaling((int) $skill->id);

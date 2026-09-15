@@ -52,6 +52,7 @@ class JobArtV2SelectionServiceTest extends TestCase
         $random = $this->random([100, 1]);
         $service = $this->service($random);
         [$actor, $state] = $this->battle([$this->art(101, 50), $this->art(102, 100)]);
+        $actor->currentJobId = 1;
 
         $result = $service->selectForTurn($actor, $state);
 
@@ -61,6 +62,18 @@ class JobArtV2SelectionServiceTest extends TestCase
         $this->assertFalse($result->activated);
         $this->assertFalse($result->retriedAfterMiss);
         $this->assertSame(1, $random->calls);
+        $this->assertSame([[
+            'skill_id' => 101,
+            'name' => 'art-101',
+            'effective_rate' => 50,
+            'activation_roll' => 100,
+            'activated' => false,
+            'current_lineage' => 'counter',
+            'skill_lineage' => 'counter',
+            'is_same_lineage' => true,
+            'lineage_relation' => 'same',
+            'attempt_count' => 1,
+        ]], $state->jobArtActivationAttemptsFor($actor));
     }
 
     public function test_v2_ignores_legacy_cooldown_and_use_limit_before_one_roll(): void

@@ -55,6 +55,25 @@ class MapExplorationBatchServiceTest extends TestCase
         $victory = new BattleResult();
         $victory->result = 'victory';
         $victory->jobExp = 1;
+        $victory->turnCount = 3;
+        $victory->playerLevelAtStart = 77;
+        $victory->playerJobIdAtStart = 1;
+        $victory->jobArtLoadout = [[
+            'slot_no' => 1,
+            'skill_id' => 101,
+            'name' => '地図計測の構え',
+            'origin' => 'current',
+        ]];
+        $victory->jobArtActivationAttempts = [[
+            'skill_id' => 101,
+            'name' => '地図計測の構え',
+            'effective_rate' => 50,
+            'activation_roll' => 51,
+            'current_lineage' => 'counter',
+            'skill_lineage' => 'counter',
+            'lineage_relation' => 'same',
+            'attempt_count' => 1,
+        ]];
         $battleService = Mockery::mock(BattleService::class);
         $battleService->shouldReceive('executeBattle')->times($count)->andReturn($victory);
         $this->app->instance(BattleService::class, $battleService);
@@ -73,6 +92,14 @@ class MapExplorationBatchServiceTest extends TestCase
 
         $this->assertSame($count, (int) $execution['batch']->executed_count);
         $this->assertCount($count * 6, $execution['battle_result']['equipment_drops']);
+        $this->assertSame(77, (int) $execution['battle_result']['character_level_at_start']);
+        $this->assertSame(1, (int) $execution['battle_result']['current_job_id_at_start']);
+        if ($count > 1) {
+            $this->assertSame(77, (int) data_get($execution, 'battle_result.batch_explore.runs.0.character_level_at_start'));
+            $this->assertSame(1, (int) data_get($execution, 'battle_result.batch_explore.runs.0.current_job_id_at_start'));
+            $this->assertSame(101, (int) data_get($execution, 'battle_result.batch_explore.runs.0.job_art_loadout.0.skill_id'));
+            $this->assertSame(51, (int) data_get($execution, 'battle_result.batch_explore.runs.0.job_art_activation_attempts.0.activation_roll'));
+        }
         $expectedPerRun = [
             "【逸品】{$visitor->name}さんが「逸品の試験剣」を手に入れました！",
             "【獲得】{$visitor->name}さんがSSSランク装備「SSSの試験鎧」を手に入れました！",

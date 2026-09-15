@@ -16,6 +16,8 @@ class GameplayAnalyticsManager extends Component
 
     public string $levelBand = 'all';
 
+    public string $shadowBonusPoints = '0';
+
     public function mount(): void
     {
         $this->assertAdmin();
@@ -32,8 +34,14 @@ class GameplayAnalyticsManager extends Component
                 'battle_context' => $this->battleContext,
                 'current_job_id' => $this->currentJobId,
                 'level_band' => $this->levelBand,
+                'shadow_bonus_points' => $this->shadowBonusPoints,
             ]),
         )->layout('components.layouts.admin');
+    }
+
+    public function updatedShadowBonusPoints(mixed $value): void
+    {
+        $this->shadowBonusPoints = (string) max(0, min(100, (int) $value));
     }
 
     private function assertAdmin(): void

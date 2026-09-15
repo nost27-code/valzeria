@@ -21,6 +21,7 @@ class GameplayMetricsTest extends TestCase
     {
         $character = $this->createCharacter();
         $art = $this->createArt();
+        $offLineageArt = $this->createArt();
         $battle = new BattleResult;
         $battle->result = 'victory';
         $battle->turnCount = 4;
@@ -45,6 +46,44 @@ class GameplayMetricsTest extends TestCase
             'hp_recovered' => 120,
             'sp_recovered' => 8,
         ]];
+        $battle->jobArtActivationAttempts = [
+            [
+                'skill_id' => $art->id,
+                'name' => $art->name,
+                'effective_rate' => 50,
+                'activation_roll' => 25,
+                'current_lineage' => 'counter',
+                'skill_lineage' => 'counter',
+                'attempt_count' => 2,
+            ],
+            [
+                'skill_id' => $art->id,
+                'name' => $art->name,
+                'effective_rate' => 50,
+                'activation_roll' => 52,
+                'current_lineage' => 'counter',
+                'skill_lineage' => 'counter',
+                'attempt_count' => 1,
+            ],
+            [
+                'skill_id' => $art->id,
+                'name' => $art->name,
+                'effective_rate' => 50,
+                'activation_roll' => 53,
+                'current_lineage' => 'counter',
+                'skill_lineage' => 'counter',
+                'attempt_count' => 1,
+            ],
+            [
+                'skill_id' => $offLineageArt->id,
+                'name' => $offLineageArt->name,
+                'effective_rate' => 50,
+                'activation_roll' => 51,
+                'current_lineage' => 'counter',
+                'skill_lineage' => 'pierce',
+                'attempt_count' => 1,
+            ],
+        ];
 
         $service = app(GameplayMetricService::class);
         $service->recordJobArtBattle($character, 'normal', $battle);
@@ -92,6 +131,19 @@ class GameplayMetricsTest extends TestCase
         $this->assertSame(120.0, $analysis['jobArt']['loadoutRows'][0]['hp_recovered_per_battle']);
         $this->assertSame(8.0, $analysis['jobArt']['loadoutRows'][0]['sp_recovered_per_battle']);
         $this->assertSame(4.0, $analysis['jobArt']['loadoutRows'][0]['average_turns']);
+        $shadow = app(GameplayAnalyticsService::class)->analyze([
+            'activity_window' => 'all',
+            'shadow_bonus_points' => 2,
+        ])['jobArt']['activationShadow'];
+        $this->assertDatabaseCount('gameplay_job_art_activation_rollups', 4);
+        $this->assertSame(5, $shadow['cards']['attempts']);
+        $this->assertSame(4, $shadow['cards']['same_lineage_attempts']);
+        $this->assertSame(2, $shadow['cards']['actual_activations']);
+        $this->assertSame(1, $shadow['cards']['estimated_extra_activations']);
+        $this->assertSame(3, $shadow['cards']['estimated_total_activations']);
+        $this->assertSame(40.0, $shadow['cards']['actual_activation_rate']);
+        $this->assertSame(60.0, $shadow['cards']['estimated_activation_rate']);
+        $this->assertSame(1, $shadow['skillRows'][0]['estimated_extra_activations']);
         $this->assertSame(2, $analysis['exploration']['cards']['requests']);
         $this->assertSame(51, $analysis['exploration']['cards']['requested_runs']);
         $this->assertSame(41, $analysis['exploration']['cards']['completed_runs']);
@@ -162,6 +214,7 @@ class GameplayMetricsTest extends TestCase
         $this->actingAs($admin)->get(route('admin.gameplay-analytics'))
             ->assertOk()
             ->assertSee('戦技・探索実績')
+            ->assertSee('同系譜の発動率ボーナス仮試算')
             ->assertSee('急所命中');
     }
 

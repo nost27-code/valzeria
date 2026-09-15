@@ -12,7 +12,7 @@
                     ・更新 {{ $generatedAt->format('Y/m/d H:i:s') }}
                 </p>
             </div>
-            <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <div class="grid grid-cols-2 gap-3 lg:grid-cols-5">
                 <label class="text-xs font-black text-slate-600">
                     集計期間
                     <select wire:model.live="activityWindow" class="mt-1 w-full rounded-md border-slate-300 bg-white text-sm font-bold">
@@ -41,6 +41,13 @@
                     <select wire:model.live="levelBand" class="mt-1 w-full rounded-md border-slate-300 bg-white text-sm font-bold">
                         @foreach($levelBandOptions as $band)<option value="{{ $band }}">{{ $band === 'all' ? 'すべて' : 'Lv'.$band }}</option>@endforeach
                     </select>
+                </label>
+                <label class="text-xs font-black text-slate-600">
+                    同系譜の仮加算
+                    <span class="mt-1 flex items-center gap-2">
+                        <input type="number" min="0" max="100" inputmode="numeric" wire:model.blur="shadowBonusPoints" class="w-full rounded-md border-slate-300 bg-white text-sm font-bold">
+                        <span class="shrink-0">pt</span>
+                    </span>
                 </label>
             </div>
         </div>
@@ -81,6 +88,48 @@
                         <div class="mt-2 text-xl font-black text-slate-950">{{ $value }}</div>
                     </div>
                 @endforeach
+            </div>
+
+            <div class="overflow-hidden rounded-md border border-violet-200 bg-white shadow-sm">
+                <div class="border-b border-violet-100 bg-violet-50 px-5 py-4">
+                    <h3 class="font-black text-slate-950">同系譜の発動率ボーナス仮試算</h3>
+                    <p class="mt-1 text-xs font-bold leading-5 text-slate-600">
+                        戦闘時の実抽選値を使い、同系譜だけ発動率を +{{ $jobArt['activationShadow']['bonus_points'] }}pt した場合に救われる不発を数えます。
+                        分析上の仮定であり、ゲーム内の発動率には反映されません。発動後のSP消費・候補順・勝敗は再計算しない一次試算です。
+                    </p>
+                    <p class="mt-1 text-[11px] font-bold text-violet-500">
+                        抽選計測開始 {{ $activationShadowMeasurementStartedAt ? \Illuminate\Support\Carbon::parse($activationShadowMeasurementStartedAt)->format('Y/m/d H:i') : 'まだ抽選実績がありません' }}
+                    </p>
+                </div>
+                <div class="grid grid-cols-2 gap-3 p-4 lg:grid-cols-4 xl:grid-cols-8">
+                    @foreach([
+                        ['抽選回数', number_format($jobArt['activationShadow']['cards']['attempts'])],
+                        ['同系譜の抽選', number_format($jobArt['activationShadow']['cards']['same_lineage_attempts'])],
+                        ['実抽選成功', number_format($jobArt['activationShadow']['cards']['actual_activations'])],
+                        ['実抽選成功率', $jobArt['activationShadow']['cards']['actual_activation_rate'].'%'],
+                        ['追加見込み', '+'.number_format($jobArt['activationShadow']['cards']['estimated_extra_activations'])],
+                        ['仮抽選成功', number_format($jobArt['activationShadow']['cards']['estimated_total_activations'])],
+                        ['仮成功率', $jobArt['activationShadow']['cards']['estimated_activation_rate'].'%'],
+                        ['系譜不明抽選', number_format($jobArt['activationShadow']['cards']['unknown_lineage_attempts'])],
+                    ] as [$label, $value])
+                        <div class="rounded-md border border-slate-200 bg-white p-3">
+                            <div class="text-[11px] font-black text-slate-500">{{ $label }}</div>
+                            <div class="mt-2 text-lg font-black text-slate-950">{{ $value }}</div>
+                        </div>
+                    @endforeach
+                </div>
+                <div class="overflow-x-auto border-t border-slate-100">
+                    <table class="min-w-[820px] w-full text-left text-xs">
+                        <thead class="bg-slate-50 font-black text-slate-500"><tr><th class="px-4 py-3">戦技</th><th class="px-3 py-3 text-right">抽選</th><th class="px-3 py-3 text-right">同系譜抽選</th><th class="px-3 py-3 text-right">実抽選成功</th><th class="px-3 py-3 text-right">追加見込み</th><th class="px-3 py-3 text-right">実成功率</th><th class="px-3 py-3 text-right">仮成功率</th></tr></thead>
+                        <tbody class="divide-y divide-slate-100">
+                            @forelse($jobArt['activationShadow']['skillRows'] as $row)
+                                <tr><td class="px-4 py-3 font-black text-slate-900">{{ $row['name'] }}</td><td class="px-3 py-3 text-right">{{ number_format($row['attempts']) }}</td><td class="px-3 py-3 text-right">{{ number_format($row['same_lineage_attempts']) }}</td><td class="px-3 py-3 text-right">{{ number_format($row['actual_activations']) }}</td><td class="px-3 py-3 text-right font-black text-violet-700">+{{ number_format($row['estimated_extra_activations']) }}</td><td class="px-3 py-3 text-right">{{ $row['actual_activation_rate'] }}%</td><td class="px-3 py-3 text-right font-black">{{ $row['estimated_activation_rate'] }}%</td></tr>
+                            @empty
+                                <tr><td colspan="7" class="px-4 py-10 text-center font-bold text-slate-400">抽選実績はまだありません。</td></tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
             </div>
 
             <div class="overflow-hidden rounded-md border border-slate-200 bg-white shadow-sm">

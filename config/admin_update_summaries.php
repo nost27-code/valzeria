@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-09-15-job-art-lineage-activation-shadow',
+        'date' => '2026-09-15',
+        'category' => 'internal',
+        'title' => '同系譜の発動率ボーナスを仮試算',
+        'detail' => '戦技の実抽選値と戦闘時の系譜を集計し、管理画面で任意の仮加算ptによる追加発動見込みを確認できるようにしました。分析用の一次試算で、ゲーム内の発動率・SP消費・候補順・勝敗は変更していません。',
+    ],
+    [
         'id' => '2026-09-15-legacy-arena-october-reopening',
         'date' => '2026-09-15',
         'category' => 'changed',

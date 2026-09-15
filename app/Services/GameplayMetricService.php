@@ -17,6 +17,8 @@ class GameplayMetricService
 
     private const JOB_ART_SKILL_ROLLUP_TABLE = 'gameplay_job_art_skill_rollups';
 
+    private const JOB_ART_ACTIVATION_ROLLUP_TABLE = 'gameplay_job_art_activation_rollups';
+
     /** @return array{danger_rate:?int,stamina:?int} */
     public function explorationSnapshot(
         Character $character,
@@ -72,6 +74,9 @@ class GameplayMetricService
         $usage = $battle instanceof BattleResult
             ? $battle->jobArtUsage
             : (array) ($battle['job_art_usage'] ?? []);
+        $activationAttempts = $this->normalizeActivationAttempts($battle instanceof BattleResult
+            ? $battle->jobArtActivationAttempts
+            : (array) ($battle['job_art_activation_attempts'] ?? []));
         $result = $battle instanceof BattleResult
             ? $battle->result
             : (string) ($battle['result'] ?? 'unknown');
@@ -129,6 +134,7 @@ class GameplayMetricService
                 currentJobIdAtStart: $currentJobIdAtStart,
                 loadout: $loadout,
                 usage: array_values($usage),
+                activationAttempts: $activationAttempts,
             );
         }
     }
@@ -293,6 +299,7 @@ class GameplayMetricService
     /**
      * @param  list<array{slot_no:int,skill_id:int,name:string,origin:string}>  $loadout
      * @param  list<array<string,mixed>>  $usage
+     * @param  list<array<string,mixed>>  $activationAttempts
      */
     private function recordJobArtRollups(
         string $context,
@@ -303,6 +310,7 @@ class GameplayMetricService
         ?int $currentJobIdAtStart,
         array $loadout,
         array $usage,
+        array $activationAttempts,
     ): void {
         if (! app(SchemaStateService::class)->hasTable(self::JOB_ART_ROLLUP_TABLE)
             || ! app(SchemaStateService::class)->hasTable(self::JOB_ART_SKILL_ROLLUP_TABLE)
@@ -390,6 +398,89 @@ class GameplayMetricService
                 ['skill_name', 'updated_at'],
             );
         }
+
+        $this->recordJobArtActivationRollups(
+            bucket: $bucket,
+            context: $context,
+            currentJobId: $jobId,
+            levelBand: $levelBand,
+            attempts: $activationAttempts,
+            recordedAt: $now,
+        );
+    }
+
+    /** @param list<array<string,mixed>> $attempts */
+    private function recordJobArtActivationRollups(
+        mixed $bucket,
+        string $context,
+        int $currentJobId,
+        string $levelBand,
+        array $attempts,
+        mixed $recordedAt,
+    ): void {
+        if ($attempts === []
+            || ! app(SchemaStateService::class)->hasTable(self::JOB_ART_ACTIVATION_ROLLUP_TABLE)
+        ) {
+            return;
+        }
+
+        $rows = [];
+        foreach ($attempts as $attempt) {
+            $effectiveRate = (int) $attempt['effective_rate'];
+            $activationRoll = (int) $attempt['activation_roll'];
+            $missMargin = max(0, $activationRoll - $effectiveRate);
+            $dimension = json_encode([
+                $context,
+                $currentJobId,
+                $levelBand,
+                $attempt['skill_id'],
+                $attempt['current_lineage'],
+                $attempt['skill_lineage'],
+                $effectiveRate,
+                $missMargin,
+            ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
+
+            if (isset($rows[$dimension])) {
+                $rows[$dimension]['attempts'] += (int) $attempt['attempt_count'];
+
+                continue;
+            }
+
+            $rows[$dimension] = [
+                'bucket_started_at' => $bucket,
+                'context' => $context,
+                'current_job_id' => $currentJobId,
+                'level_band' => $levelBand,
+                'skill_id' => (int) $attempt['skill_id'],
+                'skill_name' => (string) $attempt['name'],
+                'current_lineage' => (string) $attempt['current_lineage'],
+                'skill_lineage' => (string) $attempt['skill_lineage'],
+                'lineage_relation' => (string) $attempt['lineage_relation'],
+                'effective_rate' => $effectiveRate,
+                'miss_margin' => $missMargin,
+                'attempts' => (int) $attempt['attempt_count'],
+                'created_at' => $recordedAt,
+                'updated_at' => $recordedAt,
+            ];
+        }
+
+        $this->additiveUpsert(
+            self::JOB_ART_ACTIVATION_ROLLUP_TABLE,
+            array_values($rows),
+            [
+                'bucket_started_at',
+                'context',
+                'current_job_id',
+                'level_band',
+                'skill_id',
+                'current_lineage',
+                'skill_lineage',
+                'effective_rate',
+                'miss_margin',
+            ],
+            ['attempts'],
+            ['skill_name', 'lineage_relation', 'updated_at'],
+        );
     }
 
     /**
@@ -431,6 +522,47 @@ class GameplayMetricService
                 'skill_id' => (int) $row['skill_id'],
                 'name' => mb_substr((string) ($row['name'] ?? '不明な戦技'), 0, 255),
                 'origin' => mb_substr((string) ($row['origin'] ?? 'current'), 0, 40),
+            ];
+        }
+
+        return $normalized;
+    }
+
+    /** @param array<int,mixed> $attempts @return list<array<string,mixed>> */
+    private function normalizeActivationAttempts(array $attempts): array
+    {
+        $normalized = [];
+        foreach ($attempts as $attempt) {
+            if (! is_array($attempt)
+                || (int) ($attempt['skill_id'] ?? 0) <= 0
+                || ! is_numeric($attempt['effective_rate'] ?? null)
+                || ! is_numeric($attempt['activation_roll'] ?? null)
+            ) {
+                continue;
+            }
+
+            $attemptCount = max(0, (int) ($attempt['attempt_count'] ?? 1));
+            if ($attemptCount <= 0) {
+                continue;
+            }
+
+            $effectiveRate = max(0, min(100, (int) $attempt['effective_rate']));
+            $activationRoll = max(1, min(100, (int) $attempt['activation_roll']));
+            $currentLineage = mb_substr(trim((string) ($attempt['current_lineage'] ?? '')), 0, 20) ?: 'unknown';
+            $skillLineage = mb_substr(trim((string) ($attempt['skill_lineage'] ?? '')), 0, 20) ?: 'unknown';
+            $lineageRelation = $currentLineage === 'unknown' || $skillLineage === 'unknown'
+                ? 'unknown'
+                : ($currentLineage === $skillLineage ? 'same' : 'off');
+
+            $normalized[] = [
+                'skill_id' => (int) $attempt['skill_id'],
+                'name' => mb_substr((string) ($attempt['name'] ?? '不明な戦技'), 0, 255),
+                'effective_rate' => $effectiveRate,
+                'activation_roll' => $activationRoll,
+                'current_lineage' => $currentLineage,
+                'skill_lineage' => $skillLineage,
+                'lineage_relation' => $lineageRelation,
+                'attempt_count' => $attemptCount,
             ];
         }
 

@@ -45,6 +45,8 @@ class GameplayAnalyticsService
         }
 
         $jobArtMeasurementStartedAt = DB::table('gameplay_job_art_rollups')->min('bucket_started_at');
+        $activationShadowMeasurementStartedAt = DB::table('gameplay_job_art_activation_rollups')
+            ->min('bucket_started_at');
         $explorationMeasurementStartedAt = GameplayMetric::query()
             ->where('metric_type', GameplayMetric::TYPE_EXPLORATION_REQUEST)
             ->min('created_at');
@@ -56,6 +58,7 @@ class GameplayAnalyticsService
             'generatedAt' => now(),
             'measurementStartedAt' => $jobArtMeasurementStartedAt ?? $explorationMeasurementStartedAt,
             'jobArtMeasurementStartedAt' => $jobArtMeasurementStartedAt,
+            'activationShadowMeasurementStartedAt' => $activationShadowMeasurementStartedAt,
             'explorationMeasurementStartedAt' => $explorationMeasurementStartedAt,
             'jobOptions' => JobClass::query()->orderBy('id')->get(['id', 'name']),
             'contextOptions' => self::JOB_ART_CONTEXT_LABELS,
@@ -214,6 +217,84 @@ class GameplayAnalyticsService
             'skillRows' => $skillRows,
             'contextRows' => $contextRows,
             'loadoutRows' => $loadoutRows,
+            'activationShadow' => $this->activationShadowAnalysis($filters),
+        ];
+    }
+
+    /** @param array<string,mixed> $filters */
+    private function activationShadowAnalysis(array $filters): array
+    {
+        $bonusPoints = (int) $filters['shadow_bonus_points'];
+        $base = $this->rollupQuery('gameplay_job_art_activation_rollups', $filters);
+        $totals = (clone $base)->selectRaw(implode(', ', [
+            'COALESCE(SUM(attempts), 0) AS attempts',
+            'COALESCE(SUM(CASE WHEN miss_margin = 0 THEN attempts ELSE 0 END), 0) AS actual_activations',
+            "COALESCE(SUM(CASE WHEN lineage_relation = 'same' THEN attempts ELSE 0 END), 0) AS same_lineage_attempts",
+            "COALESCE(SUM(CASE WHEN lineage_relation = 'same' AND miss_margin = 0 THEN attempts ELSE 0 END), 0) AS same_lineage_actual_activations",
+            "COALESCE(SUM(CASE WHEN lineage_relation = 'same' AND miss_margin > 0 AND miss_margin <= ? THEN attempts ELSE 0 END), 0) AS estimated_extra_activations",
+            "COALESCE(SUM(CASE WHEN lineage_relation = 'unknown' THEN attempts ELSE 0 END), 0) AS unknown_lineage_attempts",
+        ]), [$bonusPoints])->first();
+
+        $attempts = (int) ($totals->attempts ?? 0);
+        $actualActivations = (int) ($totals->actual_activations ?? 0);
+        $sameLineageAttempts = (int) ($totals->same_lineage_attempts ?? 0);
+        $sameLineageActualActivations = (int) ($totals->same_lineage_actual_activations ?? 0);
+        $estimatedExtraActivations = (int) ($totals->estimated_extra_activations ?? 0);
+
+        $skillRows = (clone $base)
+            ->select('skill_id')
+            ->selectRaw(implode(', ', [
+                'MAX(skill_name) AS skill_name',
+                'SUM(attempts) AS attempts',
+                "SUM(CASE WHEN lineage_relation = 'same' THEN attempts ELSE 0 END) AS same_lineage_attempts",
+                'SUM(CASE WHEN miss_margin = 0 THEN attempts ELSE 0 END) AS actual_activations',
+                "SUM(CASE WHEN lineage_relation = 'same' AND miss_margin > 0 AND miss_margin <= ? THEN attempts ELSE 0 END) AS estimated_extra_activations",
+            ]), [$bonusPoints])
+            ->groupBy('skill_id')
+            ->orderByDesc('attempts')
+            ->limit(30)
+            ->get();
+        $masterNames = Skill::query()->whereKey($skillRows->pluck('skill_id'))->pluck('name', 'id');
+        $skillRows = $skillRows->map(function (object $row) use ($masterNames): array {
+            $attempts = (int) $row->attempts;
+            $actualActivations = (int) $row->actual_activations;
+            $estimatedExtraActivations = (int) $row->estimated_extra_activations;
+            $estimatedTotalActivations = $actualActivations + $estimatedExtraActivations;
+
+            return [
+                'skill_id' => (int) $row->skill_id,
+                'name' => (string) ($masterNames[(int) $row->skill_id] ?? $row->skill_name),
+                'attempts' => $attempts,
+                'same_lineage_attempts' => (int) $row->same_lineage_attempts,
+                'actual_activations' => $actualActivations,
+                'estimated_extra_activations' => $estimatedExtraActivations,
+                'estimated_total_activations' => $estimatedTotalActivations,
+                'actual_activation_rate' => $this->rate($actualActivations, $attempts),
+                'estimated_activation_rate' => $this->rate($estimatedTotalActivations, $attempts),
+            ];
+        })->all();
+
+        return [
+            'bonus_points' => $bonusPoints,
+            'cards' => [
+                'attempts' => $attempts,
+                'actual_activations' => $actualActivations,
+                'actual_activation_rate' => $this->rate($actualActivations, $attempts),
+                'same_lineage_attempts' => $sameLineageAttempts,
+                'same_lineage_actual_activations' => $sameLineageActualActivations,
+                'same_lineage_actual_activation_rate' => $this->rate(
+                    $sameLineageActualActivations,
+                    $sameLineageAttempts,
+                ),
+                'estimated_extra_activations' => $estimatedExtraActivations,
+                'estimated_total_activations' => $actualActivations + $estimatedExtraActivations,
+                'estimated_activation_rate' => $this->rate(
+                    $actualActivations + $estimatedExtraActivations,
+                    $attempts,
+                ),
+                'unknown_lineage_attempts' => (int) ($totals->unknown_lineage_attempts ?? 0),
+            ],
+            'skillRows' => $skillRows,
         ];
     }
 
@@ -440,6 +521,7 @@ class GameplayAnalyticsService
                 : 'all',
             'current_job_id' => max(0, (int) ($filters['current_job_id'] ?? 0)),
             'level_band' => in_array($levelBand, self::LEVEL_BANDS, true) ? $levelBand : 'all',
+            'shadow_bonus_points' => max(0, min(100, (int) ($filters['shadow_bonus_points'] ?? 0))),
         ];
     }
 
@@ -447,7 +529,8 @@ class GameplayAnalyticsService
     {
         return Schema::hasTable('gameplay_metrics')
             && Schema::hasTable('gameplay_job_art_rollups')
-            && Schema::hasTable('gameplay_job_art_skill_rollups');
+            && Schema::hasTable('gameplay_job_art_skill_rollups')
+            && Schema::hasTable('gameplay_job_art_activation_rollups');
     }
 
     /** @return list<array{slot_no:int,skill_id:int,name:string,origin:string}> */
@@ -502,11 +585,18 @@ class GameplayAnalyticsService
             'generatedAt' => now(),
             'measurementStartedAt' => null,
             'jobArtMeasurementStartedAt' => null,
+            'activationShadowMeasurementStartedAt' => null,
             'explorationMeasurementStartedAt' => null,
             'jobOptions' => collect(),
             'contextOptions' => self::JOB_ART_CONTEXT_LABELS,
             'levelBandOptions' => self::LEVEL_BANDS,
-            'jobArt' => ['cards' => [], 'skillRows' => [], 'contextRows' => [], 'loadoutRows' => []],
+            'jobArt' => [
+                'cards' => [],
+                'skillRows' => [],
+                'contextRows' => [],
+                'loadoutRows' => [],
+                'activationShadow' => ['bonus_points' => $filters['shadow_bonus_points'], 'cards' => [], 'skillRows' => []],
+            ],
             'exploration' => ['cards' => [], 'modeRows' => [], 'contextRows' => [], 'stopRows' => []],
         ];
     }

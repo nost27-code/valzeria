@@ -371,6 +371,10 @@ class ChampBattleService
                 'battle_log' => $battle['log'],
                 'job_art_v2_hud' => $battle['job_art_v2_hud'] ?? null,
                 'job_art_usage' => $battle['job_art_usage'] ?? [],
+                'job_art_activation_attempts' => $battle['job_art_activation_attempts'] ?? [],
+                'job_art_loadout' => $battle['job_art_loadout'] ?? [],
+                'character_level_at_start' => $battle['character_level_at_start'] ?? null,
+                'current_job_id_at_start' => $battle['current_job_id_at_start'] ?? null,
                 'champ_before_name' => $oldChamp['player_name'],
                 'champ_after_name' => ($champDefeated && ! $isAdminTester) ? $challenger->name : $champ->player_name,
                 'challenger_actor' => array_merge($challengerActor, [
@@ -404,6 +408,7 @@ class ChampBattleService
                 'result' => ($result['champ_defeated'] ?? false) ? 'victory' : 'defeat',
                 'turn_count' => (int) ($result['turns'] ?? 0),
                 'job_art_usage' => $result['job_art_usage'] ?? [],
+                'job_art_activation_attempts' => $result['job_art_activation_attempts'] ?? [],
                 'job_art_loadout' => $result['job_art_loadout'] ?? [],
                 'character_level_at_start' => $result['character_level_at_start'] ?? null,
                 'current_job_id_at_start' => $result['current_job_id_at_start'] ?? null,
@@ -762,6 +767,7 @@ class ChampBattleService
             'champ_mp_after' => $defender->mp,
             'job_art_v2_hud' => $this->jobArtBattleSupport->battleHud($jobArtState),
             'job_art_usage' => $jobArtState->jobArtUsageFor($attacker),
+            'job_art_activation_attempts' => $jobArtState->jobArtActivationAttemptsFor($attacker),
             'job_art_loadout' => $jobArtState->jobArtLoadoutFor($attacker),
             'character_level_at_start' => (int) $challenger->level,
             'current_job_id_at_start' => $challenger->current_job_id !== null

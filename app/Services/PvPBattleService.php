@@ -408,6 +408,7 @@ class PvPBattleService
         $result->turnCount = $state->turnCount;
         $result->jobArtV2Hud = $this->jobArtBattleSupport->battleHud($state);
         $result->jobArtUsage = $state->jobArtUsageFor($attackerActor);
+        $result->jobArtActivationAttempts = $state->jobArtActivationAttemptsFor($attackerActor);
         $result->jobArtLoadout = $state->jobArtLoadoutFor($attackerActor);
 
         return new PvPBattleResolution(
