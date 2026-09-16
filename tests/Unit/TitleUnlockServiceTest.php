@@ -483,6 +483,40 @@ class TitleUnlockServiceTest extends TestCase
                 && ($index['columns'] ?? []) === ['character_id', 'title_id']));
     }
 
+    public function test_astragia_title_migration_is_idempotent_and_preserves_valgreid_titles(): void
+    {
+        $valgreidMigration = require database_path('migrations/2026_09_04_230100_add_nation_raid_honor_titles.php');
+        $astragiaMigration = require database_path('migrations/2026_09_16_010000_add_astragia_nation_raid_honor_titles.php');
+        $valgreidMigration->up();
+        $legacyTitles = Title::query()
+            ->where('unlock_type', 'nation_raid_honor')
+            ->whereIn('target_id', ['damage2m', 'personal_first', 'personal_top3', 'max_first'])
+            ->pluck('name', 'target_id')
+            ->all();
+
+        $astragiaMigration->up();
+        $astragiaMigration->up();
+
+        $this->assertSame($legacyTitles, Title::query()
+            ->where('unlock_type', 'nation_raid_honor')
+            ->whereIn('target_id', ['damage2m', 'personal_first', 'personal_top3', 'max_first'])
+            ->pluck('name', 'target_id')
+            ->all());
+        $this->assertDatabaseCount('titles', 6);
+        $this->assertDatabaseHas('titles', [
+            'unlock_type' => 'nation_raid_honor',
+            'target_type' => 'raid_reward',
+            'target_id' => 'astragia_damage2m',
+            'name' => '天墜機神を穿つ者',
+        ]);
+        $this->assertDatabaseHas('titles', [
+            'unlock_type' => 'nation_raid_honor',
+            'target_type' => 'raid_reward',
+            'target_id' => 'astragia_personal_top3',
+            'name' => '天墜機神討滅の功臣',
+        ]);
+    }
+
     public function test_new_title_migration_rejects_same_id_and_name_with_changed_payload(): void
     {
         $migration = require database_path('migrations/2026_08_30_120000_add_progression_titles.php');
@@ -606,7 +640,6 @@ class TitleUnlockServiceTest extends TestCase
         $this->assertSame('地下の謎の穴の印を極めし者', Title::query()->findOrFail(307)->name);
         $this->assertSame('アークレア西街道の印収集家', Title::query()->findOrFail(312)->name);
         $this->assertSame('黒雲の征路の印を極めし者', Title::query()->findOrFail(329)->name);
-
         $duplicateConditions = Title::query()
             ->selectRaw('unlock_type, target_type, target_id, COUNT(*) AS total')
             ->groupBy('unlock_type', 'target_type', 'target_id')

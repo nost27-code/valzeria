@@ -84,7 +84,9 @@ final class NationRaidPreviewTest extends TestCase
         $response = $this->actingAs($this->character()->user)->get(route('nation-raid.preview', ['page' => 'rewards']))->assertOk()
             ->assertSee('予定報酬一覧')->assertSee('有効出撃5回')->assertSee('有効出撃15回')
             ->assertSee('経験の護符')->assertSee('無償輝石 ×3')->assertSee('500万ダメージ')
-            ->assertSee('称号・順位報酬')->assertDontSee('data-raid-claim-button', false);
+            ->assertSee('称号・順位報酬')->assertSee('天墜機神を穿つ者')->assertSee('天墜機神討滅の功臣')
+            ->assertDontSee('黒天竜を穿つ者')->assertDontSee('黒天竜討滅の功臣')
+            ->assertDontSee('data-raid-claim-button', false);
         $this->assertSame(16, substr_count($response->getContent(), 'data-reward-state="preview"'));
     }
 

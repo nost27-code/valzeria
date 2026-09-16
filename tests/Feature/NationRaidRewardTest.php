@@ -19,8 +19,12 @@ use App\Services\CharacterNotificationService;
 use App\Services\Nation\Raid\NationRaidEventService;
 use App\Services\Nation\Raid\NationRaidHonorService;
 use App\Services\Nation\Raid\NationRaidOperationsService;
+use App\Services\Nation\Raid\NationRaidPersonalRewardCatalog;
 use App\Services\Nation\Raid\NationRaidRankingService;
+use App\Services\Nation\Raid\NationRaidRewardIdentity;
+use App\Services\Nation\Raid\NationRaidRewardPolicy;
 use App\Services\Nation\Raid\NationRaidRewardService;
+use App\Services\Nation\Raid\NationRaidRules;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
@@ -241,10 +245,15 @@ final class NationRaidRewardTest extends TestCase
         $this->assertSame(0, NationRaidNationReward::where('reward_key', 'like', '%per_capita%')->count());
         config()->set('features.nation_competitive_raid_enabled', true);
         app(NationRaidRewardService::class)->claim($event, $character, $this->reward($event, 'damage2m', $character)->id);
-        $this->assertDatabaseHas('titles', ['unlock_type' => 'nation_raid_honor', 'target_id' => 'damage2m', 'name' => '黒天竜を穿つ者']);
+        $this->assertDatabaseHas('titles', [
+            'unlock_type' => 'nation_raid_honor',
+            'target_id' => 'astragia_damage2m',
+            'name' => '天墜機神を穿つ者',
+        ]);
+        $this->assertSame('astragia_damage2m', $this->reward($event, 'damage2m', $character)->reward_snapshot['title_target_id']);
         $this->assertSame(1, $character->titles()->count());
         $this->assertSame(0, $nation->fresh()->development_exp);
-        $this->assertDatabaseHas('nation_achievements', ['nation_id' => $nation->id, 'achievement_key' => 'valgreid_defeat_participation']);
+        $this->assertDatabaseHas('nation_achievements', ['nation_id' => $nation->id, 'achievement_key' => 'astragia_defeat_participation']);
     }
 
     public function test_unqualified_high_rank_does_not_take_rewards_and_milestones_do_not_repeat_for_echoes(): void
@@ -477,7 +486,7 @@ final class NationRaidRewardTest extends TestCase
         config()->set('features.nation_competitive_raid_enabled', false);
         $this->assertNull($honors->forNation($nation));
         config()->set('features.nation_competitive_raid_enabled', true);
-        $this->assertSame('黒天竜討旗・金', $honors->forNation($nation)['label']);
+        $this->assertSame('天墜機神討旗・金', $honors->forNation($nation)['label']);
         app(NationRaidRewardService::class)->claim($event, $character, $this->reward($event, 'personal_first')->id);
         $this->assertSame('万軍の先鋒', $honors->forCharacter($character)[0]['label']);
         $this->assertSame(['label', 'badge', 'event', 'date'], array_keys($honors->forCharacter($character)[0]));
@@ -485,6 +494,60 @@ final class NationRaidRewardTest extends TestCase
         app(NationRaidEventService::class)->completeFinalization($next);
         $this->assertNull($honors->forNation($nation));
         $this->assertSame(3, DB::table('nation_activity_logs')->where('nation_id', $nation->id)->where('event_type', 'raid_reward')->count());
+    }
+
+    public function test_valgreid_snapshot_keeps_legacy_reward_identity(): void
+    {
+        [$event] = $this->scenario();
+        $rules = app(NationRaidRules::class);
+        $event->update([
+            'name' => '国家対抗レイド 黒天竜ヴァルグレイド',
+            'boss_name' => '十系喰らいの黒天竜 ヴァルグレイド',
+            'ruleset_version' => NationRaidRules::PREVIOUS_NEXT_CYCLE_RULESET_VERSION,
+            'ruleset_snapshot' => $rules->previousNextCycleRulesetSnapshot(),
+            'ruleset_hash' => $rules->previousNextCycleRulesetHash(),
+        ]);
+        $event = $event->fresh();
+        $definitions = app(NationRaidPersonalRewardCatalog::class)->definitions(
+            $event,
+            app(NationRaidRewardPolicy::class)->forEvent($event),
+            ['resolved_sorties' => 15, 'damage' => 2_250_000, 'rank' => 2],
+            2,
+        );
+        $identity = app(NationRaidRewardIdentity::class);
+
+        $damageTitle = $definitions['damage2m']['payload'];
+        $topThreeTitle = $definitions['personal_top3']['payload'];
+        $this->assertSame('黒天竜を穿つ者', $damageTitle['title']);
+        $this->assertArrayNotHasKey('title_target_id', $damageTitle);
+        $this->assertSame('黒天竜討滅の功臣', $topThreeTitle['title']);
+        $this->assertArrayNotHasKey('title_target_id', $topThreeTitle);
+        $this->assertSame('黒天竜討旗・', $identity->nationFlagPrefix($event));
+        $this->assertSame([
+            'label' => '黒天竜討滅参加',
+            'achievement' => 'valgreid_defeat_participation',
+        ], $identity->participationHonor($event));
+    }
+
+    public function test_legacy_title_reward_without_target_id_remains_claimable(): void
+    {
+        [$event, $character] = $this->scenario();
+        app(NationRaidEventService::class)->completeFinalization($event);
+        $reward = $this->reward($event, 'damage2m', $character);
+        $snapshot = $reward->reward_snapshot;
+        unset($snapshot['title_target_id']);
+        $snapshot['title'] = '黒天竜を穿つ者';
+        $snapshot['label'] = '2,000,000ダメージ到達報酬';
+        $reward->update(['reward_snapshot' => $snapshot]);
+        config()->set('features.nation_competitive_raid_enabled', true);
+
+        app(NationRaidRewardService::class)->claim($event, $character, $reward->id);
+
+        $this->assertDatabaseHas('character_titles', [
+            'character_id' => $character->id,
+            'title_id' => 308,
+        ]);
+        $this->assertSame('claimed', $reward->fresh()->status);
     }
 
     public function test_finalize_command_requires_confirmation_and_web_finalization_is_rejected(): void

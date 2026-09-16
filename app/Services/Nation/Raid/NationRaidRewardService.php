@@ -26,7 +26,8 @@ final readonly class NationRaidRewardService
 {
     public function __construct(private NationRaidRewardPolicy $policies, private CharacterNotificationService $notifications,
         private StorageCapacityService $storage, private TitleService $titles, private NationRaidTransactionRunner $transactions,
-        private NationRaidPersonalRewardCatalog $catalog, private NationRaidRules $rules) {}
+        private NationRaidPersonalRewardCatalog $catalog, private NationRaidRules $rules,
+        private NationRaidRewardIdentity $identities) {}
 
     /** settlementのevent/participation lock内で、順位に依存しない達成済み権利だけを作る。 */
     public function prepareImmediateLocked(NationRaidEvent $event, NationRaidParticipation $participation): int
@@ -119,10 +120,11 @@ final readonly class NationRaidRewardService
             $grants = $points > 0 ? ['resources' => ['label' => '国家資材', 'points' => $points]] : [];
             if ($row['rank'] <= 3) {
                 $metal = [1 => '金', 2 => '銀', 3 => '銅'][$row['rank']];
-                $grants['flag'] = ['label' => '黒天竜討旗・'.$metal, 'rank' => $row['rank'], 'decoration' => true];
+                $grants['flag'] = ['label' => $this->identities->nationFlagPrefix($event).$metal,
+                    'rank' => $row['rank'], 'decoration' => true];
             }
             if ($event->completed_at !== null) {
-                $grants['participation_honor'] = ['label' => '黒天竜討滅参加', 'achievement' => 'valgreid_defeat_participation'];
+                $grants['participation_honor'] = $this->identities->participationHonor($event);
             }
             $nation = Nation::whereKey($row['nation_id'])->lockForUpdate()->first();
             foreach ($grants as $key => $payload) {
@@ -263,7 +265,9 @@ final readonly class NationRaidRewardService
                     'total' => (int) $character->kiseki, 'transaction_id' => $ledger->id];
             }
             if (isset($payload['title'])) {
-                $title = Title::where('unlock_type', 'nation_raid_honor')->where('target_type', 'raid_reward')->where('target_id', $reward->reward_key)->sole();
+                $titleTargetId = $payload['title_target_id'] ?? $reward->reward_key;
+                throw_unless(is_string($titleTargetId) && $titleTargetId !== '', \DomainException::class, '報酬称号の参照先が不正です。');
+                $title = Title::where('unlock_type', 'nation_raid_honor')->where('target_type', 'raid_reward')->where('target_id', $titleTargetId)->sole();
                 throw_unless($title->name === $payload['title'], \DomainException::class, '報酬称号が一致しません。');
                 $balance['character_title_id'] = $this->titles->unlockTitle($character, $title->id)->id;
             }

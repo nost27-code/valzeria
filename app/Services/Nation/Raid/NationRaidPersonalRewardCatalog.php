@@ -11,6 +11,8 @@ final class NationRaidPersonalRewardCatalog
 
     public const AVAILABILITY_FINALIZATION = 'finalization';
 
+    public function __construct(private NationRaidRewardIdentity $identities) {}
+
     public function participationMinimum(array $policy): int
     {
         return $policy['version'] === 2 ? $policy['participation_minimum_resolved_sorties'] : $policy['minimum_resolved_sorties'];
@@ -52,7 +54,12 @@ final class NationRaidPersonalRewardCatalog
                 $definitions['milestone_'.$milestone['damage']] = $this->damageGoal($milestone['damage'], $damage, $payload);
             }
         }
-        $definitions['damage2m'] = $this->damageGoal($policy['damage_thresholds']['damage2m'], $damage, $this->honor('黒天竜を穿つ者', false));
+        $damageTitle = $this->identities->personalTitle($event, 'damage2m', '黒天竜を穿つ者');
+        $definitions['damage2m'] = $this->damageGoal(
+            $policy['damage_thresholds']['damage2m'],
+            $damage,
+            $this->honor($damageTitle['name'], false, $damageTitle['target_id']),
+        );
         $definitions += [
             'stage10' => [
                 'payload' => ['label' => '第10再臨到達報酬', 'bottles' => $policy['bottles']['stage10']],
@@ -68,7 +75,8 @@ final class NationRaidPersonalRewardCatalog
         foreach (['personal_first' => ['万軍の先鋒', '個人累計ダメージ1位', $rank, $rank === 1, true],
             'personal_top3' => ['黒天竜討滅の功臣', '個人累計ダメージ2〜3位', $rank, in_array($rank, [2, 3], true), false],
             'max_first' => ['天穿の一撃', '1行動最大ダメージ1位', $maxRank, $maxRank === 1, true]] as $key => [$label, $condition, $place, $met, $badge]) {
-            $definitions[$key] = ['payload' => $this->honor($label, $badge), 'condition' => $condition,
+            $title = $this->identities->personalTitle($event, $key, $label);
+            $definitions[$key] = ['payload' => $this->honor($title['name'], $badge, $title['target_id']), 'condition' => $condition,
                 'progress' => $place === null ? '記録なし' : ($event->status === NationRaidEvent::STATUS_COMPLETED ? '最終' : '現在').$place.'位', 'met' => $met];
         }
         foreach ($definitions as $key => &$definition) {
@@ -112,8 +120,11 @@ final class NationRaidPersonalRewardCatalog
             'met' => $damage >= $target];
     }
 
-    private function honor(string $label, bool $badge): array
+    private function honor(string $label, bool $badge, ?string $targetId = null): array
     {
-        return ['label' => $label, 'title' => $label, 'badge' => $badge];
+        return array_filter(
+            ['label' => $label, 'title' => $label, 'title_target_id' => $targetId, 'badge' => $badge],
+            static fn (mixed $value): bool => $value !== null,
+        );
     }
 }

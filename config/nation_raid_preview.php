@@ -226,7 +226,7 @@ return [
                     'condition' => '個人累計2,000,000ダメージ・有効出撃15回',
                     'items' => [
                         [
-                            'label' => '称号「黒天竜を穿つ者」（能力補正なし）',
+                            'label' => '称号「天墜機神を穿つ者」（能力補正なし）',
                             'icon' => 'images/icon/icon_009.webp',
                         ],
                     ],
@@ -248,11 +248,11 @@ return [
                 ],
                 [
                     'key' => 'personal_top3',
-                    'display_label' => '黒天竜討滅の功臣',
+                    'display_label' => '天墜機神討滅の功臣',
                     'condition' => '個人累計ダメージ2〜3位・有効出撃15回',
                     'items' => [
                         [
-                            'label' => '称号「黒天竜討滅の功臣」（能力補正なし）',
+                            'label' => '称号「天墜機神討滅の功臣」（能力補正なし）',
                             'icon' => 'images/icon/icon_009.webp',
                         ],
                     ],
