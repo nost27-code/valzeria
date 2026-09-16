@@ -9,6 +9,7 @@ use App\Models\NationRaidBossCycle;
 use App\Models\NationRaidCoordinationParticipant;
 use App\Models\NationRaidDailyUsage;
 use App\Models\NationRaidEvent;
+use App\Models\NationRaidParticipation;
 use App\Models\User;
 use App\Services\Nation\CompetitionEventCoordinatorService;
 use App\Services\Nation\NationService;
