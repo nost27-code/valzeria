@@ -132,7 +132,7 @@ final class NationRaidPhase4MariaDbHarness
         $this->check(count(array_unique(array_column($rows, 'battle'))) === 1, 'Duplicate admission created multiple rows.');
         $battle = SavedBattle::query()->where('battle_token', $token)->sole();
         $this->assertUsage($character, 1, 0, 0, 250);
-        $this->assertFreeUsage($battle->participation, 2, 1, 0);
+        $this->assertFreeUsage($battle, 2, 1, 0);
         $before = $this->damage();
         $job = ['op' => 'resolve', 'battle' => $battle->id, 'damage' => 11_111];
         $rows = $this->race([$job, $job]);
@@ -155,7 +155,7 @@ final class NationRaidPhase4MariaDbHarness
         $this->assertUsage($character, 1, 0, 0, 250);
         app(NationRaidSettlementService::class)->refund($battle, 'synthetic_test_cleanup');
         $this->assertUsage($character, 0, 0, 1, 250);
-        $this->assertFreeUsage($battle->participation, 3, 1, 1);
+        $this->assertFreeUsage($battle, 3, 1, 1);
 
         return ['pending_rows' => 1, 'refunds' => 1];
     }
@@ -178,7 +178,7 @@ final class NationRaidPhase4MariaDbHarness
         $this->assertUsage($character, 4, 3, 0, 240);
         app(NationRaidSettlementService::class)->refund($voluntary, 'synthetic_cost_refund');
         $this->assertUsage($character, 3, 3, 1, 250);
-        $this->assertFreeUsage($voluntary->participation, 0, 3, 0);
+        $this->assertFreeUsage($voluntary, 0, 3, 0);
         $this->check($costTypes === ['daily_free', 'daily_free', 'daily_free', 'voluntary_stamina'],
             'Free-first cost order differs from the frozen event contract.');
 
@@ -731,8 +731,11 @@ final class NationRaidPhase4MariaDbHarness
             === [$used, $resolved, $refunded, $stamina], 'Stamina or daily usage differs from the expected terminal effect.');
     }
 
-    private function assertFreeUsage(NationRaidParticipation $participation, int $balance, int $used, int $refunded): void
+    private function assertFreeUsage(NationRaidParticipation|SavedBattle $source, int $balance, int $used, int $refunded): void
     {
+        $participation = $source instanceof SavedBattle
+            ? NationRaidParticipation::query()->findOrFail($source->participation_id)
+            : $source;
         $participation->refresh();
         $this->check([
             $participation->free_sortie_balance,
