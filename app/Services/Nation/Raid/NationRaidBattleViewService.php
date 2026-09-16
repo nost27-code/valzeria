@@ -41,14 +41,27 @@ final readonly class NationRaidBattleViewService
         private NationRaidStrategyPolicy $strategyPolicy,
     ) {}
 
-    public function encounter(int $stage, int $hp, int $maxHp, ?string $lineage): array
+    public function encounter(
+        int $stage,
+        int $hp,
+        int $maxHp,
+        ?string $lineage,
+        ?array $rulesetSnapshot = null,
+    ): array
     {
         $form = $this->rules->formForHp($hp, $maxHp);
+        $formParameters = $rulesetSnapshot === null
+            ? $this->rules->formParameters($form)
+            : $this->rules->formParametersForSnapshot($form, $rulesetSnapshot);
+
         return [
             'stage' => $stage,
             'stage_name' => $this->rules->stageParameters($stage)['stage_name'],
             'current_hp' => $hp, 'max_hp' => $maxHp,
-            'form' => ['key' => $form, 'ordinal' => self::FORM_ORDINALS[$form], ...$this->rules->formParameters($form)],
+            'form' => ['key' => $form, 'ordinal' => self::FORM_ORDINALS[$form], ...$formParameters],
+            'boss_species_label' => $this->rules->bossSpeciesLabelForSnapshot(
+                $rulesetSnapshot ?? $this->rules->rulesetSnapshot(),
+            ),
             'dominant_lineage' => $lineage,
             'dominant_lineage_label' => $lineage === null ? '系譜観測（対抗系譜なし）'
                 : $this->lineageLabel($lineage),
@@ -73,7 +86,7 @@ final readonly class NationRaidBattleViewService
         $strategy = $battle->strategy;
         $seed = $battle->seed;
         $dominantLineage = $encounter['dominant_lineage'];
-        $formParameters = $this->rules->formParameters($form);
+        $formParameters = $encounter['form'];
         $cycleCurrentHp = $encounter['current_hp'];
         $coordinationDamage = (int) floor($battle->calculatedBossDamage * (float) $coordination['bonus_rate']);
         $bossDamage = $battle->calculatedBossDamage + $coordinationDamage;
@@ -81,7 +94,7 @@ final readonly class NationRaidBattleViewService
         return [
             'schema_version' => 'nation-raid-battle-view-v1',
             'boss_name' => $bossName,
-            'boss_species_label' => '竜',
+            'boss_species_label' => $encounter['boss_species_label'],
             'stage' => $stage,
             'stage_name' => $encounter['stage_name'],
             'form' => [

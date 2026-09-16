@@ -60,7 +60,7 @@ final class NationRaidPersonalRewardCatalog
                 'met' => $event->stage10_reached_at !== null,
             ],
             'completion' => [
-                'payload' => ['label' => '黒天竜討伐報酬', 'bottles' => $policy['bottles']['completion'], 'free_kiseki' => $policy['completion_free_kiseki']],
+                'payload' => ['label' => '全再臨討滅報酬', 'bottles' => $policy['bottles']['completion'], 'free_kiseki' => $policy['completion_free_kiseki']],
                 'condition' => '全体で第20再臨を撃破', 'progress' => $event->completed_at ? '討伐済み' : '未討伐',
                 'met' => $event->completed_at !== null,
             ],

@@ -28,7 +28,7 @@ final class NationRaidEventService
         string $eventKey,
         string $name,
         DateTimeInterface $startsAt,
-        string $bossName = '十系喰らいの黒天竜 ヴァルグレイド',
+        string $bossName = NationRaidRules::BOSS_NAME,
     ): NationRaidEvent {
         $eventKey = trim($eventKey);
         $name = trim($name);

@@ -4,8 +4,9 @@
 // Never use this file to grant rewards. Refresh and review it when planned rewards change.
 return [
     'source_policy_hash' => 'b0a4b87e859f5737da207f8630f0712f73cf2f4a6ff8802a4abf8b02d1144e4b',
-    'boss_name' => '十系喰らいの黒天竜 ヴァルグレイド',
-    'boss_image' => 'images/raid/valgreid_form_01.webp',
+    'boss_name' => '十系を模す天墜機神 アストラギア',
+    'boss_image' => 'images/raid/astragia_form_01.webp',
+    'starts_at_label' => '9/25 9:00',
     'minimum_sorties' => 15,
     'participation_minimum_sorties' => 5,
     'groups' => [
@@ -201,7 +202,7 @@ return [
                 ],
                 [
                     'key' => 'completion',
-                    'display_label' => '黒天竜討伐報酬',
+                    'display_label' => '全再臨討滅報酬',
                     'condition' => '全体で第20再臨を撃破・有効出撃15回',
                     'items' => [
                         [

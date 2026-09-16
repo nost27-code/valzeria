@@ -591,7 +591,7 @@ class NationRaidTurnByTurnActionProfileBridge extends BattleService
     private function raidBoss(): Enemy
     {
         $enemy = new Enemy([
-            'name' => '十系喰らいの黒天竜 ヴァルグレイド',
+            'name' => '十系を模す天墜機神 アストラギア',
             'species_key' => NationRaidRules::BOSS_SPECIES_KEY,
             'level' => 1,
             'max_hp' => 2_000_000_000,

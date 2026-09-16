@@ -39,7 +39,7 @@ class NationRaidSimulationArtifactWriterTest extends TestCase
             'errors' => [],
         ]);
 
-        $this->assertStringContainsString('## 竜特攻の実効rate分布', $report);
+        $this->assertStringContainsString('## 種族特攻の実効rate分布', $report);
         $this->assertStringContainsString('| +0% | 2 |', $report);
         $this->assertStringContainsString('| +12% | 3 |', $report);
         $this->assertStringNotContainsString('raid_killer_damage_rate_distribution:', $report);

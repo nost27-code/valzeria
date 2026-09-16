@@ -273,7 +273,7 @@
             </div>
 
             <section class="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-                <h2 class="font-black">竜特攻・耐性の持込状況</h2>
+                <h2 class="font-black">種族特攻・耐性の持込状況</h2>
                 <p class="mt-2 text-xs text-slate-500">出撃単位の分布です。装備効果以外の能力差も含むため、与ダメージ差を特攻だけの効果とは断定できません。</p>
                 <p class="mt-3 text-sm">特攻有効 {{ $equipment_effects['matched_sorties'] ?? 0 }}件 / 効果なし {{ $equipment_effects['unmatched_sorties'] ?? 0 }}件 / 未計測 {{ $equipment_effects['unavailable_sorties'] ?? 0 }}件</p>
                 <p class="mt-2 text-sm">特攻上限到達 {{ $equipment_effects['cap_reached_sorties'] ?? 0 }}件・耐性有効 {{ $equipment_effects['resistance_matched_sorties'] ?? 0 }} / 計測 {{ $equipment_effects['resistance_observed_sorties'] ?? 0 }}件</p>

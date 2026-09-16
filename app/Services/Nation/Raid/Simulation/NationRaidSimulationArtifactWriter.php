@@ -140,7 +140,7 @@ final class NationRaidSimulationArtifactWriter
             $lines[] = '- '.$key.': `'.$display.'`';
         }
         $lines[] = '';
-        $lines[] = '## 竜特攻の実効rate分布';
+        $lines[] = '## 種族特攻の実効rate分布';
         $lines[] = '';
         $lines[] = '| 実効特攻率 | 人数 |';
         $lines[] = '|---:|---:|';

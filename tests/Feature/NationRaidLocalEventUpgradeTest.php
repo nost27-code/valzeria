@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Services\Nation\Raid\NationRaidEventService;
 use App\Services\Nation\Raid\NationRaidJson;
 use App\Services\Nation\Raid\NationRaidLocalEventUpgradeService;
+use App\Services\Nation\Raid\NationRaidRules;
 use App\Services\Nation\Raid\NationRaidSortieService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -114,7 +115,7 @@ final class NationRaidLocalEventUpgradeTest extends TestCase
         $event = $events->createDraft('local-upgrade-test', 'ローカル検証', now());
         $event = $events->approveBalance($event, User::factory()->create(['role' => 'admin']), 'fixture only');
         $event = $events->activate($events->schedule($event, now()->subHours(72)));
-        $snapshot = $event->ruleset_snapshot;
+        $snapshot = app(NationRaidRules::class)->previousStagedHpRulesetSnapshot();
         $snapshot['version'] = 'nation-raid-phase1-v4-equipment-resistance';
         $snapshot['fixed']['boss_max_hp'] = 5_000_000;
         $snapshot['fixed']['coordination_damage_rates'] = [

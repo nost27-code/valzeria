@@ -29,11 +29,11 @@ final class NationRaidAnalyticsService
 
     /** @var array<string, string> */
     private const PHASE_LABELS = [
-        'sealed_scale' => '第一形態《封鱗》',
-        'split_wing' => '第二形態《裂翼》',
-        'ten_lineage_corrosion' => '第三形態《十系侵蝕》',
-        'lineage_invasion' => '第三形態《十系侵蝕》',
-        'exposed_core' => '最終形態《露核》',
+        'sealed_scale' => '第一形態',
+        'split_wing' => '第二形態',
+        'ten_lineage_corrosion' => '第三形態',
+        'lineage_invasion' => '第三形態',
+        'exposed_core' => '最終形態',
         'unknown' => '不明',
     ];
 

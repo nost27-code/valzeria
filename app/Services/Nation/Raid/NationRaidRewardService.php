@@ -96,7 +96,7 @@ final readonly class NationRaidRewardService
             if ($character && $created > 0) {
                 // prepareLockedはcompletedと同時commit。個別受取はまだ行わない。
                 $notification = $this->notifications->create($character, 'system', 'nation_raid_rewards_ready', 'レイドの戦果が届いた！',
-                    '黒天竜との戦いが終結。報酬を確認しよう。', '報酬を確認', route('nation-raid.rewards', $event), ['event_id' => $event->id]);
+                    $event->boss_name.'との戦いが終結。報酬を確認しよう。', '報酬を確認', route('nation-raid.rewards', $event), ['event_id' => $event->id]);
                 throw_unless($notification, \RuntimeException::class, '報酬通知を保存できません。');
             }
         }

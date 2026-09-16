@@ -18,7 +18,7 @@ final readonly class NationRaidTrialBattleLogPresenter
         'drain_healing_down_50_one_action' => '吸収回復量が50%低下した！（1行動）',
         'next_direct_damage_down_30' => '次の直接ダメージが30%低下する！',
         'clear_marks_and_next_multihit_down_25' => '狩猟印と崩し印が消滅し、次の多段ダメージが25%低下する！',
-        'cleanse_and_guard_per_debuff' => '黒天竜の弱体効果が浄化され、解除数に応じた守りを得た！',
+        'cleanse_and_guard_per_debuff' => 'レイドボスの弱体効果が浄化され、解除数に応じた守りを得た！',
     ];
 
     public function __construct(private NationRaidRules $rules) {}
@@ -97,7 +97,7 @@ final readonly class NationRaidTrialBattleLogPresenter
                 'player_sp_after' => (int) ($turn['player_sp_after'] ?? 0),
                 'boss_sp_after' => (int) ($turn['boss_sp_after'] ?? 0),
                 'note' => is_string($turn['note'] ?? null) ? $turn['note'] : null,
-                'telegraph' => $this->telegraphForNextTurn($turn, $nextTurn, $actionNames),
+                'telegraph' => $this->telegraphForNextTurn($turn, $nextTurn, $actionNames, $bossName),
             ];
         }
 
@@ -252,15 +252,15 @@ final readonly class NationRaidTrialBattleLogPresenter
 
         return match ($counterplay['effect'] ?? null) {
             'counter_intercept' => "《{$name}》が予告攻撃をさらに20%軽減する！",
-            'eclipse_backlash' => "《{$name}》が黒天竜へ反撃の刻印を残した！",
-            'pierce_opening' => "《{$name}》が黒天竜の守りを半減し、与ダメージを15%高めた！",
+            'eclipse_backlash' => "《{$name}》がレイドボスへ反撃の刻印を残した！",
+            'pierce_opening' => "《{$name}》がレイドボスの守りを半減し、与ダメージを15%高めた！",
             'field_suppression' => "《{$name}》が予告技の固有効果を封じた！",
             'hunt_cancel' => "《{$name}》が予告行動を1ターン遅らせた！",
-            'aim_sp_pressure' => "《{$name}》が黒天竜のSPを".(int) ($counterplay['bossSpLoss'] ?? 0).'削った！',
+            'aim_sp_pressure' => "《{$name}》がレイドボスのSPを".(int) ($counterplay['bossSpLoss'] ?? 0).'削った！',
             'ultimate_guard' => "《{$name}》が予告攻撃を35%軽減する！",
             'fortress_guard' => "《{$name}》が予告攻撃を50%軽減し、付随する妨害を防いだ！",
-            'transmute_resource_slow' => "《{$name}》が黒天竜のSP回復を2回鈍らせた！",
-            'break_preparation' => "《{$name}》が黒天竜の予告準備を破壊した！",
+            'transmute_resource_slow' => "《{$name}》がレイドボスのSP回復を2回鈍らせた！",
+            'break_preparation' => "《{$name}》がレイドボスの予告準備を破壊した！",
             'readiness_delay' => "《{$name}》が予告行動を1ターン遅らせた！",
             default => "《{$name}》が予告へ対抗した！",
         };
@@ -323,7 +323,12 @@ final readonly class NationRaidTrialBattleLogPresenter
      * @param  array<string, string>  $actionNames
      * @return array{kind:string,message:string}|null
      */
-    private function telegraphForNextTurn(array $current, ?array $next, array $actionNames): ?array
+    private function telegraphForNextTurn(
+        array $current,
+        ?array $next,
+        array $actionNames,
+        string $bossName,
+    ): ?array
     {
         if ($next === null || ! is_string($next['pending_enemy_action_id'] ?? null)) {
             return null;
@@ -339,15 +344,15 @@ final readonly class NationRaidTrialBattleLogPresenter
         return match ($kind) {
             'observation' => [
                 'kind' => 'observation',
-                'message' => 'ヴァルグレイドは攻撃を止め、こちらの系譜を見定めようとしている……。',
+                'message' => "{$bossName}は攻撃を止め、こちらの系譜を見定めようとしている……。",
             ],
             'ultimate' => [
                 'kind' => 'ultimate',
-                'message' => '⚠ 黒天竜が大技《十系終焉・ヴァルグレイド》の構えに入った！',
+                'message' => "⚠ {$bossName}が大技《{$actionName}》の構えに入った！",
             ],
             default => [
                 'kind' => 'counter',
-                'message' => "⚠ ヴァルグレイドは《{$actionName}》の気配を見せた！",
+                'message' => "⚠ {$bossName}は《{$actionName}》の気配を見せた！",
             ],
         };
     }

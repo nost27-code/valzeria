@@ -82,7 +82,7 @@ class NationRaidPassiveBossActionProfileProvider extends BattleService implement
 
     public function modelVersion(): string
     {
-        return 'current-boss-passive-probe-v4-valgreid-dragon-killer';
+        return 'current-boss-passive-probe-v5-astragia-machine-killer';
     }
 
     public function authoritativeForBalanceGate(): bool

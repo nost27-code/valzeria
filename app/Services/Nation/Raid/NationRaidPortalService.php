@@ -74,7 +74,13 @@ final readonly class NationRaidPortalService
         }
         unset($nation);
         $cycle = $event->cycles()->where('cycle_no', $event->current_cycle_no)->first();
-        $encounter = $cycle === null ? null : $this->battleViews->encounter($cycle->stage_no, $cycle->current_hp, $cycle->max_hp, null);
+        $encounter = $cycle === null ? null : $this->battleViews->encounter(
+            $cycle->stage_no,
+            $cycle->current_hp,
+            $cycle->max_hp,
+            null,
+            $event->ruleset_snapshot,
+        );
         if ($cycle?->cycle_kind === NationRaidBossCycle::KIND_ECHO) {
             $encounter['stage_name'] = '残響';
         }

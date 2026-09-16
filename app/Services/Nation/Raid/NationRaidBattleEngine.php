@@ -228,8 +228,8 @@ final class NationRaidBattleEngine
                 $enemyAction = $pending['action'];
                 if ($pending['kind'] === 'observation') {
                     $note = $pending['observation_reason'] === 'dominant_lineage_unavailable'
-                        ? '最多編成系譜がないため、ヴァルグレイドは十の系譜を見据えている。'
-                        : '再臨段階の観測枠で、ヴァルグレイドは次の一手を測っている。';
+                        ? '最多編成系譜がないため、レイドボスは十の系譜を見定めている。'
+                        : '再臨段階の観測枠で、レイドボスは次の一手を測っている。';
                 }
             } else {
                 $enemyActionId = $this->selectBasicActionId($input->stage, $form, $random);

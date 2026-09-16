@@ -79,12 +79,17 @@ final class NationRaidRulesTest extends TestCase
         $previousStagedHash = 'd73d68e2b1985a7307a2dd4d4f033d063b1b94d0921ab5f0546a608d6da1c843';
         $previousLiveHash = '49e40d2a556c6b489b326d36b3c60eb5f75359e7adc2ce73dea0e226762d1973';
         $previousRulesetHash = '7b83e48027a9a6911fdfce9adc0e2bd2427d89f2d03d026e3fa6f174808320d3';
+        $previousNextCycleHash = '6adc6daef7bc4eb65c3948dd9e377efbcce77efae6135b663c395610c886b7a2';
+        $astragiaHash = '75eb35e5d286559adbdde3c68496aada085d4632347b27a1040579fb3c67122a';
         $this->assertTrue($this->rules->matchesCombatRulesetHash($legacyHash));
         $this->assertSame($previousStagedHash, $this->rules->previousStagedHpRulesetHash());
         $this->assertSame($previousLiveHash, $this->rules->previousLiveHpRulesetHash());
         $this->assertSame($previousRulesetHash, $this->rules->previousRulesetHash());
+        $this->assertSame($previousNextCycleHash, $this->rules->previousNextCycleRulesetHash());
+        $this->assertSame($astragiaHash, $this->rules->rulesetHash());
         $this->assertTrue($this->rules->matchesCombatRulesetHash($previousStagedHash));
         $this->assertTrue($this->rules->matchesCombatRulesetHash($previousLiveHash));
+        $this->assertTrue($this->rules->matchesCombatRulesetHash($previousNextCycleHash));
         $this->assertTrue($this->rules->matchesCombatRulesetHash($this->rules->rulesetHash()));
         $this->assertFalse($this->rules->matchesCombatRulesetHash(str_repeat('0', 64)));
         $this->assertFalse((new NationRaidRules(0.4))->matchesCombatRulesetHash($legacyHash));
@@ -165,10 +170,10 @@ final class NationRaidRulesTest extends TestCase
     public function test_four_forms_have_the_approved_assets_and_fixed_parameters(): void
     {
         $expected = [
-            NationRaidRules::FORM_SEALED_SCALE => ['封鱗', 0.85, 0.00, 'images/raid/valgreid_form_01.webp'],
-            NationRaidRules::FORM_SPLIT_WING => ['裂翼', 1.00, 0.05, 'images/raid/valgreid_form_02.webp'],
-            NationRaidRules::FORM_LINEAGE_INVASION => ['十系侵蝕', 1.15, 0.10, 'images/raid/valgreid_form_03.webp'],
-            NationRaidRules::FORM_EXPOSED_CORE => ['露核', 1.30, 0.00, 'images/raid/valgreid_form_04.webp'],
+            NationRaidRules::FORM_SEALED_SCALE => ['封殻', 0.85, 0.00, 'images/raid/astragia_form_01.webp'],
+            NationRaidRules::FORM_SPLIT_WING => ['展装', 1.00, 0.05, 'images/raid/astragia_form_02.webp'],
+            NationRaidRules::FORM_LINEAGE_INVASION => ['十系演算', 1.15, 0.10, 'images/raid/astragia_form_03.webp'],
+            NationRaidRules::FORM_EXPOSED_CORE => ['露核', 1.30, 0.00, 'images/raid/astragia_form_04.webp'],
         ];
 
         foreach ($expected as $key => [$name, $outgoing, $incoming, $image]) {
@@ -180,7 +185,7 @@ final class NationRaidRulesTest extends TestCase
         }
 
         $this->assertSame(30_000_000, NationRaidRules::BOSS_MAX_HP);
-        $this->assertSame('dragon', NationRaidRules::BOSS_SPECIES_KEY);
+        $this->assertSame('machine', NationRaidRules::BOSS_SPECIES_KEY);
         $this->assertSame(100, NationRaidRules::BOSS_MAX_SP);
         $this->assertSame(100, NationRaidRules::BOSS_DEFENSE);
         $this->assertSame(100, NationRaidRules::BOSS_SPIRIT);
@@ -191,10 +196,10 @@ final class NationRaidRulesTest extends TestCase
     public function test_four_form_assets_exist_with_the_reviewed_sha256(): void
     {
         $expected = [
-            NationRaidRules::FORM_SEALED_SCALE => '19c9861a2c60f766615ba4f214e46c250bab8556fae0bd14e7658c264299b0ec',
-            NationRaidRules::FORM_SPLIT_WING => '25a5a0b51dc10677d7026a224dfc7696ea19009620d8e754e011a28aa9efc410',
-            NationRaidRules::FORM_LINEAGE_INVASION => '398a3caa270cc0d9dc9f00968abadc3e2a256e63d5327de51975be63589721e2',
-            NationRaidRules::FORM_EXPOSED_CORE => '82012cf8660399f181ab2a4e7dfab268e95b6376328cd9ab4dbbe3cbfe2a2e71',
+            NationRaidRules::FORM_SEALED_SCALE => 'a8362cec353b8b83eebc778ebdc8d54440d9a63d2c607b95421980b9c4d41c41',
+            NationRaidRules::FORM_SPLIT_WING => '12e1a5730d7565089634b150c6da5ba8d91479f962dc378c894d36a08378a782',
+            NationRaidRules::FORM_LINEAGE_INVASION => 'd11ae399e812fc5bece06b79fca83d877fe488777ba4451320cb75af1c06a86c',
+            NationRaidRules::FORM_EXPOSED_CORE => 'b9aa932680aa6cd97e15837bc8c68c553b591cfd72a3a8390d3bd0e427f20bc7',
         ];
         $root = dirname(__DIR__, 5);
 
@@ -233,13 +238,13 @@ final class NationRaidRulesTest extends TestCase
     {
         $actions = $this->rules->basicActions();
         $this->assertSame([
-            'black_sky_claw' => ['name' => '黒天裂爪', 'hits' => [['type' => 'physical', 'power' => 70]], 'effect' => null, 'can_be_guarded' => false],
-            'void_corrosion_orb' => ['name' => '虚蝕弾', 'hits' => [['type' => 'magical', 'power' => 70]], 'effect' => null, 'can_be_guarded' => false],
-            'sealed_quake' => ['name' => '封鱗震', 'hits' => [['type' => 'physical', 'power' => 60]], 'effect' => 'defense_down_10_two_actions', 'can_be_guarded' => false],
-            'split_wing_combo' => ['name' => '裂翼連爪', 'hits' => [['type' => 'physical', 'power' => 55], ['type' => 'physical', 'power' => 55]], 'effect' => null, 'can_be_guarded' => false],
-            'lineage_roar' => ['name' => '侵系咆哮', 'hits' => [['type' => 'magical', 'power' => 85]], 'effect' => 'healing_down_25_two_actions', 'can_be_guarded' => false],
-            'dragon_core_backlight' => ['name' => '竜核逆光', 'hits' => [['type' => 'physical', 'power' => 60], ['type' => 'magical', 'power' => 60]], 'effect' => null, 'can_be_guarded' => false],
-            'ten_lineage_end' => ['name' => '十系終焉・ヴァルグレイド', 'hits' => [['type' => 'physical', 'power' => 90], ['type' => 'magical', 'power' => 90]], 'effect' => null, 'can_be_guarded' => true],
+            'black_sky_claw' => ['name' => '天墜重拳', 'hits' => [['type' => 'physical', 'power' => 70]], 'effect' => null, 'can_be_guarded' => false],
+            'void_corrosion_orb' => ['name' => '虚環砲', 'hits' => [['type' => 'magical', 'power' => 70]], 'effect' => null, 'can_be_guarded' => false],
+            'sealed_quake' => ['name' => '封殻震', 'hits' => [['type' => 'physical', 'power' => 60]], 'effect' => 'defense_down_10_two_actions', 'can_be_guarded' => false],
+            'split_wing_combo' => ['name' => '展装連撃', 'hits' => [['type' => 'physical', 'power' => 55], ['type' => 'physical', 'power' => 55]], 'effect' => null, 'can_be_guarded' => false],
+            'lineage_roar' => ['name' => '十系演算砲', 'hits' => [['type' => 'magical', 'power' => 85]], 'effect' => 'healing_down_25_two_actions', 'can_be_guarded' => false],
+            'dragon_core_backlight' => ['name' => '星核逆光', 'hits' => [['type' => 'physical', 'power' => 60], ['type' => 'magical', 'power' => 60]], 'effect' => null, 'can_be_guarded' => false],
+            'ten_lineage_end' => ['name' => '十系天墜・アストラギア', 'hits' => [['type' => 'physical', 'power' => 90], ['type' => 'magical', 'power' => 90]], 'effect' => null, 'can_be_guarded' => true],
         ], $actions);
     }
 
@@ -256,12 +261,12 @@ final class NationRaidRulesTest extends TestCase
             'field' => ['command', 'world_law_severance', '界律断令', [['type' => 'physical', 'power' => 70]], 'field_remove_and_extension_block', null, true],
             'command' => ['aim', 'command_core_snipe', '司令核狙撃', [['type' => 'magical', 'power' => 75]], 'current_sp_down_8', null, true],
             'aim' => ['counter', 'black_mirror_counter', '黒鏡返し', [['type' => 'physical', 'power' => 60]], 'nonlethal_reflect_max_hp_8', 'reflect', true],
-            'guardian' => ['break', 'guardian_world_breaker', '護界砕爪', [['type' => 'physical', 'power' => 75]], 'defense_spirit_healing_down_25_two_actions', null, true],
-            'break' => ['transmute', 'reverse_transmutation_scale', '逆錬成鱗', [['type' => 'magical', 'power' => 65]], 'cleanse_and_guard_per_debuff', 'cleanse_guard', true],
+            'guardian' => ['break', 'guardian_world_breaker', '護界砕腕', [['type' => 'physical', 'power' => 75]], 'defense_spirit_healing_down_25_two_actions', null, true],
+            'break' => ['transmute', 'reverse_transmutation_scale', '逆錬成殻', [['type' => 'magical', 'power' => 65]], 'cleanse_and_guard_per_debuff', 'cleanse_guard', true],
             'transmute' => ['dark', 'corrosion_absorption_ring', '腐蝕吸環', [['type' => 'magical', 'power' => 70]], 'hp_sp_healing_down_50_two_actions', null, true],
-            'dark' => ['pierce', 'blood_pact_piercing_horn', '血盟穿角', [['type' => 'physical', 'power' => 100, 'defense_ignore' => 0.50]], 'drain_healing_down_50_one_action', null, true],
-            'pierce' => ['hunt', 'phantom_scale_hunt_mark', '幻鱗狩印', [['type' => 'physical', 'power' => 65]], 'next_direct_damage_down_30', null, true],
-            'hunt' => ['guardian', 'purified_hunt_dragon_circle', '浄狩竜陣', [['type' => 'magical', 'power' => 60]], 'clear_marks_and_next_multihit_down_25', null, true],
+            'dark' => ['pierce', 'blood_pact_piercing_horn', '血盟穿杭', [['type' => 'physical', 'power' => 100, 'defense_ignore' => 0.50]], 'drain_healing_down_50_one_action', null, true],
+            'pierce' => ['hunt', 'phantom_scale_hunt_mark', '幻殻狩印', [['type' => 'physical', 'power' => 65]], 'next_direct_damage_down_30', null, true],
+            'hunt' => ['guardian', 'purified_hunt_dragon_circle', '浄狩機陣', [['type' => 'magical', 'power' => 60]], 'clear_marks_and_next_multihit_down_25', null, true],
         ], $summary);
     }
 

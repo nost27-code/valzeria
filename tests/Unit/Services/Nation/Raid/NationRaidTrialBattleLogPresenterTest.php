@@ -14,19 +14,19 @@ final class NationRaidTrialBattleLogPresenterTest extends TestCase
         $result = app(NationRaidTrialBattleLogPresenter::class)->present(
             $this->battleResult(),
             [
-                '【戦闘開始】試遊者 は 十系喰らいの黒天竜 ヴァルグレイド と遭遇した！',
-                '<span class="text-emerald-700">有効打：竜特攻 +60%</span>',
+                '【戦闘開始】試遊者 は 十系を模す天墜機神 アストラギア と遭遇した！',
+                '<span class="text-emerald-700">有効打：機械特攻 +60%</span>',
                 '<br><br>--- ターン 1 ---',
                 '<span class="battle-log-special-title">《試験戦技》が発動！</span>',
-                '十系喰らいの黒天竜 ヴァルグレイド に <span>9,999</span> のダメージ！',
+                '十系を模す天墜機神 アストラギア に <span>9,999</span> のダメージ！',
                 '試遊者 は剣冠の構えで攻撃を受け流した！',
                 '<br><br>--- ターン 2 ---',
-                '試遊者 の攻撃！ 十系喰らいの黒天竜 ヴァルグレイド に <span>8,888</span> のダメージ！',
-                '試遊者 の王冠剣陣が反撃し、十系喰らいの黒天竜 ヴァルグレイド に 30 のダメージ！',
+                '試遊者 の攻撃！ 十系を模す天墜機神 アストラギア に <span>8,888</span> のダメージ！',
+                '試遊者 の王冠剣陣が反撃し、十系を模す天墜機神 アストラギア に 30 のダメージ！',
                 '<br><span>双方が疲弊し、戦闘は終了した。</span>',
             ],
             '試遊者',
-            '十系喰らいの黒天竜 ヴァルグレイド',
+            '十系を模す天墜機神 アストラギア',
         );
 
         $this->assertCount(2, $result['opening_logs']);
@@ -41,7 +41,7 @@ final class NationRaidTrialBattleLogPresenterTest extends TestCase
         $this->assertSame(['ガードが発動し、被害を20%軽減した！'], $result['turns'][0]['defense_messages']);
         $this->assertSame(['防御が10%低下した！（2行動）'], $result['turns'][0]['effect_messages']);
         $this->assertSame('ultimate', $result['turns'][0]['telegraph']['kind']);
-        $this->assertStringContainsString('十系終焉・ヴァルグレイド', $result['turns'][0]['telegraph']['message']);
+        $this->assertStringContainsString('十系天墜・アストラギア', $result['turns'][0]['telegraph']['message']);
         $this->assertStringNotContainsString('8,888', implode('', $result['turns'][1]['player_logs']));
         $this->assertStringNotContainsString('王冠剣陣', implode('', $result['turns'][1]['player_logs']));
         $this->assertSame(50, $result['turns'][1]['player_action_damage']);

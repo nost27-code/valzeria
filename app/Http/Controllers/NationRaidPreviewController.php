@@ -19,6 +19,7 @@ final class NationRaidPreviewController extends Controller
             'page' => $page,
             'bossName' => NationRaidTrialService::BOSS_NAME,
             'bossImage' => $rules->formParameters(NationRaidRules::FORM_SEALED_SCALE)['image_path'],
+            'startsAtLabel' => (string) config('nation_raid_preview.starts_at_label'),
             'rewardScreen' => $page === 'rewards' ? $rewards->preview() : null,
         ]);
     }

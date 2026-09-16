@@ -12,7 +12,7 @@ use RuntimeException;
 /** 共有進行や報酬は書き込まず、探索力だけを消費して20ターン試すローカル専用窓口。 */
 final readonly class NationRaidTrialService
 {
-    public const BOSS_NAME = '十系喰らいの黒天竜 ヴァルグレイド';
+    public const BOSS_NAME = NationRaidRules::BOSS_NAME;
 
     public function __construct(
         private NationRaidPlayerPreparationService $preparation,
@@ -37,7 +37,7 @@ final readonly class NationRaidTrialService
         return [
             'boss_name' => self::BOSS_NAME,
             'boss_max_hp' => NationRaidRules::BOSS_MAX_HP,
-            'boss_species_label' => '竜',
+            'boss_species_label' => $this->rules->bossSpeciesLabelForSnapshot($this->rules->rulesetSnapshot()),
             'max_turns' => NationRaidRules::MAX_TURNS,
             'stages' => $this->view->stages(),
             'strategies' => $this->view->strategies(),
@@ -109,7 +109,13 @@ final readonly class NationRaidTrialService
 
     private function currentEncounter(): array
     {
-        return $this->view->encounter(1, NationRaidRules::BOSS_MAX_HP, NationRaidRules::BOSS_MAX_HP, null);
+        return $this->view->encounter(
+            1,
+            NationRaidRules::BOSS_MAX_HP,
+            NationRaidRules::BOSS_MAX_HP,
+            null,
+            $this->rules->rulesetSnapshot(),
+        );
     }
 
     private function sortieStaminaCost(): int

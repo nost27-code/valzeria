@@ -61,7 +61,7 @@ class NationRaidSortieTest extends TestCase
         $this->actingAs($character->user)->withSession(['current_character_id' => $character->id]);
         $this->get(route('nation-raid.show', $event))->assertOk()
             ->assertDontSee('name="strategy"', false)->assertDontSee('作戦を選ぶ')
-            ->assertSee('ヴァルグレイドに挑む')->assertSee('装備を整える');
+            ->assertSee('アストラギアに挑む')->assertSee('装備を整える');
 
         foreach ([[], ['strategy' => ['fortify']]] as $payload) {
             $token = bin2hex(random_bytes(32));
@@ -82,7 +82,7 @@ class NationRaidSortieTest extends TestCase
     {
         $character = $this->character();
         $event = $this->event();
-        $snapshot = $event->ruleset_snapshot;
+        $snapshot = app(NationRaidRules::class)->previousNextCycleRulesetSnapshot();
         $snapshot['version'] = 'nation-raid-phase1-v4-equipment-resistance';
         $snapshot['fixed']['boss_max_hp'] = 5_000_000;
         $snapshot['fixed']['coordination_damage_rates'] = [
@@ -98,7 +98,7 @@ class NationRaidSortieTest extends TestCase
         $event->update(['ruleset_snapshot' => $snapshot, 'ruleset_hash' => $hash,
             'ruleset_version' => $snapshot['version'], 'cycle_max_hp' => 5_000_000, 'total_target_hp' => 100_000_000]);
         $cycle = $event->cycles()->sole();
-        $cycle->update(['max_hp' => 5_000_000, 'current_hp' => 5_000_000,
+        $cycle->update(['max_hp' => 5_000_000, 'current_hp' => 5_000_000, 'boss_species_key' => 'dragon',
             'parameter_snapshot' => app(NationRaidEventService::class)->cycleParameterSnapshot(1, $event)]);
         $token = bin2hex(random_bytes(32));
         [$started] = app(NationRaidSortieService::class)->start($event, $character, 'boss_set', $token);

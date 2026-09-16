@@ -39,7 +39,7 @@ final class NationRaidBattleEngineTest extends TestCase
 
         $this->assertSame($first->toArray(), $second->toArray());
         $this->assertSame('raid', $first->battleType);
-        $this->assertSame('dragon', $first->bossSpeciesKey);
+        $this->assertSame('machine', $first->bossSpeciesKey);
         $this->assertSame(20, $first->turnsCompleted);
         $this->assertSame('survived', $first->outcome);
         $this->assertCount(20, $first->turns);

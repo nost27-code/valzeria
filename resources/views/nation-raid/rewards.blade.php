@@ -1,4 +1,4 @@
-<x-layouts.facility title="国家対抗レイドの戦果" subtitle="黒天竜との戦いの記録" :exit-url="route('home')" exitLabel="街へ戻る">
+<x-layouts.facility title="国家対抗レイドの戦果" subtitle="レイドボスとの戦いの記録" :exit-url="route('home')" exitLabel="街へ戻る">
     <div class="mx-auto max-w-3xl space-y-6 pb-6" data-nation-raid-rewards>
         @include('nation-raid.partials.navigation', ['eventId' => $event->id, 'active' => 'rewards', 'finished' => $event->status === 'completed'])
         <header class="border-b border-slate-200 pb-5">

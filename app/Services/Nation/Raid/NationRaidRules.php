@@ -11,6 +11,10 @@ use InvalidArgumentException;
  */
 final class NationRaidRules
 {
+    public const EVENT_NAME = '国家対抗レイド 天墜機神アストラギア';
+
+    public const BOSS_NAME = '十系を模す天墜機神 アストラギア';
+
     public const BATTLE_TYPE = 'raid';
 
     public const MAX_TURNS = 20;
@@ -23,7 +27,9 @@ final class NationRaidRules
     /** 凍結済みの初回rulesetを再現する第1再臨HP。 */
     private const PREVIOUS_BOSS_MAX_HP = 10_000_000;
 
-    public const RULESET_VERSION = 'nation-raid-v8-next-cycle-systems';
+    public const RULESET_VERSION = 'nation-raid-v9-astragia';
+
+    public const PREVIOUS_NEXT_CYCLE_RULESET_VERSION = 'nation-raid-v8-next-cycle-systems';
 
     public const PREVIOUS_RULESET_VERSION = 'nation-raid-v7-coordination-curve';
 
@@ -45,8 +51,8 @@ final class NationRaidRules
         return array_sum(array_map($this->stageMaxHp(...), range(1, self::MAX_STAGES)));
     }
 
-    /** ヴァルグレイド全4形態で共通する、既存の装備特攻判定用種族。 */
-    public const BOSS_SPECIES_KEY = 'dragon';
+    /** アストラギア全4形態で共通する、既存の装備特攻判定用種族。 */
+    public const BOSS_SPECIES_KEY = 'machine';
 
     /**
      * 固有特攻と個体特攻の合算率へ掛けるレイド専用倍率と、その実効上限。
@@ -184,28 +190,28 @@ final class NationRaidRules
     /** @var array<string, array{name:string,outgoing_multiplier:float,incoming_reduction:float,form_action:string,weights:array{basic_physical:int,basic_magical:int,form_action:int},image_path:string}> */
     private const FORMS = [
         self::FORM_SEALED_SCALE => [
-            'name' => '封鱗',
+            'name' => '封殻',
             'outgoing_multiplier' => 0.85,
             'incoming_reduction' => 0.00,
             'form_action' => 'sealed_quake',
             'weights' => ['basic_physical' => 45, 'basic_magical' => 45, 'form_action' => 10],
-            'image_path' => 'images/raid/valgreid_form_01.webp',
+            'image_path' => 'images/raid/astragia_form_01.webp',
         ],
         self::FORM_SPLIT_WING => [
-            'name' => '裂翼',
+            'name' => '展装',
             'outgoing_multiplier' => 1.00,
             'incoming_reduction' => 0.05,
             'form_action' => 'split_wing_combo',
             'weights' => ['basic_physical' => 40, 'basic_magical' => 40, 'form_action' => 20],
-            'image_path' => 'images/raid/valgreid_form_02.webp',
+            'image_path' => 'images/raid/astragia_form_02.webp',
         ],
         self::FORM_LINEAGE_INVASION => [
-            'name' => '十系侵蝕',
+            'name' => '十系演算',
             'outgoing_multiplier' => 1.15,
             'incoming_reduction' => 0.10,
             'form_action' => 'lineage_roar',
             'weights' => ['basic_physical' => 35, 'basic_magical' => 35, 'form_action' => 30],
-            'image_path' => 'images/raid/valgreid_form_03.webp',
+            'image_path' => 'images/raid/astragia_form_03.webp',
         ],
         self::FORM_EXPOSED_CORE => [
             'name' => '露核',
@@ -213,32 +219,32 @@ final class NationRaidRules
             'incoming_reduction' => 0.00,
             'form_action' => 'dragon_core_backlight',
             'weights' => ['basic_physical' => 30, 'basic_magical' => 30, 'form_action' => 40],
-            'image_path' => 'images/raid/valgreid_form_04.webp',
+            'image_path' => 'images/raid/astragia_form_04.webp',
         ],
     ];
 
     /** @var array<string, array{name:string,hits:list<array{type:string,power:int}>,effect:?string,can_be_guarded:bool}> */
     private const BASIC_ACTIONS = [
         'black_sky_claw' => [
-            'name' => '黒天裂爪',
+            'name' => '天墜重拳',
             'hits' => [['type' => 'physical', 'power' => 70]],
             'effect' => null,
             'can_be_guarded' => false,
         ],
         'void_corrosion_orb' => [
-            'name' => '虚蝕弾',
+            'name' => '虚環砲',
             'hits' => [['type' => 'magical', 'power' => 70]],
             'effect' => null,
             'can_be_guarded' => false,
         ],
         'sealed_quake' => [
-            'name' => '封鱗震',
+            'name' => '封殻震',
             'hits' => [['type' => 'physical', 'power' => 60]],
             'effect' => 'defense_down_10_two_actions',
             'can_be_guarded' => false,
         ],
         'split_wing_combo' => [
-            'name' => '裂翼連爪',
+            'name' => '展装連撃',
             'hits' => [
                 ['type' => 'physical', 'power' => 55],
                 ['type' => 'physical', 'power' => 55],
@@ -247,13 +253,13 @@ final class NationRaidRules
             'can_be_guarded' => false,
         ],
         'lineage_roar' => [
-            'name' => '侵系咆哮',
+            'name' => '十系演算砲',
             'hits' => [['type' => 'magical', 'power' => 85]],
             'effect' => 'healing_down_25_two_actions',
             'can_be_guarded' => false,
         ],
         'dragon_core_backlight' => [
-            'name' => '竜核逆光',
+            'name' => '星核逆光',
             'hits' => [
                 ['type' => 'physical', 'power' => 60],
                 ['type' => 'magical', 'power' => 60],
@@ -262,7 +268,7 @@ final class NationRaidRules
             'can_be_guarded' => false,
         ],
         'ten_lineage_end' => [
-            'name' => '十系終焉・ヴァルグレイド',
+            'name' => '十系天墜・アストラギア',
             'hits' => [
                 ['type' => 'physical', 'power' => 90],
                 ['type' => 'magical', 'power' => 90],
@@ -295,12 +301,12 @@ final class NationRaidRules
             'preparation_kind' => 'reflect', 'can_be_guarded' => true,
         ],
         'guardian' => [
-            'boss_lineage' => 'break', 'action_id' => 'guardian_world_breaker', 'name' => '護界砕爪',
+            'boss_lineage' => 'break', 'action_id' => 'guardian_world_breaker', 'name' => '護界砕腕',
             'hits' => [['type' => 'physical', 'power' => 75]], 'effect' => 'defense_spirit_healing_down_25_two_actions',
             'preparation_kind' => null, 'can_be_guarded' => true,
         ],
         'break' => [
-            'boss_lineage' => 'transmute', 'action_id' => 'reverse_transmutation_scale', 'name' => '逆錬成鱗',
+            'boss_lineage' => 'transmute', 'action_id' => 'reverse_transmutation_scale', 'name' => '逆錬成殻',
             'hits' => [['type' => 'magical', 'power' => 65]], 'effect' => 'cleanse_and_guard_per_debuff',
             'preparation_kind' => 'cleanse_guard', 'can_be_guarded' => true,
         ],
@@ -310,17 +316,17 @@ final class NationRaidRules
             'preparation_kind' => null, 'can_be_guarded' => true,
         ],
         'dark' => [
-            'boss_lineage' => 'pierce', 'action_id' => 'blood_pact_piercing_horn', 'name' => '血盟穿角',
+            'boss_lineage' => 'pierce', 'action_id' => 'blood_pact_piercing_horn', 'name' => '血盟穿杭',
             'hits' => [['type' => 'physical', 'power' => 100, 'defense_ignore' => 0.50]], 'effect' => 'drain_healing_down_50_one_action',
             'preparation_kind' => null, 'can_be_guarded' => true,
         ],
         'pierce' => [
-            'boss_lineage' => 'hunt', 'action_id' => 'phantom_scale_hunt_mark', 'name' => '幻鱗狩印',
+            'boss_lineage' => 'hunt', 'action_id' => 'phantom_scale_hunt_mark', 'name' => '幻殻狩印',
             'hits' => [['type' => 'physical', 'power' => 65]], 'effect' => 'next_direct_damage_down_30',
             'preparation_kind' => null, 'can_be_guarded' => true,
         ],
         'hunt' => [
-            'boss_lineage' => 'guardian', 'action_id' => 'purified_hunt_dragon_circle', 'name' => '浄狩竜陣',
+            'boss_lineage' => 'guardian', 'action_id' => 'purified_hunt_dragon_circle', 'name' => '浄狩機陣',
             'hits' => [['type' => 'magical', 'power' => 60]], 'effect' => 'clear_marks_and_next_multihit_down_25',
             'preparation_kind' => null, 'can_be_guarded' => true,
         ],
@@ -383,6 +389,30 @@ final class NationRaidRules
         }
 
         return self::FORMS[$form];
+    }
+
+    /** 保存済み開催の画像・形態名を、現行rulesetへ置き換えずに表示する。 */
+    public function formParametersForSnapshot(string $form, array $snapshot): array
+    {
+        $forms = $snapshot['forms'] ?? null;
+        if (! is_array($forms) || ! isset($forms[$form]) || ! is_array($forms[$form])) {
+            throw new InvalidArgumentException("Unknown raid form snapshot: {$form}");
+        }
+
+        return $forms[$form];
+    }
+
+    public function bossSpeciesLabelForSnapshot(array $snapshot): string
+    {
+        $speciesKey = $snapshot['fixed']['boss_species_key']
+            ?? $snapshot['boss']['species_key']
+            ?? null;
+
+        return match ($speciesKey) {
+            'dragon' => '竜',
+            'machine' => '機械',
+            default => '不明',
+        };
     }
 
     public function formForHp(int $currentHp, int $maxHp = self::BOSS_MAX_HP): string
@@ -565,7 +595,9 @@ final class NationRaidRules
 
     public function coordinationDamageRateForRulesetHash(string $hash, int $uniqueParticipants): float
     {
-        if (hash_equals($this->rulesetHash(), $hash) || hash_equals($this->previousRulesetHash(), $hash)) {
+        if (hash_equals($this->rulesetHash(), $hash)
+            || hash_equals($this->previousNextCycleRulesetHash(), $hash)
+            || hash_equals($this->previousRulesetHash(), $hash)) {
             return self::coordinationDamageRate($uniqueParticipants);
         }
         if ($this->matchesCombatRulesetHash($hash)) {
@@ -682,6 +714,10 @@ final class NationRaidRules
             return true;
         }
 
+        if (hash_equals($this->previousNextCycleRulesetHash(), $hash)) {
+            return true;
+        }
+
         if (hash_equals($this->previousLiveHpRulesetHash(), $hash)) {
             return true;
         }
@@ -712,9 +748,17 @@ final class NationRaidRules
         return hash('sha256', NationRaidJson::encode($this->previousRulesetSnapshot(), JSON_UNESCAPED_UNICODE));
     }
 
+    public function previousNextCycleRulesetHash(): string
+    {
+        return hash('sha256', NationRaidJson::encode($this->previousNextCycleRulesetSnapshot(), JSON_UNESCAPED_UNICODE));
+    }
+
     public function supportsNextCycleSystems(array $snapshot): bool
     {
-        return ($snapshot['version'] ?? null) === self::RULESET_VERSION
+        return in_array($snapshot['version'] ?? null, [
+            self::RULESET_VERSION,
+            self::PREVIOUS_NEXT_CYCLE_RULESET_VERSION,
+        ], true)
             && is_array($snapshot['raid_cycle'] ?? null);
     }
 
@@ -750,7 +794,7 @@ final class NationRaidRules
     /** 2026-09-15以前の開催へ新しい出撃・兵站契約を後付けしない。 */
     public function previousRulesetSnapshot(): array
     {
-        $snapshot = $this->rulesetSnapshot();
+        $snapshot = $this->previousNextCycleRulesetSnapshot();
         $snapshot['version'] = self::PREVIOUS_RULESET_VERSION;
         $snapshot['fixed']['boss_max_hp'] = self::PREVIOUS_BOSS_MAX_HP;
         $snapshot['fixed']['total_target_hp'] = 6_920_000_000;
@@ -765,6 +809,51 @@ final class NationRaidRules
         }
         unset($stage);
         unset($snapshot['raid_cycle']);
+
+        return $snapshot;
+    }
+
+    /** アストラギア採用前に、2026-09-25開催へ固定していたヴァルグレイド版ruleset。 */
+    public function previousNextCycleRulesetSnapshot(): array
+    {
+        $snapshot = $this->rulesetSnapshot();
+        $snapshot['version'] = self::PREVIOUS_NEXT_CYCLE_RULESET_VERSION;
+        $snapshot['fixed']['boss_species_key'] = 'dragon';
+
+        $legacyForms = [
+            self::FORM_SEALED_SCALE => ['name' => '封鱗', 'image_path' => 'images/raid/valgreid_form_01.webp'],
+            self::FORM_SPLIT_WING => ['name' => '裂翼', 'image_path' => 'images/raid/valgreid_form_02.webp'],
+            self::FORM_LINEAGE_INVASION => ['name' => '十系侵蝕', 'image_path' => 'images/raid/valgreid_form_03.webp'],
+            self::FORM_EXPOSED_CORE => ['name' => '露核', 'image_path' => 'images/raid/valgreid_form_04.webp'],
+        ];
+        foreach ($legacyForms as $form => $legacy) {
+            $snapshot['forms'][$form]['name'] = $legacy['name'];
+            $snapshot['forms'][$form]['image_path'] = $legacy['image_path'];
+        }
+
+        $legacyBasicActionNames = [
+            'black_sky_claw' => '黒天裂爪',
+            'void_corrosion_orb' => '虚蝕弾',
+            'sealed_quake' => '封鱗震',
+            'split_wing_combo' => '裂翼連爪',
+            'lineage_roar' => '侵系咆哮',
+            'dragon_core_backlight' => '竜核逆光',
+            'ten_lineage_end' => '十系終焉・ヴァルグレイド',
+        ];
+        foreach ($legacyBasicActionNames as $action => $name) {
+            $snapshot['basic_actions'][$action]['name'] = $name;
+        }
+
+        $legacyCounterActionNames = [
+            'guardian' => '護界砕爪',
+            'break' => '逆錬成鱗',
+            'dark' => '血盟穿角',
+            'pierce' => '幻鱗狩印',
+            'hunt' => '浄狩竜陣',
+        ];
+        foreach ($legacyCounterActionNames as $lineage => $name) {
+            $snapshot['counter_actions'][$lineage]['name'] = $name;
+        }
 
         return $snapshot;
     }

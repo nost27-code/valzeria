@@ -1,7 +1,7 @@
 <x-layouts.facility
     title="国家対抗レイド"
     subtitle="全国家共闘イベント"
-    headerIcon="🐉"
+    headerIcon="⚙️"
     :exit-url="route('home')"
     exitLabel="国家画面へ戻る"
 >
@@ -70,7 +70,7 @@
                         第{{ number_format((int) $currentEncounter['stage']) }} / {{ count($screen['stages']) }}再臨《{{ $currentEncounter['stage_name'] }}》
                     </p>
                     <p class="mt-2 text-[11px] font-bold leading-relaxed text-slate-300 sm:text-xs">
-                        全国家の冒険者と力を合わせ、再臨を重ねる黒天竜を撃退せよ。
+                        全国家の冒険者と力を合わせ、再臨を重ねる{{ $screen['boss_name'] }}を撃退せよ。
                     </p>
                     <p class="mt-1 text-[10px] font-bold text-sky-200">本日の対抗対象：{{ $currentEncounter['dominant_lineage_label'] }}</p>
 
@@ -81,7 +81,7 @@
                                 {{ number_format($bossCurrentHp) }} <span class="text-xs text-slate-400">/ {{ number_format($bossMaxHp) }}</span>
                             </span>
                         </div>
-                        <div class="mt-1.5 h-3 overflow-hidden rounded-full border border-white/10 bg-slate-800" role="progressbar" aria-label="ヴァルグレイドの現在HP" aria-valuemin="0" aria-valuemax="{{ $bossMaxHp }}" aria-valuenow="{{ $bossCurrentHp }}">
+                        <div class="mt-1.5 h-3 overflow-hidden rounded-full border border-white/10 bg-slate-800" role="progressbar" aria-label="{{ $screen['boss_name'] }}の現在HP" aria-valuemin="0" aria-valuemax="{{ $bossMaxHp }}" aria-valuenow="{{ $bossCurrentHp }}">
                             <div class="h-full rounded-full bg-gradient-to-r from-rose-700 via-red-500 to-amber-400" style="width: {{ $bossHpPercent }}%"></div>
                         </div>
                         <div class="mt-2 grid grid-cols-10 gap-1" aria-label="全20再臨の進行状況" data-nation-raid-stage-track>
@@ -373,7 +373,7 @@
                                         @endif
 
                                         @if($turn['enemy_action_kind'] === 'delayed')
-                                            <div><span class="battle-log-telegraph">ヴァルグレイドの予告行動は遅延した！</span></div>
+                                            <div><span class="battle-log-telegraph">{{ $lastResult['boss_name'] }}の予告行動は遅延した！</span></div>
                                         @elseif($turn['enemy_action_kind'] === 'observation')
                                             <div><span class="battle-log-telegraph">【系譜観測】{{ $turn['note'] }}</span></div>
                                         @else
@@ -399,7 +399,7 @@
                                             @elseif($turn['enemy_evade_count'] > 0)
                                                 <div>{{ $lastResult['character']['name'] }} は攻撃をかわした！</div>
                                             @elseif($turn['enemy_miss_count'] > 0)
-                                                <div>ヴァルグレイドの攻撃は空を切った！</div>
+                                                <div>{{ $lastResult['boss_name'] }}の攻撃は空を切った！</div>
                                             @endif
 
                                             @if($turn['damage_cap_hit'])
@@ -440,7 +440,7 @@
                                         <div class="mt-1 text-[10px] font-bold tabular-nums text-slate-400 sm:text-xs">
                                             {{ $lastResult['character']['name'] }} HP {{ number_format((int) $turn['player_hp_after']) }} / {{ number_format((int) $lastResult['player_max_hp']) }}
                                             ・SP {{ number_format((int) $turn['player_sp_after']) }}
-                                            ・黒天竜SP {{ number_format((int) $turn['boss_sp_after']) }} / {{ \App\Services\Nation\Raid\NationRaidRules::BOSS_MAX_SP }}
+                                            ・ボスSP {{ number_format((int) $turn['boss_sp_after']) }} / {{ \App\Services\Nation\Raid\NationRaidRules::BOSS_MAX_SP }}
                                         </div>
                                     </section>
                                 @endforeach
@@ -544,7 +544,7 @@
                     @if($screen['lineage_vote']['pending'])
                         <p class="mt-2 text-slate-600">前日の出撃の精算と、編成の集計を待っています。</p>
                     @elseif($screen['lineage_vote']['day'] === 1)
-                        <p class="mt-2 text-slate-600">黒天竜は冒険者たちの戦い方を観測している。明日から前日の編成に応じて対抗技が変わる。</p>
+                        <p class="mt-2 text-slate-600">{{ $screen['boss_name'] }}は冒険者たちの戦い方を観測している。明日から前日の編成に応じて対抗技が変わる。</p>
                     @else
                         <p class="mt-2 text-slate-600">前日に最初に戦い終えた編成を1人1組ずつ集計。同じ系譜を複数枠に入れても1票です。</p>
                         <dl class="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 sm:grid-cols-5">
@@ -588,7 +588,7 @@
 
                     <button type="submit" @disabled(! $canChallenge) class="mt-5 min-h-12 w-full rounded-md bg-slate-950 px-4 text-sm font-black text-white shadow-sm disabled:cursor-not-allowed disabled:opacity-50">
                         <span class="inline-flex items-center justify-center gap-1">
-                            <span>ヴァルグレイドに挑む</span>
+                            <span>{{ $screen['boss_name'] }}に挑む</span>
                             <span class="inline-flex items-center gap-0.5" data-nation-raid-sortie-stamina-cost>
                                 <span>（</span>
                                 <img src="{{ asset('images/icon/icon_082.webp') }}" alt="" class="h-4 w-4 object-contain">

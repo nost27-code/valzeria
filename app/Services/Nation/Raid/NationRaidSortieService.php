@@ -179,7 +179,13 @@ class NationRaidSortieService
             $captureBegan = hrtime(true);
             $player = $this->preparation->capture($character);
             $source = $summary['admission']['encounter'];
-            $encounter = $this->view->encounter($source['stage'], $source['current_hp'], $source['max_hp'], $battle->dominant_lineage);
+            $encounter = $this->view->encounter(
+                $source['stage'],
+                $source['current_hp'],
+                $source['max_hp'],
+                $battle->dominant_lineage,
+                $battle->target_parameter_snapshot,
+            );
             throw_unless($encounter['form']['key'] === $battle->target_form, \DomainException::class, 'ボスの開始情報を確認できません。');
             if ($battle->target_cycle_kind === NationRaidBossCycle::KIND_ECHO) {
                 $encounter['stage_name'] = '残響 '.$battle->target_echo_no;

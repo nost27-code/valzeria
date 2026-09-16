@@ -45,7 +45,13 @@ final readonly class NationRaidScreenService
             $reason = $exception->getMessage();
         }
         $player = $this->preparation->capture($character);
-        $encounter = $this->view->encounter($cycle->stage_no ?? $event->stage_count, $cycle->current_hp, $cycle->max_hp, $lineage);
+        $encounter = $this->view->encounter(
+            $cycle->stage_no ?? $event->stage_count,
+            $cycle->current_hp,
+            $cycle->max_hp,
+            $lineage,
+            $event->ruleset_snapshot,
+        );
         if ($cycle->cycle_kind === NationRaidBossCycle::KIND_ECHO) {
             $encounter['stage_name'] = '残響 '.$cycle->echo_no;
         }
@@ -73,7 +79,7 @@ final readonly class NationRaidScreenService
             'used_sorties' => $day === null ? 0 : $used,
             'ends_label' => $event->ends_at->format('n/j H:i').'まで',
             'completed_stages' => min($event->stage_count, $cycle->cycle_no - 1),
-            'boss_name' => $event->boss_name, 'boss_species_label' => '竜', 'boss_max_hp' => $cycle->max_hp,
+            'boss_name' => $event->boss_name, 'boss_species_label' => $encounter['boss_species_label'], 'boss_max_hp' => $cycle->max_hp,
             'max_turns' => NationRaidRules::MAX_TURNS, 'stages' => $this->view->stages(),
             'strategies' => $this->view->strategies(), 'encounter' => $encounter,
             'character' => $player['character'], 'abilities' => $player['abilities'], 'equipment' => $player['equipment'],

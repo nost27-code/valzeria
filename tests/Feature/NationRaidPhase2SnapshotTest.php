@@ -285,7 +285,7 @@ class NationRaidPhase2SnapshotTest extends TestCase
         $this->assertSame($before, $character->fresh()->only(['current_hp', 'current_mp']));
         $provider = app(NationRaidPassiveBossActionProfileProvider::class);
         $this->assertSame(
-            'current-boss-passive-probe-v4-valgreid-dragon-killer',
+            'current-boss-passive-probe-v5-astragia-machine-killer',
             $provider->modelVersion(),
         );
         $this->assertFalse($provider->authoritativeForBalanceGate());
@@ -383,7 +383,7 @@ class NationRaidPhase2SnapshotTest extends TestCase
         $this->assertSame($before, $character->fresh()->only(['current_hp', 'current_mp']));
     }
 
-    public function test_turn_by_turn_bridge_applies_equipped_dragon_resistance_to_raid_damage(): void
+    public function test_turn_by_turn_bridge_applies_equipped_machine_resistance_to_raid_damage(): void
     {
         $now = CarbonImmutable::parse('2026-09-02 12:00:00', 'Asia/Tokyo');
         $job = JobClass::query()->create([
@@ -392,7 +392,7 @@ class NationRaidPhase2SnapshotTest extends TestCase
         $character = $this->character(User::factory()->create(['role' => 'user']), '耐性橋渡し対象', $job, $now);
         $character->update(['hp_base' => 1_000_000_000, 'current_hp' => 1_000_000_000]);
         $armor = Item::query()->create([
-            'name' => '竜耐性橋渡し鎧',
+            'name' => '機械耐性橋渡し鎧',
             'type' => 'armor',
             'armor_rank' => 'G',
             'def_bonus' => 0,
@@ -433,7 +433,7 @@ class NationRaidPhase2SnapshotTest extends TestCase
             0.25,
             $result->battleResult->turns[0]['enemy_damage']['playerDefense']['legacy_reduction_rate'],
         );
-        $this->assertContains('有効防御：竜耐性 -25%', $result->playerBattleLogs);
+        $this->assertContains('有効防御：機械耐性 -25%', $result->playerBattleLogs);
     }
 
     public function test_turn_by_turn_bridge_selects_transmute_in_raid_window_without_leaking_resource_slow_to_boss_actor(): void

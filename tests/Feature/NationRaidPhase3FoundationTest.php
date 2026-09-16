@@ -55,7 +55,7 @@ final class NationRaidPhase3FoundationTest extends TestCase
     {
         $service = app(NationRaidEventService::class);
         $event = $service->createDraft('legacy-hp-contract', '旧HP検証', now()->addDays(4));
-        $snapshot = $event->ruleset_snapshot;
+        $snapshot = app(NationRaidRules::class)->previousNextCycleRulesetSnapshot();
         $snapshot['version'] = 'nation-raid-phase1-v4-equipment-resistance';
         unset($snapshot['raid_cycle']);
         foreach ($snapshot['stages'] as &$stage) {

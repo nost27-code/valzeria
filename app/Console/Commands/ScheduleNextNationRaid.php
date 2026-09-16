@@ -16,10 +16,6 @@ use Illuminate\Support\Facades\Log;
 
 final class ScheduleNextNationRaid extends Command
 {
-    private const EVENT_NAME = '国家対抗レイド 黒天竜ヴァルグレイド';
-
-    private const BOSS_NAME = '十系喰らいの黒天竜 ヴァルグレイド';
-
     protected $signature = 'nation-raid:schedule-next
         {--event-key= : 次回開催を識別するevent key}
         {--starts-at= : 開始日時（Y-m-d H:i、app timezone）}
@@ -67,7 +63,7 @@ final class ScheduleNextNationRaid extends Command
                     return $event;
                 }
 
-                $event = $service->createDraft($eventKey, self::EVENT_NAME, $startsAt, self::BOSS_NAME);
+                $event = $service->createDraft($eventKey, NationRaidRules::EVENT_NAME, $startsAt, NationRaidRules::BOSS_NAME);
                 $event = $service->approveBalance($event, $admin, $reference);
 
                 return $service->schedule($event, now());
@@ -123,8 +119,8 @@ final class ScheduleNextNationRaid extends Command
             $event->status === NationRaidEvent::STATUS_SCHEDULED
                 && $event->announced_at !== null
                 && $event->balance_approved_at !== null
-                && $event->name === self::EVENT_NAME
-                && $event->boss_name === self::BOSS_NAME
+                && $event->name === NationRaidRules::EVENT_NAME
+                && $event->boss_name === NationRaidRules::BOSS_NAME
                 && $event->starts_at->eq($startsAt)
                 && $event->ends_at->eq($startsAt->addHours($durationHours))
                 && (int) $event->balance_approved_by_user_id === (int) $admin->id
