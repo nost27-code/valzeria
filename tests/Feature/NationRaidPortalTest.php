@@ -15,7 +15,9 @@ use App\Services\Nation\Raid\NationRaidEventService;
 use App\Services\Nation\Raid\NationRaidPortalService;
 use App\Services\Nation\Raid\NationRaidRankingService;
 use App\Services\Nation\Raid\NationRaidRewardPolicy;
+use App\Services\Nation\Raid\NationRaidRules;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
@@ -88,6 +90,51 @@ final class NationRaidPortalTest extends TestCase
 
         $this->actingAs($character->user)->get(route('nation-raid.index'))
             ->assertRedirect(route('nation-raid.top', $active));
+    }
+
+    public function test_scheduled_boss_identity_is_hidden_until_start_and_revealed_automatically_at_start(): void
+    {
+        $character = $this->character();
+        $service = app(NationRaidEventService::class);
+        $event = $service->createDraft(
+            'portal-hidden-next',
+            NationRaidRules::EVENT_NAME,
+            now()->addDays(4),
+            NationRaidRules::BOSS_NAME,
+        );
+        $event = $service->approveBalance($event, User::factory()->create(['role' => 'admin']), 'test fixture only');
+        $event = $service->schedule($event, now());
+        $this->actingAs($character->user);
+
+        foreach (['top', 'rankings', 'rewards'] as $page) {
+            $this->get(route('nation-raid.'.$page, $event))->assertOk()
+                ->assertSee('次回レイド準備中')
+                ->assertDontSee('アストラギア')
+                ->assertDontSee('天墜機神')
+                ->assertDontSee('機械')
+                ->assertDontSee('astragia_form_', false);
+        }
+        $this->get(route('nation-raid.top', $event))->assertSee('正体不明のレイドボス');
+        $this->get(route('nation-raid.rewards', $event))
+            ->assertSee('固有称号（詳細は開戦時に公開）')
+            ->assertDontSee('天墜機神を穿つ者')
+            ->assertDontSee('天墜機神討滅の功臣');
+
+        $homeBefore = Blade::render('<x-nation-raid-home-spotlight />');
+        $this->assertStringContainsString('次回レイド準備中', $homeBefore);
+        $this->assertStringNotContainsString('アストラギア', $homeBefore);
+        $this->assertStringNotContainsString('astragia_form_', $homeBefore);
+
+        $this->travelTo($event->starts_at);
+        $this->get(route('nation-raid.top', $event))->assertOk()
+            ->assertSee(NationRaidRules::EVENT_NAME)
+            ->assertSee(NationRaidRules::BOSS_NAME);
+        $event = $service->activate($event->fresh());
+        $this->get(route('nation-raid.top', $event))->assertOk()->assertSee('astragia_form_01.webp', false);
+        $this->get(route('nation-raid.rankings', $event))->assertOk()->assertSee(NationRaidRules::EVENT_NAME);
+        $this->get(route('nation-raid.rewards', $event))->assertOk()
+            ->assertSee('天墜機神を穿つ者')
+            ->assertSee('天墜機神討滅の功臣');
     }
 
     public function test_rankings_include_coordination_keep_ties_and_highlight_frozen_nation(): void

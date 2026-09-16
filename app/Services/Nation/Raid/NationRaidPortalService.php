@@ -20,11 +20,13 @@ final readonly class NationRaidPortalService
         private NationRaidPreparationService $preparations,
         private NationRaidReconstructionService $reconstruction,
         private NationRaidOutcomeService $outcomes,
+        private NationRaidPublicIdentityService $publicIdentities,
     ) {}
 
     public function build(NationRaidEvent $event, Character $character): array
     {
         $at = now();
+        $publicIdentity = $this->publicIdentities->forEvent($event);
         $canPrepare = false;
         try {
             $this->sorties->assertAdmission($event);
@@ -38,6 +40,7 @@ final readonly class NationRaidPortalService
             $event->status === NationRaidEvent::STATUS_SCHEDULED
                 && is_array($event->ruleset_snapshot['raid_cycle'] ?? null)
                 && $at->gte($this->preparations->preparationStartsAt($event)) => 'レイド兵站準備中',
+            ! $publicIdentity['revealed'] => NationRaidPublicIdentityService::PREPARING_STATUS_LABEL,
             $event->status === NationRaidEvent::STATUS_SCHEDULED => '開催予告',
             $event->ends_at->lte($at) => '出撃受付終了',
             $event->sorties_paused_at !== null => '出撃一時停止',
@@ -84,10 +87,14 @@ final readonly class NationRaidPortalService
         if ($cycle?->cycle_kind === NationRaidBossCycle::KIND_ECHO) {
             $encounter['stage_name'] = '残響';
         }
+        if (! $publicIdentity['revealed']) {
+            $encounter = null;
+        }
         $preparation = $this->preparations->forCharacter($event, $character);
 
         return [
             'status_label' => $status, 'can_prepare' => $canPrepare, 'encounter' => $encounter,
+            'public_identity' => $publicIdentity,
             'hp_percent' => $cycle !== null && $cycle->max_hp > 0 ? round(100 * $cycle->current_hp / $cycle->max_hp, 2) : 0,
             'as_of' => $at->format('n/j H:i'), 'standings' => $standings, 'nations' => $nations,
             'own_nation' => $ownNation,

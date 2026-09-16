@@ -6,7 +6,7 @@
                 <span class="font-bold text-sky-800">{{ $portal['status_label'] }}</span>
                 <span>{{ $event->starts_at->format('n/j H:i') }} 〜 {{ $event->ends_at->format('n/j H:i') }}</span>
             </div>
-            <h1 class="mt-2 break-words text-xl font-black text-slate-900">{{ $event->name }}</h1>
+            <h1 class="mt-2 break-words text-xl font-black text-slate-900">{{ $portal['public_identity']['event_name'] }}</h1>
         </header>
         @if($portal['preparation'])
             <section class="rounded-2xl border border-indigo-200 bg-indigo-50 p-4 sm:p-5" aria-label="レイド兵站準備度" data-raid-logistics-readiness>
@@ -46,10 +46,10 @@
             @if($portal['encounter'])
                 @php($encounter = $portal['encounter'])
                 <div class="grid items-center gap-4 sm:grid-cols-[14rem_minmax(0,1fr)]">
-                    <img src="{{ asset($encounter['form']['image_path']) }}" alt="{{ $event->boss_name }} {{ $encounter['form']['ordinal'] }}" width="256" height="256" class="mx-auto h-48 w-48 object-contain sm:h-56 sm:w-56">
+                    <img src="{{ asset($encounter['form']['image_path']) }}" alt="{{ $portal['public_identity']['boss_name'] }} {{ $encounter['form']['ordinal'] }}" width="256" height="256" class="mx-auto h-48 w-48 object-contain sm:h-56 sm:w-56">
                     <div class="min-w-0">
                         <p class="text-xs font-bold text-sky-800">第{{ $encounter['stage'] }} / {{ $event->stage_count }}再臨《{{ $encounter['stage_name'] }}》</p>
-                        <h2 class="mt-2 text-base font-black leading-relaxed text-slate-900">{{ $event->boss_name }}</h2>
+                        <h2 class="mt-2 text-base font-black leading-relaxed text-slate-900">{{ $portal['public_identity']['boss_name'] }}</h2>
                         <p class="mt-1 text-xs text-slate-600">{{ $encounter['form']['ordinal'] }}《{{ $encounter['form']['name'] }}》</p>
                         <dl class="mt-4">
                             <dt class="text-xs font-bold text-slate-500">ボスの残りHP</dt>
@@ -62,8 +62,8 @@
                     </div>
                 </div>
             @else
-                <h2 class="font-black text-slate-900">{{ $event->boss_name }}</h2>
-                <p class="mt-2 text-sm text-slate-600">ボスの戦況を確認中です。</p>
+                <h2 class="font-black text-slate-900">{{ $portal['public_identity']['boss_name'] }}</h2>
+                <p class="mt-2 text-sm text-slate-600">{{ $portal['public_identity']['revealed'] ? 'ボスの戦況を確認中です。' : 'その姿と特徴は、開戦時に明らかになります。' }}</p>
             @endif
         </section>
         <section aria-label="レイドの行き先" class="grid gap-3 sm:grid-cols-3">

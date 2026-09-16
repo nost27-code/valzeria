@@ -13,18 +13,18 @@
         </nav>
 
         <header class="border-b border-slate-200 pb-5">
-            <p class="text-sm font-bold text-sky-800">開催準備中 <span class="ml-2 font-normal text-slate-500">{{ $startsAtLabel }}開始予定</span></p>
-            <h1 class="mt-2 text-xl font-black leading-relaxed text-slate-900">{{ $bossName }}</h1>
-            <p class="mt-2 text-sm leading-relaxed text-slate-600">天墜機神との決戦に備えよう。現在は事前案内のみ公開しています。</p>
+            <p class="text-sm font-bold text-sky-800">次回レイド準備中 <span class="ml-2 font-normal text-slate-500">{{ $startsAtLabel }}開始予定</span></p>
+            <h1 class="mt-2 text-xl font-black leading-relaxed text-slate-900">{{ $publicIdentity['boss_name'] }}</h1>
+            <p class="mt-2 text-sm leading-relaxed text-slate-600">遠方に強大な気配が現れています。その正体は、開戦時に明らかになります。</p>
         </header>
 
         @if($page === 'top')
             <section aria-label="レイドボスの紹介" class="text-center">
-                <img src="{{ asset($bossImage) }}" alt="第一形態のアストラギア" width="320" height="320" class="mx-auto h-64 w-64 max-w-full object-contain sm:h-80 sm:w-80">
-                <h2 class="mt-4 text-lg font-black text-slate-900">国の仲間と、全冒険者と。天墜機神に挑もう。</h2>
-                <p class="mt-3 text-sm leading-loose text-slate-600">全プレイヤーで一体のボスのHPを削り、各国の総ダメージを競う討伐戦。<br class="hidden sm:block">倒れるたびに再臨する天墜機神へ、仲間と力を合わせて立ち向かおう。</p>
+                <div class="mx-auto flex h-64 w-64 max-w-full items-center justify-center rounded-full border border-slate-300 bg-slate-900 text-7xl font-black text-slate-100 shadow-inner sm:h-80 sm:w-80" aria-hidden="true">？</div>
+                <h2 class="mt-4 text-lg font-black text-slate-900">国の仲間と、全冒険者と。次の脅威に備えよう。</h2>
+                <p class="mt-3 text-sm leading-loose text-slate-600">全プレイヤーで一体のボスのHPを削り、各国の総ダメージを競う討伐戦。<br class="hidden sm:block">姿を現すその時まで、装備と戦技を整えて開戦を待とう。</p>
                 <div class="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
-                    <button type="button" @click="$refs.preparing.showModal()" aria-haspopup="dialog" class="min-h-12 rounded-xl bg-slate-800 px-6 py-3 text-sm font-bold text-white hover:bg-slate-700">アストラギアに挑む <span class="ml-1 text-xs font-normal">準備中</span></button>
+                    <button type="button" @click="$refs.preparing.showModal()" aria-haspopup="dialog" class="min-h-12 rounded-xl bg-slate-800 px-6 py-3 text-sm font-bold text-white hover:bg-slate-700">開戦を待つ <span class="ml-1 text-xs font-normal">準備中</span></button>
                     <a href="{{ route('nation-raid.preview', ['page' => 'rewards']) }}" class="flex min-h-12 items-center justify-center rounded-xl border border-slate-300 bg-white px-6 py-3 text-sm font-bold text-sky-800 hover:bg-slate-50">予定報酬を見る</a>
                 </div>
             </section>
@@ -63,7 +63,7 @@
 
         <dialog x-ref="preparing" class="m-auto w-[calc(100%-2rem)] max-w-sm rounded-2xl border border-slate-200 bg-white p-6 text-slate-900 shadow-xl backdrop:bg-slate-900/40" aria-labelledby="raid-preparing-title" aria-describedby="raid-preparing-description" data-raid-preparing-dialog>
             <h2 id="raid-preparing-title" class="text-lg font-black">開催準備中</h2>
-            <p id="raid-preparing-description" class="mt-3 text-sm leading-relaxed text-slate-600">天墜機神との戦いは、まだ始まっていません。開戦の知らせをお待ちください。</p>
+            <p id="raid-preparing-description" class="mt-3 text-sm leading-relaxed text-slate-600">次回レイドは、まだ始まっていません。ボスの正体は開戦時に公開されます。</p>
             <p class="mt-2 text-xs text-slate-500">探索力は消費されません。</p>
             <form method="dialog" class="mt-5"><button type="submit" class="min-h-11 w-full rounded-lg bg-slate-800 px-4 py-2 text-sm font-bold text-white" autofocus>閉じる</button></form>
         </dialog>

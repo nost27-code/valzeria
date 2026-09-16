@@ -49,8 +49,10 @@ final class NationRaidPreviewTest extends TestCase
         $this->get(route('nation-raid.index'))->assertRedirect(route('nation-raid.preview'));
         foreach (['top', 'rewards', 'rankings'] as $page) {
             $this->get(route('nation-raid.preview', ['page' => $page]))->assertOk()
-                ->assertSee('開催準備中')->assertSee('9/25 9:00開始予定')
-                ->assertSee('十系を模す天墜機神 アストラギア')
+                ->assertSee('次回レイド準備中')->assertSee('9/25 9:00開始予定')
+                ->assertSee('正体不明のレイドボス')
+                ->assertDontSee('アストラギア')->assertDontSee('天墜機神')->assertDontSee('機械')
+                ->assertDontSee('astragia_form_', false)
                 ->assertDontSee('method="POST"', false)->assertDontSee('name="battle_token"', false)
                 ->assertDontSee('data-raid-claim-button', false)->assertDontSee('role="progressbar"', false);
         }
@@ -59,6 +61,9 @@ final class NationRaidPreviewTest extends TestCase
         $this->assertStringContainsString(route('nation-raid.preview'), $html);
         $this->assertStringContainsString('9/25 9:00開始予定', $html);
         $this->assertStringNotContainsString('開催中', $html);
+        $this->assertStringNotContainsString('アストラギア', $html);
+        $this->assertStringNotContainsString('天墜機神', $html);
+        $this->assertStringNotContainsString('astragia_form_', $html);
         $this->assertNull(app(NationRaidEntryService::class)->activeEvent());
         $this->assertSame([], $unexpected);
         $this->assertSame($before, $character->fresh()->getAttributes());
@@ -84,7 +89,8 @@ final class NationRaidPreviewTest extends TestCase
         $response = $this->actingAs($this->character()->user)->get(route('nation-raid.preview', ['page' => 'rewards']))->assertOk()
             ->assertSee('予定報酬一覧')->assertSee('有効出撃5回')->assertSee('有効出撃15回')
             ->assertSee('経験の護符')->assertSee('無償輝石 ×3')->assertSee('500万ダメージ')
-            ->assertSee('称号・順位報酬')->assertSee('天墜機神を穿つ者')->assertSee('天墜機神討滅の功臣')
+            ->assertSee('称号・順位報酬')->assertSee('固有称号（詳細は開戦時に公開）')
+            ->assertDontSee('天墜機神を穿つ者')->assertDontSee('天墜機神討滅の功臣')
             ->assertDontSee('黒天竜を穿つ者')->assertDontSee('黒天竜討滅の功臣')
             ->assertDontSee('data-raid-claim-button', false);
         $this->assertSame(16, substr_count($response->getContent(), 'data-reward-state="preview"'));

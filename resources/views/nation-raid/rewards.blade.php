@@ -5,7 +5,10 @@
             <a href="{{ route('nation-raid.history') }}" class="mb-3 inline-flex min-h-11 items-center gap-2 text-sm font-bold text-sky-800 underline underline-offset-4">
                 <img src="{{ asset('images/icon/icon_012.webp') }}" alt="" width="24" height="24" class="h-6 w-6 object-contain">過去の戦果・未受取報酬
             </a>
-            <h1 class="text-xl font-black leading-relaxed text-slate-900">{{ $event->name }}</h1>
+            <h1 class="text-xl font-black leading-relaxed text-slate-900">{{ $rewardScreen['public_identity']['event_name'] }}</h1>
+            @unless($rewardScreen['public_identity']['revealed'])
+                <p class="mt-2 text-sm font-bold text-sky-800">次回レイド準備中</p>
+            @endunless
             <p class="mt-2 text-sm text-slate-600">{{ $event->starts_at->format('Y/n/j') }} 〜 {{ $event->ends_at->format('Y/n/j') }}</p>
         </header>
         @if(session('success'))<p role="status" class="text-sm text-emerald-700">{{ session('success') }}</p>@endif

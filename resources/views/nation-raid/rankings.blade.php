@@ -3,7 +3,7 @@
         @include('nation-raid.partials.navigation', ['eventId' => $event->id, 'active' => 'rankings', 'finished' => $event->status === 'completed'])
         <header class="border-b border-slate-200 pb-4">
             <p class="text-xs font-bold text-sky-800">{{ $portal['status_label'] }}</p>
-            <h1 class="mt-2 break-words text-xl font-black text-slate-900">{{ $event->name }}</h1>
+            <h1 class="mt-2 break-words text-xl font-black text-slate-900">{{ $portal['public_identity']['event_name'] }}</h1>
         </header>
         <section aria-labelledby="raid-nation-ranking-heading">
             <div class="flex flex-wrap items-baseline justify-between gap-2">

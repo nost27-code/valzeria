@@ -11,7 +11,11 @@ use Illuminate\Support\Collection;
 /** 報酬目標の読み取り専用表示。達成見込みから受取権利を作成しない。 */
 final readonly class NationRaidRewardScreenService
 {
-    public function __construct(private NationRaidRewardPolicy $policies, private NationRaidPersonalRewardCatalog $catalog) {}
+    public function __construct(
+        private NationRaidRewardPolicy $policies,
+        private NationRaidPersonalRewardCatalog $catalog,
+        private NationRaidPublicIdentityService $publicIdentities,
+    ) {}
 
     /** 現行候補の案内のみ。仮のイベントはメモリ上だけで、権利・進捗を生成しない。 */
     public function preview(): array
@@ -34,7 +38,10 @@ final readonly class NationRaidRewardScreenService
             ];
         }
 
+        $groups = $this->concealBossSpecificHonors($groups);
+
         return ['groups' => $groups, 'minimum_sorties' => $policy['minimum_resolved_sorties'],
+            'public_identity' => $this->publicIdentities->preparing(),
             'participation_minimum_sorties' => $this->catalog->participationMinimum($policy)];
     }
 
@@ -86,6 +93,9 @@ final readonly class NationRaidRewardScreenService
             ];
         }
 
+        if (! $this->publicIdentities->isRevealed($event)) {
+            $rows = array_map(fn (array $row): array => $this->concealBossSpecificHonor($row), $rows);
+        }
         $groups = [];
         foreach (['participation' => '参加報酬', 'damage' => '個人ダメージ報酬', 'server' => '全体討伐報酬', 'honor' => '称号・順位報酬'] as $key => $label) {
             $groups[$key] = ['label' => $label, 'rows' => array_values(array_filter($rows, fn (array $row) => $row['group'] === $key))];
@@ -93,6 +103,7 @@ final readonly class NationRaidRewardScreenService
         $nextDamage = collect($rows)->first(fn (array $row) => $row['group'] === 'damage' && $row['remaining'] > 0);
 
         return ['rows' => $rows, 'groups' => $groups, 'next_damage_goal' => $nextDamage,
+            'public_identity' => $this->publicIdentities->forEvent($event),
             'own_progress' => $own, 'minimum_sorties' => $minimum,
             'immediate_rewards_enabled' => ($event->ruleset_snapshot['version'] ?? null) === NationRaidRules::RULESET_VERSION,
             'participation_minimum_sorties' => $this->catalog->participationMinimum($policy),
@@ -159,5 +170,40 @@ final readonly class NationRaidRewardScreenService
         }
 
         return $contents;
+    }
+
+    /** @param array<string, array{label:string,rows:array}> $groups */
+    private function concealBossSpecificHonors(array $groups): array
+    {
+        foreach ($groups as &$group) {
+            $group['rows'] = array_map(fn (array $row): array => $this->concealBossSpecificHonor($row), $group['rows']);
+        }
+        unset($group);
+
+        return $groups;
+    }
+
+    private function concealBossSpecificHonor(array $row): array
+    {
+        if (! in_array($row['key'], ['damage2m', 'personal_top3'], true)) {
+            return $row;
+        }
+
+        $row['label'] = '固有称号';
+        if ($row['key'] === 'personal_top3') {
+            $row['display_label'] = '個人累計ダメージ2〜3位の称号';
+        }
+        $row['items'] = array_map(static function (array $item): array {
+            if (str_starts_with((string) ($item['label'] ?? ''), '称号「')) {
+                $item['label'] = '固有称号（詳細は開戦時に公開）';
+            }
+
+            return $item;
+        }, $row['items']);
+        if (array_key_exists('contents', $row)) {
+            $row['contents'] = array_column($row['items'], 'label');
+        }
+
+        return $row;
     }
 }
