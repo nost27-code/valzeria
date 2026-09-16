@@ -175,7 +175,7 @@ class NationRaidSortieTest extends TestCase
         $this->assertGreaterThan(0, $result->applied_damage_total);
         $this->assertSame(250, $character->fresh()->explore_stamina);
         $this->assertSame(1, NationRaidDailyUsage::query()->sole()->used_count);
-        $this->assertSame(10_000_000 - $result->applied_damage_total, NationRaidBossCycle::query()->sole()->current_hp);
+        $this->assertSame(30_000_000 - $result->applied_damage_total, NationRaidBossCycle::query()->sole()->current_hp);
         $this->assertSame($result->id, $service->fight($event, $character, 'assault', $token)->id);
         $this->assertSame(250, $character->fresh()->explore_stamina);
         $this->assertSame(1, NationRaidBattleResult::query()->count());
@@ -190,7 +190,7 @@ class NationRaidSortieTest extends TestCase
         $this->assertSame($result->max_action_damage, $telemetry->max_action_damage);
         $this->assertSame('per_sortie_virtual_hp', $telemetry->event_snapshot['turn_hp_basis']);
         $this->assertSame(100_000, $telemetry->turns[0]['boss_hp_before']);
-        $this->assertSame(10_000_000, $telemetry->boss_hp_before);
+        $this->assertSame(30_000_000, $telemetry->boss_hp_before);
         $this->assertSame($result->summary['admission']['player']['abilities']['max_hp'], $telemetry->turns[0]['player_hp_before']);
         $this->assertNotContains('phase4_turn_metrics_not_adapted', $telemetry->quality_flags);
         $this->assertNotContains('player_turn_observation_missing', $telemetry->quality_flags);
@@ -286,7 +286,7 @@ class NationRaidSortieTest extends TestCase
             $result = app(NationRaidSortieService::class)->fight($event, $character, 'assault', bin2hex(random_bytes(32)));
             $this->assertSame('resolved', $result->fresh()->status);
             $this->assertSame(250, $character->fresh()->explore_stamina);
-            $this->assertSame(10_000_000 - $result->applied_damage_total, NationRaidBossCycle::query()->sole()->current_hp);
+            $this->assertSame(30_000_000 - $result->applied_damage_total, NationRaidBossCycle::query()->sole()->current_hp);
             $this->assertSame(0, NationRaidBattleTelemetryLog::query()->count());
         } finally {
             \Illuminate\Support\Facades\DB::statement('DROP TRIGGER IF EXISTS force_raid_observation_insert_failure');
@@ -301,23 +301,23 @@ class NationRaidSortieTest extends TestCase
         [$a] = app(NationRaidSortieService::class)->start($event, $first, 'assault', bin2hex(random_bytes(32)));
         [$b] = app(NationRaidSortieService::class)->start($event, $second, 'assault', bin2hex(random_bytes(32)));
         $settlement = app(NationRaidSettlementService::class);
-        $a = $settlement->resolve($a, $this->calculation($a, 320_000_100));
+        $a = $settlement->resolve($a, $this->calculation($a, 420_000_100));
         $this->assertSame(10, $event->fresh()->current_cycle_no);
         $this->assertNotNull($event->fresh()->stage10_reached_at);
-        $this->assertSame(199_999_900, $event->fresh()->cycles()->where('cycle_no', 10)->sole()->current_hp);
-        $b = $settlement->resolve($b, $this->calculation($b, 6_600_000_900));
+        $this->assertSame(99_999_900, $event->fresh()->cycles()->where('cycle_no', 10)->sole()->current_hp);
+        $b = $settlement->resolve($b, $this->calculation($b, 3_100_000_900));
         $this->assertSame(1, $b->target_cycle_no);
         $this->assertSame(10, $b->damage_segments[0]['cycle_no']);
         $this->assertSame(21, $event->fresh()->current_cycle_no);
         $this->assertNotNull($event->fresh()->completed_at);
-        $this->assertSame(999_999_000, $event->fresh()->cycles()->where('cycle_no', 21)->sole()->current_hp);
+        $this->assertSame(499_999_000, $event->fresh()->cycles()->where('cycle_no', 21)->sole()->current_hp);
         $this->assertSame(20, $event->fresh()->cycles()->where('cycle_kind', 'main')->count());
-        $this->assertSame(6_920_001_000, $a->applied_damage_total + $b->applied_damage_total);
+        $this->assertSame(3_520_001_000, $a->applied_damage_total + $b->applied_damage_total);
         $this->assertSame($b->applied_damage_total, array_sum(array_column($b->damage_segments, 'damage')));
         $this->assertSame(0, $b->summary['display']['boss_remaining_hp']);
         $completed = $event->fresh()->completed_at->toIso8601String();
         [$echo] = app(NationRaidSortieService::class)->start($event, $first, 'assault', bin2hex(random_bytes(32)));
-        $echo = $settlement->resolve($echo, $this->calculation($echo, 1_000_000_000));
+        $echo = $settlement->resolve($echo, $this->calculation($echo, 500_000_000));
         $this->assertNull($echo->target_stage_no);
         $this->assertSame(1, $event->fresh()->echo_defeated_count);
         $this->assertSame(22, $event->fresh()->current_cycle_no);
@@ -330,8 +330,8 @@ class NationRaidSortieTest extends TestCase
     {
         $character = $this->character();
         $event = $this->event();
-        $expectedMaxHp = [20_000_000, 200_000_000, 500_000_000, 1_000_000_000, 1_000_000_000];
-        foreach ([40_000_000, 80_000_000, 800_000_000, 2_000_000_000, 4_000_000_000] as $index => $damage) {
+        $expectedMaxHp = [50_000_000, 100_000_000, 200_000_000, 500_000_000, 500_000_000];
+        foreach ([120_000_000, 200_000_000, 400_000_000, 800_000_000, 2_000_000_000] as $index => $damage) {
             [$battle] = app(NationRaidSortieService::class)->start($event, $character, 'boss_set', bin2hex(random_bytes(32)));
             $resolved = app(NationRaidSettlementService::class)->resolve($battle, $this->calculation($battle, $damage));
             $current = $event->cycles()->where('cycle_no', $event->fresh()->current_cycle_no)->sole();
@@ -342,7 +342,7 @@ class NationRaidSortieTest extends TestCase
             $this->assertSame($current->max_hp, $current->parameter_snapshot['boss']['max_hp']);
         }
         $this->assertNotNull($event->fresh()->completed_at);
-        $this->assertSame(6_920_000_000, (int) $event->cycles()->where('cycle_kind', 'main')->sum('max_hp'));
+        $this->assertSame(3_520_000_000, (int) $event->cycles()->where('cycle_kind', 'main')->sum('max_hp'));
     }
 
     public function test_error_refunds_stamina_and_daily_usage_exactly_once_without_damage(): void
@@ -357,7 +357,7 @@ class NationRaidSortieTest extends TestCase
         $this->assertSame(250, $character->fresh()->explore_stamina);
         $this->assertSame(0, NationRaidDailyUsage::query()->sole()->used_count);
         $this->assertSame(1, NationRaidDailyUsage::query()->sole()->refunded_count);
-        $this->assertSame(10_000_000, NationRaidBossCycle::query()->sole()->current_hp);
+        $this->assertSame(30_000_000, NationRaidBossCycle::query()->sole()->current_hp);
         $this->assertSame(0, $result->participation->resolved_sorties);
         $this->assertSame(0, NationRaidBattleTelemetryLog::query()->count());
         app(NationRaidSettlementService::class)->refund($result);
@@ -439,20 +439,21 @@ class NationRaidSortieTest extends TestCase
         $event = $this->event();
         $rules = app(NationRaidRules::class);
         $events = app(NationRaidEventService::class);
-        $snapshot = $event->ruleset_snapshot;
-        $snapshot['version'] = 'nation-raid-v6-live-staged-hp';
-        $snapshot['fixed']['coordination_damage_rates'] = [
-            2 => 0.03, 3 => 0.06, 4 => 0.09, 5 => 0.12,
-        ];
-        unset($snapshot['raid_cycle']);
+        $snapshot = $rules->previousLiveHpRulesetSnapshot();
         $oldHash = hash('sha256', NationRaidJson::encode($snapshot, JSON_UNESCAPED_UNICODE));
         $event->update([
             'ruleset_version' => $snapshot['version'],
             'ruleset_snapshot' => $snapshot,
             'ruleset_hash' => $oldHash,
+            'cycle_max_hp' => 10_000_000,
+            'total_target_hp' => 6_920_000_000,
         ]);
         $cycle = $event->cycles()->sole();
-        $cycle->update(['parameter_snapshot' => $events->cycleParameterSnapshot(1, $event->fresh())]);
+        $cycle->update([
+            'max_hp' => 10_000_000,
+            'current_hp' => 10_000_000,
+            'parameter_snapshot' => $events->cycleParameterSnapshot(1, $event->fresh()),
+        ]);
 
         foreach (range(1, 20) as $index) {
             $supporter = NationRaidParticipation::create([
@@ -483,8 +484,14 @@ class NationRaidSortieTest extends TestCase
             'ruleset_version' => NationRaidRules::RULESET_VERSION,
             'ruleset_snapshot' => $rules->rulesetSnapshot(),
             'ruleset_hash' => $rules->rulesetHash(),
+            'cycle_max_hp' => $rules->stageMaxHp(1),
+            'total_target_hp' => $rules->totalTargetHp(),
         ]);
-        $cycle->update(['parameter_snapshot' => $events->cycleParameterSnapshot(1, $event->fresh())]);
+        $cycle->update([
+            'max_hp' => $rules->stageMaxHp(1),
+            'current_hp' => $rules->stageMaxHp(1),
+            'parameter_snapshot' => $events->cycleParameterSnapshot(1, $event->fresh()),
+        ]);
 
         $oldResolved = app(NationRaidSettlementService::class)->resolve(
             $oldBattle, $this->calculation($oldBattle, 1_000));
@@ -523,7 +530,7 @@ class NationRaidSortieTest extends TestCase
         $this->travel(10)->minutes();
         $this->assertSame(1, app(NationRaidSettlementService::class)->recoverExpired()['refunded']);
         $this->assertSame('refunded', $b->fresh()->status);
-        $this->assertSame(9_999_900, NationRaidBossCycle::query()->sole()->current_hp);
+        $this->assertSame(29_999_900, NationRaidBossCycle::query()->sole()->current_hp);
     }
 
     public function test_official_http_is_owner_scoped_persistent_and_prg_with_no_trial_labels(): void
@@ -674,7 +681,7 @@ class NationRaidSortieTest extends TestCase
         $this->assertSame(3, $battle->settlement_attempts);
         $this->assertSame([1, 2], $runner->waits);
         $this->assertSame([$beforeLevel, $beforeLevel], $runner->waitLevels);
-        $this->assertSame(10_000_000 - $battle->applied_damage_total, NationRaidBossCycle::query()->sole()->current_hp);
+        $this->assertSame(30_000_000 - $battle->applied_damage_total, NationRaidBossCycle::query()->sole()->current_hp);
         $this->assertSame(250, $character->fresh()->explore_stamina);
         $this->assertSame(1, $battle->participation->resolved_sorties);
         $this->assertSame(1, NationRaidBattleTelemetryLog::query()->count());
@@ -691,7 +698,7 @@ class NationRaidSortieTest extends TestCase
         $battle = app(NationRaidSortieService::class)->fight($event, $character, 'assault', bin2hex(random_bytes(32)));
         $this->assertSame('started', $battle->status);
         $this->assertSame([1, 2, 1, 2], $runner->waits);
-        $this->assertSame(10_000_000, NationRaidBossCycle::query()->sole()->current_hp);
+        $this->assertSame(30_000_000, NationRaidBossCycle::query()->sole()->current_hp);
         $this->assertSame(250, $character->fresh()->explore_stamina);
         $this->assertSame(0, $battle->participation->resolved_sorties);
         $this->assertSame(0, NationRaidBattleTelemetryLog::query()->count());
@@ -733,7 +740,7 @@ class NationRaidSortieTest extends TestCase
         $this->assertSame(250, $character->fresh()->explore_stamina);
         $this->assertSame(1, NationRaidDailyUsage::query()->sole()->used_count);
         $this->assertSame(0, NationRaidDailyUsage::query()->sole()->refunded_count);
-        $this->assertSame(10_000_000 - $battle->applied_damage_total, NationRaidBossCycle::query()->sole()->current_hp);
+        $this->assertSame(30_000_000 - $battle->applied_damage_total, NationRaidBossCycle::query()->sole()->current_hp);
         $this->assertSame($battle->id, $service->fight($event, $character, 'assault', $token)->id);
         $this->assertSame(1, $battle->participation->resolved_sorties);
     }

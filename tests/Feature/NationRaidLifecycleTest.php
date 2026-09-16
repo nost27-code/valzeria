@@ -63,7 +63,7 @@ final class NationRaidLifecycleTest extends TestCase
         $this->assertSame(0, $lifecycle->advanceDue()['started']);
         $this->assertSame($saved, $event->fresh()->getRawOriginal());
         $this->assertDatabaseCount('nation_raid_boss_cycles', 1);
-        $this->assertDatabaseHas('nation_raid_boss_cycles', ['event_id' => $event->id, 'current_hp' => 10_000_000]);
+        $this->assertDatabaseHas('nation_raid_boss_cycles', ['event_id' => $event->id, 'current_hp' => 30_000_000]);
     }
 
     public function test_off_gate_defers_start_and_a_missed_window_never_starts_or_auto_cancels(): void

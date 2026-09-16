@@ -66,7 +66,7 @@ final class NationRaidPortalTest extends TestCase
                 $response->assertDontSee('name="battle_token"', false);
             }
         }
-        $this->get(route('nation-raid.top', $event))->assertSee('10,000,000')->assertSee('第一形態');
+        $this->get(route('nation-raid.top', $event))->assertSee('30,000,000')->assertSee('第一形態');
         $this->get(route('nation-raid.rankings', $event))->assertSee('まだ国家の出撃記録がありません。');
         $this->assertSame([], $writes);
         $this->assertSame($characterBefore, $character->fresh()->getAttributes());

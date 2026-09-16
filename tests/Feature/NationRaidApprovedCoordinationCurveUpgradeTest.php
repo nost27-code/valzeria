@@ -146,22 +146,20 @@ final class NationRaidApprovedCoordinationCurveUpgradeTest extends TestCase
         $event = $events->approveBalance($event, $admin, 'old approved curve');
         $event = $events->activate($events->schedule($event, now()->subHours(72)));
 
-        $snapshot = $event->ruleset_snapshot;
-        $snapshot['version'] = 'nation-raid-v6-live-staged-hp';
-        $snapshot['fixed']['coordination_damage_rates'] = [
-            2 => 0.03, 3 => 0.06, 4 => 0.09, 5 => 0.12,
-        ];
-        unset($snapshot['raid_cycle']);
+        $snapshot = app(NationRaidRules::class)->previousLiveHpRulesetSnapshot();
         $oldHash = hash('sha256', NationRaidJson::encode($snapshot, JSON_UNESCAPED_UNICODE));
         $event->update([
             'ruleset_version' => $snapshot['version'],
             'ruleset_snapshot' => $snapshot,
             'ruleset_hash' => $oldHash,
+            'cycle_max_hp' => 10_000_000,
+            'total_target_hp' => 6_920_000_000,
         ]);
         $cycle = $event->cycles()->sole();
         $cycle->update([
-            'current_hp' => $cycle->max_hp - 123_456,
-            'current_form' => app(NationRaidRules::class)->formForHp($cycle->max_hp - 123_456, $cycle->max_hp),
+            'max_hp' => 10_000_000,
+            'current_hp' => 10_000_000 - 123_456,
+            'current_form' => app(NationRaidRules::class)->formForHp(10_000_000 - 123_456, 10_000_000),
             'parameter_snapshot' => $events->cycleParameterSnapshot(1, $event->fresh()),
         ]);
 

@@ -136,7 +136,7 @@ final readonly class NationRaidApprovedCoordinationCurveUpgradeService
             throw_unless(NationRaidRules::coordinationDamageRate($participants) === $rate,
                 \DomainException::class, 'コード上の共闘ボーナス段階が承認値と一致しません。');
         }
-        throw_unless($this->rules->totalTargetHp() === self::APPROVED_TOTAL_TARGET_HP,
+        throw_unless((int) $this->rules->previousRulesetSnapshot()['fixed']['total_target_hp'] === self::APPROVED_TOTAL_TARGET_HP,
             \DomainException::class, 'コード上の総HPが承認済み値と一致しません。');
     }
 

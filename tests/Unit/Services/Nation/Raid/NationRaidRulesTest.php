@@ -55,10 +55,10 @@ final class NationRaidRulesTest extends TestCase
         $this->assertMatchesRegularExpression('/^[a-f0-9]{64}$/', $this->rules->rulesetHash());
     }
 
-    public function test_twenty_stage_hp_curve_uses_the_approved_live_scale(): void
+    public function test_twenty_stage_hp_curve_uses_the_approved_next_cycle_scale(): void
     {
-        $expected = [...array_fill(0, 4, 10_000_000), ...array_fill(0, 4, 20_000_000),
-            ...array_fill(0, 4, 200_000_000), ...array_fill(0, 4, 500_000_000), ...array_fill(0, 4, 1_000_000_000)];
+        $expected = [...array_fill(0, 4, 30_000_000), ...array_fill(0, 4, 50_000_000),
+            ...array_fill(0, 4, 100_000_000), ...array_fill(0, 4, 200_000_000), ...array_fill(0, 4, 500_000_000)];
         $snapshot = $this->rules->rulesetSnapshot();
         foreach ($expected as $index => $hp) {
             $stage = $index + 1;
@@ -69,8 +69,8 @@ final class NationRaidRulesTest extends TestCase
                     $this->rules->canonicalCycleCurrentHpForForm($form, $stage), $hp));
             }
         }
-        $this->assertSame(6_920_000_000, $this->rules->totalTargetHp());
-        $this->assertSame(6_920_000_000, $snapshot['fixed']['total_target_hp']);
+        $this->assertSame(3_520_000_000, $this->rules->totalTargetHp());
+        $this->assertSame(3_520_000_000, $snapshot['fixed']['total_target_hp']);
     }
 
     public function test_only_the_exact_legacy_hp_only_ruleset_remains_combat_compatible(): void
@@ -78,9 +78,11 @@ final class NationRaidRulesTest extends TestCase
         $legacyHash = '1d681aa8069dabf7a976070378e27c0136ef497b5ace0317f191492619c03dda';
         $previousStagedHash = 'd73d68e2b1985a7307a2dd4d4f033d063b1b94d0921ab5f0546a608d6da1c843';
         $previousLiveHash = '49e40d2a556c6b489b326d36b3c60eb5f75359e7adc2ce73dea0e226762d1973';
+        $previousRulesetHash = '7b83e48027a9a6911fdfce9adc0e2bd2427d89f2d03d026e3fa6f174808320d3';
         $this->assertTrue($this->rules->matchesCombatRulesetHash($legacyHash));
         $this->assertSame($previousStagedHash, $this->rules->previousStagedHpRulesetHash());
         $this->assertSame($previousLiveHash, $this->rules->previousLiveHpRulesetHash());
+        $this->assertSame($previousRulesetHash, $this->rules->previousRulesetHash());
         $this->assertTrue($this->rules->matchesCombatRulesetHash($previousStagedHash));
         $this->assertTrue($this->rules->matchesCombatRulesetHash($previousLiveHash));
         $this->assertTrue($this->rules->matchesCombatRulesetHash($this->rules->rulesetHash()));
@@ -135,10 +137,10 @@ final class NationRaidRulesTest extends TestCase
     public function test_canonical_form_starting_hp_uses_the_same_boundaries(): void
     {
         $expected = [
-            NationRaidRules::FORM_SEALED_SCALE => 10_000_000,
-            NationRaidRules::FORM_SPLIT_WING => 7_000_000,
-            NationRaidRules::FORM_LINEAGE_INVASION => 4_000_000,
-            NationRaidRules::FORM_EXPOSED_CORE => 1_000_000,
+            NationRaidRules::FORM_SEALED_SCALE => 30_000_000,
+            NationRaidRules::FORM_SPLIT_WING => 21_000_000,
+            NationRaidRules::FORM_LINEAGE_INVASION => 12_000_000,
+            NationRaidRules::FORM_EXPOSED_CORE => 3_000_000,
         ];
 
         foreach ($expected as $form => $hp) {
@@ -177,7 +179,7 @@ final class NationRaidRulesTest extends TestCase
             $this->assertSame($image, $actual['image_path']);
         }
 
-        $this->assertSame(10_000_000, NationRaidRules::BOSS_MAX_HP);
+        $this->assertSame(30_000_000, NationRaidRules::BOSS_MAX_HP);
         $this->assertSame('dragon', NationRaidRules::BOSS_SPECIES_KEY);
         $this->assertSame(100, NationRaidRules::BOSS_MAX_SP);
         $this->assertSame(100, NationRaidRules::BOSS_DEFENSE);

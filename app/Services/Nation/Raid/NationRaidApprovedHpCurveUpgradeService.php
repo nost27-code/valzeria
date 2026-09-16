@@ -65,11 +65,11 @@ final readonly class NationRaidApprovedHpCurveUpgradeService
                 && $cycle->stage_no >= 9 && $cycle->defeated_at !== null),
                 \DomainException::class, '第9再臨以降が討伐済みのため、この承認曲線はそのまま適用できません。');
 
-            $newHash = $this->rules->rulesetHash();
+            $newHash = $this->rules->previousLiveHpRulesetHash();
             if (hash_equals($event->ruleset_hash, $newHash)) {
                 throw_unless(hash_equals($event->ruleset_hash, hash('sha256', NationRaidJson::encode($event->ruleset_snapshot, JSON_UNESCAPED_UNICODE)))
                     && $event->total_target_hp === self::APPROVED_TOTAL_TARGET_HP
-                    && $current->max_hp === $this->rules->stageMaxHp((int) $current->stage_no)
+                    && $current->max_hp === $this->approvedStageMaxHp((int) $current->stage_no)
                     && $this->snapshotsMatch($current->parameter_snapshot,
                         $this->events->cycleParameterSnapshot((int) $current->stage_no, $event)),
                     \DomainException::class, '適用済みHP曲線の保存状態が不整合です。');
@@ -94,7 +94,7 @@ final readonly class NationRaidApprovedHpCurveUpgradeService
 
             $oldMaxHp = (int) $current->max_hp;
             $appliedDamage = $oldMaxHp - (int) $current->current_hp;
-            $newMaxHp = $this->rules->stageMaxHp((int) $current->stage_no);
+            $newMaxHp = $this->approvedStageMaxHp((int) $current->stage_no);
             throw_unless($newMaxHp >= $oldMaxHp && $newMaxHp > $appliedDamage,
                 \DomainException::class, '現在個体のHPを安全に拡張できません。');
 
@@ -110,12 +110,13 @@ final readonly class NationRaidApprovedHpCurveUpgradeService
             throw_unless(File::put($path, $json, true) === strlen($json) && hash_file('sha256', $path) === $backupHash,
                 \RuntimeException::class, '変更前snapshotの保存を確認できません。');
 
+            $newSnapshot = $this->rules->previousLiveHpRulesetSnapshot();
             $event->fill([
-                'ruleset_version' => NationRaidRules::RULESET_VERSION,
-                'ruleset_snapshot' => $this->rules->rulesetSnapshot(),
+                'ruleset_version' => (string) $newSnapshot['version'],
+                'ruleset_snapshot' => $newSnapshot,
                 'ruleset_hash' => $newHash,
-                'cycle_max_hp' => $this->rules->stageMaxHp(1),
-                'total_target_hp' => $this->rules->totalTargetHp(),
+                'cycle_max_hp' => $this->approvedStageMaxHp(1),
+                'total_target_hp' => (int) $newSnapshot['fixed']['total_target_hp'],
                 'balance_approved_at' => now(),
                 'balance_approved_by_user_id' => $admin->id,
                 'balance_approval_reference' => $approvalReference,
@@ -158,11 +159,21 @@ final readonly class NationRaidApprovedHpCurveUpgradeService
             17 => 1_000_000_000,
         ];
         foreach ($expected as $stage => $hp) {
-            throw_unless($this->rules->stageMaxHp($stage) === $hp, \DomainException::class,
+            throw_unless($this->approvedStageMaxHp($stage) === $hp, \DomainException::class,
                 'コード上のHP曲線が承認値と一致しません。');
         }
-        throw_unless($this->rules->totalTargetHp() === self::APPROVED_TOTAL_TARGET_HP,
+        throw_unless((int) $this->rules->previousLiveHpRulesetSnapshot()['fixed']['total_target_hp'] === self::APPROVED_TOTAL_TARGET_HP,
             \DomainException::class, 'コード上の総HPが承認値と一致しません。');
+    }
+
+    private function approvedStageMaxHp(int $stage): int
+    {
+        $stageSnapshot = collect($this->rules->previousLiveHpRulesetSnapshot()['stages'])
+            ->first(fn (array $candidate): bool => (int) $candidate['stage'] === $stage);
+        throw_unless(is_array($stageSnapshot) && isset($stageSnapshot['max_hp']), \DomainException::class,
+            '承認済みHP曲線を復元できません。');
+
+        return (int) $stageSnapshot['max_hp'];
     }
 
     private function snapshotsMatch(array $actual, array $expected): bool

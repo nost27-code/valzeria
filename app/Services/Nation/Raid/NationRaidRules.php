@@ -17,8 +17,11 @@ final class NationRaidRules
 
     public const MAX_STAGES = 20;
 
-    /** 第1再臨の既定HP。個体生成にはstageMaxHp()を使う。 */
-    public const BOSS_MAX_HP = 10_000_000;
+    /** 次回開催の第1再臨HP。個体生成にはstageMaxHp()を使う。 */
+    public const BOSS_MAX_HP = 30_000_000;
+
+    /** 凍結済みの初回rulesetを再現する第1再臨HP。 */
+    private const PREVIOUS_BOSS_MAX_HP = 10_000_000;
 
     public const RULESET_VERSION = 'nation-raid-v8-next-cycle-systems';
 
@@ -29,11 +32,11 @@ final class NationRaidRules
         $this->assertRange($stage, 1, self::MAX_STAGES, 'stage');
 
         return match (true) {
-            $stage <= 4 => 10_000_000,
-            $stage <= 8 => 20_000_000,
-            $stage <= 12 => 200_000_000,
-            $stage <= 16 => 500_000_000,
-            default => 1_000_000_000,
+            $stage <= 4 => 30_000_000,
+            $stage <= 8 => 50_000_000,
+            $stage <= 12 => 100_000_000,
+            $stage <= 16 => 200_000_000,
+            default => 500_000_000,
         };
     }
 
@@ -721,7 +724,7 @@ final class NationRaidRules
     }
 
     /** HP増加後から共闘調整前まで本番eventへ固定したruleset。 */
-    private function previousLiveHpRulesetSnapshot(): array
+    public function previousLiveHpRulesetSnapshot(): array
     {
         $snapshot = $this->previousRulesetSnapshot();
         $snapshot['version'] = 'nation-raid-v6-live-staged-hp';
@@ -731,13 +734,13 @@ final class NationRaidRules
     }
 
     /** 2026-09-06の開催開始時に固定した、HP以外が同一の旧6億curve。 */
-    private function previousStagedHpRulesetSnapshot(): array
+    public function previousStagedHpRulesetSnapshot(): array
     {
         $snapshot = $this->previousLiveHpRulesetSnapshot();
         $snapshot['version'] = 'nation-raid-v5-staged-hp';
         $snapshot['fixed']['total_target_hp'] = 600_000_000;
         foreach ($snapshot['stages'] as $index => &$stage) {
-            $stage['max_hp'] = self::BOSS_MAX_HP * (1 + intdiv($index, 4));
+            $stage['max_hp'] = self::PREVIOUS_BOSS_MAX_HP * (1 + intdiv($index, 4));
         }
         unset($stage);
 
@@ -749,6 +752,18 @@ final class NationRaidRules
     {
         $snapshot = $this->rulesetSnapshot();
         $snapshot['version'] = self::PREVIOUS_RULESET_VERSION;
+        $snapshot['fixed']['boss_max_hp'] = self::PREVIOUS_BOSS_MAX_HP;
+        $snapshot['fixed']['total_target_hp'] = 6_920_000_000;
+        foreach ($snapshot['stages'] as $index => &$stage) {
+            $stage['max_hp'] = match (true) {
+                $index < 4 => 10_000_000,
+                $index < 8 => 20_000_000,
+                $index < 12 => 200_000_000,
+                $index < 16 => 500_000_000,
+                default => 1_000_000_000,
+            };
+        }
+        unset($stage);
         unset($snapshot['raid_cycle']);
 
         return $snapshot;

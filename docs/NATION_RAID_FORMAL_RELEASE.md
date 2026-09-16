@@ -8,11 +8,13 @@
 
 同日、国家内の参加人数が増えても5人以上+12%で頭打ちだった共闘ボーナスを、2人+3%、3人+6%、4人+9%、5〜7人+12%、8〜11人+15%、12〜15人+17%、16〜18人+19%、19〜21人+21%、22〜25人+22%へ変更する裁定を得た。26人以上も上限+22%を維持する。専用CLIは開催中eventのHP・進行・履歴を変更せず、event ruleset snapshotと現在個体のparameter snapshotだけを更新する。切替前に受付済みの出撃は受付時ruleset hashの旧倍率、切替後の新規出撃は新倍率で精算する。
 
-## 次回開催向け追加（2026-09-16 本番公開済み・次回event未作成）
+## 次回開催向け追加（2026-09-16 本番公開済み・次回開催値承認）
 
 2026-09-15〜16、次回開催から基本無料出撃3回/日・繰越9回、探索力10の自主出撃、72時間の兵站準備、討滅/撃退/侵攻、国家別侵攻被害と復興、順位非依存報酬の達成時権利化、終了30分後の自動確定を採用する裁定を得た。確定値と軽減段階は`docs/DOMAIN_RULES.md`を正本とし、`nation-raid-v8-next-cycle-systems`のevent snapshotへ固定する。初回開催のevent snapshot、戦果、報酬には遡及しない。
 
-`2026_09_15_140000_add_next_cycle_nation_raid_systems.php`は既存テーブルへのnullable/default列と、兵站・侵攻・復興の5テーブルだけを追加する。旧コードは追加列を参照しないため配備は`migration_mode=backward_compatible`。兵站対象を固定した時点、または兵站貢献・侵攻・復興・結果区分を保存した後は`down()`を拒否し、flag停止とforward migrationで復旧する。次回開催を作成・承認・予約する運用、次回の主再臨HP、公開日はこの実装には含めず、別途要裁定・承認とする。
+`2026_09_15_140000_add_next_cycle_nation_raid_systems.php`は既存テーブルへのnullable/default列と、兵站・侵攻・復興の5テーブルだけを追加する。旧コードは追加列を参照しないため配備は`migration_mode=backward_compatible`。兵站対象を固定した時点、または兵站貢献・侵攻・復興・結果区分を保存した後は`down()`を拒否し、flag停止とforward migrationで復旧する。次回開催を作成・承認・予約する運用、次回の主再臨HP、公開日はこの当初実装には含めず、別途要裁定・承認としていた。
+
+2026-09-16、次回は2026-09-25 09:00〜2026-10-02 09:00（日本時間）、第1〜4再臨各3,000万、第5〜8再臨各5,000万、第9〜12再臨各1億、第13〜16再臨各2億、第17〜20再臨各5億、総HP35億2,000万とする裁定を得た。実装は現行v8 snapshotへこのHPを固定し、初回v7 snapshotの旧69億2,000万と保存済みhashを明示的に再現する。専用CLI `nation-raid:schedule-next`は開始時刻、実在管理者、承認根拠、ruleset/reward policy hashの一致を確認し、draft作成・バランス承認・開催予約を同一transactionで実行する。同じ承認の再実行は保存済みsnapshotと完全一致する場合だけno-opとする。開始前の誤りは行削除せず`cancelBeforeStart()`で取消履歴を残す。
 
 MariaDB 10.5.13の隔離CIは新5テーブルをInnoDB必須対象に含め、基本無料→自主出撃と同種返却、既存の並行精算・報酬競合を確認する。SQLiteのFeature testだけを本番DB互換の証明にしない。2026-09-16、SHA`e624dcdb179ebb69e98c9707cb80f700480afee8`を同一SHAのstaging→production、`migration_mode=backward_compatible`で公開した。本番MariaDB 10.5.26でmigration batch 327、scheduler参照先、公開HTTP、匿名境界、予約中event 0件、新規5テーブル0件、既存v7 event・報酬の非遡及、失敗job 0件、公開後の新規errorなしを読み戻した。
 

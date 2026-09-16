@@ -30,11 +30,11 @@ final class NationRaidPhase3FoundationTest extends TestCase
         $service = app(NationRaidEventService::class);
         $event = $service->createDraft('staged-hp-contract', '段階HP検証', now()->addDays(4));
         $expectedHp = [
-            10_000_000, 10_000_000, 10_000_000, 10_000_000,
-            20_000_000, 20_000_000, 20_000_000, 20_000_000,
+            30_000_000, 30_000_000, 30_000_000, 30_000_000,
+            50_000_000, 50_000_000, 50_000_000, 50_000_000,
+            100_000_000, 100_000_000, 100_000_000, 100_000_000,
             200_000_000, 200_000_000, 200_000_000, 200_000_000,
             500_000_000, 500_000_000, 500_000_000, 500_000_000,
-            1_000_000_000, 1_000_000_000, 1_000_000_000, 1_000_000_000,
         ];
         foreach (range(1, 20) as $stage) {
             $this->assertSame($expectedHp[$stage - 1],
@@ -97,8 +97,8 @@ final class NationRaidPhase3FoundationTest extends TestCase
 
         $this->assertSame(NationRaidEvent::STATUS_DRAFT, $event->status);
         $this->assertSame(20, $event->stage_count);
-        $this->assertSame(10_000_000, $event->cycle_max_hp);
-        $this->assertSame(6_920_000_000, $event->total_target_hp);
+        $this->assertSame(30_000_000, $event->cycle_max_hp);
+        $this->assertSame(3_520_000_000, $event->total_target_hp);
         $this->assertSame(168, (int) $event->starts_at->diffInHours($event->ends_at));
         $this->assertSame(app(NationRaidRules::class)->rulesetHash(), $event->ruleset_hash);
 

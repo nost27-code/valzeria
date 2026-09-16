@@ -48,7 +48,7 @@ final class NationRaidApprovedHpCurveUpgradeTest extends TestCase
             $event->refresh();
             $current = $event->cycles()->where('cycle_no', 9)->sole();
             $this->assertSame(6_920_000_000, $event->total_target_hp);
-            $this->assertSame(app(NationRaidRules::class)->rulesetHash(), $event->ruleset_hash);
+            $this->assertSame(app(NationRaidRules::class)->previousLiveHpRulesetHash(), $event->ruleset_hash);
             $this->assertSame($reference, $event->balance_approval_reference);
             $this->assertSame(200_000_000, $current->max_hp);
             $this->assertSame(190_000_000, $current->current_hp);
@@ -88,25 +88,15 @@ final class NationRaidApprovedHpCurveUpgradeTest extends TestCase
         $event = $events->approveBalance($event, $admin, 'old approved curve');
         $event = $events->activate($events->schedule($event, now()->subHours(72)));
 
-        $snapshot = $event->ruleset_snapshot;
-        $snapshot['version'] = 'nation-raid-v5-staged-hp';
-        $snapshot['fixed']['coordination_damage_rates'] = [
-            2 => 0.03, 3 => 0.06, 4 => 0.09, 5 => 0.12,
-        ];
-        $snapshot['fixed']['total_target_hp'] = 600_000_000;
-        unset($snapshot['raid_cycle']);
-        foreach ($snapshot['stages'] as $index => &$stage) {
-            $stage['max_hp'] = 10_000_000 * (1 + intdiv($index, 4));
-        }
-        unset($stage);
+        $snapshot = app(NationRaidRules::class)->previousStagedHpRulesetSnapshot();
         $oldHash = hash('sha256', NationRaidJson::encode($snapshot, JSON_UNESCAPED_UNICODE));
         $event->update([
             'ruleset_version' => $snapshot['version'], 'ruleset_snapshot' => $snapshot, 'ruleset_hash' => $oldHash,
-            'total_target_hp' => 600_000_000, 'current_cycle_no' => 9,
+            'cycle_max_hp' => 10_000_000, 'total_target_hp' => 600_000_000, 'current_cycle_no' => 9,
         ]);
         $first = $event->cycles()->sole();
         $first->update([
-            'current_hp' => 0, 'defeated_at' => now(),
+            'max_hp' => 10_000_000, 'current_hp' => 0, 'defeated_at' => now(),
             'parameter_snapshot' => $this->oldCycleSnapshot($event->fresh(), 1),
         ]);
         foreach (range(2, 8) as $stage) {
