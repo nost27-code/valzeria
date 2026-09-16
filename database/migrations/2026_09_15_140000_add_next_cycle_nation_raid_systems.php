@@ -85,7 +85,9 @@ return new class extends Migration
             $table->id();
             $table->foreignId('event_id')->constrained('nation_raid_events')->cascadeOnDelete();
             $table->foreignId('preparation_id')->constrained('nation_raid_nation_preparations')->cascadeOnDelete();
-            $table->foreignId('preparation_member_id')->constrained('nation_raid_preparation_members')->cascadeOnDelete();
+            $table->foreignId('preparation_member_id')
+                ->constrained('nation_raid_preparation_members', indexName: 'raid_prep_contribution_member_fk')
+                ->cascadeOnDelete();
             $table->unsignedBigInteger('battle_log_id');
             $table->unsignedTinyInteger('preparation_day');
             $table->date('contributed_on');
@@ -128,7 +130,9 @@ return new class extends Migration
 
         Schema::create('nation_raid_reconstruction_contributions', function (Blueprint $table): void {
             $table->id();
-            $table->foreignId('invasion_damage_id')->constrained('nation_raid_invasion_damages')->cascadeOnDelete();
+            $table->foreignId('invasion_damage_id')
+                ->constrained('nation_raid_invasion_damages', indexName: 'raid_reconstruction_invasion_fk')
+                ->cascadeOnDelete();
             $table->unsignedBigInteger('nation_id_snapshot');
             $table->unsignedBigInteger('character_id_snapshot');
             $table->foreignId('character_id')->nullable()->constrained('characters')->nullOnDelete();

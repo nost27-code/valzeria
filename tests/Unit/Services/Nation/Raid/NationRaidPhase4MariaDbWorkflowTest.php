@@ -62,6 +62,22 @@ final class NationRaidPhase4MariaDbWorkflowTest extends TestCase
         }
     }
 
+    public function test_next_cycle_migration_uses_mariadb_safe_foreign_key_names(): void
+    {
+        $migration = file_get_contents(base_path(
+            'database/migrations/2026_09_15_140000_add_next_cycle_nation_raid_systems.php',
+        ));
+        $names = [
+            'raid_prep_contribution_member_fk',
+            'raid_reconstruction_invasion_fk',
+        ];
+
+        foreach ($names as $name) {
+            $this->assertLessThanOrEqual(64, strlen($name));
+            $this->assertStringContainsString("indexName: '{$name}'", $migration);
+        }
+    }
+
     public function test_harness_preserves_all_declared_real_concurrency_checks(): void
     {
         $script = file_get_contents(base_path('scripts/verify/support/NationRaidPhase4MariaDbHarness.php'));
