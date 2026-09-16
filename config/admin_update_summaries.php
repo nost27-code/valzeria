@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-09-16-market-demand-board-navigation',
+        'date' => '2026-09-16',
+        'category' => 'fixed',
+        'title' => '素材市場で出品後も需要板を確認できるよう修正',
+        'detail' => '素材市場で出品後に需要板へ戻ると、素材が表示されない問題を修正しました。需要板を開くと最新の市場情報を確認できます。',
+    ],
+    [
         'id' => '2026-09-16-valmon-material-feed-sort-persistence',
         'date' => '2026-09-16',
         'category' => 'fixed',

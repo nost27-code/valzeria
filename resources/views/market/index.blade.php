@@ -64,12 +64,20 @@
 
             <div class="mb-5 grid grid-cols-5 gap-1 rounded-lg bg-slate-100 p-1">
                 @foreach($tabs as $key => $label)
-                    <button type="button"
-                            @click="tab = '{{ $key }}'"
-                            :class="tab === '{{ $key }}' ? 'bg-white text-amber-700 shadow-sm' : 'text-slate-500 hover:bg-white/70'"
-                            class="rounded-md px-1 py-2.5 text-center text-xs font-black transition">
-                        {{ $label }}
-                    </button>
+                    @if($key === 'demand')
+                        <a href="{{ route('market.index', ['tab' => 'demand']) }}"
+                           :class="tab === 'demand' ? 'bg-white text-amber-700 shadow-sm' : 'text-slate-500 hover:bg-white/70'"
+                           class="rounded-md px-1 py-2.5 text-center text-xs font-black transition">
+                            {{ $label }}
+                        </a>
+                    @else
+                        <button type="button"
+                                @click="tab = '{{ $key }}'"
+                                :class="tab === '{{ $key }}' ? 'bg-white text-amber-700 shadow-sm' : 'text-slate-500 hover:bg-white/70'"
+                                class="rounded-md px-1 py-2.5 text-center text-xs font-black transition">
+                            {{ $label }}
+                        </button>
+                    @endif
                 @endforeach
             </div>
 
