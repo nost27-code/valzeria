@@ -45,6 +45,67 @@ class ValmonEquipmentFeedProtectionTest extends TestCase
             ->assertSee('data-material-feed-rarity="R"', false);
     }
 
+    public function test_material_feed_sort_preference_is_scoped_to_each_character_in_the_browser(): void
+    {
+        [$firstUser, $firstCharacter, $firstValmon] = $this->createCharacterAndValmon();
+        $secondUser = User::factory()->create();
+        $secondCharacter = Character::create([
+            'user_id' => $secondUser->id,
+            'name' => '別プレイヤーの餌ソートテスト',
+        ]);
+        PlayerValmon::create([
+            'character_id' => $secondCharacter->id,
+            'valmon_master_id' => $firstValmon->valmon_master_id,
+            'is_partner' => true,
+            'obtained_at' => now(),
+        ]);
+
+        $firstKey = 'valzeria.valmons.material-feed.sort.' . $firstCharacter->id;
+        $secondKey = 'valzeria.valmons.material-feed.sort.' . $secondCharacter->id;
+        $material = Material::create([
+            'material_code' => 'TEST_FEED_SORT_PERSISTENCE',
+            'name' => '餌ソート保持試験素材',
+            'category' => '地域素材',
+            'material_type' => 'city_material',
+            'rarity' => 'R',
+        ]);
+        $ownedMaterial = CharacterMaterial::create([
+            'character_id' => $firstCharacter->id,
+            'material_id' => $material->id,
+            'quantity' => 3,
+        ]);
+
+        $this->actingAs($firstUser)
+            ->withSession(['current_character_id' => $firstCharacter->id])
+            ->get(route('valmons.index'))
+            ->assertOk()
+            ->assertSee($firstKey, false)
+            ->assertDontSee($secondKey, false)
+            ->assertSee("window.localStorage.getItem(this.materialFeedSortStorageKey)", false)
+            ->assertSee("window.localStorage.setItem(this.materialFeedSortStorageKey, this.materialFeedSort)", false);
+
+        $this->actingAs($firstUser)
+            ->withSession(['current_character_id' => $firstCharacter->id])
+            ->from(route('valmons.index'))
+            ->post(route('valmons.feed.material', [$firstValmon, $ownedMaterial]), ['quantity' => 1])
+            ->assertRedirect(route('valmons.index'))
+            ->assertSessionHas('valmon_feed_kind', 'material');
+
+        $this->actingAs($firstUser)
+            ->withSession(['current_character_id' => $firstCharacter->id])
+            ->get(route('valmons.index'))
+            ->assertOk()
+            ->assertSee('data-material-feed-quantity="2"', false)
+            ->assertSee($firstKey, false);
+
+        $this->actingAs($secondUser)
+            ->withSession(['current_character_id' => $secondCharacter->id])
+            ->get(route('valmons.index'))
+            ->assertOk()
+            ->assertSee($secondKey, false)
+            ->assertDontSee($firstKey, false);
+    }
+
     public function test_equipment_feed_candidates_expose_sort_controls_and_metadata(): void
     {
         [$user, $character] = $this->createCharacterAndValmon();

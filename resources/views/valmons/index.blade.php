@@ -50,6 +50,7 @@
     materialFeedCategory: 'all',
     materialFeedRarity: 'all',
     materialFeedSort: 'feed_exp_desc',
+    materialFeedSortStorageKey: @js('valzeria.valmons.material-feed.sort.' . $character->id),
     equipmentFeedSort: 'feed_exp_desc',
     selectedBackground: @js(old('profile_ranch_background', $selectedRanchBackground)),
     selectedEquipmentIds: [],
@@ -91,6 +92,11 @@
             return Number(b.dataset.materialFeedExp) - Number(a.dataset.materialFeedExp) || compareText(a.dataset.materialFeedName, b.dataset.materialFeedName);
         });
         cards.forEach((card) => grid.appendChild(card));
+        try {
+            window.localStorage.setItem(this.materialFeedSortStorageKey, this.materialFeedSort);
+        } catch (error) {
+            // 保存領域が利用できない場合も、現在の表示内では並び替えを継続する。
+        }
     },
     sortEquipmentFeedCards() {
         const grid = this.$refs.equipmentFeedGrid;
@@ -129,6 +135,16 @@
         }
     },
     init() {
+        let savedMaterialFeedSort = null;
+        try {
+            savedMaterialFeedSort = window.localStorage.getItem(this.materialFeedSortStorageKey);
+        } catch (error) {
+            // 保存領域が利用できない環境では、獲得EXPが多い順で表示する。
+        }
+        if (['feed_exp_desc', 'name_asc', 'quantity_desc', 'category_asc', 'rarity_desc'].includes(savedMaterialFeedSort)) {
+            this.materialFeedSort = savedMaterialFeedSort;
+        }
+
         let savedEquipmentFeedSort = null;
         try {
             savedEquipmentFeedSort = window.localStorage.getItem('valzeria.valmons.equipment-feed.sort');

@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-09-16-valmon-material-feed-sort-persistence',
+        'date' => '2026-09-16',
+        'category' => 'fixed',
+        'title' => 'ヴァルモンの素材餌の並び順を保持',
+        'detail' => '素材の餌を与えた後も選んだ並び順を保ち、同じブラウザで次に牧場を開いたときにもキャラクターごとの並び順を復元します。素材の所持数・獲得EXPの計算は変更していません。',
+    ],
+    [
         'id' => '2026-09-16-battle-result-incomplete-object',
         'date' => '2026-09-16',
         'category' => 'fixed',
