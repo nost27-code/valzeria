@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-09-17-exclusive-character-icon-061',
+        'date' => '2026-09-17',
+        'category' => 'internal',
+        'title' => '詠瑞乃 真琴専用のキャラアイコンを追加',
+        'detail' => '詠瑞乃 真琴さん専用の通常・勝利・戦闘・敗北の4ポーズキャラアイコンを追加しました。',
+    ],
+    [
         'id' => '2026-09-16-ancient-map-generation-fallback',
         'date' => '2026-09-16',
         'category' => 'fixed',

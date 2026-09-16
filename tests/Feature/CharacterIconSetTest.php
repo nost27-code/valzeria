@@ -151,6 +151,7 @@ class CharacterIconSetTest extends TestCase
             'exclusive_058',
             'exclusive_059',
             'exclusive_060',
+            'exclusive_061',
         ];
 
         foreach ($setKeys as $setKey) {
