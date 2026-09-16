@@ -24,6 +24,8 @@ use App\Services\RegionDepthDungeonService;
 use App\Services\SubAreaExplorationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Str;
 use Mockery;
 use ReflectionMethod;
 use Tests\TestCase;
@@ -227,7 +229,7 @@ class ExplorationRepeatServiceTest extends TestCase
                 'continue_chain' => 1,
             ]);
 
-        $response->assertRedirect(route('battle.result'));
+        $this->assertBattleResultRedirectHasToken($response);
         $response->assertSessionHas('battleData.selectedExploreCount', 50);
         $response->assertSessionHas($sessionKey, 50);
         $this->assertSame(1, $service->exploreCalls);
@@ -257,7 +259,7 @@ class ExplorationRepeatServiceTest extends TestCase
                 'batch_count' => 50,
             ]);
 
-        $response->assertRedirect(route('battle.result'));
+        $this->assertBattleResultRedirectHasToken($response);
         $response->assertSessionHas('battleData.selectedExploreCount', 50);
         $response->assertSessionHas($sessionKey, 50);
         $this->assertSame(50, $service->exploreCalls);
@@ -406,10 +408,116 @@ class ExplorationRepeatServiceTest extends TestCase
             ])
             ->post(route('battle.depth.retreat', ['area' => $area->id]));
 
-        $response->assertRedirect(route('battle.result'));
+        $this->assertBattleResultRedirectHasToken($response);
         $response->assertSessionHas('status', '危険な入口から引き返し、現在のエリア探索を続けます。');
         $response->assertSessionHas('battleData.selectedExploreCount', 50);
         $response->assertSessionHas($sessionKey, 50);
+    }
+
+    public function test_battle_result_token_prefers_the_completed_exploration_over_stale_session_data(): void
+    {
+        $character = $this->characterWithStamina(50);
+        $area = Area::query()->create([
+            'name' => '探索結果受け渡し試験場',
+            'slug' => 'battle-result-delivery-test',
+        ]);
+        $token = (string) Str::uuid();
+        $staleBattleData = [
+            'result' => ['error' => '古いダンジョン主の戦闘結果'],
+            'areaId' => $area->id,
+            'isBoss' => true,
+            'jobLevel' => 1,
+        ];
+        $completedBattleData = [
+            'result' => ['error' => '新しい50回探索の結果'],
+            'areaId' => $area->id,
+            'isBoss' => true,
+            'jobLevel' => 1,
+        ];
+        Cache::put("battle_result:{$character->id}:{$token}", $completedBattleData, now()->addMinutes(10));
+
+        $response = $this->withoutMiddleware()
+            ->actingAs($character->user)
+            ->withSession([
+                'current_character_id' => $character->id,
+                'battleData' => $staleBattleData,
+                'lastBattleData' => $staleBattleData,
+            ])
+            ->get(route('battle.result', ['result' => $token]));
+
+        $response->assertOk();
+        $response->assertSee('新しい50回探索の結果');
+        $response->assertDontSee('古いダンジョン主の戦闘結果');
+    }
+
+    public function test_missing_battle_result_token_does_not_fall_back_to_stale_session_data(): void
+    {
+        $character = $this->characterWithStamina(50);
+        $area = Area::query()->create([
+            'name' => '期限切れ探索結果試験場',
+            'slug' => 'expired-battle-result-test',
+        ]);
+        $staleBattleData = [
+            'result' => ['error' => '古いダンジョン主の戦闘結果'],
+            'areaId' => $area->id,
+            'isBoss' => true,
+            'jobLevel' => 1,
+        ];
+
+        $response = $this->withoutMiddleware()
+            ->actingAs($character->user)
+            ->withSession([
+                'current_character_id' => $character->id,
+                'battleData' => $staleBattleData,
+                'lastBattleData' => $staleBattleData,
+            ])
+            ->get(route('battle.result', ['result' => (string) Str::uuid()]));
+
+        $response->assertRedirect(route('home'));
+        $response->assertSessionHas('error', '探索結果を読み込めませんでした。探索状況と報酬は現在の状態をご確認ください。');
+    }
+
+    public function test_battle_result_token_is_scoped_to_the_current_character(): void
+    {
+        $owner = $this->characterWithStamina(50);
+        $viewer = $this->characterWithStamina(50);
+        $area = Area::query()->create([
+            'name' => '探索結果認証境界試験場',
+            'slug' => 'battle-result-character-scope-test',
+        ]);
+        $token = (string) Str::uuid();
+        Cache::put("battle_result:{$owner->id}:{$token}", [
+            'result' => ['error' => '所有者だけが見られる探索結果'],
+            'areaId' => $area->id,
+            'isBoss' => true,
+            'jobLevel' => 1,
+        ], now()->addMinutes(10));
+
+        $response = $this->withoutMiddleware()
+            ->actingAs($viewer->user)
+            ->withSession(['current_character_id' => $viewer->id])
+            ->get(route('battle.result', ['result' => $token]));
+
+        $response->assertRedirect(route('home'));
+        $response->assertSessionHas('error', '探索結果を読み込めませんでした。探索状況と報酬は現在の状態をご確認ください。');
+    }
+
+    public function test_async_exploration_does_not_resubmit_after_an_uncertain_response(): void
+    {
+        $view = file_get_contents(resource_path('views/battle/result.blade.php'));
+
+        $this->assertIsString($view);
+        $this->assertStringNotContainsString('HTMLFormElement.prototype.submit.call(form)', $view);
+        $this->assertStringContainsString('window.location.assign(completedResultUrl)', $view);
+    }
+
+    private function assertBattleResultRedirectHasToken($response): void
+    {
+        $response->assertRedirect();
+
+        $location = $response->headers->get('Location');
+        $this->assertIsString($location);
+        $this->assertStringStartsWith(route('battle.result') . '?result=', $location);
     }
 
     private function characterWithStamina(int $stamina): Character

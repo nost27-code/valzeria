@@ -36,6 +36,10 @@ class BattleController extends Controller
 
     private const EXPLORE_COUNT_SESSION_PREFIX = 'exploration_selected_count.';
 
+    private const BATTLE_RESULT_QUERY_KEY = 'result';
+
+    private const BATTLE_RESULT_CACHE_MINUTES = 10;
+
     protected ExplorationService $explorationService;
     protected CharacterStatusService $statusService;
     protected \App\Services\AreaService $areaService;
@@ -217,7 +221,7 @@ class BattleController extends Controller
             'selectedExploreCount' => $batchCount,
         ];
 
-        return redirect()->route('battle.result')->with('battleData', $battleData);
+        return $this->redirectToBattleResult($character, $battleData);
     }
 
     /**
@@ -1163,7 +1167,32 @@ class BattleController extends Controller
      */
     public function showResult(Request $request)
     {
-        $battleData = session('battleData') ?? session('lastBattleData');
+        $character = Auth::user()->currentCharacter();
+
+        if (! $character) {
+            return redirect()->route('home');
+        }
+
+        $resultToken = trim((string) $request->query(self::BATTLE_RESULT_QUERY_KEY, ''));
+        if ($resultToken !== '') {
+            $battleData = null;
+
+            if (Str::isUuid($resultToken)) {
+                try {
+                    $battleData = Cache::get($this->battleResultCacheKey($character, $resultToken));
+                } catch (\Throwable $exception) {
+                    report($exception);
+                }
+            }
+
+            if (! is_array($battleData)) {
+                return redirect()
+                    ->route('home')
+                    ->with('error', '探索結果を読み込めませんでした。探索状況と報酬は現在の状態をご確認ください。');
+            }
+        } else {
+            $battleData = session('battleData') ?? session('lastBattleData');
+        }
 
         if (!$battleData) {
             return redirect()->route('home');
@@ -1173,7 +1202,7 @@ class BattleController extends Controller
 
         // セッションから復元した際に配列化されている場合の対策
         // ログイン中のキャラクターを再取得
-        $battleData['character'] = Auth::user()->currentCharacter();
+        $battleData['character'] = $character;
         $battleData['selectedExploreCount'] = isset($battleData['mapExploration'])
             ? 1
             : ExplorationService::normalizeRepeatCount(
@@ -1248,6 +1277,35 @@ class BattleController extends Controller
 
         return response()->view('battle.result', $battleData)
             ->header('Cache-Control', 'no-store, no-cache, must-revalidate');
+    }
+
+    private function redirectToBattleResult(Character $character, array $battleData)
+    {
+        $resultToken = (string) Str::uuid();
+        $stored = false;
+
+        try {
+            $stored = Cache::put(
+                $this->battleResultCacheKey($character, $resultToken),
+                $battleData,
+                now()->addMinutes(self::BATTLE_RESULT_CACHE_MINUTES),
+            );
+        } catch (\Throwable $exception) {
+            report($exception);
+        }
+
+        if (! $stored) {
+            return redirect()->route('battle.result')->with('battleData', $battleData);
+        }
+
+        return redirect()
+            ->route('battle.result', [self::BATTLE_RESULT_QUERY_KEY => $resultToken])
+            ->with('battleData', $battleData);
+    }
+
+    private function battleResultCacheKey(Character $character, string $resultToken): string
+    {
+        return "battle_result:{$character->id}:{$resultToken}";
     }
 
     private function resolveExploreCount(Request $request, Character $character): int

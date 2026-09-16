@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-09-16-battle-result-token-delivery',
+        'date' => '2026-09-16',
+        'category' => 'fixed',
+        'title' => 'まとめ探索後の戦闘結果表示を修正',
+        'detail' => 'ダンジョン主との戦闘後にまとめ探索を行った際、直前の戦闘結果が再表示されることがある問題を修正しました。探索力・EXP・Gold・職業EXP・ドロップの計算と付与内容は変更していません。',
+    ],
+    [
         'id' => '2026-09-16-nation-raid-next-schedule',
         'date' => '2026-09-16',
         'category' => 'balance',

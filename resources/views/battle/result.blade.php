@@ -2969,6 +2969,8 @@
                     buttonText.textContent = '探索中...';
                 }
 
+                let completedResultUrl = null;
+
                 try {
                     const response = await fetch(form.action, {
                         method: 'POST',
@@ -2979,6 +2981,13 @@
                         body: new FormData(form),
                         credentials: 'same-origin',
                     });
+
+                    if (response.redirected && response.url) {
+                        const redirectedUrl = new URL(response.url, window.location.href);
+                        if (redirectedUrl.searchParams.has('result')) {
+                            completedResultUrl = redirectedUrl.href;
+                        }
+                    }
 
                     if (response.status === 409 && response.headers.get('X-Explore-Busy') === '1') {
                         const retryAfter = Number.parseInt(response.headers.get('Retry-After') || '1', 10);
@@ -2992,7 +3001,12 @@
                     const currentPage = currentResultPage();
 
                     if (!response.ok || !nextPage || !currentPage) {
-                        HTMLFormElement.prototype.submit.call(form);
+                        if (completedResultUrl) {
+                            window.location.assign(completedResultUrl);
+                            return;
+                        }
+
+                        showBattleToast('探索結果を確認できませんでした。探索は完了している可能性があります。再実行せず、画面を開き直してください。', 'warning');
                         return;
                     }
 
@@ -3024,7 +3038,12 @@
                         replacedPage.scrollIntoView({ block: 'start' });
                     }
                 } catch (error) {
-                    HTMLFormElement.prototype.submit.call(form);
+                    if (completedResultUrl) {
+                        window.location.assign(completedResultUrl);
+                        return;
+                    }
+
+                    showBattleToast('探索結果を確認できませんでした。探索は完了している可能性があります。再実行せず、画面を開き直してください。', 'warning');
                 }
             }
 
