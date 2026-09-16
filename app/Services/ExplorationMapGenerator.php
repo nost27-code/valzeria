@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Exceptions\ExplorationMapGenerationUnavailable;
 use App\Models\Area;
 use App\Models\Character;
 use App\Models\Enemy;
@@ -34,7 +35,9 @@ class ExplorationMapGenerator
                 ->all()
         )['value'];
         $levelOffset = $this->levelOffset($root, $grade, 'map:v2:map_level_offset');
-        $targetMonsters = $this->targetMonsters($grade, $profile, $levelOffset);
+        $targetSelection = $this->targetMonsters($grade, $profile, $levelOffset);
+        $targetMonsters = $targetSelection['monsters'];
+        $levelOffset = $targetSelection['level_offset'];
         $singleSpeciesTarget = $this->singleSpeciesTarget($root, $targetMonsters, $grade, $levelOffset);
         $targetMonster = $singleSpeciesTarget['enemy'] ?? $this->targetMonster($root, $targetMonsters);
         $singleSpeciesKey = $singleSpeciesTarget['species_key'] ?? null;
@@ -60,7 +63,7 @@ class ExplorationMapGenerator
         if ($profile === 'ancient_fragment') {
             $fragment = $this->legacyRewards->ancientFragmentForSeedHash($seedHash);
             if (!$fragment) {
-                throw new \RuntimeException('地図用の古代片素材が見つかりません。');
+                throw new ExplorationMapGenerationUnavailable('地図用の古代片素材が見つかりません。');
             }
             $generationPayload['ancient_fragment_material_code'] = $fragment->material_code;
         }
@@ -123,28 +126,33 @@ class ExplorationMapGenerator
 
         return $areas[$this->seeds->int($root, 'map:v3:target_area', 0, $areas->count() - 1)];
     }
-    private function targetMonsters(string $grade, string $profile, int $levelOffset): Collection
+    /** @return array{monsters: Collection, level_offset: int} */
+    private function targetMonsters(string $grade, string $profile, int $levelOffset): array
     {
-        $range = $this->baseMonsterLevelRange($grade);
-        if ($profile === 'ancient_fragment') {
-            $minimumEnemyLevel = (int) config('exploration_maps.reward_profiles.ancient_fragment.minimum_enemy_level', 142);
-            $range = [
-                'min' => max(1, $minimumEnemyLevel - $levelOffset),
-                'max' => max(1, 255 - $levelOffset),
-            ];
-        }
-        $monsters = Enemy::query()
-            ->where('is_boss', false)
-            ->whereBetween('level', [$range['min'], $range['max']])
-            ->whereHas('area', fn ($query) => $query->whereBetween('city_id', [1, 10]))
-            ->orderBy('id')
-            ->get();
+        $ancientFragment = $profile === 'ancient_fragment';
+        $maximumOffset = $ancientFragment ? $this->difficulty->levelOffsetRange($grade)['max'] : $levelOffset;
+        for ($candidateOffset = $levelOffset; $candidateOffset <= $maximumOffset; $candidateOffset++) {
+            $range = $this->baseMonsterLevelRange($grade);
+            if ($ancientFragment) {
+                $minimumEnemyLevel = (int) config('exploration_maps.reward_profiles.ancient_fragment.minimum_enemy_level', 142);
+                $range = [
+                    'min' => max(1, $minimumEnemyLevel - $candidateOffset),
+                    'max' => max(1, 255 - $candidateOffset),
+                ];
+            }
+            $monsters = Enemy::query()
+                ->where('is_boss', false)
+                ->whereBetween('level', [$range['min'], $range['max']])
+                ->whereHas('area', fn ($query) => $query->whereBetween('city_id', [1, 10]))
+                ->orderBy('id')
+                ->get();
 
-        if ($monsters->isEmpty()) {
-            throw new \RuntimeException('地図用の通常モンスターが見つかりません。');
+            if ($monsters->isNotEmpty()) {
+                return ['monsters' => $monsters, 'level_offset' => $candidateOffset];
+            }
         }
 
-        return $monsters;
+        throw new ExplorationMapGenerationUnavailable('地図用の通常モンスターが見つかりません。');
     }
     private function targetMonster(string $root, Collection $monsters): Enemy
     {

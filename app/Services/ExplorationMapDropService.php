@@ -2,9 +2,11 @@
 
 namespace App\Services;
 
+use App\Exceptions\ExplorationMapGenerationUnavailable;
 use App\Models\Area;
 use App\Models\Character;
 use App\Models\Enemy;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
@@ -17,7 +19,17 @@ class ExplorationMapDropService
         if (!config('exploration_maps.enabled') || !Schema::hasTable('exploration_maps')) return null;
         $key = $isMap ? ((bool) ($enemy->is_elite ?? false) ? 'map_elite' : 'map_normal') : ($isBoss ? 'boss' : ((bool) ($enemy->is_elite ?? false) ? 'elite' : 'normal'));
         if (random_int(1, 10000) > $this->dropRateBasisPoints($key)) return null;
-        $map = $this->generator->generate($character, $area, $enemy, (string) Str::uuid());
+        try {
+            $map = $this->generator->generate($character, $area, $enemy, (string) Str::uuid());
+        } catch (ExplorationMapGenerationUnavailable $exception) {
+            Log::warning('探索地図の生成候補が不足したため、地図ドロップを見送りました。', [
+                'reason' => $exception->getMessage(),
+                'area_id' => (int) $area->id,
+                'enemy_id' => (int) $enemy->id,
+            ]);
+
+            return null;
+        }
         return ['id' => $map->id, 'name' => '未調査の探索地図', 'grade' => $map->map_grade, 'map' => $map];
     }
 

@@ -6,14 +6,18 @@ use App\Models\Area;
 use App\Models\Character;
 use App\Models\City;
 use App\Models\Enemy;
+use App\Models\ExplorationMap;
 use App\Models\Material;
 use App\Models\TownMapRegistration;
 use App\Models\User;
+use App\Services\ExplorationMapDropService;
 use App\Services\ExplorationMapGenerator;
 use App\Services\ExplorationMapRewardProfileService;
+use App\Services\ExplorationMapSeedService;
 use App\Services\MapPublicationService;
 use App\Services\MapSurveyService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Log;
 use Tests\TestCase;
 
 class ExplorationMapGenerationTest extends TestCase
@@ -255,6 +259,54 @@ class ExplorationMapGenerationTest extends TestCase
         $this->assertSame('古代片：' . $fragment->displayName(), app(\App\Services\ExplorationMapDisplayService::class)->details($map)['reward']);
     }
 
+    public function test_ancient_fragment_map_uses_an_allowed_offset_when_no_base_enemy_reaches_level_142(): void
+    {
+        Enemy::query()
+            ->where('is_boss', false)
+            ->where('level', '>=', 142)
+            ->whereHas('area', fn ($query) => $query->whereBetween('city_id', [1, 10]))
+            ->update(['is_boss' => true]);
+
+        $city = City::findOrFail(1);
+        $area = Area::create(['name' => '古代片補正試験地', 'slug' => 'ancient-offset-test', 'city_id' => $city->id, 'recommended_level_min' => 141, 'recommended_level_max' => 141]);
+        $enemy = Enemy::create(['name' => '古代片補正試験魔物', 'area_id' => $area->id, 'level' => 141, 'max_hp' => 100, 'str' => 20, 'def' => 10, 'agi' => 10, 'mag' => 10, 'spr' => 10, 'luk' => 10, 'exp_reward' => 20, 'gold_reward' => 10, 'job_exp_reward' => 1, 'appearance_weight' => 1, 'is_boss' => false]);
+        $character = Character::create(['user_id' => User::factory()->create()->id, 'name' => '古代片補正地図師', 'hp_base' => 100, 'current_hp' => 100]);
+        $this->forceNormalAncientMapDrop();
+
+        $drop = app(ExplorationMapDropService::class)->tryDrop($character, $area, $enemy);
+        $this->assertNotNull($drop);
+        $map = $drop['map'];
+
+        $this->assertSame('normal', $map->map_grade);
+        $this->assertSame('ancient_fragment', $map->reward_profile);
+        $this->assertSame(142, (int) $map->map_level);
+        $this->assertNotEmpty($map->normal_monster_variants_json);
+        $this->assertTrue(collect($map->normal_monster_variants_json)->every(
+            fn (array $variant) => (int) $variant['enemy_level'] >= 142
+                && (int) $variant['enemy_level'] - (int) Enemy::findOrFail($variant['base_monster_id'])->level <= 5
+        ));
+    }
+
+    public function test_missing_map_enemy_candidates_do_not_fail_the_exploration_drop(): void
+    {
+        Enemy::query()
+            ->where('is_boss', false)
+            ->where('level', '>=', 137)
+            ->whereHas('area', fn ($query) => $query->whereBetween('city_id', [1, 10]))
+            ->update(['is_boss' => true]);
+
+        $city = City::findOrFail(1);
+        $area = Area::create(['name' => '地図候補欠落試験地', 'slug' => 'missing-map-enemy-test', 'city_id' => $city->id, 'recommended_level_min' => 45, 'recommended_level_max' => 45]);
+        $enemy = Enemy::create(['name' => '地図候補欠落試験魔物', 'area_id' => $area->id, 'level' => 45, 'max_hp' => 100, 'str' => 20, 'def' => 10, 'agi' => 10, 'mag' => 10, 'spr' => 10, 'luk' => 10, 'exp_reward' => 20, 'gold_reward' => 10, 'job_exp_reward' => 1, 'appearance_weight' => 1, 'is_boss' => false]);
+        $character = Character::create(['user_id' => User::factory()->create()->id, 'name' => '地図候補欠落試験者', 'hp_base' => 100, 'current_hp' => 100]);
+        $this->forceNormalAncientMapDrop();
+        Log::spy();
+
+        $this->assertNull(app(ExplorationMapDropService::class)->tryDrop($character, $area, $enemy));
+        $this->assertSame(0, ExplorationMap::query()->count());
+        Log::shouldHaveReceived('warning')->once();
+    }
+
     public function test_recently_closed_registration_is_kept_for_six_hours(): void
     {
         $registration = new TownMapRegistration([
@@ -372,5 +424,25 @@ class ExplorationMapGenerationTest extends TestCase
             'appearance_weight' => 1,
             'is_boss' => false,
         ]);
+    }
+
+    private function forceNormalAncientMapDrop(): void
+    {
+        config()->set('exploration_maps.reward_profiles', [
+            'ancient_fragment' => config('exploration_maps.reward_profiles.ancient_fragment'),
+        ]);
+        config()->set('exploration_maps.drop_rates_basis_points.normal', 10000);
+        config()->set('exploration_maps.single_species.rate_basis_points', 0);
+        $this->app->instance(ExplorationMapSeedService::class, new class extends ExplorationMapSeedService
+        {
+            public function int(string $rootSeed, string $context, int $min, int $max): int
+            {
+                return match ($context) {
+                    'map:v1:grade' => 1,
+                    'map:v2:map_level_offset' => 0,
+                    default => parent::int($rootSeed, $context, $min, $max),
+                };
+            }
+        });
     }
 }
