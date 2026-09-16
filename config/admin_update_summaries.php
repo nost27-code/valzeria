@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-09-16-battle-result-incomplete-object',
+        'date' => '2026-09-16',
+        'category' => 'fixed',
+        'title' => '通常戦・ボス戦の結果画面エラーを修正',
+        'detail' => '戦闘後に結果画面が開けずエラーになる問題を修正しました。更新前に保存された結果も、取得できる間は表示できるようにしました。戦闘判定と報酬の計算・付与内容は変更していません。',
+    ],
+    [
         'id' => '2026-09-16-nation-raid-prestart-concealment',
         'date' => '2026-09-16',
         'category' => 'changed',

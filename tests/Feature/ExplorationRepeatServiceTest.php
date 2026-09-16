@@ -6,6 +6,7 @@ use App\Http\Controllers\BattleController;
 use App\Models\Area;
 use App\Models\Character;
 use App\Models\CharacterSubAreaRouteDiscovery;
+use App\Models\Enemy;
 use App\Models\SubArea;
 use App\Models\SubAreaRoute;
 use App\Models\User;
@@ -448,6 +449,101 @@ class ExplorationRepeatServiceTest extends TestCase
         $response->assertOk();
         $response->assertSee('新しい50回探索の結果');
         $response->assertDontSee('古いダンジョン主の戦闘結果');
+    }
+
+    public function test_cached_battle_result_with_incomplete_enemy_and_unlocked_area_can_be_displayed(): void
+    {
+        $character = $this->characterWithStamina(50);
+        $area = Area::query()->create(['name' => '戦闘結果復元試験場', 'slug' => 'battle-result-incomplete-object-test']);
+        $enemy = new Enemy(['name' => '復元対象の試験敵', 'species_key' => 'machine', 'str' => 10, 'def' => 5]);
+        $unlockedArea = new Area(['name' => '復元対象の新領域']);
+        $token = (string) Str::uuid();
+
+        Cache::put("battle_result:{$character->id}:{$token}", [
+            'result' => [
+                'result' => 'victory',
+                'enemy' => unserialize(serialize($enemy), ['allowed_classes' => false]),
+                'unlocked_areas' => [unserialize(serialize($unlockedArea), ['allowed_classes' => false])],
+                'log' => '復元対象の戦闘ログ',
+                'exp_gained' => 0,
+                'gold_gained' => 0,
+                'job_exp_gained' => 0,
+                'level_up_count' => 0,
+                'level_up_details' => [],
+            ],
+            'areaId' => $area->id,
+            'isBoss' => true,
+            'jobLevel' => 1,
+        ], now()->addMinutes(10));
+
+        $response = $this->withoutMiddleware()
+            ->actingAs($character->user)
+            ->withSession(['current_character_id' => $character->id])
+            ->get(route('battle.result', ['result' => $token]));
+
+        $response->assertOk();
+        $response->assertSee('復元対象の試験敵');
+        $response->assertSee('復元対象の新領域');
+    }
+
+    public function test_cached_battle_result_with_incomplete_virtual_enemy_can_be_displayed(): void
+    {
+        $character = $this->characterWithStamina(50);
+        $area = Area::query()->create(['name' => '仮想敵復元試験場', 'slug' => 'virtual-enemy-incomplete-object-test']);
+        $enemy = (object) ['name' => '復元対象の仮想敵', 'species_key' => 'machine', 'str' => 10, 'def' => 5];
+        $token = (string) Str::uuid();
+
+        Cache::put("battle_result:{$character->id}:{$token}", [
+            'result' => [
+                'result' => 'victory',
+                'enemy' => unserialize(serialize($enemy), ['allowed_classes' => false]),
+                'log' => '仮想敵との戦闘ログ',
+                'exp_gained' => 0,
+                'gold_gained' => 0,
+                'job_exp_gained' => 0,
+                'level_up_count' => 0,
+                'level_up_details' => [],
+            ],
+            'areaId' => $area->id,
+            'isBoss' => true,
+            'jobLevel' => 1,
+        ], now()->addMinutes(10));
+
+        $this->withoutMiddleware()
+            ->actingAs($character->user)
+            ->withSession(['current_character_id' => $character->id])
+            ->get(route('battle.result', ['result' => $token]))
+            ->assertOk()
+            ->assertSee('復元対象の仮想敵');
+    }
+
+    public function test_new_battle_result_saves_enemy_and_unlocked_areas_as_arrays(): void
+    {
+        $character = $this->characterWithStamina(50);
+        $area = Area::query()->create(['name' => '戦闘結果保存試験場', 'slug' => 'battle-result-snapshot-test']);
+        $enemy = new Enemy(['name' => '保存対象の試験敵', 'species_key' => 'machine']);
+        $unlockedArea = new Area(['name' => '保存対象の新領域']);
+        $controller = app(BattleController::class);
+        $redirect = new ReflectionMethod($controller, 'redirectToBattleResult');
+
+        $response = $redirect->invoke($controller, $character, [
+            'result' => [
+                'result' => 'victory',
+                'enemy' => $enemy,
+                'unlocked_areas' => [$unlockedArea],
+            ],
+            'areaId' => $area->id,
+            'isBoss' => true,
+            'jobLevel' => 1,
+        ]);
+
+        parse_str((string) parse_url($response->getTargetUrl(), PHP_URL_QUERY), $query);
+        $this->assertTrue(Str::isUuid($query['result'] ?? ''));
+        $cached = Cache::get("battle_result:{$character->id}:{$query['result']}");
+        $this->assertSame('保存対象の試験敵', $cached['result']['enemy']['name']);
+        $this->assertSame('machine', $cached['result']['enemy']['species_key']);
+        $this->assertSame('保存対象の新領域', $cached['result']['unlocked_areas'][0]['name']);
+        $this->assertSame($cached['result'], session('battleData.result'));
     }
 
     public function test_missing_battle_result_token_does_not_fall_back_to_stale_session_data(): void

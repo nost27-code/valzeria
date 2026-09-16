@@ -23,6 +23,7 @@ use App\Services\ExplorationDepthService;
 use App\Services\ExplorationStateService;
 use App\Services\ArenaNpcBattleService;
 use App\Services\ArenaNpcRankingService;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
@@ -1198,6 +1199,8 @@ class BattleController extends Controller
             return redirect()->route('home');
         }
 
+        // 旧キャッシュ・セッション内のモデルは復元時に不完全オブジェクトになることがある。
+        $battleData = $this->snapshotBattleResultDisplayObjects($battleData);
         session(['lastBattleData' => $battleData]);
 
         // セッションから復元した際に配列化されている場合の対策
@@ -1281,6 +1284,8 @@ class BattleController extends Controller
 
     private function redirectToBattleResult(Character $character, array $battleData)
     {
+        // DBキャッシュへモデルをそのまま保存すると、読込時に__PHP_Incomplete_Classとなる。
+        $battleData = $this->snapshotBattleResultDisplayObjects($battleData);
         $resultToken = (string) Str::uuid();
         $stored = false;
 
@@ -1301,6 +1306,60 @@ class BattleController extends Controller
         return redirect()
             ->route('battle.result', [self::BATTLE_RESULT_QUERY_KEY => $resultToken])
             ->with('battleData', $battleData);
+    }
+
+    private function snapshotBattleResultDisplayObjects(array $battleData): array
+    {
+        if (! is_array($battleData['result'] ?? null)) {
+            return $battleData;
+        }
+
+        if (array_key_exists('enemy', $battleData['result'])) {
+            $enemy = $this->battleResultDisplayAttributes($battleData['result']['enemy']);
+            if ($enemy !== null) {
+                $battleData['result']['enemy'] = $enemy;
+            }
+        }
+
+        if (is_array($battleData['result']['unlocked_areas'] ?? null)) {
+            foreach ($battleData['result']['unlocked_areas'] as $key => $area) {
+                $attributes = $this->battleResultDisplayAttributes($area);
+                if ($attributes !== null) {
+                    $battleData['result']['unlocked_areas'][$key] = $attributes;
+                }
+            }
+        }
+
+        return $battleData;
+    }
+
+    private function battleResultDisplayAttributes(mixed $value): ?array
+    {
+        if (is_array($value)) {
+            return $value;
+        }
+        if ($value instanceof Model) {
+            return $value->attributesToArray();
+        }
+        if ($value instanceof \stdClass) {
+            return get_object_vars($value);
+        }
+        if ($value instanceof \__PHP_Incomplete_Class) {
+            $properties = get_object_vars($value);
+            $className = $properties['__PHP_Incomplete_Class_Name'] ?? null;
+            if (in_array($className, [Enemy::class, Area::class], true)) {
+                $attributes = $properties["\0*\0attributes"] ?? null;
+
+                return is_array($attributes) ? $attributes : null;
+            }
+            if ($className === \stdClass::class) {
+                unset($properties['__PHP_Incomplete_Class_Name']);
+
+                return $properties;
+            }
+        }
+
+        return null;
     }
 
     private function battleResultCacheKey(Character $character, string $resultToken): string
