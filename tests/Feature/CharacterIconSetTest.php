@@ -93,6 +93,32 @@ class CharacterIconSetTest extends TestCase
         ));
     }
 
+    public function test_new_dawn_set_keeps_the_existing_dawn_set_selectable(): void
+    {
+        $character = $this->createCharacter('ドーン');
+        $service = app(CharacterIconSetService::class);
+
+        $service->grant($character, 'exclusive_060');
+        $service->grant($character, 'exclusive_064');
+        $character->refresh();
+
+        $this->assertSame(
+            '/images/chara/exclusive/exclusive_064/01_normal.webp',
+            $character->icon_path
+        );
+        foreach (['exclusive_060', 'exclusive_064'] as $setKey) {
+            $this->assertDatabaseHas('character_icon_entitlements', [
+                'character_id' => $character->id,
+                'icon_set_key' => $setKey,
+                'revoked_at' => null,
+            ]);
+            $this->assertTrue($service->canSelect(
+                $character,
+                "/images/chara/exclusive/{$setKey}/01_normal.webp"
+            ));
+        }
+    }
+
     public function test_new_exclusive_icon_sets_have_complete_four_pose_assets(): void
     {
         $setKeys = [
@@ -153,6 +179,7 @@ class CharacterIconSetTest extends TestCase
             'exclusive_060',
             'exclusive_061',
             'exclusive_063',
+            'exclusive_064',
         ];
 
         foreach ($setKeys as $setKey) {
