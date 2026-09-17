@@ -2,7 +2,10 @@
 
 namespace Tests\Unit;
 
+use App\Models\Character;
+use App\Models\CharacterItem;
 use App\Models\Item;
+use App\Services\CharacterStatusService;
 use App\Services\EquipmentEnhancementService;
 use Tests\TestCase;
 
@@ -28,7 +31,7 @@ class EquipmentEnhancementServiceTest extends TestCase
         );
     }
 
-    public function test_accessory_enhancement_uses_the_extended_total_bonus_at_plus_thirty(): void
+    public function test_accessory_enhancement_adds_one_total_stat_per_level_after_plus_five(): void
     {
         $item = (object) [
             'type' => 'accessory',
@@ -43,7 +46,7 @@ class EquipmentEnhancementServiceTest extends TestCase
         ];
 
         $this->assertSame(
-            ['str' => 16, 'def' => 16, 'agi' => 16, 'mag' => 15, 'spr' => 15, 'luk' => 15],
+            ['str' => 17, 'def' => 17, 'agi' => 17, 'mag' => 17, 'spr' => 17, 'luk' => 16],
             EquipmentEnhancementService::enhancedStatTotalsForItem($item, 30)
         );
     }
@@ -63,13 +66,13 @@ class EquipmentEnhancementServiceTest extends TestCase
             'str_bonus' => 264,
         ];
 
-        // 8倍化前: +4で 敏捷21 / 運11、SS単能力+30で 攻撃200。
+        // 8倍化前: +4で 敏捷21 / 運11、SS単能力+30で 攻撃68。
         $this->assertSame(
             ['agi' => 168, 'luk' => 88],
             EquipmentEnhancementService::enhancedStatTotalsForItem($scaledLowerRank, 4)
         );
         $this->assertSame(
-            ['str' => 1600],
+            ['str' => 544],
             EquipmentEnhancementService::enhancedStatTotalsForItem($scaledHighRank, 30)
         );
     }
@@ -91,7 +94,90 @@ class EquipmentEnhancementServiceTest extends TestCase
         );
     }
 
-    public function test_high_rank_accessories_reach_their_configured_targets_at_plus_thirty(): void
+    public function test_accessory_enhancement_never_lowers_a_stat_or_has_an_empty_paid_level(): void
+    {
+        $examples = [
+            'S single' => ['accessory_rank' => 'S', 'str_bonus' => 192],
+            'S mixed' => ['accessory_rank' => 'S', 'hp_bonus' => 324, 'mp_bonus' => 320, 'luk_bonus' => 64],
+            'SS single' => ['accessory_rank' => 'SS', 'str_bonus' => 264],
+            'SS HP' => ['accessory_rank' => 'SS', 'hp_bonus' => 1320],
+            'SS full' => ['accessory_rank' => 'SS', 'str_bonus' => 88, 'def_bonus' => 88, 'agi_bonus' => 88, 'mag_bonus' => 88, 'spr_bonus' => 88, 'luk_bonus' => 88],
+            'SS mixed' => ['accessory_rank' => 'SS', 'hp_bonus' => 440, 'mp_bonus' => 440, 'luk_bonus' => 88],
+            'SSS HP' => ['accessory_rank' => 'SSS', 'hp_bonus' => 2000],
+            'EPIC full' => ['accessory_rank' => 'EPIC', 'str_bonus' => 160, 'def_bonus' => 160, 'agi_bonus' => 160, 'mag_bonus' => 160, 'spr_bonus' => 160, 'luk_bonus' => 160],
+        ];
+
+        foreach ($examples as $label => $definition) {
+            $item = (object) (['type' => 'accessory', 'accessory_performance_scale_version' => 2] + $definition);
+            $maxLevel = $definition['accessory_rank'] === 'S' ? 25 : 30;
+            $previous = EquipmentEnhancementService::enhancedStatTotalsForItem($item, 0);
+
+            for ($level = 1; $level <= $maxLevel; $level++) {
+                $current = EquipmentEnhancementService::enhancedStatTotalsForItem($item, $level);
+                foreach ($previous as $stat => $value) {
+                    $this->assertGreaterThanOrEqual($value, $current[$stat], "{$label} +{$level} {$stat} decreased");
+                }
+                $this->assertGreaterThan(array_sum($previous), array_sum($current), "{$label} +{$level} has no gain");
+                $previous = $current;
+            }
+        }
+    }
+
+    public function test_ss_accessory_growth_uses_the_base_stats_without_changing_plus_zero(): void
+    {
+        $single = (object) ['type' => 'accessory', 'accessory_rank' => 'SS', 'accessory_performance_scale_version' => 2, 'str_bonus' => 264];
+        $life = (object) ['type' => 'accessory', 'accessory_rank' => 'SS', 'accessory_performance_scale_version' => 2, 'hp_bonus' => 1320];
+        $spirit = (object) ['type' => 'accessory', 'accessory_rank' => 'SS', 'accessory_performance_scale_version' => 2, 'mp_bonus' => 1320];
+
+        $this->assertSame(['str' => 264], EquipmentEnhancementService::enhancedStatTotalsForItem($single, 0));
+        $this->assertSame(['hp' => 1320], EquipmentEnhancementService::enhancedStatTotalsForItem($life, 0));
+        $this->assertSame(['mp' => 1320], EquipmentEnhancementService::enhancedStatTotalsForItem($spirit, 0));
+        $this->assertSame(['str' => 544], EquipmentEnhancementService::enhancedStatTotalsForItem($single, 30));
+        $this->assertSame(['hp' => 1947], EquipmentEnhancementService::enhancedStatTotalsForItem($life, 30));
+        $this->assertSame(['mp' => 1947], EquipmentEnhancementService::enhancedStatTotalsForItem($spirit, 30));
+    }
+
+    public function test_hp_sp_and_mixed_accessories_reach_the_existing_performance_band_floor(): void
+    {
+        $examples = [
+            ['rank' => 'S', 'level' => 25, 'base' => ['hp_bonus' => 980], 'expected' => ['hp' => 1406]],
+            ['rank' => 'S', 'level' => 25, 'base' => ['hp_bonus' => 324, 'mp_bonus' => 320, 'luk_bonus' => 64], 'expected' => ['hp' => 464, 'mp' => 459, 'luk' => 91]],
+            ['rank' => 'SS', 'level' => 30, 'base' => ['hp_bonus' => 440, 'mp_bonus' => 440, 'luk_bonus' => 88], 'expected' => ['hp' => 649, 'mp' => 649, 'luk' => 129]],
+            ['rank' => 'SS', 'level' => 30, 'base' => ['hp_bonus' => 440, 'def_bonus' => 224], 'expected' => ['hp' => 649, 'def' => 330]],
+        ];
+
+        foreach ($examples as $example) {
+            $item = (object) (['type' => 'accessory', 'accessory_rank' => $example['rank'], 'accessory_performance_scale_version' => 2] + $example['base']);
+
+            $this->assertSame($example['expected'], EquipmentEnhancementService::enhancedStatTotalsForItem($item, $example['level']));
+        }
+    }
+
+    public function test_accessory_enhancement_preview_and_effective_equipment_use_the_same_resource_growth(): void
+    {
+        $item = new Item([
+            'type' => 'accessory',
+            'accessory_rank' => 'SS',
+            'accessory_performance_scale_version' => 2,
+            'hp_bonus' => 440,
+            'mp_bonus' => 440,
+            'luk_bonus' => 88,
+        ]);
+        $owned = new CharacterItem(['enhance_level' => 29]);
+        $owned->setRelation('item', $item);
+
+        $preview = EquipmentEnhancementService::enhancedStatsFor($owned);
+        $effective = app(CharacterStatusService::class)->equipmentStatsForItem(new Character, $item, 30);
+
+        $this->assertSame(649, $preview['hp']['next']);
+        $this->assertGreaterThan($preview['hp']['current'], $preview['hp']['next']);
+        $this->assertSame(649, $preview['mp']['next']);
+        $this->assertSame(649, $effective['hp']);
+        $this->assertSame(649, $effective['mp']);
+        $this->assertSame(129, $effective['luk']);
+    }
+
+    public function test_high_rank_accessories_share_the_increment_curve_at_plus_thirty(): void
     {
         $ssItem = (object) [
             'type' => 'accessory',
@@ -139,24 +225,24 @@ class EquipmentEnhancementServiceTest extends TestCase
             'luk_bonus' => 20,
         ];
 
-        $this->assertSame(['str' => 200], EquipmentEnhancementService::enhancedStatTotalsForItem($ssItem, 30));
-        $this->assertSame(['str' => 300], EquipmentEnhancementService::enhancedStatTotalsForItem($sssItem, 30));
-        $this->assertSame(['str' => 400], EquipmentEnhancementService::enhancedStatTotalsForItem($epicSingleItem, 30));
+        $this->assertSame(['str' => 68], EquipmentEnhancementService::enhancedStatTotalsForItem($ssItem, 30));
+        $this->assertSame(['str' => 79], EquipmentEnhancementService::enhancedStatTotalsForItem($sssItem, 30));
+        $this->assertSame(['str' => 95], EquipmentEnhancementService::enhancedStatTotalsForItem($epicSingleItem, 30));
         $this->assertSame(
-            ['str' => 100, 'def' => 100, 'agi' => 100, 'mag' => 100, 'spr' => 100, 'luk' => 100],
+            ['str' => 17, 'def' => 17, 'agi' => 17, 'mag' => 17, 'spr' => 17, 'luk' => 16],
             EquipmentEnhancementService::enhancedStatTotalsForItem($ssFullItem, 30)
         );
         $this->assertSame(
-            ['str' => 150, 'def' => 150, 'agi' => 150, 'mag' => 150, 'spr' => 150, 'luk' => 150],
+            ['str' => 20, 'def' => 20, 'agi' => 20, 'mag' => 20, 'spr' => 20, 'luk' => 19],
             EquipmentEnhancementService::enhancedStatTotalsForItem($sssFullItem, 30)
         );
         $this->assertSame(
-            ['str' => 200, 'def' => 200, 'agi' => 200, 'mag' => 200, 'spr' => 200, 'luk' => 200],
+            ['str' => 26, 'def' => 26, 'agi' => 26, 'mag' => 26, 'spr' => 26, 'luk' => 25],
             EquipmentEnhancementService::enhancedStatTotalsForItem($epicFullItem, 30)
         );
     }
 
-    public function test_lower_rank_accessories_keep_the_existing_total_bonus_formula(): void
+    public function test_s_accessory_gains_at_each_level_through_plus_twenty_five(): void
     {
         $item = (object) [
             'type' => 'accessory',
@@ -164,7 +250,7 @@ class EquipmentEnhancementServiceTest extends TestCase
             'str_bonus' => 24,
         ];
 
-        $this->assertSame(['str' => 49], EquipmentEnhancementService::enhancedStatTotalsForItem($item, 25));
+        $this->assertSame(['str' => 54], EquipmentEnhancementService::enhancedStatTotalsForItem($item, 25));
     }
 
     public function test_weapon_enhancement_keeps_existing_per_stat_formula(): void

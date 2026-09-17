@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-09-17-accessory-enhancement-growth-rebalance',
+        'date' => '2026-09-17',
+        'category' => 'balance',
+        'title' => '装飾品強化の能力低下と伸びの偏りを改善',
+        'detail' => '装飾品を強化したときに能力が下がる・増えない段階をなくし、HP・SP型の伸び不足と一部の極端な伸びを調整しました。+0の基礎能力、強化上限、必要素材、Gold、進化の解放条件は変更していません。',
+    ],
+    [
         'id' => '2026-09-17-exclusive-character-icon-063',
         'date' => '2026-09-17',
         'category' => 'internal',

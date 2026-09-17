@@ -58,11 +58,11 @@ final class WindCharmAccessorySpecializationMigrationTest extends TestCase
         $ssRank = Item::query()->where('external_item_id', 'ACC_WIND_CHARM_SS')->firstOrFail();
 
         $this->assertSame(
-            ['agi' => 392],
+            ['agi' => 432],
             EquipmentEnhancementService::enhancedStatTotalsForItem($sRank, 25)
         );
         $this->assertSame(
-            ['agi' => 1600],
+            ['agi' => 544],
             EquipmentEnhancementService::enhancedStatTotalsForItem($ssRank, 30)
         );
 

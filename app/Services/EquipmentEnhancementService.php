@@ -29,8 +29,6 @@ class EquipmentEnhancementService
         'luk' => 'luk_bonus',
     ];
 
-    private const ACCESSORY_FULL_STAT_KEYS = ['str', 'def', 'agi', 'mag', 'spr', 'luk'];
-
     private const MATERIAL_CODE_ALIASES = [
         'MAT_WEAPON_FRAGMENT' => 'MAT_EQUIPMENT_FRAGMENT',
         'WEV0001' => 'MAT_EQUIPMENT_FRAGMENT',
@@ -363,46 +361,24 @@ class EquipmentEnhancementService
             return self::scaleAccessoryStats($baseStats, $performanceScaleFactor, $hpScaleFactor);
         }
 
-        $extraTotal = self::accessoryExtraTotalForItem($totalBase, $positiveStats, $level, $item);
+        $extraTotal = self::accessoryExtraTotal($level);
 
         $extras = array_fill_keys(array_keys($baseStats), 0);
-        $remainders = [];
-        $allocated = 0;
-
-        foreach ($positiveStats as $key => $base) {
-            $rawExtra = ($extraTotal * $base) / $totalBase;
-            $extra = (int) floor($rawExtra);
-            $extras[$key] = $extra;
-            $remainders[$key] = $rawExtra - $extra;
-            $allocated += $extra;
-        }
-
-        $remaining = $extraTotal - $allocated;
-        if ($remaining > 0) {
-            $keys = array_keys($positiveStats);
-            $fieldOrder = array_flip(array_keys(self::STAT_FIELDS));
-            usort($keys, function (string $a, string $b) use ($remainders, $positiveStats, $fieldOrder): int {
-                $remainderCompare = ($remainders[$b] ?? 0.0) <=> ($remainders[$a] ?? 0.0);
-                if ($remainderCompare !== 0) {
-                    return $remainderCompare;
+        // 追加値を1ずつ積み上げる。毎段階で配分し直すと、他能力が増える際に既存能力が下がり得る。
+        for ($step = 1; $step <= $extraTotal; $step++) {
+            $selectedKey = null;
+            $largestDeficit = null;
+            foreach ($positiveStats as $key => $base) {
+                $deficit = ($step * $base) - ($extras[$key] * $totalBase);
+                if ($selectedKey === null
+                    || $deficit > $largestDeficit
+                    || ($deficit === $largestDeficit && $base > $positiveStats[$selectedKey])) {
+                    $selectedKey = $key;
+                    $largestDeficit = $deficit;
                 }
-
-                $baseCompare = ($positiveStats[$b] ?? 0) <=> ($positiveStats[$a] ?? 0);
-                if ($baseCompare !== 0) {
-                    return $baseCompare;
-                }
-
-                return ($fieldOrder[$a] ?? PHP_INT_MAX) <=> ($fieldOrder[$b] ?? PHP_INT_MAX);
-            });
-
-            foreach ($keys as $key) {
-                if ($remaining <= 0) {
-                    break;
-                }
-
-                $extras[$key]++;
-                $remaining--;
             }
+
+            $extras[$selectedKey]++;
         }
 
         $stats = $baseStats;
@@ -410,7 +386,23 @@ class EquipmentEnhancementService
             $stats[$key] = ($stats[$key] ?? 0) + $extra;
         }
 
-        return self::scaleAccessoryStats($stats, $performanceScaleFactor, $hpScaleFactor);
+        $stats = self::scaleAccessoryStats($stats, $performanceScaleFactor, $hpScaleFactor);
+        $hasResourceStat = isset($positiveStats['hp']) || isset($positiveStats['mp']);
+        if (!$hasResourceStat) {
+            // HP/SPを持たない型の既存の伸びは維持する。
+            return $stats;
+        }
+
+        // HP/SP型とそれらを含む複合型は総量配分だけでは伸びが薄い。武器・防具と同じ段階別倍率を
+        // 各能力の下限にするが、総量配分のほうが大きければその値を維持する。
+        $baseScaled = self::scaleAccessoryStats($baseStats, $performanceScaleFactor, $hpScaleFactor);
+        $rateBps = self::enhancementRateBps($level);
+        foreach (array_keys($positiveStats) as $key) {
+            $displayBase = $baseScaled[$key];
+            $stats[$key] = max($stats[$key], $displayBase + intdiv($displayBase * $rateBps, 10000));
+        }
+
+        return $stats;
     }
 
     private static function accessoryPerformanceScaleFactor(?object $item): int
@@ -658,51 +650,15 @@ class EquipmentEnhancementService
 
     private static function accessoryExtraTotal(int $level): int
     {
-        if ($level <= 5) {
-            return $level * 2;
+        $total = 0;
+        foreach (config('equipment_enhancement.accessory_extra_stat_bands', []) as $band) {
+            $from = (int) ($band['from'] ?? 1);
+            $to = (int) ($band['to'] ?? 0);
+            $appliedLevels = max(0, min($level, $to) - $from + 1);
+            $total += $appliedLevels * (int) ($band['extra_per_level'] ?? 0);
         }
 
-        return 10 + min($level - 5, 10) + intdiv(max(0, $level - 15), 2);
-    }
-
-    /**
-     * @param  array<string, int>  $positiveStats
-     */
-    private static function accessoryExtraTotalForItem(int $baseTotal, array $positiveStats, int $level, ?object $item): int
-    {
-        $rank = strtoupper(trim((string) (
-            $item?->accessory_rank
-            ?? $item?->rarity
-            ?? ''
-        )));
-        $targetTotal = self::isFullAbilityAccessory($positiveStats)
-            ? config('equipment_enhancement.accessory_full_stat_target_per_stat_at_max.' . $rank)
-            : config('equipment_enhancement.accessory_total_stat_targets_at_max.' . $rank);
-
-        if ($targetTotal === null) {
-            return self::accessoryExtraTotal($level);
-        }
-
-        if (self::isFullAbilityAccessory($positiveStats)) {
-            $targetTotal *= count(self::ACCESSORY_FULL_STAT_KEYS);
-        }
-
-        $maxLevel = min(
-            self::MAX_EQUIPMENT_ENHANCE,
-            (int) config('equipment_enhancement.rank_caps.' . $rank, self::MAX_EQUIPMENT_ENHANCE)
-        );
-        $targetTotal = max($baseTotal, (int) $targetTotal);
-        $totalAtLevel = $baseTotal + intdiv(($targetTotal - $baseTotal) * $level, max(1, $maxLevel));
-
-        return $totalAtLevel - $baseTotal;
-    }
-
-    /**
-     * @param  array<string, int>  $positiveStats
-     */
-    private static function isFullAbilityAccessory(array $positiveStats): bool
-    {
-        return array_keys($positiveStats) === self::ACCESSORY_FULL_STAT_KEYS;
+        return $total;
     }
 
     private function extendedMaterialsFor(int $level, string $type, ?Character $character, ?object $item): ?array
