@@ -16,6 +16,7 @@ class ItemBookAncientFragmentVisibilityTest extends TestCase
     use RefreshDatabase;
 
     private const ACTIVE_ANCIENT_FRAGMENT_CODES = [
+        'ACC0004',
         'MAT_BR_WPN_HOLY_ANCIENT',
         'MAT_BR_WPN_DARK_ANCIENT',
         'MAT_BR_WPN_GALE_ANCIENT',
@@ -80,7 +81,7 @@ class ItemBookAncientFragmentVisibilityTest extends TestCase
             ->withSession(['current_character_id' => $character->id])
             ->get(route('item-book.index'))
             ->assertOk()
-            ->assertSee(['聖剣の古代片', '魔剣の古代片', '迅刃の古代片'])
+            ->assertSee(['古代装飾片', '聖剣の古代片', '魔剣の古代片', '迅刃の古代片'])
             ->assertSee(['重装の古代片', '魔装の古代片', '軽装の古代片', '旅装の古代片'])
             ->assertDontSee(['腕力の古代片', '守護の古代片', '魔力の古代片', '祈祷の古代片', '疾風の古代片', '幸運の古代片', '均衡の古代片']);
     }

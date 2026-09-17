@@ -17,6 +17,7 @@ class FerdiaRegionSeeder extends Seeder
     private const MAX_NORMAL_MATERIAL_DROP_RATE = 33.0;
     private const NORMAL_MATERIAL_DROP_RATE_MULTIPLIER = 8125 / 2024;
     private const ANCIENT_MATERIAL_DROP_RATE_MULTIPLIER = 2.0;
+    private const ACCESSORY_ANCIENT_FRAGMENT_CODE = 'ACC0004';
 
     private const MATERIAL_MASTERS = [
         'MAT_FERDIA_BLUE_LIFE_LEAF' => ['青命草の葉', '一般'],
@@ -83,6 +84,7 @@ class FerdiaRegionSeeder extends Seeder
         $materialCodes = collect(self::MATERIAL_DROP_MAP)
             ->flatMap(fn (array $types): array => collect($types)->flatten(1)->pluck(0)->all())
             ->merge(array_values(self::ANCIENT_MATERIAL_BY_AREA))
+            ->push(self::ACCESSORY_ANCIENT_FRAGMENT_CODE)
             ->unique()
             ->values();
         $materialIds = DB::table('materials')
@@ -124,18 +126,15 @@ class FerdiaRegionSeeder extends Seeder
                     $entries = $types[$type] ?? [];
                 }
 
-                if ($type === '人型') {
-                    $entries[] = [
-                        self::ANCIENT_MATERIAL_BY_AREA[$areaId],
-                        0.38 * self::ANCIENT_MATERIAL_DROP_RATE_MULTIPLIER,
-                        true,
-                    ];
-                } elseif ($type === '巨人') {
-                    $entries[] = [
-                        self::ANCIENT_MATERIAL_BY_AREA[$areaId],
-                        0.30 * self::ANCIENT_MATERIAL_DROP_RATE_MULTIPLIER,
-                        true,
-                    ];
+                $ancientRate = match ($type) {
+                    '人型' => 0.38 * self::ANCIENT_MATERIAL_DROP_RATE_MULTIPLIER,
+                    '巨人' => 0.30 * self::ANCIENT_MATERIAL_DROP_RATE_MULTIPLIER,
+                    default => null,
+                };
+                if ($ancientRate !== null) {
+                    foreach ([self::ANCIENT_MATERIAL_BY_AREA[$areaId], self::ACCESSORY_ANCIENT_FRAGMENT_CODE] as $materialCode) {
+                        $entries[] = [$materialCode, $ancientRate, true];
+                    }
                 }
 
                 foreach ($entries as $entry) {

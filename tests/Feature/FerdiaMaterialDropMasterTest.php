@@ -21,7 +21,7 @@ class FerdiaMaterialDropMasterTest extends TestCase
             ->whereBetween('area_id', [1001, 1013])
             ->where('is_boss', false)
             ->count());
-        $this->assertSame(69, $this->ferdiaDropQuery()->count());
+        $this->assertSame(95, $this->ferdiaDropQuery()->count());
 
         foreach (range(1001, 1013) as $areaId) {
             $this->assertTrue(
@@ -50,6 +50,7 @@ class FerdiaMaterialDropMasterTest extends TestCase
             $this->dropRate(1001, '人型', 'MAT_BR_ARM_TRAVELER_ANCIENT'),
             0.001
         );
+        $this->assertEqualsWithDelta(0.76, $this->dropRate(1001, '人型', 'ACC0004'), 0.001);
         $this->assertEqualsWithDelta(
             8.03,
             $this->dropRate(1011, '巨人', 'MAT_FERDIA_LIFEROOT'),
@@ -60,6 +61,7 @@ class FerdiaMaterialDropMasterTest extends TestCase
             $this->dropRate(1011, '巨人', 'MAT_BR_WPN_GALE_ANCIENT'),
             0.001
         );
+        $this->assertEqualsWithDelta(0.60, $this->dropRate(1011, '巨人', 'ACC0004'), 0.001);
         $this->assertEqualsWithDelta(
             12.04,
             $this->dropRate(1005, '昆虫', 'MAT_FERDIA_DETOX_GALL'),
@@ -119,7 +121,7 @@ class FerdiaMaterialDropMasterTest extends TestCase
         app(FerdiaRegionSeeder::class)->seedMaterialDrops();
 
         $this->assertSame(6, DB::table('materials')->whereIn('material_code', $materialCodes)->count());
-        $this->assertSame(69, $this->ferdiaDropQuery()->count());
+        $this->assertSame(95, $this->ferdiaDropQuery()->count());
     }
 
     public function test_dungeon_validation_detects_missing_ferdia_material_drops(): void

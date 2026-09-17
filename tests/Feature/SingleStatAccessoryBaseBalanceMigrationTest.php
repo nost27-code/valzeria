@@ -50,7 +50,7 @@ final class SingleStatAccessoryBaseBalanceMigrationTest extends TestCase
         $this->assertSame(976, (int) DB::table('items')->where('external_item_id', 'ACC_MIND_EARRING_S')->value('mp_bonus'));
     }
 
-    public function test_enhancement_uses_new_master_without_changing_growth_or_evolution_unlock(): void
+    public function test_enhancement_uses_new_master_and_current_evolution_recipe(): void
     {
         $s = Item::query()->where('external_item_id', 'ACC_POWER_RING_S')->firstOrFail();
         $ss = Item::query()->where('external_item_id', 'ACC_POWER_RING_SS')->firstOrFail();
@@ -71,7 +71,7 @@ final class SingleStatAccessoryBaseBalanceMigrationTest extends TestCase
             ->where('from_accessory_id', 'ACC_POWER_RING_S')
             ->first(['requires_hidden_dungeon_unlocked', 'is_active']);
         $this->assertNotNull($recipe);
-        $this->assertSame(1, (int) $recipe->requires_hidden_dungeon_unlocked);
+        $this->assertSame(0, (int) $recipe->requires_hidden_dungeon_unlocked);
         $this->assertSame(1, (int) $recipe->is_active);
     }
 

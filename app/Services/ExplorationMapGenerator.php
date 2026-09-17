@@ -61,7 +61,7 @@ class ExplorationMapGenerator
         }
 
         if ($profile === 'ancient_fragment') {
-            $fragment = $this->legacyRewards->ancientFragmentForSeedHash($seedHash);
+            $fragment = $this->legacyRewards->ancientFragmentForSeedHash($seedHash, true);
             if (!$fragment) {
                 throw new ExplorationMapGenerationUnavailable('地図用の古代片素材が見つかりません。');
             }

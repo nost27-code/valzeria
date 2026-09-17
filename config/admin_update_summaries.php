@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-09-17-accessory-s-to-ss-release',
+        'date' => '2026-09-17',
+        'category' => 'added',
+        'title' => '装飾品のSからSSへの進化合成を解放',
+        'detail' => '通常系統の装飾品をSからSSへ進化できるようにしました。進化にはS装飾品1個、古代装飾片3個、8,000Gが必要です。古代装飾片はフェルディア地方や探索の地図から狙えます。',
+    ],
+    [
         'id' => '2026-09-17-exclusive-character-icon-064',
         'date' => '2026-09-17',
         'category' => 'internal',

@@ -8,6 +8,7 @@ use App\Models\CharacterMaterial;
 use App\Models\City;
 use App\Models\Enemy;
 use App\Models\ExplorationMap;
+use App\Models\Material;
 use App\Models\User;
 use App\Services\ExplorationMapDisplayService;
 use App\Services\ExplorationMapLegacyRewardService;
@@ -72,6 +73,34 @@ class ExplorationMapLegacyRewardTest extends TestCase
 
         $this->assertSame($fragment->id, $service->ancientFragmentFor($map)?->id);
         $this->assertSame('古代片：' . $fragment->displayName(), app(ExplorationMapDisplayService::class)->details($map)['reward']);
+    }
+
+    public function test_new_ancient_fragment_profile_can_grant_saved_accessory_fragment(): void
+    {
+        [$area, $enemy] = $this->createEnemies();
+        $fragment = Material::query()->where('material_code', 'ACC0004')->firstOrFail();
+        $map = $this->legacyPlainMap($enemy, 142, 'ancient_fragment');
+        $map->generation_payload_json = ['ancient_fragment_material_code' => $fragment->material_code];
+        $character = Character::create([
+            'user_id' => User::factory()->create()->id,
+            'name' => '装飾片の探索者',
+            'hp_base' => 100,
+            'current_hp' => 100,
+        ]);
+        $service = app(ExplorationMapLegacyRewardService::class);
+
+        $this->assertSame($fragment->id, $service->ancientFragmentFor($map)?->id);
+        $this->assertSame('古代片：' . $fragment->displayName(), app(ExplorationMapDisplayService::class)->details($map)['reward']);
+
+        config()->set('exploration_maps.legacy_fallback_rewards.ancient_fragment_drop_rate_basis_points', 10000);
+        $drop = $service->tryDrop($character, $map, $enemy->setRelation('area', $area), str_repeat('d', 64));
+
+        $this->assertSame($fragment->id, $drop['material_id']);
+        $this->assertDatabaseHas('character_materials', [
+            'character_id' => $character->id,
+            'material_id' => $fragment->id,
+            'quantity' => 1,
+        ]);
     }
 
     public function test_legacy_maps_with_an_existing_reward_modifier_are_not_treated_as_plain_rewards(): void

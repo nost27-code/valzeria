@@ -10,7 +10,11 @@ use Illuminate\Support\Collection;
 
 class ExplorationMapLegacyRewardService
 {
+    private const ACCESSORY_ANCIENT_FRAGMENT_CODE = 'ACC0004';
+
     private ?Collection $ancientFragments = null;
+
+    private ?Collection $ancientFragmentsWithAccessory = null;
 
     public function __construct(
         private readonly ExplorationMapDifficultyService $difficulty,
@@ -32,16 +36,18 @@ class ExplorationMapLegacyRewardService
         if ($isAncientFragmentProfile) {
             $materialCode = (string) data_get($map->generation_payload_json, 'ancient_fragment_material_code', '');
             if ($materialCode !== '') {
-                return $this->ancientFragments()->firstWhere('material_code', $materialCode);
+                return $this->ancientFragmentsWithAccessory()->firstWhere('material_code', $materialCode);
             }
         }
 
         return $this->ancientFragmentForSeedHash((string) $map->seed_hash);
     }
 
-    public function ancientFragmentForSeedHash(string $seedHash): ?Material
+    public function ancientFragmentForSeedHash(string $seedHash, bool $includeAccessoryFragment = false): ?Material
     {
-        $fragments = $this->ancientFragments();
+        $fragments = $includeAccessoryFragment
+            ? $this->ancientFragmentsWithAccessory()
+            : $this->ancientFragments();
         if ($fragments->isEmpty()) {
             return null;
         }
@@ -99,5 +105,21 @@ class ExplorationMapLegacyRewardService
             ->where('main_use', '!=', '廃止済み')
             ->orderBy('id')
             ->get();
+    }
+
+    /** @return Collection<int, Material> */
+    private function ancientFragmentsWithAccessory(): Collection
+    {
+        if ($this->ancientFragmentsWithAccessory !== null) {
+            return $this->ancientFragmentsWithAccessory;
+        }
+
+        return $this->ancientFragmentsWithAccessory = $this->ancientFragments()
+            ->concat(Material::query()
+                ->where('material_code', self::ACCESSORY_ANCIENT_FRAGMENT_CODE)
+                ->where('main_use', '!=', '廃止済み')
+                ->get())
+            ->sortBy('id')
+            ->values();
     }
 }
