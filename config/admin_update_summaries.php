@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-09-18-champ-high-tier-material-reward',
+        'date' => '2026-09-18',
+        'category' => 'balance',
+        'title' => 'チャンプ戦から高位進化素材を除外',
+        'detail' => 'チャンプ戦では古代装飾片・原初装飾晶・星屑の宝材など高位進化素材が出なくなります。通常素材の報酬と既存の所持品は変わりません。星屑の宝材の新たな入手方法は準備中です。',
+    ],
+    [
         'id' => '2026-09-17-accessory-s-to-ss-release',
         'date' => '2026-09-17',
         'category' => 'added',

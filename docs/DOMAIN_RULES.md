@@ -28,6 +28,7 @@ Purpose: canonical game rules. Keep concise.
 
 ## Combat
 
+- チャンプ戦の素材報酬（2026-09-18裁定）: 装備中アイテムの進化レシピから報酬候補を作る際、素材マスタの`rank_tier`が4以上の高位素材は候補から除外する。古代装飾片・原初装飾晶・星屑の宝材も対象とし、低位素材の抽選と既存所持品は変更しない。星屑の宝材は代替の探索・錬成経路が決まるまで新規入手を一時停止し、所持済み素材の進化利用は維持する。
 - 反撃系譜の攻撃本体damage判定: 相手の通常攻撃・職業技・戦技による物理・魔力・複合の攻撃本体で実HPを1以上失い、そのsource action終了時に生存している場合、剣勢を1行動につき1回+1し、次の自分の行動開始時に`direct_attack_damage_received_since_previous_own_action`を成立させる。多段は実HP減少をsource action終了まで合算して1回だけ確定する。MISS/EVADE、完全受け流し、撃破、踏みとどまり発動、DoT、反射、反撃、自傷、反動、固定damage、現在/最大HP割合damageは対象外。受け流し成功の剣勢+1は別eventのままなので、完全受け流しは受け流し分+1のみ。13:9コロッセオブレイクの最終damage×1.15も同じsnapshotだけを条件とし、1:5受け返しの受け流し条件×1.35は変更しない。通常PvE・boss・tower・PvP・champ・NPC arenaの共通`DamageApplicationService`で同じ規則を使う。
 - 戦技差し替え第2弾2-C Phase 1: 1:5受け返しは剣勢4消費・威力145%の単発物理攻撃とし、直前の自分の行動終了後から今回の行動開始までに受け流しへ成功していた場合だけ最終damageを1.35倍にする。受け流しsnapshotは今回の行動開始時に消費し、自分の別行動を1回挟んだ後へ持ち越さない。17:1影伏せは狩猟印4獲得・威力100%の単発物理攻撃後、次に実行する封狩系譜Rank5/9の最終damageを1.20倍にする準備効果を1 charge付与し、発動後の自分の行動機会4回以内に対象戦技を使わなければ失効する。現在職・継承と通常PvE/boss/tower/PvP/champ/NPC arenaで同じ完全効果を使う。既存の`parry_success_since_previous_own_action`条件と`prepared_effect`だけを使用し、新しいruntime primitive、追加RNG、`JobArtV2SelectionService`、基礎発動率50%/55%/60%を変更しない。2件は自然キー更新で既存`skills.id`とslot/preset参照を維持する。
 

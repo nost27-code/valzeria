@@ -48,6 +48,8 @@ class ChampBattleService
         '5054',
         'ACC_CITY_HIGH_MATERIAL',
     ];
+    // S→SS以上の進化素材は探索・錬成経路の価値を守るため抽選しない。
+    private const CHAMP_REWARD_HIGH_TIER_MIN_RANK = 4;
     private const CHAMP_REWARD_EXCLUDED_MATERIAL_TYPES = [
         'accessory_city_high',
         'back_dungeon',
@@ -1821,6 +1823,10 @@ class ChampBattleService
 
     private function isExcludedChampRewardMaterial(Material $material): bool
     {
+        if ((int) ($material->rank_tier ?? 0) >= self::CHAMP_REWARD_HIGH_TIER_MIN_RANK) {
+            return true;
+        }
+
         $code = (string) ($material->material_code ?? '');
         if (in_array($code, self::CHAMP_REWARD_EXCLUDED_MATERIAL_CODES, true)) {
             return true;

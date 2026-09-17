@@ -891,6 +891,13 @@ class EquipmentEvolutionService
             ->orderBy('areas.sort_order')
             ->get();
 
+        // 旧マスタの「装飾品分解・敵ドロップ」は現在どちらも利用できない。
+        if ($code === 'ACC0005' && $dropRows->isEmpty()) {
+            return $this->materialSourceCache[$code] = [
+                $this->sourcePayload('新たな入手方法は準備中です。'),
+            ];
+        }
+
         foreach ($dropRows->groupBy('area_id') as $areaId => $rows) {
             $areaName = (string) ($rows->first()->area_name ?? '');
             $cityName = (string) ($rows->first()->city_name ?? '');
