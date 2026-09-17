@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-09-17-single-stat-accessory-base-balance',
+        'date' => '2026-09-17',
+        'category' => 'balance',
+        'title' => 'S以上の単能力装飾品の基礎性能を上方修正',
+        'detail' => 'S以上の攻撃・防御・魔力・精神・敏捷・運に特化した装飾品は、強化前から能力が少し高くなります。HP・SP型や全能力型、強化費用、進化の解放条件は変更していません。',
+    ],
+    [
         'id' => '2026-09-17-accessory-enhancement-growth-rebalance',
         'date' => '2026-09-17',
         'category' => 'balance',

@@ -21,13 +21,13 @@ final class WindCharmAccessorySpecializationMigrationTest extends TestCase
         'ACC_WIND_CHARM_C' => 72,
         'ACC_WIND_CHARM_B' => 96,
         'ACC_WIND_CHARM_A' => 144,
-        'ACC_WIND_CHARM_S' => 192,
-        'ACC_WIND_CHARM_SS' => 264,
-        'ACC_WIND_CHARM_SSS' => 344,
-        'ACC_WIND_CHARM_EPIC' => 480,
+        'ACC_WIND_CHARM_S' => 208,
+        'ACC_WIND_CHARM_SS' => 288,
+        'ACC_WIND_CHARM_SSS' => 376,
+        'ACC_WIND_CHARM_EPIC' => 520,
     ];
 
-    public function test_wind_charm_family_moves_its_existing_total_to_agility_only(): void
+    public function test_wind_charm_family_remains_agility_only_after_base_raise(): void
     {
         $items = DB::table('items')
             ->where('accessory_family_id', 'WIND_CHARM')
@@ -58,11 +58,11 @@ final class WindCharmAccessorySpecializationMigrationTest extends TestCase
         $ssRank = Item::query()->where('external_item_id', 'ACC_WIND_CHARM_SS')->firstOrFail();
 
         $this->assertSame(
-            ['agi' => 432],
+            ['agi' => 448],
             EquipmentEnhancementService::enhancedStatTotalsForItem($sRank, 25)
         );
         $this->assertSame(
-            ['agi' => 544],
+            ['agi' => 568],
             EquipmentEnhancementService::enhancedStatTotalsForItem($ssRank, 30)
         );
 
@@ -72,11 +72,12 @@ final class WindCharmAccessorySpecializationMigrationTest extends TestCase
 
         $this->assertNotNull($luckCharm);
         $this->assertSame(0, (int) $luckCharm->agi_bonus);
-        $this->assertSame(192, (int) $luckCharm->luk_bonus);
+        $this->assertSame(208, (int) $luckCharm->luk_bonus);
     }
 
     public function test_migration_is_idempotent_and_rolls_back_to_the_exact_previous_distribution(): void
     {
+        $this->baseBalanceMigration()->down();
         $migration = $this->migration();
         $specializedSnapshot = $this->windCharmSnapshot();
         $unrelatedLuckCharm = DB::table('items')
@@ -97,7 +98,7 @@ final class WindCharmAccessorySpecializationMigrationTest extends TestCase
             $this->assertSame($expected['agi'], (int) $row->agi_bonus, $externalItemId);
             $this->assertSame($expected['luk'], (int) $row->luk_bonus, $externalItemId);
             $this->assertSame(
-                self::EXPECTED_AGILITY_TOTALS[$externalItemId],
+                $expected['agi'] + $expected['luk'],
                 (int) $row->agi_bonus + (int) $row->luk_bonus,
                 $externalItemId
             );
@@ -118,6 +119,7 @@ final class WindCharmAccessorySpecializationMigrationTest extends TestCase
 
     public function test_every_rank_and_enhancement_level_keeps_the_previous_positive_stat_total(): void
     {
+        $this->baseBalanceMigration()->down();
         $service = app(EquipmentEnhancementService::class);
 
         foreach ($this->oldStatDistribution() as $externalItemId => $oldStats) {
@@ -143,6 +145,7 @@ final class WindCharmAccessorySpecializationMigrationTest extends TestCase
 
     public function test_migration_rejects_an_unknown_master_value_before_changing_any_row(): void
     {
+        $this->baseBalanceMigration()->down();
         $migration = $this->migration();
         $migration->down();
 
@@ -200,5 +203,10 @@ final class WindCharmAccessorySpecializationMigrationTest extends TestCase
     private function migration(): object
     {
         return require base_path('database/migrations/2026_08_31_030000_specialize_wind_charm_accessories_for_agility.php');
+    }
+
+    private function baseBalanceMigration(): object
+    {
+        return require base_path('database/migrations/2026_09_17_010000_raise_single_stat_accessory_base_values.php');
     }
 }
