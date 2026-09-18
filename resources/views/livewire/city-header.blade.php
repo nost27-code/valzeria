@@ -1882,6 +1882,10 @@
                                                         x-text="`現在 ${playerInfo.six_hero_current_record.currentCrownCount}間首位`"
                                                     ></span>
                                                 </div>
+                                                <div class="mb-2 flex flex-wrap items-baseline justify-between gap-x-2 rounded-lg border border-amber-200 bg-amber-50 px-2 py-1.5 text-xs font-black text-amber-900" data-profile-six-hero-best-rank>
+                                                    <span>今期の最高順位</span>
+                                                    <span x-text="`${playerInfo.six_hero_current_record.bestRoom.label} ${playerInfo.six_hero_current_record.bestRoom.rank}位`"></span>
+                                                </div>
                                                 <div class="grid grid-cols-3 gap-1.5" data-profile-six-hero-room-grid>
                                                     <template x-for="room in playerInfo.six_hero_current_record.rooms" :key="`current-six-hero-${room.key}`">
                                                         <div class="flex min-h-[58px] min-w-0 flex-col items-center justify-center rounded-lg border px-1 py-1.5 text-center"

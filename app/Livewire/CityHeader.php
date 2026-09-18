@@ -597,10 +597,21 @@ class CityHeader extends Component
             })
             ->filter()
             ->values();
+        if ($rooms->isEmpty()) {
+            return null;
+        }
+
+        $bestRoom = $rooms->reduce(
+            fn (?array $best, array $room): array => $best === null || $room['rank'] < $best['rank'] ? $room : $best
+        );
 
         return [
             'seasonLabel' => $currentMonth->format('Y年n月期'),
             'currentCrownCount' => $rooms->where('isLeader', true)->count(),
+            'bestRoom' => [
+                'label' => preg_replace('/の間\z/u', '', $bestRoom['label']) ?? $bestRoom['label'],
+                'rank' => $bestRoom['rank'],
+            ],
             'rooms' => $rooms->all(),
         ];
     }

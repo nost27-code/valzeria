@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-09-18-six-hero-best-room-rank-profile',
+        'date' => '2026-09-18',
+        'category' => 'changed',
+        'title' => '冒険者カードに六英雄戦の最高順位を表示',
+        'detail' => '冒険者カードの六英雄戦績に、今期の六つの間で最も高い順位を「○○ ○位」で表示します。各間の順位も引き続き確認できます。',
+    ],
+    [
         'id' => '2026-09-18-champ-high-tier-material-reward',
         'date' => '2026-09-18',
         'category' => 'balance',

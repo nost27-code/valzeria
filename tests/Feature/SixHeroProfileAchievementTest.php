@@ -196,6 +196,42 @@ final class SixHeroProfileAchievementTest extends TestCase
         }
     }
 
+    public function test_adventurer_card_shows_the_best_current_room_rank_with_stable_tie_order(): void
+    {
+        $viewer = $this->character('最高順位閲覧者');
+        $target = $this->character('最高順位対象者');
+        $previousSeason = $this->season('2026-07');
+        $this->ranking($previousSeason, SixHeroRoomKey::MIRACLE, $target, 1, 0, 0, 0, 0);
+
+        $this->actingAs($viewer->user)
+            ->withSession(['current_character_id' => $viewer->id]);
+
+        $component = Livewire::test(CityHeader::class, ['modalOnly' => true])
+            ->call('openPlayerModal', $target->id)
+            ->assertSet('playerInfo.six_hero_current_record', null);
+
+        $season = $this->season('2026-08');
+        $ranks = [8, 5, 3, 2, 2, 7];
+        $rankings = [];
+        foreach (SixHeroRoomKey::cases() as $index => $room) {
+            $rankings[$room->value] = $this->ranking($season, $room, $target, $ranks[$index], 0, 0, 0, 0);
+        }
+
+        $component->call('closePlayerModal')
+            ->call('openPlayerModal', $target->id)
+            ->assertSet('playerInfo.six_hero_current_record.bestRoom.label', '神速')
+            ->assertSet('playerInfo.six_hero_current_record.bestRoom.rank', 2)
+            ->assertSet('playerInfo.six_hero_current_record.rooms.3.label', '神速の間')
+            ->assertSee('今期の最高順位')
+            ->assertSeeHtml('data-profile-six-hero-best-rank');
+
+        $rankings[SixHeroRoomKey::REVERSE_TIME->value]->update(['rank' => 1]);
+        $component->call('closePlayerModal')
+            ->call('openPlayerModal', $target->id)
+            ->assertSet('playerInfo.six_hero_current_record.bestRoom.label', '逆刻')
+            ->assertSet('playerInfo.six_hero_current_record.bestRoom.rank', 1);
+    }
+
     public function test_online_players_mark_only_current_room_leaders_as_top_rankers(): void
     {
         Cache::flush();
