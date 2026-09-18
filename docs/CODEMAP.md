@@ -1,5 +1,9 @@
 # CODEMAP.md
 
+## Silver Week exploration stamina
+
+`config/exploration_stamina_campaign.php` defines the JST window, 45-second recovery, and +500 cap bonus. `ExplorationStaminaService` applies those values to the character-specific cap and splits elapsed recovery at both boundaries. `ExplorationStaminaCampaignTest` covers persisted recovery and post-event overflow; `ExplorationStaminaServiceTest` covers exact boundaries.
+
 Purpose: find relevant files quickly. Do not duplicate implementation details.
 
 ## Exploration map publication visibility

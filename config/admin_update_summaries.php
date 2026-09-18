@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-09-18-silver-week-exploration-stamina',
+        'date' => '2026-09-18',
+        'category' => 'balance',
+        'title' => 'シルバーウィークは探索力の回復と上限を拡大',
+        'detail' => '9月19日〜23日は探索力が45秒で1回復し、いつもの上限が500増えます。期間終了後も貯めた探索力はそのまま使えます。',
+    ],
+    [
         'id' => '2026-09-18-six-hero-best-room-rank-profile',
         'date' => '2026-09-18',
         'category' => 'changed',

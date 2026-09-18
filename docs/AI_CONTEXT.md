@@ -2,8 +2,10 @@
 
 Purpose: compressed current-state snapshot for ChatGPT and Codex.
 Source of truth: current behavior = code / intended spec = DOMAIN_RULES.md + human rulings (see AGENTS.md "Source of truth"). On conflict, report 要裁定 — do not pick a side.
-Last updated: 2026-09-17
+Last updated: 2026-09-18
 Branch: main
+
+- シルバーウィーク探索力（2026-09-19 00:00〜09-24 00:00 JST）: `config/exploration_stamina_campaign.php` の期間中は自然回復を45秒ごとに1、勝利数別の通常上限へ+500。支援パス+250は別途加算する。期間前の自然回復は旧上限・旧速度で計算し、終了後の上限超過分は切り捨てずに保持する。
 
 - 探索地図の公開範囲（2026-09-11）: 公開時に「自分だけ」「国家限定」「すべての冒険者」を選ぶ。個人限定は入場料0、国家限定は公開時の国家IDを固定し、公開者の移籍後も共有先を変えない。範囲外の一覧・詳細・新規入場を止める一方、国家を離れる前に入場済みならその入場を継続できる。既存公開は全体公開を維持し、英雄・伝説地図の全体ログも全体公開だけに出す。公開枠は範囲合計で発見者ごとに3件。
 

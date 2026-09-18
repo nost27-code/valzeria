@@ -100,6 +100,14 @@ class ExplorationStaminaServiceTest extends TestCase
         $summary = $service->summary($character);
         $this->assertSame(250, $summary['base_max']);
         $this->assertSame(250, $summary['bonus_max']);
+
+        CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-09-20 12:00:00', 'Asia/Tokyo'));
+        try {
+            $this->assertSame(1000, $service->maxForCharacter($character));
+            $this->assertSame(750, $service->summary($character)['bonus_max']);
+        } finally {
+            CarbonImmutable::setTestNow();
+        }
     }
 
     public function test_new_character_stamina_starts_at_250(): void
@@ -215,6 +223,77 @@ class ExplorationStaminaServiceTest extends TestCase
         $this->assertSame(495, $service->maxForCharacter(new Character(['wins' => 2999])));
         $this->assertSame(500, $service->maxForCharacter(new Character(['wins' => 3000])));
         $this->assertSame(500, $service->maxForCharacter(new Character(['wins' => 10000])));
+    }
+
+    public function test_silver_week_bonus_applies_only_within_the_japan_time_window(): void
+    {
+        $service = new ExplorationStaminaService();
+        $newcomer = new Character(['wins' => 0]);
+        $veteran = new Character(['wins' => 3000]);
+
+        try {
+            foreach ([
+                ['2026-09-18 23:59:59', 250, 500, 60],
+                ['2026-09-19 00:00:00', 750, 1000, 45],
+                ['2026-09-23 23:59:59', 750, 1000, 45],
+                ['2026-09-24 00:00:00', 250, 500, 60],
+            ] as [$at, $newcomerMax, $veteranMax, $seconds]) {
+                CarbonImmutable::setTestNow(CarbonImmutable::parse($at, 'Asia/Tokyo'));
+                $this->assertSame($newcomerMax, $service->maxForCharacter($newcomer));
+                $this->assertSame($veteranMax, $service->maxForCharacter($veteran));
+                $this->assertSame($seconds, $service->recoverySeconds());
+            }
+        } finally {
+            CarbonImmutable::setTestNow();
+        }
+    }
+
+    public function test_recovery_before_the_campaign_is_capped_at_the_old_max(): void
+    {
+        $service = new ExplorationStaminaService();
+        $schemaReady = new ReflectionProperty($service, 'schemaReadyCache');
+        $schemaReady->setValue($service, true);
+        CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-09-19 00:30:00', 'Asia/Tokyo'));
+
+        try {
+            $character = new Character([
+                'wins' => 0,
+                'explore_stamina' => 0,
+                'explore_stamina_max' => 250,
+                'explore_stamina_updated_at' => CarbonImmutable::parse('2026-09-18 00:00:00', 'Asia/Tokyo'),
+            ]);
+
+            $summary = $service->summary($character);
+            $this->assertSame(290, $summary['current']);
+            $this->assertSame(750, $summary['max']);
+            $this->assertSame(0, $character->explore_stamina);
+        } finally {
+            CarbonImmutable::setTestNow();
+        }
+    }
+
+    public function test_campaign_end_preserves_saved_stamina_above_the_normal_max(): void
+    {
+        $service = new ExplorationStaminaService();
+        $schemaReady = new ReflectionProperty($service, 'schemaReadyCache');
+        $schemaReady->setValue($service, true);
+        CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-09-24 01:00:00', 'Asia/Tokyo'));
+
+        try {
+            $character = new Character([
+                'wins' => 0,
+                'explore_stamina' => 749,
+                'explore_stamina_max' => 750,
+                'explore_stamina_updated_at' => CarbonImmutable::parse('2026-09-23 23:59:15', 'Asia/Tokyo'),
+            ]);
+
+            $summary = $service->summary($character);
+            $this->assertSame(750, $summary['current']);
+            $this->assertSame(250, $summary['max']);
+            $this->assertNull($summary['next_recovery_seconds']);
+        } finally {
+            CarbonImmutable::setTestNow();
+        }
     }
 
     public function test_growth_progress_reports_the_next_victory_milestone_and_cap(): void
