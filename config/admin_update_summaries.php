@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-09-20-evolution-unlock-key-storage',
+        'date' => '2026-09-20',
+        'category' => 'fixed',
+        'title' => '進化証を大事なものに移して倉庫容量から除外',
+        'detail' => '進化証などの解放キーを大事なものとして表示し、素材倉庫の所持数と満杯判定から除外しました。所持済みの進化証にも適用されます。',
+    ],
+    [
         'id' => '2026-09-19-exclusive-character-icon-062',
         'date' => '2026-09-19',
         'category' => 'internal',

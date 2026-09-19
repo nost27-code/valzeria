@@ -154,7 +154,10 @@ class StorageCapacityService
         $categoryId = (string) ($material->category_id ?? '');
 
         return $materialType === 'boss_unique'
+            || $materialType === 'key_item'
+            || $materialType === 'weapon_unlock_key'
             || $categoryId === 'boss_unique'
+            || str_contains($category, '進化解放キー')
             || str_contains($category, '討伐証')
             || str_contains($category, 'ボス特異素材')
             || str_contains($mainUse, 'レシピ解放キー')
