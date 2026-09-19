@@ -561,6 +561,9 @@
                                         {{-- 売却セクション --}}
                                         @if($canSellMaterial)
                                             <div class="mt-2 pt-2 border-t border-slate-100">
+                                                @if($materialBrowseMeta['sale_note'] ?? null)
+                                                    <p class="mb-2 text-[11px] leading-relaxed text-amber-800">{{ $materialBrowseMeta['sale_note'] }}</p>
+                                                @endif
                                                 <div class="flex items-center justify-between mb-1.5">
                                                     <span class="text-[11px] font-bold text-slate-600">
                                                         売却数 <strong class="font-black text-slate-900 tabular-nums" x-text="saleQty || 0">0</strong>個

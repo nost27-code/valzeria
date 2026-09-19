@@ -20,6 +20,11 @@ use Illuminate\Support\Facades\Auth;
 
 class InventoryController extends Controller
 {
+    private const SURPLUS_CITY_MATERIAL_CODES = [
+        'WEV0023', 'WEV0024', 'WEV0025', 'WEV0026',
+        'WEV0027', 'WEV0028', 'WEV0031', 'WEV0032',
+    ];
+
     public function index(AdventureSupportService $supportService, ExplorationStaminaService $staminaService, GoldService $goldService, StorageCapacityService $storageCapacityService, ExplorationSupportService $explorationSupportService, ItemBookService $itemBookService, ExperienceTalismanService $experienceTalismanService)
     {
         $character = Auth::user()->currentCharacter();
@@ -210,6 +215,9 @@ class InventoryController extends Controller
 
             return [(int) $row->id => [
                 'name' => (string) ($material?->displayName() ?? ''),
+                'sale_note' => in_array((string) ($material?->material_code ?? ''), self::SURPLUS_CITY_MATERIAL_CODES, true)
+                    ? '武器進化・強化や国家への納品にも使います。必要分を残して売却してください。'
+                    : null,
                 'search_text' => implode(' ', array_filter([
                     (string) ($material?->displayName() ?? ''),
                     (string) ($material?->category ?? ''),

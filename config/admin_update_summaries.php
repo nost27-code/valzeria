@@ -2,6 +2,20 @@
 
 return [
     [
+        'id' => '2026-09-20-ancient-map-hidden-guarantee',
+        'date' => '2026-09-20',
+        'category' => 'internal',
+        'title' => '古代片地図の非公開救済を設定',
+        'detail' => '古代片傾向の地図は勝利時の追加抽選を1.0%へ上げ、同じ地図で本人が対象片を99勝連続で得られなければ次の勝利で1個保証します。確率と保証条件はプレイヤー画面には表示しません。',
+    ],
+    [
+        'id' => '2026-09-20-ferdia-ancient-fragment-and-surplus-sales',
+        'date' => '2026-09-20',
+        'category' => 'balance',
+        'title' => 'フェルディア古代片と余剰素材売却を調整',
+        'detail' => 'フェルディアの人型・巨人の古代片と古代装飾片を各0.86%・0.68%へ上げました。薬素材6種は10〜30G、都市素材8種は10GでNPCに売却できます。',
+    ],
+    [
         'id' => '2026-09-20-evolution-unlock-key-storage',
         'date' => '2026-09-20',
         'category' => 'fixed',

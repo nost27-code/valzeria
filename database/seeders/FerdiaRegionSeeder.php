@@ -16,16 +16,17 @@ class FerdiaRegionSeeder extends Seeder
 {
     private const MAX_NORMAL_MATERIAL_DROP_RATE = 33.0;
     private const NORMAL_MATERIAL_DROP_RATE_MULTIPLIER = 8125 / 2024;
-    private const ANCIENT_MATERIAL_DROP_RATE_MULTIPLIER = 2.0;
+    private const HUMANOID_ANCIENT_MATERIAL_DROP_RATE = 0.86;
+    private const GIANT_ANCIENT_MATERIAL_DROP_RATE = 0.68;
     private const ACCESSORY_ANCIENT_FRAGMENT_CODE = 'ACC0004';
 
     private const MATERIAL_MASTERS = [
-        'MAT_FERDIA_BLUE_LIFE_LEAF' => ['青命草の葉', '一般'],
-        'MAT_FERDIA_CLEARSTREAM_DROP' => ['清流の雫', '一般'],
-        'MAT_FERDIA_GUARDTREE_RESIN' => ['守樹の樹脂', 'やや希少'],
-        'MAT_FERDIA_HEMOSTATIC_MOSS' => ['止血苔', '一般'],
-        'MAT_FERDIA_DETOX_GALL' => ['毒抜きの胆', 'やや希少'],
-        'MAT_FERDIA_LIFEROOT' => ['命脈根', '希少'],
+        'MAT_FERDIA_BLUE_LIFE_LEAF' => ['青命草の葉', '一般', 10],
+        'MAT_FERDIA_CLEARSTREAM_DROP' => ['清流の雫', '一般', 10],
+        'MAT_FERDIA_GUARDTREE_RESIN' => ['守樹の樹脂', 'やや希少', 20],
+        'MAT_FERDIA_HEMOSTATIC_MOSS' => ['止血苔', '一般', 10],
+        'MAT_FERDIA_DETOX_GALL' => ['毒抜きの胆', 'やや希少', 20],
+        'MAT_FERDIA_LIFEROOT' => ['命脈根', '希少', 30],
     ];
 
     private const MATERIAL_DROP_MAP = [
@@ -127,8 +128,8 @@ class FerdiaRegionSeeder extends Seeder
                 }
 
                 $ancientRate = match ($type) {
-                    '人型' => 0.38 * self::ANCIENT_MATERIAL_DROP_RATE_MULTIPLIER,
-                    '巨人' => 0.30 * self::ANCIENT_MATERIAL_DROP_RATE_MULTIPLIER,
+                    '人型' => self::HUMANOID_ANCIENT_MATERIAL_DROP_RATE,
+                    '巨人' => self::GIANT_ANCIENT_MATERIAL_DROP_RATE,
                     default => null,
                 };
                 if ($ancientRate !== null) {
@@ -169,7 +170,7 @@ class FerdiaRegionSeeder extends Seeder
     private function seedMaterialMasters(): void
     {
         $now = now();
-        foreach (self::MATERIAL_MASTERS as $materialCode => [$name, $rarity]) {
+        foreach (self::MATERIAL_MASTERS as $materialCode => [$name, $rarity, $salePrice]) {
             if (DB::table('materials')->where('material_code', $materialCode)->exists()) {
                 continue;
             }
@@ -181,7 +182,7 @@ class FerdiaRegionSeeder extends Seeder
                 'rarity' => $rarity,
                 'element' => null,
                 'main_use' => '薬屋の探索補助品調合',
-                'npc_sale_price' => 0,
+                'npc_sale_price' => $salePrice,
                 'is_tradable' => true,
                 'city_id' => null,
                 'dungeon_id' => null,

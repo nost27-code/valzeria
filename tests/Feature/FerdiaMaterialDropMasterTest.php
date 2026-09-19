@@ -46,22 +46,22 @@ class FerdiaMaterialDropMasterTest extends TestCase
             0.001
         );
         $this->assertEqualsWithDelta(
-            0.76,
+            0.86,
             $this->dropRate(1001, '人型', 'MAT_BR_ARM_TRAVELER_ANCIENT'),
             0.001
         );
-        $this->assertEqualsWithDelta(0.76, $this->dropRate(1001, '人型', 'ACC0004'), 0.001);
+        $this->assertEqualsWithDelta(0.86, $this->dropRate(1001, '人型', 'ACC0004'), 0.001);
         $this->assertEqualsWithDelta(
             8.03,
             $this->dropRate(1011, '巨人', 'MAT_FERDIA_LIFEROOT'),
             0.001
         );
         $this->assertEqualsWithDelta(
-            0.60,
+            0.68,
             $this->dropRate(1011, '巨人', 'MAT_BR_WPN_GALE_ANCIENT'),
             0.001
         );
-        $this->assertEqualsWithDelta(0.60, $this->dropRate(1011, '巨人', 'ACC0004'), 0.001);
+        $this->assertEqualsWithDelta(0.68, $this->dropRate(1011, '巨人', 'ACC0004'), 0.001);
         $this->assertEqualsWithDelta(
             12.04,
             $this->dropRate(1005, '昆虫', 'MAT_FERDIA_DETOX_GALL'),

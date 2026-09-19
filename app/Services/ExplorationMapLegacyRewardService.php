@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Character;
 use App\Models\Enemy;
 use App\Models\ExplorationMap;
+use App\Models\MapExplorationResult;
 use App\Models\Material;
 use Illuminate\Support\Collection;
 
@@ -75,12 +76,60 @@ class ExplorationMapLegacyRewardService
     public function tryDrop(Character $character, ExplorationMap $map, Enemy $enemy, string $rewardSeed): ?array
     {
         $fragment = $this->ancientFragmentFor($map);
-        $rate = max(0, min(10000, (int) config('exploration_maps.legacy_fallback_rewards.ancient_fragment_drop_rate_basis_points', 100)));
-        if (!$fragment || $rate === 0 || $this->seeds->int($rewardSeed, 'map:legacy:ancient-fragment', 1, 10000) > $rate) {
+        $rateKey = $map->reward_profile === 'ancient_fragment'
+            ? 'exploration_maps.reward_profiles.ancient_fragment.drop_rate_basis_points'
+            : 'exploration_maps.legacy_fallback_rewards.ancient_fragment_drop_rate_basis_points';
+        $rate = max(0, min(10000, (int) config($rateKey, 38)));
+        if (!$fragment) {
             return null;
         }
 
-        return app(DropService::class)->grantMaterialReward($character, $fragment, 'map_ancient_fragment', $enemy);
+        $randomDrop = $rate > 0 && $this->seeds->int($rewardSeed, 'map:legacy:ancient-fragment', 1, 10000) <= $rate;
+        $guaranteedDrop = !$randomDrop && $this->shouldGuaranteeFragment($character, $map, $fragment);
+        if (!$randomDrop && !$guaranteedDrop) {
+            return null;
+        }
+
+        return app(DropService::class)->grantMaterialReward(
+            $character,
+            $fragment,
+            'map_ancient_fragment',
+            $enemy,
+        );
+    }
+
+    private function shouldGuaranteeFragment(Character $character, ExplorationMap $map, Material $fragment): bool
+    {
+        if ($map->reward_profile !== 'ancient_fragment') {
+            return false;
+        }
+
+        $threshold = max(0, (int) config('exploration_maps.reward_profiles.ancient_fragment.guaranteed_after_wins_without_fragment', 0));
+        if ($threshold === 0 || !$map->exists) {
+            return false;
+        }
+
+        $previousWins = MapExplorationResult::query()
+            ->where('map_id', $map->id)
+            ->where('character_id', $character->id)
+            ->where('battle_result', 'victory')
+            ->orderByDesc('global_exploration_index')
+            ->limit($threshold - 1)
+            ->get(['drops_json']);
+
+        if ($previousWins->count() !== $threshold - 1) {
+            return false;
+        }
+
+        foreach ($previousWins as $win) {
+            foreach (($win->drops_json['materials'] ?? []) as $drop) {
+                if ((int) ($drop['material_id'] ?? 0) === (int) $fragment->id) {
+                    return false;
+                }
+            }
+        }
+
+        return true;
     }
 
     private function hasPlainFallbackReward(ExplorationMap $map): bool

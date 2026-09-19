@@ -49,7 +49,7 @@ return [
         'equipment' => ['label' => '装備の兆し', 'weight' => 13, 'modifiers' => ['equipment_drop_bonus_points' => ['weapon' => 0.10, 'armor' => 0.10, 'accessory' => 0.03]]],
         'windfall' => ['label' => '落銭の気配', 'weight' => 13, 'modifiers' => ['gold_drop_rate_bonus_points' => 3]],
         'vitality' => ['label' => '精気の余韻', 'weight' => 13, 'modifiers' => ['victory_hp_recovery_percent' => 1.5, 'victory_sp_recovery_percent' => 0.5]],
-        'ancient_fragment' => ['label' => '古代片', 'weight' => 9, 'minimum_enemy_level' => 142, 'modifiers' => []],
+        'ancient_fragment' => ['label' => '古代片', 'weight' => 9, 'minimum_enemy_level' => 142, 'drop_rate_basis_points' => 100, 'guaranteed_after_wins_without_fragment' => 100, 'modifiers' => []],
     ],
     'grade_reward_profile_overrides' => [
         'hero' => [
