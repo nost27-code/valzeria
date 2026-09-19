@@ -111,13 +111,13 @@
                                         @if($message->attachments->isNotEmpty())
                                             <div class="mt-3 grid grid-cols-2 gap-2">
                                                 @foreach($message->attachments as $attachment)
-                                                    <div class="space-y-1.5" data-attachment-number="{{ $loop->iteration }}">
+                                                    <div class="space-y-1.5" data-attachment-number="{{ $attachmentNumbers[$attachment->id] }}">
                                                         <div class="flex items-center gap-1.5 text-xs font-black text-slate-700">
-                                                            <span class="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-slate-900 px-1.5 text-white">{{ $loop->iteration }}</span>
-                                                            <span>{{ $loop->iteration }}番</span>
+                                                            <span class="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-slate-900 px-1.5 text-white">{{ $attachmentNumbers[$attachment->id] }}</span>
+                                                            <span>{{ $attachmentNumbers[$attachment->id] }}番</span>
                                                         </div>
                                                         <a href="{{ route('admin.character-icon-design.attachments.show', $attachment) }}" target="_blank" rel="noopener" class="group block overflow-hidden rounded-lg border border-slate-200 bg-slate-100">
-                                                            <img src="{{ route('admin.character-icon-design.attachments.show', $attachment) }}" alt="{{ $loop->iteration }}番：{{ $attachment->original_name }}" class="aspect-square w-full object-cover transition group-hover:scale-[1.02]">
+                                                            <img src="{{ route('admin.character-icon-design.attachments.show', $attachment) }}" alt="{{ $attachmentNumbers[$attachment->id] }}番：{{ $attachment->original_name }}" class="aspect-square w-full object-cover transition group-hover:scale-[1.02]">
                                                         </a>
                                                     </div>
                                                 @endforeach

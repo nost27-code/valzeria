@@ -55,12 +55,14 @@ class CharacterIconDesignController extends Controller
                 ->with(['attachments', 'adminUser'])
                 ->orderBy('id'),
         ]);
+        $attachmentNumbers = $service->attachmentNumbersFor($designRequest->messages);
         $createdSetCount = $service->createdSetCountForAccount($designRequest->character);
         $createdSetLimit = $service->createdSetLimit();
         $accountDraft = $service->draftForAccount($designRequest->character);
 
         return view('admin.character-icon-design.show', compact(
             'designRequest',
+            'attachmentNumbers',
             'createdSetCount',
             'createdSetLimit',
             'accountDraft',

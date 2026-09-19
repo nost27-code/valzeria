@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-09-20-character-icon-chat-image-sequence',
+        'date' => '2026-09-20',
+        'category' => 'changed',
+        'title' => 'キャラアイコン制作の添付画像を依頼ごとの通番に',
+        'detail' => 'キャラアイコン制作の専用チャットで、添付画像の番号がメッセージをまたいで続くようになりました。冒険者と管理人の画面で同じ番号を確認できます。',
+    ],
+    [
         'id' => '2026-09-20-ancient-map-hidden-guarantee',
         'date' => '2026-09-20',
         'category' => 'internal',

@@ -128,6 +128,24 @@ class CharacterIconDesignService
     }
 
     /**
+     * @param  Collection<int, CharacterIconDesignMessage>  $messages
+     * @return array<int, int>
+     */
+    public function attachmentNumbersFor(Collection $messages): array
+    {
+        $numbers = [];
+        $nextNumber = 1;
+
+        foreach ($messages as $message) {
+            foreach ($message->attachments as $attachment) {
+                $numbers[$attachment->id] = $nextNumber++;
+            }
+        }
+
+        return $numbers;
+    }
+
+    /**
      * @return array{success: bool, message: string, submitted_now: bool}
      */
     public function saveForm(

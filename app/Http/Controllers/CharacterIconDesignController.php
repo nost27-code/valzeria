@@ -55,11 +55,13 @@ class CharacterIconDesignController extends Controller
             $viewMode = 'edit';
         }
 
+        $attachmentNumbers = [];
         if ($viewMode === 'submitted' && $designRequest?->isChatOpen()) {
             $service->markAdminMessagesRead($designRequest);
             $designRequest->load([
                 'messages' => fn ($query) => $query->with('attachments')->orderBy('id'),
             ]);
+            $attachmentNumbers = $service->attachmentNumbersFor($designRequest->messages);
         }
 
         $createdSetCount = $service->createdSetCountForAccount($character);
@@ -68,6 +70,7 @@ class CharacterIconDesignController extends Controller
         return view('character-icon-design.show', [
             'character' => $character,
             'designRequest' => $designRequest,
+            'attachmentNumbers' => $attachmentNumbers,
             'draftRequest' => $draftRequest,
             'submittedRequests' => $submittedRequests,
             'viewMode' => $viewMode,

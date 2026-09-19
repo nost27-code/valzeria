@@ -544,7 +544,23 @@ class CharacterIconDesignRequestTest extends TestCase
             ->assertOk()
             ->assertSee('申請時の参考画像を添付しました。')
             ->assertSee('reference-1.png')
-            ->assertSee('reference-2.png');
+            ->assertSee('reference-2.png')
+            ->assertSee('data-attachment-number="1"', false)
+            ->assertSee('data-attachment-number="2"', false);
+
+        $this->post(route('admin.character-icon-design.messages.store', $designRequest), [
+            'attachments' => [$this->fakePng('first-candidate.png')],
+        ])->assertRedirect(route('admin.character-icon-design.show', $designRequest));
+
+        $this->get(route('admin.character-icon-design.show', $designRequest))
+            ->assertOk()
+            ->assertSee('data-attachment-number="3"', false)
+            ->assertSee('3番：first-candidate.png');
+        $this->actingAs($player)
+            ->get(route('character-icon-design.show', ['request' => $designRequest->id]))
+            ->assertOk()
+            ->assertSee('data-attachment-number="3"', false)
+            ->assertSee('3番：first-candidate.png');
     }
 
     public function test_invalid_submission_attachment_does_not_charge_kiseki(): void
@@ -1045,10 +1061,32 @@ class CharacterIconDesignRequestTest extends TestCase
             'read_by_admin_at' => null,
         ]);
 
+        $this->post(route('character-icon-design.messages.store', $designRequest), [
+            'body' => '追加の参考画像です。',
+            'attachments' => [
+                $this->fakePng('revision-1.png'),
+                $this->fakePng('revision-2.png'),
+            ],
+        ])->assertRedirect(route('character-icon-design.show', ['request' => $designRequest->id]));
+
+        $this->get(route('character-icon-design.show', ['request' => $designRequest->id]))
+            ->assertOk()
+            ->assertSee('data-attachment-number="5"', false)
+            ->assertSee('data-attachment-number="6"', false)
+            ->assertSee('5番：revision-1.png')
+            ->assertSee('6番：revision-2.png');
+
         $this->actingAs($admin)
             ->get(route('admin.character-icon-design.index'))
             ->assertOk()
-            ->assertSee('未読返信 1');
+            ->assertSee('未読返信 2');
+
+        $this->get(route('admin.character-icon-design.show', $designRequest))
+            ->assertOk()
+            ->assertSee('data-attachment-number="5"', false)
+            ->assertSee('data-attachment-number="6"', false)
+            ->assertSee('5番：revision-1.png')
+            ->assertSee('6番：revision-2.png');
 
         $this->patch(route('admin.character-icon-design.status.update', $designRequest), [
             'status' => 'completed',
