@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-09-20-exclusive-character-icon-066',
+        'date' => '2026-09-20',
+        'category' => 'internal',
+        'title' => 'MAL専用のキャラアイコンを追加',
+        'detail' => 'MAL専用の通常・勝利・戦闘・敗北の4ポーズを追加しました。以前の専用アイコンも選択できます。',
+    ],
+    [
         'id' => '2026-09-20-exclusive-character-icon-065',
         'date' => '2026-09-20',
         'category' => 'internal',
