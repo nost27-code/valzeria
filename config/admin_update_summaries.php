@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-09-20-exclusive-character-icon-065',
+        'date' => '2026-09-20',
+        'category' => 'internal',
+        'title' => 'おとの専用のキャラアイコンを追加',
+        'detail' => 'おとの専用の通常・勝利・戦闘・敗北の4ポーズを追加しました。',
+    ],
+    [
         'id' => '2026-09-20-character-icon-chat-image-sequence',
         'date' => '2026-09-20',
         'category' => 'changed',
