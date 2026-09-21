@@ -16,7 +16,7 @@ class WeaponOffenseCalculatorTest extends TestCase
 
     public function test_calculates_an_equipment_stat_with_the_same_formula(): void
     {
-        $this->assertSame(2537, (new WeaponOffenseCalculator())->calculateEffectiveStat(2479, 536));
+        $this->assertSame(2922, (new WeaponOffenseCalculator())->calculateEffectiveStat(2479, 536));
     }
 
     public function test_calculates_the_armor_proportional_bonus(): void
@@ -27,11 +27,13 @@ class WeaponOffenseCalculatorTest extends TestCase
     public static function effectiveOffenseCases(): array
     {
         return [
-            [2479, 536, 2537],
-            [2479, 640, 2644],
-            [1326, 656, 1423],
-            [1326, 800, 1503],
-            [1000, 0, 800],
+            [2479, 536, 2922],
+            [2479, 640, 3008],
+            [1326, 656, 1616],
+            [1326, 800, 1680],
+            [1000, 0, 1000],
+            [1000, 55, 1018],
+            [1000, 2400, 1800],
             [-1, -1, 0],
         ];
     }

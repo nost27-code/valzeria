@@ -7,8 +7,10 @@ namespace App\Services\Battle;
  */
 class WeaponOffenseCalculator
 {
-    public const BASE_NUMERATOR = 1920;
-    public const DENOMINATOR = 2400;
+    public const BASE_NUMERATOR = 3000;
+    public const DENOMINATOR = 3000;
+
+    private const PROPORTIONAL_DENOMINATOR = 2400;
 
     public function calculateEffectiveOffense(int $baseStatWithoutWeapon, int $weaponOffense): int
     {
@@ -30,6 +32,9 @@ class WeaponOffenseCalculator
         $baseStat = max(0, $baseStat);
         $equipmentStat = max(0, $equipmentStat);
 
-        return intdiv(($baseStat * $equipmentStat) + intdiv(self::DENOMINATOR, 2), self::DENOMINATOR);
+        return intdiv(
+            ($baseStat * $equipmentStat) + intdiv(self::PROPORTIONAL_DENOMINATOR, 2),
+            self::PROPORTIONAL_DENOMINATOR,
+        );
     }
 }

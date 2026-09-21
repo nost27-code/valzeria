@@ -124,7 +124,7 @@ class CharacterStatusService
             }
         }
 
-        // 実効攻撃性能 = 武器を除いた基礎能力 × (0.80 + 8倍化後の武器能力 ÷ 2400)
+        // 実効攻撃性能 = 武器を除いた基礎能力 × (1.00 + 8倍化後の武器能力 ÷ 3000)
         $weaponBaseStr = $preEquip['str'] + $atk_equip;
         $weaponBaseMag = $preEquip['mag'] + $mag_equip;
         $offenseCalculator = app(WeaponOffenseCalculator::class);

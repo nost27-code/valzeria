@@ -22,8 +22,8 @@ class CharacterStatusServiceWeaponScalingTest extends TestCase
 
         $stats = $this->stats($character);
 
-        $this->assertSame(2537, $stats['str']);
-        $this->assertSame(1423, $stats['mag']);
+        $this->assertSame(2922, $stats['str']);
+        $this->assertSame(1616, $stats['mag']);
         $this->assertSame(['str' => 536, 'mag' => 656], $stats['weapon_offense']);
     }
 
@@ -45,8 +45,8 @@ class CharacterStatusServiceWeaponScalingTest extends TestCase
         $stats = $this->stats($character);
 
         $this->assertSame(1400, $stats['weapon_base']['str']);
-        $this->assertSame(1587, $stats['str']);
-        $this->assertSame(787, $stats['bonuses']['str']);
+        $this->assertSame(1773, $stats['str']);
+        $this->assertSame(773, $stats['bonuses']['str']);
     }
 
     public function test_weapon_enhancement_is_included_in_weapon_offense_only(): void
@@ -59,7 +59,7 @@ class CharacterStatusServiceWeaponScalingTest extends TestCase
 
         // +5 は武器攻撃800を920へ増やし、共通式の武器能力へだけ使う。
         $this->assertSame(920, $stats['weapon_offense']['str']);
-        $this->assertSame(1183, $stats['str']);
+        $this->assertSame(1307, $stats['str']);
         $this->assertSame(0, $stats['def']);
     }
 
@@ -106,19 +106,45 @@ class CharacterStatusServiceWeaponScalingTest extends TestCase
 
         $preview = app(CharacterStatusService::class)->weaponEffectivePreview($character, $characterItem);
 
-        $this->assertSame(['str' => 1167, 'mag' => 973], $preview);
+        $this->assertSame(['str' => 1293, 'mag' => 1139], $preview);
     }
 
-    public function test_unarmed_offense_is_eighty_percent_of_the_weaponless_base_stat(): void
+    public function test_unarmed_offense_uses_the_full_weaponless_base_stat(): void
     {
         $character = $this->character(1000, 1000);
 
         $stats = $this->stats($character);
 
-        $this->assertSame(800, $stats['str']);
-        $this->assertSame(800, $stats['mag']);
+        $this->assertSame(1000, $stats['str']);
+        $this->assertSame(1000, $stats['mag']);
         $this->assertSame(0, $stats['bonuses']['str']);
         $this->assertSame(0, $stats['bonuses']['mag']);
+    }
+
+    public function test_unarmed_offense_applies_accessory_attack_and_magic_at_full_value(): void
+    {
+        $character = $this->character(1000, 1000);
+        $accessory = Item::query()->create([
+            'name' => '全能力装飾品',
+            'type' => 'accessory',
+            'str_bonus' => 640,
+            'mag_bonus' => 640,
+            'accessory_performance_scale_version' => 2,
+            'is_active' => true,
+        ]);
+        CharacterItem::query()->create([
+            'character_id' => $character->id,
+            'item_id' => $accessory->id,
+            'is_equipped' => true,
+            'equipped_slot' => 'accessory',
+        ]);
+
+        $stats = $this->stats($character);
+
+        $this->assertSame(1640, $stats['str']);
+        $this->assertSame(1640, $stats['mag']);
+        $this->assertSame(640, $stats['bonuses']['str']);
+        $this->assertSame(640, $stats['bonuses']['mag']);
     }
 
     private function stats(Character $character): array
