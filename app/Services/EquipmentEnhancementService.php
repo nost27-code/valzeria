@@ -29,6 +29,8 @@ class EquipmentEnhancementService
         'luk' => 'luk_bonus',
     ];
 
+    private const ACCESSORY_FULL_STAT_KEYS = ['str', 'def', 'agi', 'mag', 'spr', 'luk'];
+
     private const MATERIAL_CODE_ALIASES = [
         'MAT_WEAPON_FRAGMENT' => 'MAT_EQUIPMENT_FRAGMENT',
         'WEV0001' => 'MAT_EQUIPMENT_FRAGMENT',
@@ -361,7 +363,7 @@ class EquipmentEnhancementService
             return self::scaleAccessoryStats($baseStats, $performanceScaleFactor, $hpScaleFactor);
         }
 
-        $extraTotal = self::accessoryExtraTotal($level);
+        $extraTotal = self::accessoryExtraTotalForItem($totalBase, $positiveStats, $level, $item);
 
         $extras = array_fill_keys(array_keys($baseStats), 0);
         // 追加値を1ずつ積み上げる。毎段階で配分し直すと、他能力が増える際に既存能力が下がり得る。
@@ -659,6 +661,25 @@ class EquipmentEnhancementService
         }
 
         return $total;
+    }
+
+    /** @param array<string, int> $positiveStats */
+    private static function accessoryExtraTotalForItem(int $baseTotal, array $positiveStats, int $level, ?object $item): int
+    {
+        $rank = strtoupper(trim((string) ($item?->accessory_rank ?? $item?->rarity ?? '')));
+        $fullAbility = array_keys($positiveStats) === self::ACCESSORY_FULL_STAT_KEYS;
+        $target = $fullAbility
+            ? config('equipment_enhancement.accessory_full_stat_target_per_stat_at_max.' . $rank)
+            : config('equipment_enhancement.accessory_total_stat_targets_at_max.' . $rank);
+
+        if ($target === null) {
+            return self::accessoryExtraTotal($level);
+        }
+
+        $targetTotal = (int) $target * ($fullAbility ? count(self::ACCESSORY_FULL_STAT_KEYS) : 1);
+        $maxLevel = min(self::MAX_EQUIPMENT_ENHANCE, (int) config('equipment_enhancement.rank_caps.' . $rank, self::MAX_EQUIPMENT_ENHANCE));
+
+        return intdiv(max(0, $targetTotal - $baseTotal) * $level, max(1, $maxLevel));
     }
 
     private function extendedMaterialsFor(int $level, string $type, ?Character $character, ?object $item): ?array

@@ -26,7 +26,18 @@ return [
         ['from' => 21, 'to' => 25, 'rate_bps_per_level' => 100],
         ['from' => 26, 'to' => 30, 'rate_bps_per_level' => 80],
     ],
-    // 装飾品の追加値は等級・基礎能力に関係なく装飾品全体へ配分する。
+    // SS以上は7月の+30到達値を維持し、基礎能力を除いた強化分だけを各段階で配分する。
+    'accessory_total_stat_targets_at_max' => [
+        'SS' => 200,
+        'SSS' => 300,
+        'EPIC' => 400,
+    ],
+    'accessory_full_stat_target_per_stat_at_max' => [
+        'SS' => 100,
+        'SSS' => 150,
+        'EPIC' => 200,
+    ],
+    // S以下は従来の段階別総量を使う。
     'accessory_extra_stat_bands' => [
         ['from' => 1, 'to' => 5, 'extra_per_level' => 2],
         ['from' => 6, 'to' => 30, 'extra_per_level' => 1],

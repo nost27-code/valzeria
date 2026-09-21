@@ -66,13 +66,13 @@ class EquipmentEnhancementServiceTest extends TestCase
             'str_bonus' => 264,
         ];
 
-        // 8倍化前: +4で 敏捷21 / 運11、SS単能力+30で 攻撃68。
+        // 8倍化前: +4で 敏捷21 / 運11、SS単能力+30で 攻撃200。
         $this->assertSame(
             ['agi' => 168, 'luk' => 88],
             EquipmentEnhancementService::enhancedStatTotalsForItem($scaledLowerRank, 4)
         );
         $this->assertSame(
-            ['str' => 544],
+            ['str' => 1600],
             EquipmentEnhancementService::enhancedStatTotalsForItem($scaledHighRank, 30)
         );
     }
@@ -132,7 +132,7 @@ class EquipmentEnhancementServiceTest extends TestCase
         $this->assertSame(['str' => 264], EquipmentEnhancementService::enhancedStatTotalsForItem($single, 0));
         $this->assertSame(['hp' => 1320], EquipmentEnhancementService::enhancedStatTotalsForItem($life, 0));
         $this->assertSame(['mp' => 1320], EquipmentEnhancementService::enhancedStatTotalsForItem($spirit, 0));
-        $this->assertSame(['str' => 544], EquipmentEnhancementService::enhancedStatTotalsForItem($single, 30));
+        $this->assertSame(['str' => 1600], EquipmentEnhancementService::enhancedStatTotalsForItem($single, 30));
         $this->assertSame(['hp' => 1947], EquipmentEnhancementService::enhancedStatTotalsForItem($life, 30));
         $this->assertSame(['mp' => 1947], EquipmentEnhancementService::enhancedStatTotalsForItem($spirit, 30));
     }
@@ -177,7 +177,7 @@ class EquipmentEnhancementServiceTest extends TestCase
         $this->assertSame(129, $effective['luk']);
     }
 
-    public function test_high_rank_accessories_share_the_increment_curve_at_plus_thirty(): void
+    public function test_high_rank_accessories_reach_the_restored_targets_at_plus_thirty(): void
     {
         $ssItem = (object) [
             'type' => 'accessory',
@@ -225,21 +225,67 @@ class EquipmentEnhancementServiceTest extends TestCase
             'luk_bonus' => 20,
         ];
 
-        $this->assertSame(['str' => 68], EquipmentEnhancementService::enhancedStatTotalsForItem($ssItem, 30));
-        $this->assertSame(['str' => 79], EquipmentEnhancementService::enhancedStatTotalsForItem($sssItem, 30));
-        $this->assertSame(['str' => 95], EquipmentEnhancementService::enhancedStatTotalsForItem($epicSingleItem, 30));
+        $this->assertSame(['str' => 200], EquipmentEnhancementService::enhancedStatTotalsForItem($ssItem, 30));
+        $this->assertSame(['str' => 300], EquipmentEnhancementService::enhancedStatTotalsForItem($sssItem, 30));
+        $this->assertSame(['str' => 400], EquipmentEnhancementService::enhancedStatTotalsForItem($epicSingleItem, 30));
         $this->assertSame(
-            ['str' => 17, 'def' => 17, 'agi' => 17, 'mag' => 17, 'spr' => 17, 'luk' => 16],
+            ['str' => 100, 'def' => 100, 'agi' => 100, 'mag' => 100, 'spr' => 100, 'luk' => 100],
             EquipmentEnhancementService::enhancedStatTotalsForItem($ssFullItem, 30)
         );
         $this->assertSame(
-            ['str' => 20, 'def' => 20, 'agi' => 20, 'mag' => 20, 'spr' => 20, 'luk' => 19],
+            ['str' => 150, 'def' => 150, 'agi' => 150, 'mag' => 150, 'spr' => 150, 'luk' => 150],
             EquipmentEnhancementService::enhancedStatTotalsForItem($sssFullItem, 30)
         );
         $this->assertSame(
-            ['str' => 26, 'def' => 26, 'agi' => 26, 'mag' => 26, 'spr' => 26, 'luk' => 25],
+            ['str' => 200, 'def' => 200, 'agi' => 200, 'mag' => 200, 'spr' => 200, 'luk' => 200],
             EquipmentEnhancementService::enhancedStatTotalsForItem($epicFullItem, 30)
         );
+    }
+
+    public function test_epic_full_ability_plus_ten_matches_the_july_value_in_preview_and_equipment(): void
+    {
+        $item = new Item([
+            'type' => 'accessory',
+            'accessory_rank' => 'EPIC',
+            'accessory_performance_scale_version' => 2,
+            'str_bonus' => 160,
+            'def_bonus' => 160,
+            'agi_bonus' => 160,
+            'mag_bonus' => 160,
+            'spr_bonus' => 160,
+            'luk_bonus' => 160,
+        ]);
+        $owned = new CharacterItem(['enhance_level' => 9]);
+        $owned->setRelation('item', $item);
+
+        $expected = ['str' => 640, 'def' => 640, 'agi' => 640, 'mag' => 640, 'spr' => 640, 'luk' => 640];
+        $this->assertSame(array_fill_keys(array_keys($expected), 160), EquipmentEnhancementService::enhancedStatTotalsForItem($item, 0));
+        $this->assertSame($expected, EquipmentEnhancementService::enhancedStatTotalsForItem($item, 10));
+        $this->assertSame(640, EquipmentEnhancementService::enhancedStatsFor($owned)['str']['next']);
+
+        $effective = app(CharacterStatusService::class)->equipmentStatsForItem(new Character, $item, 10);
+        foreach ($expected as $key => $value) {
+            $this->assertSame($value, $effective[$key]);
+        }
+    }
+
+    public function test_ss_and_sss_growth_at_plus_ten_tracks_the_epic_enhancement_portion(): void
+    {
+        $bases = ['SS' => 88, 'SSS' => 112, 'EPIC' => 160];
+        $growth = [];
+        foreach ($bases as $rank => $base) {
+            $item = (object) ([
+                'type' => 'accessory',
+                'accessory_rank' => $rank,
+                'accessory_performance_scale_version' => 2,
+            ] + array_fill_keys(['str_bonus', 'def_bonus', 'agi_bonus', 'mag_bonus', 'spr_bonus', 'luk_bonus'], $base));
+            $atZero = EquipmentEnhancementService::enhancedStatTotalsForItem($item, 0);
+            $atTen = EquipmentEnhancementService::enhancedStatTotalsForItem($item, 10);
+            $growth[$rank] = array_sum($atTen) - array_sum($atZero);
+        }
+
+        $this->assertEqualsWithDelta($growth['EPIC'] * 0.5, $growth['SS'], 16);
+        $this->assertEqualsWithDelta($growth['EPIC'] * 0.75, $growth['SSS'], 16);
     }
 
     public function test_s_accessory_gains_at_each_level_through_plus_twenty_five(): void

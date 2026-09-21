@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-09-21-high-rank-accessory-enhancement-restore',
+        'date' => '2026-09-21',
+        'category' => 'balance',
+        'title' => 'SS以上の装飾品強化能力を再調整',
+        'detail' => 'SS・SSS・EPICの単能力型と全能力型を7月のランク別目標値へ戻しました。+0の能力、必要素材、Gold、強化上限は変更していません。',
+    ],
+    [
         'id' => '2026-09-20-exclusive-character-icon-066',
         'date' => '2026-09-20',
         'category' => 'internal',
