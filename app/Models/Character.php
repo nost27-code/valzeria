@@ -75,6 +75,7 @@ class Character extends Model
         'profile_favorite_weapon_ids' => 'array',
         'private_chat_theme' => 'string',
         'chat_all_tab_visibility' => 'array',
+        'chat_drawer_preferences' => 'array',
     ];
 
     /**

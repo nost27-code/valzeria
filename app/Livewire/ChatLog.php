@@ -7,6 +7,7 @@ use App\Models\PublicLog;
 use App\Services\Nation\NationChatService;
 use App\Services\PublicLogService;
 use App\Support\CharacterIconCatalog;
+use App\Support\ChatDrawerAppearance;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Livewire\Attributes\Locked;
@@ -20,6 +21,7 @@ class ChatLog extends Component
     public bool $drawer = false;
     public int $logLimit = 50;
     public array $allTabVisibility = [];
+    public array $drawerAppearance = [];
     #[Locked]
     public ?int $currentCharacterId = null;
     #[Locked]
@@ -111,6 +113,7 @@ class ChatLog extends Component
         $character = auth()->check() ? auth()->user()->currentCharacter() : null;
         $this->currentCharacterId = $character?->id;
         $this->allTabVisibility = $this->storedAllTabVisibility($character);
+        $this->drawerAppearance = $this->storedDrawerAppearance($character);
         $nationChatService = app(NationChatService::class);
         $this->nationUnreadPollingEnabled = (bool) ($character
             && $this->nationChatEnabled()
@@ -242,6 +245,58 @@ class ChatLog extends Component
                 'chat_all_tab_visibility' => $this->allTabVisibility,
             ])->save();
         }
+    }
+
+    public function setDrawerAppearanceColor(string $key, string $color): void
+    {
+        if (! $this->drawer
+            || ! in_array($key, ChatDrawerAppearance::COLOR_KEYS, true)
+            || ! ChatDrawerAppearance::isValidColor($color)) {
+            return;
+        }
+
+        $this->drawerAppearance = ChatDrawerAppearance::normalize(array_merge(
+            $this->drawerAppearance,
+            [$key => $color],
+        ));
+        $this->persistDrawerAppearance();
+    }
+
+    public function setDrawerAppearanceFontSize(string $fontSize): void
+    {
+        if (! $this->drawer || ! ChatDrawerAppearance::isValidFontSize($fontSize)) {
+            return;
+        }
+
+        $this->drawerAppearance = ChatDrawerAppearance::normalize(array_merge(
+            $this->drawerAppearance,
+            ['font_size' => $fontSize],
+        ));
+        $this->persistDrawerAppearance();
+    }
+
+    public function applyDrawerAppearancePreset(string $preset): void
+    {
+        $colors = ChatDrawerAppearance::presetColors($preset);
+        if (! $this->drawer || $colors === null) {
+            return;
+        }
+
+        $this->drawerAppearance = ChatDrawerAppearance::normalize(array_merge(
+            $this->drawerAppearance,
+            $colors,
+        ));
+        $this->persistDrawerAppearance();
+    }
+
+    public function resetDrawerAppearance(): void
+    {
+        if (! $this->drawer) {
+            return;
+        }
+
+        $this->drawerAppearance = ChatDrawerAppearance::defaults();
+        $this->persistDrawerAppearance();
     }
 
     public function sendMessage(PublicLogService $logService, ?NationChatService $nationChatService = null)
@@ -721,6 +776,32 @@ class ChatLog extends Component
     private function canPersistAllTabVisibility(): bool
     {
         return Schema::hasColumn('characters', 'chat_all_tab_visibility');
+    }
+
+    private function storedDrawerAppearance(?Character $character): array
+    {
+        if (! $character || ! $this->canPersistDrawerAppearance()) {
+            return ChatDrawerAppearance::defaults();
+        }
+
+        return ChatDrawerAppearance::normalize((array) ($character->chat_drawer_preferences ?? []));
+    }
+
+    private function persistDrawerAppearance(): void
+    {
+        $character = auth()->check() ? auth()->user()->currentCharacter() : null;
+        if (! $character || ! $this->canPersistDrawerAppearance()) {
+            return;
+        }
+
+        $character->forceFill([
+            'chat_drawer_preferences' => ChatDrawerAppearance::normalize($this->drawerAppearance),
+        ])->save();
+    }
+
+    private function canPersistDrawerAppearance(): bool
+    {
+        return Schema::hasColumn('characters', 'chat_drawer_preferences');
     }
 
     private function nationChatEnabled(): bool

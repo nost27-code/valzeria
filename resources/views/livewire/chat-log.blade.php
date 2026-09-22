@@ -1,5 +1,11 @@
 @php
     $drawerMode = (bool) $drawer;
+    $resolvedDrawerAppearance = \App\Support\ChatDrawerAppearance::normalize($drawerAppearance);
+    $drawerOwnTextColor = \App\Support\ChatDrawerAppearance::contrastTextColor($resolvedDrawerAppearance['own_bubble_color']);
+    $drawerOtherTextColor = \App\Support\ChatDrawerAppearance::contrastTextColor($resolvedDrawerAppearance['other_bubble_color']);
+    $drawerMetaTextColor = \App\Support\ChatDrawerAppearance::contrastTextColor($resolvedDrawerAppearance['background_color']);
+    $drawerFontSizeOptions = \App\Support\ChatDrawerAppearance::fontSizeOptions();
+    $drawerAppearancePresets = \App\Support\ChatDrawerAppearance::presets();
 @endphp
 
 <div
@@ -176,7 +182,7 @@
             x-transition:leave-start="translate-x-0"
             x-transition:leave-end="translate-x-full"
             class="fixed inset-y-0 right-0 z-[100] flex h-dvh w-[80vw] max-w-[28rem] flex-col overflow-hidden border-l border-[#d4af37] bg-white font-sans shadow-2xl"
-            style="display: none; padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom);"
+            style="display: none; padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); --chat-drawer-background: {{ $resolvedDrawerAppearance['background_color'] }}; --chat-own-bubble-background: {{ $resolvedDrawerAppearance['own_bubble_color'] }}; --chat-own-bubble-text: {{ $drawerOwnTextColor }}; --chat-other-bubble-background: {{ $resolvedDrawerAppearance['other_bubble_color'] }}; --chat-other-bubble-text: {{ $drawerOtherTextColor }}; --chat-drawer-meta-color: {{ $drawerMetaTextColor }}; --chat-drawer-font-size: {{ \App\Support\ChatDrawerAppearance::fontSizePixels($resolvedDrawerAppearance['font_size']) }}px;"
             role="dialog"
             aria-modal="true"
             aria-label="チャット"
@@ -219,8 +225,8 @@
             type="button"
             @click="settingsOpen = !settingsOpen"
             class="shrink-0 border-l border-gray-200 bg-white px-3 py-2 text-sm font-black leading-none text-gray-500 hover:bg-blue-50 hover:text-[#1e40af]"
-            aria-label="全体チャット表示設定"
-            title="全体チャット表示設定"
+            aria-label="{{ $drawerMode ? '右側チャット設定' : '全体チャット表示設定' }}"
+            title="{{ $drawerMode ? '右側チャット設定' : '全体チャット表示設定' }}"
         >⚙</button>
         @unless($drawerMode)
             <button
@@ -236,13 +242,96 @@
             x-show="settingsOpen"
             x-transition
             @click.outside="settingsOpen = false"
-            class="absolute right-2 top-10 z-30 max-h-[calc(100dvh-7rem)] w-[min(21rem,calc(100vw-2rem))] overflow-y-auto rounded-lg border border-gray-200 bg-white p-3 shadow-xl"
+            class="absolute right-2 top-10 z-30 max-h-[calc(100dvh-7rem)] w-[calc(100%-1rem)] max-w-[21rem] overflow-y-auto rounded-lg border border-gray-200 bg-white p-3 shadow-xl"
             style="display: none;"
         >
             <div class="mb-2 flex items-center justify-between gap-2 border-b border-gray-100 pb-2">
-                <span class="text-[12px] font-black text-slate-700">全体チャット</span>
+                <span class="text-[12px] font-black text-slate-700">{{ $drawerMode ? '右側チャット設定' : '全体チャット' }}</span>
                 <button type="button" @click="settingsOpen = false" class="rounded px-2 py-1 text-[12px] font-black text-gray-400 hover:bg-gray-50 hover:text-gray-700" aria-label="閉じる">×</button>
             </div>
+            @if($drawerMode)
+                <section data-chat-drawer-appearance-settings class="mb-3 rounded-lg border border-blue-100 bg-blue-50/60 p-3">
+                    <div class="text-[12px] font-black text-slate-800">見た目</div>
+                    <div class="mt-0.5 text-[10px] font-bold text-slate-500">この冒険者の右側チャットだけに反映・自動保存されます</div>
+
+                    <div data-chat-drawer-presets class="mt-3">
+                        <div class="mb-1.5 text-[11px] font-black text-slate-700">プリセット</div>
+                        <div class="grid grid-cols-1 gap-1.5 min-[360px]:grid-cols-2">
+                            @foreach($drawerAppearancePresets as $preset)
+                                @php($presetSelected = \App\Support\ChatDrawerAppearance::matchesPreset($resolvedDrawerAppearance, $preset['key']))
+                                <button
+                                    type="button"
+                                    wire:key="chat-drawer-preset-{{ $preset['key'] }}"
+                                    wire:click="applyDrawerAppearancePreset('{{ $preset['key'] }}')"
+                                    wire:loading.attr="disabled"
+                                    wire:target="applyDrawerAppearancePreset"
+                                    class="rounded-md border px-2 py-2 text-left transition disabled:opacity-60 {{ $presetSelected ? 'border-blue-700 bg-blue-50 ring-1 ring-blue-700' : 'border-slate-200 bg-white hover:border-blue-300' }}"
+                                    aria-pressed="{{ $presetSelected ? 'true' : 'false' }}"
+                                    title="{{ $preset['description'] }}"
+                                >
+                                    <span class="flex items-center justify-between gap-2">
+                                        <span class="text-[10px] font-black text-slate-700">{{ $preset['label'] }}</span>
+                                        <span class="flex overflow-hidden rounded-full border border-slate-300" aria-hidden="true">
+                                            <span class="h-3 w-3" style="background-color: {{ $preset['colors']['background_color'] }};"></span>
+                                            <span class="h-3 w-3" style="background-color: {{ $preset['colors']['other_bubble_color'] }};"></span>
+                                            <span class="h-3 w-3" style="background-color: {{ $preset['colors']['own_bubble_color'] }};"></span>
+                                        </span>
+                                    </span>
+                                    <span class="mt-0.5 block text-[9px] font-bold text-slate-500">{{ $preset['description'] }}</span>
+                                </button>
+                            @endforeach
+                        </div>
+                    </div>
+
+                    <div class="mt-3 grid gap-2">
+                        @foreach([
+                            'own_bubble_color' => '自分の吹き出し',
+                            'other_bubble_color' => '他プレイヤーの吹き出し',
+                            'background_color' => '背景',
+                        ] as $colorKey => $colorLabel)
+                            <label class="flex min-w-0 flex-wrap items-center justify-between gap-2 rounded-md border border-white bg-white/80 px-2.5 py-2">
+                                <span class="text-[11px] font-black text-slate-700">{{ $colorLabel }}</span>
+                                <span class="flex items-center gap-2">
+                                    <span class="font-mono text-[10px] font-bold text-slate-500">{{ $resolvedDrawerAppearance[$colorKey] }}</span>
+                                    <input
+                                        type="color"
+                                        value="{{ $resolvedDrawerAppearance[$colorKey] }}"
+                                        wire:key="chat-drawer-color-{{ $colorKey }}-{{ $resolvedDrawerAppearance[$colorKey] }}"
+                                        wire:change="setDrawerAppearanceColor('{{ $colorKey }}', $event.target.value)"
+                                        class="h-7 w-10 cursor-pointer rounded border border-slate-200 bg-white p-0.5"
+                                        aria-label="{{ $colorLabel }}の色"
+                                    >
+                                </span>
+                            </label>
+                        @endforeach
+                    </div>
+
+                    <div class="mt-3">
+                        <div class="mb-1.5 text-[11px] font-black text-slate-700">文字の大きさ</div>
+                        <div class="grid grid-cols-4 gap-1">
+                            @foreach($drawerFontSizeOptions as $fontSizeOption)
+                                <button
+                                    type="button"
+                                    wire:click="setDrawerAppearanceFontSize('{{ $fontSizeOption['key'] }}')"
+                                    wire:loading.attr="disabled"
+                                    wire:target="setDrawerAppearanceFontSize"
+                                    class="rounded-md border px-1 py-1.5 text-[10px] font-black transition disabled:opacity-60 {{ $resolvedDrawerAppearance['font_size'] === $fontSizeOption['key'] ? 'border-blue-700 bg-blue-700 text-white' : 'border-slate-200 bg-white text-slate-600 hover:border-blue-300' }}"
+                                    aria-pressed="{{ $resolvedDrawerAppearance['font_size'] === $fontSizeOption['key'] ? 'true' : 'false' }}"
+                                >{{ $fontSizeOption['label'] }}</button>
+                            @endforeach
+                        </div>
+                    </div>
+
+                    <button
+                        type="button"
+                        wire:click="resetDrawerAppearance"
+                        wire:loading.attr="disabled"
+                        wire:target="resetDrawerAppearance"
+                        class="mt-3 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-[11px] font-black text-slate-600 hover:border-slate-300 hover:bg-slate-50 disabled:opacity-60"
+                    >デフォルトに戻す</button>
+                </section>
+                <div class="mb-2 text-[11px] font-black text-slate-700">全体タブの表示項目</div>
+            @endif
             <div class="grid gap-2">
                 @foreach($allTabFilterOptions as $option)
                     <div wire:key="all-tab-filter-{{ $option['key'] }}" class="flex items-center justify-between gap-3 rounded-md border border-gray-100 bg-gray-50 px-3 py-2">
@@ -307,9 +396,11 @@
     <div
         x-ref="logScroller"
         @scroll.passive="updateStickiness()"
-        class="flex-grow overflow-y-auto bg-[#edf3e8] p-3 font-sans text-[11px] leading-relaxed sm:p-4"
+        class="flex-grow overflow-y-auto p-3 font-sans leading-relaxed sm:p-4"
+        style="background-color: var(--chat-drawer-background); font-size: var(--chat-drawer-font-size);"
         data-chat-log-scroller
         data-chat-line-presentation
+        data-chat-drawer-customized
     >
         @if($activeTab !== 'nation' && $logLimit < \App\Livewire\ChatLog::LOG_MAX)
             <div class="pb-3 text-center">
@@ -338,13 +429,17 @@
 
                     <div class="flex max-w-[76%] flex-col {{ $log['is_sender'] ? 'items-end' : 'items-start' }}">
                         @if($log['reply_id'])
-                            <button type="button" wire:click="setReplyTarget({{ $log['reply_id'] }})" @click="window.setTimeout(() => document.getElementById('chat-message-input')?.focus(), 100)" class="mb-0.5 px-1 text-[10px] font-black text-slate-600 hover:underline" title="タップして返信">{{ $log['author_name'] }}</button>
+                            <button type="button" wire:click="setReplyTarget({{ $log['reply_id'] }})" @click="window.setTimeout(() => document.getElementById('chat-message-input')?.focus(), 100)" class="mb-0.5 px-1 text-[10px] font-black hover:underline" style="color: var(--chat-drawer-meta-color);" title="タップして返信">{{ $log['author_name'] }}</button>
                         @else
-                            <span class="mb-0.5 px-1 text-[10px] font-black text-slate-600">{{ $log['author_name'] }}</span>
+                            <span class="mb-0.5 px-1 text-[10px] font-black" style="color: var(--chat-drawer-meta-color);">{{ $log['author_name'] }}</span>
                         @endif
 
                         <div class="flex items-end gap-1 {{ $log['is_sender'] ? 'flex-row-reverse' : '' }}">
-                            <div class="min-w-0 rounded-2xl px-3 py-2 shadow-sm {{ $log['is_sender'] ? 'rounded-br-sm bg-[#9fe870] text-slate-900' : 'rounded-bl-sm border border-white/90 bg-white text-slate-800' }}">
+                            <div
+                                class="min-w-0 rounded-2xl px-3 py-2 shadow-sm {{ $log['is_sender'] ? 'rounded-br-sm' : 'rounded-bl-sm border border-white/90' }}"
+                                style="background-color: var(--chat-{{ $log['is_sender'] ? 'own' : 'other' }}-bubble-background); color: var(--chat-{{ $log['is_sender'] ? 'own' : 'other' }}-bubble-text);"
+                                data-chat-bubble-owner="{{ $log['is_sender'] ? 'own' : 'other' }}"
+                            >
                                 @if($editingLogId === $log['id'])
                                     <form wire:submit="updateMessage" class="flex min-w-0 flex-col gap-1.5">
                                         <input type="text" wire:model="editingMessage" maxlength="100" class="h-8 min-w-0 rounded border-gray-300 bg-white px-2 py-1 text-[11px] text-slate-800 focus:border-[#1e40af] focus:ring-[#1e40af]">
@@ -372,11 +467,11 @@
                                     ">{{ $log['message'] }}</div>
                                 @endif
                             </div>
-                            <span class="shrink-0 pb-0.5 text-[9px] font-bold text-slate-500">{{ $log['time'] }}</span>
+                            <span class="shrink-0 pb-0.5 text-[9px] font-bold" style="color: var(--chat-drawer-meta-color);">{{ $log['time'] }}</span>
                         </div>
 
                         @if($editingLogId !== $log['id'] && ($log['is_edited'] || $log['can_edit']))
-                            <div class="mt-0.5 flex items-center gap-1 px-1 text-[9px] font-bold text-slate-500">
+                            <div class="mt-0.5 flex items-center gap-1 px-1 text-[9px] font-bold" style="color: var(--chat-drawer-meta-color);">
                                 @if($log['is_edited'])<span>修正済み</span>@endif
                                 @if($log['can_edit'])<button type="button" wire:click="startEdit({{ $log['id'] }})" class="hover:underline">修正</button>@endif
                             </div>

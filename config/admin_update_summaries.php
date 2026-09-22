@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-09-23-chat-drawer-appearance-settings',
+        'date' => '2026-09-23',
+        'category' => 'changed',
+        'title' => '右側チャットの配色と文字サイズを設定可能に',
+        'detail' => '冒険者ごとに右側チャットの吹き出し色・背景色・文字サイズを保存できます。標準・ダーク・暖色・高コントラストのプリセットも選べます。設定パネルはスマホの右側チャット内に収まるよう改善しました。',
+    ],
+    [
         'id' => '2026-09-23-exploration-danger-help-clarification',
         'date' => '2026-09-23',
         'category' => 'fixed',
