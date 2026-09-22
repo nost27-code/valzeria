@@ -124,6 +124,7 @@
     x-init="init()"
     @visibilitychange.window="if (!document.hidden) { $wire.pollForUpdates() }"
     @open-chat-drawer.window="openDrawer()"
+    @chat-drawer-tab-changed.window="rememberDrawerTab($event.detail.tab)"
     @chat-scroll-bottom.window="scrollToBottom(false)"
     @chat-logs-refreshed.window="if (stickToBottom) scrollToBottom(false)"
     @open-chat-settings-modal.window="settingsModalOpen = true"
