@@ -129,9 +129,6 @@ class ChatLog extends Component
         }
 
         $this->activeTab = $tab;
-        if ($this->drawer) {
-            $this->dispatch('chat-drawer-tab-changed', tab: $tab);
-        }
 
         if ($tab === 'nation') {
             $character = auth()->check() ? auth()->user()->currentCharacter() : null;

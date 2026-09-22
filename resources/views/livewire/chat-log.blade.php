@@ -12,6 +12,7 @@
         stickToBottom: true,
         previousBodyOverflow: '',
         touchStartX: null,
+        touchStartY: null,
         touchStartAtDrawerEdge: false,
         drawerTabStorageKey: 'valzeria.chat.drawer.active-tab',
         availableDrawerTabs: @js(array_values(array_filter([
@@ -89,39 +90,47 @@
             this.settingsModalOpen = false;
             document.body.style.overflow = this.previousBodyOverflow;
         },
-        handleTouchStart(event) {
+        resetTouchGesture() {
+            this.touchStartX = null;
+            this.touchStartY = null;
+            this.touchStartAtDrawerEdge = false;
+        },
+        handleTouchStart(event, fromEdgeHandle = false) {
             if (!this.drawerMode || !event.touches.length) return;
             const x = event.touches[0].clientX;
+            const y = event.touches[0].clientY;
             this.touchStartX = x;
+            this.touchStartY = y;
             if (!this.drawerOpen) {
-                this.touchStartAtDrawerEdge = x >= window.innerWidth - 28;
+                this.touchStartAtDrawerEdge = fromEdgeHandle || x >= window.innerWidth - 48;
                 return;
             }
             const drawerLeft = this.$refs.drawerPanel?.getBoundingClientRect().left ?? window.innerWidth;
             this.touchStartAtDrawerEdge = x <= drawerLeft + 40;
         },
         handleTouchEnd(event) {
-            if (!this.drawerMode || this.touchStartX === null || !event.changedTouches.length) return;
+            if (!this.drawerMode || this.touchStartX === null || this.touchStartY === null || !event.changedTouches.length) return;
             const deltaX = event.changedTouches[0].clientX - this.touchStartX;
-            if (!this.drawerOpen && this.touchStartAtDrawerEdge && deltaX < -60) {
+            const deltaY = event.changedTouches[0].clientY - this.touchStartY;
+            const isHorizontalSwipe = Math.abs(deltaX) > Math.abs(deltaY) * 1.2;
+            if (!this.drawerOpen && this.touchStartAtDrawerEdge && isHorizontalSwipe && deltaX < -48) {
                 this.openDrawer();
-            } else if (this.drawerOpen && this.touchStartAtDrawerEdge && deltaX > 60) {
+            } else if (this.drawerOpen && this.touchStartAtDrawerEdge && isHorizontalSwipe && deltaX > 48) {
                 this.closeDrawer();
             }
-            this.touchStartX = null;
-            this.touchStartAtDrawerEdge = false;
+            this.resetTouchGesture();
         }
     }"
     x-init="init()"
     @visibilitychange.window="if (!document.hidden) { $wire.pollForUpdates() }"
     @open-chat-drawer.window="openDrawer()"
-    @chat-drawer-tab-changed.window="rememberDrawerTab($event.detail.tab)"
     @chat-scroll-bottom.window="scrollToBottom(false)"
     @chat-logs-refreshed.window="if (stickToBottom) scrollToBottom(false)"
     @open-chat-settings-modal.window="settingsModalOpen = true"
     @keydown.escape.window="if (settingsModalOpen) { settingsModalOpen = false } else if (drawerOpen) { closeDrawer() }"
     @touchstart.window.passive="handleTouchStart($event)"
     @touchend.window.passive="handleTouchEnd($event)"
+    @touchcancel.window.passive="resetTouchGesture()"
     @class([
         'relative w-full bg-white rounded-xl shadow-[0_8px_22px_rgba(126,96,28,0.18)] border border-[#d4af37] flex flex-col shrink-0 overflow-hidden font-sans' => ! $drawerMode,
         'h-[330px] md:h-[380px]' => ! $drawerMode && $isExpanded,
@@ -134,6 +143,18 @@
     @endif
 
     @if($drawerMode)
+        <div
+            data-chat-drawer-edge-swipe
+            x-show="!drawerOpen"
+            class="fixed inset-y-0 right-0 z-[80] w-6 sm:hidden"
+            style="display: none; touch-action: pan-y;"
+            @touchstart.stop="handleTouchStart($event, true)"
+            @touchmove.stop
+            @touchend.stop="handleTouchEnd($event)"
+            @touchcancel.stop="resetTouchGesture()"
+            aria-hidden="true"
+        ></div>
+
         <button
             type="button"
             x-show="drawerOpen"
@@ -183,15 +204,15 @@
     <!-- タブ -->
     <div class="relative flex shrink-0 items-stretch border-b border-gray-200 bg-gray-50 text-[11px] font-sans font-bold text-gray-500">
         <div class="flex min-w-0 flex-1 overflow-x-auto">
-            <button wire:click="setTab('all')" class="px-4 py-2 whitespace-nowrap {{ $activeTab === 'all' ? 'bg-white text-[#1e40af] border-t-2 border-[#1e40af]' : 'hover:bg-white border-t-2 border-transparent' }}">全体</button>
-            <button wire:click="setTab('system')" class="px-4 py-2 whitespace-nowrap {{ $activeTab === 'system' ? 'bg-white text-[#1e40af] border-t-2 border-[#1e40af]' : 'hover:bg-white border-t-2 border-transparent' }}">システム</button>
-            <button wire:click="setTab('chat')" class="px-4 py-2 whitespace-nowrap {{ $activeTab === 'chat' ? 'bg-white text-[#1e40af] border-t-2 border-[#1e40af]' : 'hover:bg-white border-t-2 border-transparent' }}">チャット</button>
+            <button @click="rememberDrawerTab('all')" wire:click="setTab('all')" class="px-4 py-2 whitespace-nowrap {{ $activeTab === 'all' ? 'bg-white text-[#1e40af] border-t-2 border-[#1e40af]' : 'hover:bg-white border-t-2 border-transparent' }}">全体</button>
+            <button @click="rememberDrawerTab('system')" wire:click="setTab('system')" class="px-4 py-2 whitespace-nowrap {{ $activeTab === 'system' ? 'bg-white text-[#1e40af] border-t-2 border-[#1e40af]' : 'hover:bg-white border-t-2 border-transparent' }}">システム</button>
+            <button @click="rememberDrawerTab('chat')" wire:click="setTab('chat')" class="px-4 py-2 whitespace-nowrap {{ $activeTab === 'chat' ? 'bg-white text-[#1e40af] border-t-2 border-[#1e40af]' : 'hover:bg-white border-t-2 border-transparent' }}">チャット</button>
             @if($nationChatEnabled)
-                <button data-chat-nation-tab wire:click="setTab('nation')" class="px-4 py-2 whitespace-nowrap {{ $activeTab === 'nation' ? 'bg-white text-[#1e40af] border-t-2 border-[#1e40af]' : 'hover:bg-white border-t-2 border-transparent' }}">国家</button>
+                <button data-chat-nation-tab @click="rememberDrawerTab('nation')" wire:click="setTab('nation')" class="px-4 py-2 whitespace-nowrap {{ $activeTab === 'nation' ? 'bg-white text-[#1e40af] border-t-2 border-[#1e40af]' : 'hover:bg-white border-t-2 border-transparent' }}">国家</button>
             @endif
-            <button wire:click="setTab('private')" class="px-4 py-2 whitespace-nowrap {{ $activeTab === 'private' ? 'bg-white text-[#1e40af] border-t-2 border-[#1e40af]' : 'hover:bg-white border-t-2 border-transparent' }}">個人(手紙)</button>
-            <button wire:click="setTab('drop')" class="px-4 py-2 whitespace-nowrap {{ $activeTab === 'drop' ? 'bg-white text-[#1e40af] border-t-2 border-[#1e40af]' : 'hover:bg-white border-t-2 border-transparent text-gray-400' }}">レアドロップ</button>
-            <button wire:click="setTab('info')" class="px-4 py-2 whitespace-nowrap {{ $activeTab === 'info' ? 'bg-white text-[#1e40af] border-t-2 border-[#1e40af]' : 'hover:bg-white border-t-2 border-transparent text-gray-400' }}">お知らせ</button>
+            <button @click="rememberDrawerTab('private')" wire:click="setTab('private')" class="px-4 py-2 whitespace-nowrap {{ $activeTab === 'private' ? 'bg-white text-[#1e40af] border-t-2 border-[#1e40af]' : 'hover:bg-white border-t-2 border-transparent' }}">個人(手紙)</button>
+            <button @click="rememberDrawerTab('drop')" wire:click="setTab('drop')" class="px-4 py-2 whitespace-nowrap {{ $activeTab === 'drop' ? 'bg-white text-[#1e40af] border-t-2 border-[#1e40af]' : 'hover:bg-white border-t-2 border-transparent text-gray-400' }}">レアドロップ</button>
+            <button @click="rememberDrawerTab('info')" wire:click="setTab('info')" class="px-4 py-2 whitespace-nowrap {{ $activeTab === 'info' ? 'bg-white text-[#1e40af] border-t-2 border-[#1e40af]' : 'hover:bg-white border-t-2 border-transparent text-gray-400' }}">お知らせ</button>
         </div>
         <button
             type="button"

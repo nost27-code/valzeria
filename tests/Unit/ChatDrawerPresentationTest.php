@@ -57,8 +57,14 @@ class ChatDrawerPresentationTest extends TestCase
         $this->assertStringContainsString('scrollToBottom(false)', $chat);
         $this->assertStringContainsString("drawerTabStorageKey: 'valzeria.chat.drawer.active-tab'", $chat);
         $this->assertStringContainsString('restoreDrawerTab()', $chat);
-        $this->assertStringContainsString('@chat-drawer-tab-changed.window="rememberDrawerTab($event.detail.tab)"', $chat);
-        $this->assertStringContainsString("dispatch('chat-drawer-tab-changed', tab: \$tab)", file_get_contents(app_path('Livewire/ChatLog.php')));
+        $this->assertStringContainsString('@click="rememberDrawerTab(\'chat\')" wire:click="setTab(\'chat\')"', $chat);
+        $this->assertStringContainsString('@click="rememberDrawerTab(\'nation\')" wire:click="setTab(\'nation\')"', $chat);
+        $this->assertStringNotContainsString('chat-drawer-tab-changed', $chat);
+        $this->assertStringNotContainsString('chat-drawer-tab-changed', file_get_contents(app_path('Livewire/ChatLog.php')));
+        $this->assertStringContainsString('data-chat-drawer-edge-swipe', $chat);
+        $this->assertStringContainsString('style="display: none; touch-action: pan-y;"', $chat);
+        $this->assertStringContainsString('fromEdgeHandle || x >= window.innerWidth - 48', $chat);
+        $this->assertStringContainsString('isHorizontalSwipe && deltaX < -48', $chat);
         $this->assertStringContainsString('data-chat-line-presentation', $chat);
         $this->assertStringContainsString('data-chat-inline-presentation', $chat);
         $this->assertGreaterThanOrEqual(2, substr_count($chat, "src=\"{{ \$log['avatar_url'] }}\""));
