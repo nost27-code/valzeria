@@ -13,7 +13,7 @@ class KatanaWeaponEvolutionMasterTest extends TestCase
 
     public function test_katana_has_a_complete_base_chain_and_three_high_rank_branches(): void
     {
-        $this->assertSame('images/icon/icon_224.webp', Item::weaponIconPathForCategory('katana'));
+        $this->assertSame('images/icon/icon_308.webp', Item::weaponIconPathForCategory('katana'));
 
         $katanaItems = DB::table('items')
             ->where('weapon_category', 'katana')

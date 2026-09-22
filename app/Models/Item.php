@@ -13,10 +13,12 @@ class Item extends Model
         'dagger' => 'images/icon/icon_226.webp',
         'spear' => 'images/icon/icon_227.webp',
         'axe' => 'images/icon/icon_228.webp',
+        'club' => 'images/icon/icon_307.webp',
         'staff' => 'images/icon/icon_229.webp',
         'magic_device' => 'images/icon/icon_230.webp',
         'fist' => 'images/icon/icon_231.webp',
         'gun' => 'images/icon/icon_232.webp',
+        'katana' => 'images/icon/icon_308.webp',
     ];
 
     private const ARMOR_ICON_BY_CATEGORY = [
@@ -90,7 +92,7 @@ class Item extends Model
     public function iconImagePath(): ?string
     {
         return match ((string) $this->type) {
-            'weapon' => self::weaponIconPathForCategory($this->weapon_category),
+            'weapon' => self::weaponIconImagePathFor($this),
             'armor' => self::armorIconImagePathFor($this),
             'accessory' => 'images/icon/icon_238.webp',
             default => null,
@@ -105,6 +107,26 @@ class Item extends Model
     public static function weaponIconPathForCategory(?string $category): ?string
     {
         return self::WEAPON_ICON_BY_CATEGORY[(string) $category] ?? null;
+    }
+
+    private static function weaponIconImagePathFor(self $item): ?string
+    {
+        $familyId = strtoupper((string) $item->weapon_family_id);
+        $familyName = (string) $item->weapon_family_name;
+        $subType = (string) $item->sub_type;
+        $name = (string) $item->name;
+
+        if (
+            (string) $item->weapon_category === 'club'
+            || str_starts_with($familyId, 'CLUB')
+            || str_contains($familyName, '棍棒')
+            || $subType === '棍棒'
+            || str_contains($name, '棍棒')
+        ) {
+            return self::weaponIconPathForCategory('club');
+        }
+
+        return self::weaponIconPathForCategory($item->weapon_category);
     }
 
     private static function armorIconImagePathFor(self $item): ?string

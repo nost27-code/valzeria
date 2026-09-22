@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-09-22-club-katana-category-icons',
+        'date' => '2026-09-22',
+        'category' => 'fixed',
+        'title' => '棍棒と刀の武器種アイコンを修正',
+        'detail' => '装備倉庫や鍛冶屋などで、棍棒には棍棒、刀には太刀の専用アイコンを表示します。武器性能・職業適性・進化条件は変更していません。',
+    ],
+    [
         'id' => '2026-09-21-unarmed-offense-full-rate',
         'date' => '2026-09-21',
         'category' => 'balance',
