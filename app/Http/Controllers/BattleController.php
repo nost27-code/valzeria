@@ -492,7 +492,7 @@ class BattleController extends Controller
             return redirect()->route('home')->with('error', 'このアカウントは凍結されています。お問い合わせください。');
         }
 
-        if ($redirect = $this->redirectIfStorageFull($character)) {
+        if (!$request->boolean('continue_chain') && $redirect = $this->redirectIfStorageFull($character)) {
             return $redirect;
         }
 

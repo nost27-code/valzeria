@@ -5,8 +5,10 @@ namespace Tests\Feature;
 use App\Http\Controllers\BattleController;
 use App\Models\Area;
 use App\Models\Character;
+use App\Models\CharacterMaterial;
 use App\Models\CharacterSubAreaRouteDiscovery;
 use App\Models\Enemy;
+use App\Models\Material;
 use App\Models\SubArea;
 use App\Models\SubAreaRoute;
 use App\Models\User;
@@ -22,6 +24,7 @@ use App\Services\KisekiDropService;
 use App\Services\LevelService;
 use App\Services\PublicLogService;
 use App\Services\RegionDepthDungeonService;
+use App\Services\StorageCapacityService;
 use App\Services\SubAreaExplorationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
@@ -267,9 +270,23 @@ class ExplorationRepeatServiceTest extends TestCase
         $this->assertSame(0, (int) $character->fresh()->explore_stamina);
     }
 
-    public function test_sub_area_request_with_an_explicit_count_uses_the_shared_repeat_path(): void
+    public function test_sub_area_continuation_with_full_storage_uses_the_shared_repeat_path(): void
     {
         $character = $this->characterWithStamina(50);
+        $material = Material::query()->create([
+            'material_code' => 'TEST_FULL_STORAGE_SUB_AREA_CONTINUATION',
+            'name' => '亜域継続用の満杯素材',
+            'category' => '都市素材',
+            'material_type' => 'weapon_city',
+            'rarity' => 'R',
+        ]);
+        CharacterMaterial::query()->create([
+            'character_id' => $character->id,
+            'material_id' => $material->id,
+            'quantity' => 500,
+        ]);
+        $this->assertTrue(app(StorageCapacityService::class)->isFull($character));
+
         $area = Area::query()->create([
             'name' => '亜域連続探索の入口',
             'slug' => 'sub-area-repeat-entry-test',
