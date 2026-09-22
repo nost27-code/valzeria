@@ -6,6 +6,7 @@ use App\Models\Character;
 use App\Models\PublicLog;
 use App\Services\Nation\NationChatService;
 use App\Services\PublicLogService;
+use App\Support\CharacterIconCatalog;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Livewire\Attributes\Locked;
@@ -16,6 +17,7 @@ class ChatLog extends Component
 {
     public string $activeTab = 'all';
     public bool $isExpanded = false;
+    public bool $drawer = false;
     public int $logLimit = 50;
     public array $allTabVisibility = [];
     #[Locked]
@@ -103,8 +105,9 @@ class ChatLog extends Component
     public string $editingMessage = '';
     public string $nationChatRequestId = '';
 
-    public function mount(): void
+    public function mount(bool $drawer = false): void
     {
+        $this->drawer = $drawer;
         $character = auth()->check() ? auth()->user()->currentCharacter() : null;
         $this->currentCharacterId = $character?->id;
         $this->allTabVisibility = $this->storedAllTabVisibility($character);
@@ -126,6 +129,10 @@ class ChatLog extends Component
         }
 
         $this->activeTab = $tab;
+        if ($this->drawer) {
+            $this->dispatch('chat-drawer-tab-changed', tab: $tab);
+        }
+
         if ($tab === 'nation') {
             $character = auth()->check() ? auth()->user()->currentCharacter() : null;
             if ($character) {
@@ -134,6 +141,8 @@ class ChatLog extends Component
                 $this->dispatch('nationChatSeen');
             }
         }
+
+        $this->dispatch('chat-scroll-bottom');
     }
 
     public function toggleExpanded()
@@ -166,11 +175,15 @@ class ChatLog extends Component
                 $this->dispatch('nationChatSeen');
             }
 
+            $this->dispatch('chat-logs-refreshed');
+
             return;
         }
 
         // 個人タブは受信者候補も更新対象なので、従来どおり全体を再描画する。
         if ($this->shouldLoadReceivers()) {
+            $this->dispatch('chat-logs-refreshed');
+
             return;
         }
 
@@ -183,6 +196,7 @@ class ChatLog extends Component
         }
 
         $this->logsVersion = $version;
+        $this->dispatch('chat-logs-refreshed');
     }
 
     public function pollNationUnread(?NationChatService $nationChatService = null): void
@@ -270,6 +284,7 @@ class ChatLog extends Component
 
             $this->message = '';
             $this->rotateNationChatRequestId();
+            $this->dispatch('chat-scroll-bottom');
 
             return;
         }
@@ -288,6 +303,7 @@ class ChatLog extends Component
         }
 
         $this->message = ''; // 入力欄をクリア
+        $this->dispatch('chat-scroll-bottom');
     }
 
     public function startEdit(int $logId): void
@@ -377,6 +393,8 @@ class ChatLog extends Component
             $nationChatAvailable = $character && $nationChatService->canUse($character);
             $systemLogs = $nationChatAvailable
                 ? $nationChatService->recentFor($character)
+                    ->when($this->drawer, fn ($messages) => $messages->reverse())
+                    ->values()
                     ->map(fn ($message): array => [
                         'id' => 'nation-'.$message->id,
                         'type' => 'nation',
@@ -384,6 +402,9 @@ class ChatLog extends Component
                         'reply_prefix' => '【'.($message->character?->name ?? '不明な冒険者').'】',
                         'reply_id' => null,
                         'is_sender' => (int) $message->character_id === (int) $characterId,
+                        'is_player_message' => true,
+                        'author_name' => $message->character?->name ?? '不明な冒険者',
+                        'avatar_url' => CharacterIconCatalog::versionedAsset($message->character?->icon_path),
                         'can_edit' => false,
                         'is_edited' => false,
                         'time' => $message->created_at?->format('H:i') ?? date('H:i'),
@@ -450,10 +471,15 @@ class ChatLog extends Component
             $displayMessage = $log->message;
             $replyPrefix = '';
             $replyId = null;
-            $isSender = false;
+            $isPlayerMessage = in_array($log->type, ['chat', 'guild', 'private'], true);
+            $isSender = $isPlayerMessage
+                && $characterId
+                && (int) $log->character_id === (int) $characterId;
+            [$authorName, $avatarUrl] = $this->logIdentity($log);
 
             if ($log->type === 'chat') {
-                $replyPrefix = '【' . ($log->character ? $log->character->name : '名無し') . '】';
+                $authorName = $log->character?->name ?? '名無し';
+                $replyPrefix = '【' . $authorName . '】';
                 $replyId = $log->character_id;
             } elseif ($log->type === 'private') {
                 $senderName = $log->character ? $log->character->name : '不明';
@@ -461,11 +487,12 @@ class ChatLog extends Component
                 
                 if ($log->character_id == $characterId) {
                     // 自分が送信側
+                    $authorName = 'To ' . $receiverName;
                     $replyPrefix = '【To ' . $receiverName . '】';
                     $replyId = $log->receiver_id;
-                    $isSender = true;
                 } else {
                     // 自分が受信側
+                    $authorName = $senderName;
                     $replyPrefix = '【From ' . $senderName . '】';
                     $replyId = $log->character_id;
                 }
@@ -474,7 +501,8 @@ class ChatLog extends Component
             } elseif ($log->type === 'notice') {
                 $replyPrefix = '【お知らせ】';
             } elseif ($log->type === 'guild') {
-                $replyPrefix = '【' . ($log->character ? $log->character->name : '名無し') . '】';
+                $authorName = $log->character?->name ?? '名無し';
+                $replyPrefix = '【' . $authorName . '】';
                 $replyId = $log->character_id;
             }
 
@@ -485,6 +513,9 @@ class ChatLog extends Component
                 'reply_prefix' => $replyPrefix,
                 'reply_id' => $replyId,
                 'is_sender' => $isSender,
+                'is_player_message' => $isPlayerMessage,
+                'author_name' => $authorName,
+                'avatar_url' => $avatarUrl,
                 'can_edit' => $characterId
                     && (int) $log->character_id === (int) $characterId
                     && in_array($log->type, ['chat', 'private'], true),
@@ -496,6 +527,10 @@ class ChatLog extends Component
             if ($count >= $displayLimit) {
                 break;
             }
+        }
+
+        if ($this->drawer) {
+            $systemLogs = array_reverse($systemLogs);
         }
 
         $availableReceivers = [];
@@ -531,6 +566,38 @@ class ChatLog extends Component
             'nationChatEnabled' => $nationChatEnabled,
             'nationChatAvailable' => false,
         ]);
+    }
+
+    /**
+     * @return array{0: string, 1: string}
+     */
+    private function logIdentity(PublicLog $log): array
+    {
+        if ($log->type === 'admin') {
+            return ['管理人', CharacterIconCatalog::adminIconAsset()];
+        }
+
+        if (in_array($log->type, ['notice', 'info'], true)) {
+            return ['お知らせ', $this->versionedUiAsset('/images/icon/icon_017.webp')];
+        }
+
+        if (in_array($log->type, ['chat', 'guild', 'private'], true) && $log->character) {
+            return [
+                $log->character->name ?: '名無し',
+                CharacterIconCatalog::versionedAsset($log->character->icon_path),
+            ];
+        }
+
+        return ['ヴァルゼリア', $this->versionedUiAsset('/images/icon/icon_001.webp')];
+    }
+
+    private function versionedUiAsset(string $path): string
+    {
+        static $urls = [];
+
+        return $urls[$path] ??= asset($path).'?v='.(is_file(public_path(ltrim($path, '/')))
+            ? filemtime(public_path(ltrim($path, '/')))
+            : '1');
     }
 
     public function placeholder()

@@ -113,7 +113,7 @@
              x-data="{ currentLocation: @js($currentLocation) }"
              @main-tab-selected.window="currentLocation = ($event.detail.location === 'job' ? 'town' : $event.detail.location)">
             <!-- 全幅ヘッダー -->
-            <livewire:city-header />
+            <livewire:city-header :show-chat-launcher="true" />
             <livewire:adventurer-card-modal :include-styles="false" />
             <livewire:adventurer-departure-set-banner />
 
@@ -149,8 +149,15 @@
                 </div>
             </div>
 
-            <!-- 全幅チャット -->
-            <livewire:chat-log />
+            <!-- ホーム画面下部の従来チャット -->
+            <div x-show="currentLocation === 'home'"
+                 style="{{ $currentLocation === 'home' ? '' : 'display: none;' }}"
+                 class="w-full">
+                <livewire:chat-log :key="'home-inline-chat'" />
+            </div>
+
+            <!-- 街ヘッダーから開くLINE風チャットドロワー -->
+            <livewire:chat-log :drawer="true" :key="'home-drawer-chat'" />
         </div>
         </div>
 

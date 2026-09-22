@@ -1599,13 +1599,28 @@
                         @endif
                     </h1>
                 </div>
-                <button type="button"
-                        @click="window.dispatchEvent(new CustomEvent('main-tab-selected', { detail: { location: 'move' } })); $dispatch('changeTab', { newLocation: 'move' })"
-                        class="ml-auto flex w-12 shrink-0 flex-col items-center justify-center rounded-full px-1 py-0.5 text-[#1e293b] transition active:scale-95 sm:w-14"
-                        aria-label="街を移動する">
-                    <img src="{{ asset('images/icon/move_map.png') }}" alt="" class="h-7 w-7 object-contain drop-shadow-sm sm:h-8 sm:w-8">
-                    <span class="-mt-0.5 whitespace-nowrap text-[9px] font-black leading-none tracking-normal sm:text-[10px]">移動する</span>
-                </button>
+                <div class="ml-auto flex shrink-0 items-center gap-0.5 sm:gap-1">
+                    @if($showChatLauncher)
+                        <button type="button"
+                                @click="window.dispatchEvent(new CustomEvent('open-chat-drawer'))"
+                                class="flex w-12 shrink-0 flex-col items-center justify-center rounded-full px-1 py-0.5 text-[#1e293b] transition active:scale-95 sm:w-14"
+                                aria-label="チャットを開く">
+                            <span class="flex h-7 w-7 items-center justify-center rounded-full bg-[#1e40af] text-white shadow-sm sm:h-8 sm:w-8" aria-hidden="true">
+                                <svg class="h-4 w-4 sm:h-[18px] sm:w-[18px]" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M4 4h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H9l-5 3v-3a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Zm3 5a1 1 0 1 0 0 2 1 1 0 0 0 0-2Zm5 0a1 1 0 1 0 0 2 1 1 0 0 0 0-2Zm5 0a1 1 0 1 0 0 2 1 1 0 0 0 0-2Z"/>
+                                </svg>
+                            </span>
+                            <span class="-mt-0.5 whitespace-nowrap text-[9px] font-black leading-none tracking-normal sm:text-[10px]">チャット</span>
+                        </button>
+                    @endif
+                    <button type="button"
+                            @click="window.dispatchEvent(new CustomEvent('main-tab-selected', { detail: { location: 'move' } })); $dispatch('changeTab', { newLocation: 'move' })"
+                            class="flex w-12 shrink-0 flex-col items-center justify-center rounded-full px-1 py-0.5 text-[#1e293b] transition active:scale-95 sm:w-14"
+                            aria-label="街を移動する">
+                        <img src="{{ asset('images/icon/move_map.png') }}" alt="" class="h-7 w-7 object-contain drop-shadow-sm sm:h-8 sm:w-8">
+                        <span class="-mt-0.5 whitespace-nowrap text-[9px] font-black leading-none tracking-normal sm:text-[10px]">移動する</span>
+                    </button>
+                </div>
             </div>
 
             <div class="relative mt-0.5 w-full min-w-0 px-2.5 pb-2 text-[10px] font-bold leading-4 sm:px-3 sm:pb-2.5 sm:text-[11px]">

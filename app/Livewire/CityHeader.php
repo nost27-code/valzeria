@@ -46,6 +46,7 @@ class CityHeader extends Component
     public $locationName = '';
     public bool $showCityPanel = true;
     public bool $modalOnly = false;
+    public bool $showChatLauncher = false;
 
     public function openPlayerModal(int $characterId)
     {
@@ -191,9 +192,14 @@ class CityHeader extends Component
         app(CharacterNotificationService::class)->markAllAsRead($character);
     }
 
-    public function mount(bool $showCityPanel = true, bool $modalOnly = false)
+    public function mount(
+        bool $showCityPanel = true,
+        bool $modalOnly = false,
+        bool $showChatLauncher = false,
+    )
     {
         $this->modalOnly = $modalOnly;
+        $this->showChatLauncher = $showChatLauncher;
         $this->showCityPanel = !$modalOnly && $showCityPanel;
 
         if (!$modalOnly) {
