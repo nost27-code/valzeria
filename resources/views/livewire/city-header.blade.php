@@ -1198,12 +1198,12 @@
 
     @if(!$modalOnly && !empty($topPlayer))
         <div class="relative left-1/2 z-40 mb-3 -mt-4 w-full -translate-x-1/2 overflow-visible border-b border-[#d4af37]/50 bg-white shadow-[0_4px_18px_rgba(15,23,42,0.10)] sm:-mt-6">
-            {{-- grid: [icon] [名前/レベル/職/戦力] [HP/SPバー] [探索力/ゴールド/輝石] [ベル] --}}
-            <div class="mx-auto grid max-w-screen-2xl grid-cols-[auto_minmax(5.75rem,1.35fr)_minmax(4rem,7rem)_minmax(4.8rem,auto)_auto] grid-rows-2 items-center gap-x-1.5 px-2.5 py-1.5 sm:grid-cols-[auto_minmax(8rem,1.4fr)_minmax(5rem,8rem)_minmax(5.8rem,auto)_auto] sm:gap-x-2 sm:px-4 lg:px-6"
+            {{-- grid: [icon] [名前/レベル/職/戦力] [HP/SPバー] [探索力/ゴールド/輝石] [チャット/ベル] --}}
+            <div class="mx-auto grid max-w-screen-2xl grid-cols-[2.5rem_minmax(4rem,1fr)_minmax(2.75rem,3.5rem)_minmax(2.75rem,3.25rem)_auto] grid-rows-2 items-center gap-x-0.5 px-1 py-1.5 min-[360px]:grid-cols-[auto_minmax(5rem,1.2fr)_minmax(3rem,5rem)_minmax(4.4rem,auto)_auto] min-[360px]:gap-x-1 min-[360px]:px-2 sm:grid-cols-[auto_minmax(8rem,1.4fr)_minmax(5rem,8rem)_minmax(5.8rem,auto)_auto] sm:gap-x-2 sm:px-4 lg:px-6"
                  style="row-gap:2px;">
 
                 {{-- アイコン (2行にまたがる) --}}
-                <div class="row-span-2 flex h-12 w-12 shrink-0 items-center justify-center sm:h-14 sm:w-14">
+                <div class="row-span-2 flex h-10 w-10 shrink-0 items-center justify-center min-[360px]:h-12 min-[360px]:w-12 sm:h-14 sm:w-14">
                     @php
                         $headerPosePaths = array_values(array_unique($topPlayer['pose_paths'] ?? [$topPlayer['icon']]));
                     @endphp
@@ -1368,7 +1368,7 @@
                                     :aria-expanded="helpOpen.toString()"
                                     aria-label="探索力の回復と上限を確認"
                                     class="flex min-w-0 items-center justify-end gap-0.5 rounded px-0.5 py-px text-blue-900 transition hover:bg-blue-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400">
-                                <img src="{{ asset('images/icon/icon_082.webp') }}" alt="" class="h-3.5 w-3.5 shrink-0 object-contain">
+                                <img src="{{ asset('images/icon/icon_082.webp') }}" alt="" class="h-3.5 w-3.5 shrink-0 object-contain max-[359px]:hidden">
                                 <span class="whitespace-nowrap"><span x-text="current.toLocaleString()">{{ number_format((int) $stamina['current']) }}</span><span class="text-slate-400">/<span x-text="max.toLocaleString()">{{ number_format((int) $stamina['max']) }}</span></span></span>
                             </button>
 
@@ -1410,30 +1410,43 @@
                         </div>
                     @endif
                     <div class="flex min-w-0 items-center justify-end gap-0.5 text-slate-900" title="ゴールド">
-                        <img src="{{ asset('images/icon/icon_083.webp') }}" alt="" class="h-3.5 w-3.5 shrink-0 object-contain">
+                        <img src="{{ asset('images/icon/icon_083.webp') }}" alt="" class="h-3.5 w-3.5 shrink-0 object-contain max-[359px]:hidden">
                         <span class="whitespace-nowrap">{{ number_format($topPlayer['gold']) }}<span class="ml-0.5 text-[8px] font-bold text-amber-600 sm:text-[9px]">G</span></span>
                     </div>
                     <div class="flex min-w-0 items-center justify-end gap-0.5 text-slate-900" title="輝石">
-                        <img src="{{ asset('images/icon/icon_084.webp') }}" alt="" class="h-3.5 w-3.5 shrink-0 object-contain">
+                        <img src="{{ asset('images/icon/icon_084.webp') }}" alt="" class="h-3.5 w-3.5 shrink-0 object-contain max-[359px]:hidden">
                         <span class="whitespace-nowrap">{{ number_format($topPlayer['kiseki']) }}</span>
                     </div>
                 </div>
 
-                {{-- ベル (2行にまたがる) --}}
-                <div class="col-start-5 row-span-2 row-start-1 flex shrink-0 items-center self-center" @click.outside="notificationOpen = false">
-                    <button type="button"
-                            @click="notificationOpen = !notificationOpen"
-                            class="relative flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 shadow-sm transition active:scale-95 sm:h-10 sm:w-10 sm:rounded-xl"
-                            aria-label="通知">
-                        <svg class="h-4 w-4 sm:h-5 sm:w-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                            <path d="M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22Zm7-5h-1V10a6 6 0 1 0-12 0v7H5a1 1 0 0 0 0 2h14a1 1 0 1 0 0-2Z"/>
-                        </svg>
-                        @if($unreadNotificationCount > 0)
-                            <span class="absolute -right-1 -top-1 flex min-h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[9px] font-black leading-none text-white ring-2 ring-white sm:min-h-5 sm:min-w-5 sm:text-[10px]">
-                                {{ $unreadNotificationCount > 99 ? '99+' : $unreadNotificationCount }}
-                            </span>
-                        @endif
-                    </button>
+                {{-- チャット / ベル (2行にまたがる) --}}
+                <div class="col-start-5 row-span-2 row-start-1 flex shrink-0 items-center gap-1 self-center sm:gap-1.5" data-header-action-group>
+                    @if($showChatLauncher)
+                        <button type="button"
+                                data-top-chat-launcher
+                                @click="window.dispatchEvent(new CustomEvent('open-chat-drawer'))"
+                                class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-blue-800 bg-[#1e40af] text-white shadow-sm transition active:scale-95 sm:h-10 sm:w-10 sm:rounded-xl"
+                                aria-label="チャットを開く">
+                            <svg class="h-4 w-4 sm:h-5 sm:w-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                                <path d="M4 4h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H9l-5 3v-3a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Zm3 5a1 1 0 1 0 0 2 1 1 0 0 0 0-2Zm5 0a1 1 0 1 0 0 2 1 1 0 0 0 0-2Zm5 0a1 1 0 1 0 0 2 1 1 0 0 0 0-2Z"/>
+                            </svg>
+                        </button>
+                    @endif
+
+                    <div class="relative shrink-0" @click.outside="notificationOpen = false">
+                        <button type="button"
+                                @click="notificationOpen = !notificationOpen"
+                                class="relative flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 shadow-sm transition active:scale-95 sm:h-10 sm:w-10 sm:rounded-xl"
+                                aria-label="通知">
+                            <svg class="h-4 w-4 sm:h-5 sm:w-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                                <path d="M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22Zm7-5h-1V10a6 6 0 1 0-12 0v7H5a1 1 0 0 0 0 2h14a1 1 0 1 0 0-2Z"/>
+                            </svg>
+                            @if($unreadNotificationCount > 0)
+                                <span class="absolute -right-1 -top-1 flex min-h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[9px] font-black leading-none text-white ring-2 ring-white sm:min-h-5 sm:min-w-5 sm:text-[10px]">
+                                    {{ $unreadNotificationCount > 99 ? '99+' : $unreadNotificationCount }}
+                                </span>
+                            @endif
+                        </button>
 
                     <div x-show="notificationOpen"
                          x-cloak
@@ -1512,6 +1525,7 @@
                             @endforelse
                         </div>
                     </div>
+                </div>
                 </div>
 
                 {{-- SP バー (2行目) --}}
@@ -1600,19 +1614,6 @@
                     </h1>
                 </div>
                 <div class="ml-auto flex shrink-0 items-center gap-0.5 sm:gap-1">
-                    @if($showChatLauncher)
-                        <button type="button"
-                                @click="window.dispatchEvent(new CustomEvent('open-chat-drawer'))"
-                                class="flex w-12 shrink-0 flex-col items-center justify-center rounded-full px-1 py-0.5 text-[#1e293b] transition active:scale-95 sm:w-14"
-                                aria-label="チャットを開く">
-                            <span class="flex h-7 w-7 items-center justify-center rounded-full bg-[#1e40af] text-white shadow-sm sm:h-8 sm:w-8" aria-hidden="true">
-                                <svg class="h-4 w-4 sm:h-[18px] sm:w-[18px]" viewBox="0 0 24 24" fill="currentColor">
-                                    <path d="M4 4h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H9l-5 3v-3a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Zm3 5a1 1 0 1 0 0 2 1 1 0 0 0 0-2Zm5 0a1 1 0 1 0 0 2 1 1 0 0 0 0-2Zm5 0a1 1 0 1 0 0 2 1 1 0 0 0 0-2Z"/>
-                                </svg>
-                            </span>
-                            <span class="-mt-0.5 whitespace-nowrap text-[9px] font-black leading-none tracking-normal sm:text-[10px]">チャット</span>
-                        </button>
-                    @endif
                     <button type="button"
                             @click="window.dispatchEvent(new CustomEvent('main-tab-selected', { detail: { location: 'move' } })); $dispatch('changeTab', { newLocation: 'move' })"
                             class="flex w-12 shrink-0 flex-col items-center justify-center rounded-full px-1 py-0.5 text-[#1e293b] transition active:scale-95 sm:w-14"

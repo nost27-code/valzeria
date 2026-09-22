@@ -52,6 +52,16 @@ class ChatDrawerPresentationTest extends TestCase
         $this->assertStringContainsString('<livewire:chat-log :drawer="true" :key="\'home-drawer-chat\'" />', $layout);
         $this->assertStringContainsString(':show-chat-launcher="true"', $layout);
         $this->assertStringContainsString("open-chat-drawer", $header);
+        $this->assertSame(1, substr_count($header, 'aria-label="チャットを開く"'));
+        $this->assertStringContainsString('data-top-chat-launcher', $header);
+        $this->assertStringContainsString('data-header-action-group', $header);
+        $this->assertStringContainsString('minmax(3rem,5rem)', $header);
+        $this->assertStringContainsString('min-[360px]:grid-cols-', $header);
+        $this->assertStringContainsString('max-[359px]:hidden', $header);
+        $this->assertLessThan(
+            strpos($header, 'aria-label="通知"'),
+            strpos($header, 'data-top-chat-launcher'),
+        );
         $this->assertStringContainsString('w-[80vw]', $chat);
         $this->assertStringContainsString('data-chat-log-scroller', $chat);
         $this->assertStringContainsString('scrollToBottom(false)', $chat);
