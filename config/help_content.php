@@ -157,7 +157,7 @@ HTML,
     <dt>🔷 探索度</dt>
     <dd>そのエリアをどれだけ探索したかを示す値です。繰り返し挑戦することで上昇します。探索度が高いほど、エリア内の発見が充実していきます。</dd>
     <dt><img src="/images/icon/icon_046.webp" alt="" style="width:16px;height:16px;object-fit:contain;display:inline-block;vertical-align:middle;"> 危険度</dt>
-    <dd>エリアの難易度や敵の強さを示す指標です。危険度が高いほど敵が手強く、敗北のリスクも上がります。一方で、高い危険度のエリアほど良い報酬が期待できます。</dd>
+    <dd>エリアの難易度や敵の強さを示す指標です。危険度が高いほど敵が手強く、敗北のリスクも上がります。危険度が一定値に達すると、通常素材・通常装備のドロップ抽選が段階的に有利になります。危険度100%以上では、この通常ドロップ補正は同じです。装備のランクや品質は危険度では変化しません。探索深度が上がると、経験値・職業経験値が増加します。</dd>
     <dt><img src="/images/icon/icon_004.webp" alt="" style="width:16px;height:16px;object-fit:contain;display:inline-block;vertical-align:middle;"> 開拓度</dt>
     <dd>そのエリアをどれだけ踏破したかを示す値です。開拓度が一定に達すると、新しい街道・街・探索先を発見できることがあります。</dd>
 </dl>
