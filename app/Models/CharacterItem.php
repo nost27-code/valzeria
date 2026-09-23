@@ -117,7 +117,7 @@ class CharacterItem extends Model
             $name .= '【逸品】';
         }
 
-        $rank = $this->item?->weapon_rank;
+        $rank = $this->item?->type === 'armor' ? $this->item?->armor_rank : $this->item?->weapon_rank;
         if ($includeRank && $rank) {
             $name = '[' . strtoupper($rank) . '] ' . $name;
         }

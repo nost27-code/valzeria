@@ -7,6 +7,7 @@ Exploration map publication visibility（2026-09-11）: `town_map_registrations.
 Nation join policy / waitlist（2026-09-09）: `nations.join_policy`はnullable VARCHAR(100)の公開方針文。`nation_join_applications.status=waitlisted`は満員時の未処理申請で、既存の`(nation_id,status,requested_at)` indexから順番を導出する。`pending`と`waitlisted`は同じ取消・却下・承認・解散時取消の対象で、membership作成前に実効定員を再確認する。
 
 Equipment market directed listing（2026-09-09）: `equipment_market_listings.recipient_character_id`はnullable unsigned bigint。NULLは公開、値ありは宛先指定。宛先削除で公開化しないためFKを付けず、不変IDと`(recipient_character_id,status,expires_at)` indexを保持する。成立後の実購入者は従来どおり`buyer_character_id`とtransactionに記録する。
+Equipment market nation scope（2026-09-23）: `equipment_market_listings.nation_id_snapshot`はnullable unsigned bigintで、国家限定出品だけに出品時の国家IDを保持する。国家削除後も公開化しないようFKでNULL化しない。国家限定の`recipient_character_id`には出品者IDを保存し、旧コードでは出品者だけに見えるようにする。新コードでは`nation_id_snapshot`を優先して現在の所属と照合する。既存行は両カラムNULLの全体公開または従来の個人宛てのまま維持する。
 
 Hero trial release masters（2026-09-09）: 新しいテーブル・カラムは追加しない。Area 86 `star_heaven_hero_trial` とArea 87 `time_reader_hero_trial`をCity 10の`area_kind=hero_trial`・`is_published=false`として追加し、既存`character_area_progresses.boss_defeated`へ合格記録を保存する。英雄職ID72/77はhiddenのままactiveにし、`job_requirements`へ72→63（星冠導師）と77→67（金冠錬師）の`master_job`条件を追加する。試練主と敵技は`config/hero_trials.php`だけで組み立てる仮想敵であり、`enemies`/`enemy_actions`行は追加しない。公開可否はDBマスタの`is_published`ではなく、既定OFFの追加コンテンツ`hero_trials`で一括制御する。
 

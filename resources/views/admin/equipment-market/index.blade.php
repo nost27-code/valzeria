@@ -49,7 +49,7 @@
                         <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                             <div class="min-w-0">
                                 <div class="flex flex-wrap items-center gap-2">
-                                    <h2 class="text-base font-black text-slate-950">{{ $listing->display_name_snapshot }}</h2>
+                                    <h2 class="text-base font-black text-slate-950">{{ $listing->displayNameWithRank() }}</h2>
                                     <span class="rounded bg-emerald-100 px-2 py-1 text-[11px] font-black text-emerald-800">{{ $statusLabels[$listing->status] ?? $listing->status }}</span>
                                 </div>
                                 <div class="mt-1 text-xs font-bold text-slate-500">
@@ -60,7 +60,7 @@
                             <div class="shrink-0 text-left lg:text-right">
                                 <div class="text-xs font-black text-slate-500">出品者</div>
                                 <div class="text-sm font-black text-slate-950">{{ $listing->seller?->name ?? '-' }}</div>
-                                <div class="mt-1 text-xs font-black {{ $listing->recipient_character_id ? 'text-amber-700' : 'text-slate-500' }}">{{ $listing->recipient_character_id ? '宛先：'.($listing->recipient?->name ?? '削除済み').' #'.$listing->recipient_character_id : '公開出品' }}</div>
+                                <div class="mt-1 text-xs font-black {{ $listing->nation_id_snapshot ? 'text-emerald-700' : ($listing->recipient_character_id ? 'text-amber-700' : 'text-slate-500') }}">@if($listing->nation_id_snapshot)国家限定：{{ $listing->nation?->display_name ?? '削除済み' }} #{{ $listing->nation_id_snapshot }}@elseif($listing->recipient_character_id)宛先：{{ $listing->recipient?->name ?? '削除済み' }} #{{ $listing->recipient_character_id }}@else 公開出品 @endif</div>
                                 <div class="mt-2 text-lg font-black text-violet-700">{{ number_format($listing->listing_price) }}G</div>
                                 <div class="text-xs font-bold text-slate-500">期限 {{ $listing->expires_at?->format('Y/m/d H:i') ?? '-' }}</div>
                             </div>
@@ -96,7 +96,7 @@
                     <div class="rounded-md bg-white p-4 shadow-sm ring-1 ring-slate-200">
                         <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                             <div class="min-w-0">
-                                <h2 class="text-base font-black text-slate-950">{{ $snapshot['display_name'] ?? $transaction->listing?->display_name_snapshot ?? '不明な装備' }}</h2>
+                                <h2 class="text-base font-black text-slate-950">{{ $transaction->listing?->displayNameWithRank() ?? $snapshot['display_name'] ?? '不明な装備' }}</h2>
                                 <div class="mt-1 text-xs font-bold text-slate-500">
                                     {{ strtoupper((string) ($snapshot['equipment_rank'] ?? $snapshot['weapon_rank'] ?? '-')) }} ・ {{ $snapshot['equipment_category'] ?? $snapshot['weapon_category'] ?? '-' }} ・ 強化 +{{ $snapshot['enhance_level'] ?? 0 }} ・ 個体 #{{ $transaction->character_item_id }}
                                 </div>

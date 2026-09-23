@@ -26,7 +26,7 @@ class EquipmentMarketAdminController extends Controller
             'average' => (int) EquipmentMarketTransaction::avg('sale_price'),
         ];
         $byRank = EquipmentMarketListing::select('weapon_rank', DB::raw('COUNT(*) as count'))->where('status', 'sold')->groupBy('weapon_rank')->orderByDesc('count')->get();
-        $listings = EquipmentMarketListing::with(['seller', 'recipient'])
+        $listings = EquipmentMarketListing::with(['seller', 'recipient', 'nation'])
             ->active()
             ->latest('created_at')
             ->limit(200)

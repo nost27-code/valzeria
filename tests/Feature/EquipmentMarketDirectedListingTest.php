@@ -6,9 +6,12 @@ use App\Http\Middleware\CheckCharacterSelected;
 use App\Models\Character;
 use App\Models\CharacterItem;
 use App\Models\Item;
+use App\Models\EquipmentMarketListing;
+use App\Models\NationMembership;
 use App\Models\User;
 use App\Services\EquipmentMarketAppraisalService;
 use App\Services\EquipmentMarketService;
+use App\Services\Nation\NationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use RuntimeException;
 use Tests\TestCase;
@@ -23,6 +26,7 @@ final class EquipmentMarketDirectedListingTest extends TestCase
 
         config()->set('app.key', 'base64:'.base64_encode(str_repeat('a', 32)));
         $this->withoutMiddleware(CheckCharacterSelected::class);
+        $this->withoutVite();
     }
 
     public function test_directed_listing_is_visible_and_buyable_only_by_its_recipient(): void
@@ -205,6 +209,105 @@ final class EquipmentMarketDirectedListingTest extends TestCase
             ->get(route('equipment-market.index'))
             ->assertOk()
             ->assertSee($listing->display_name_snapshot);
+    }
+
+    public function test_nation_listing_uses_the_listing_nation_and_current_membership(): void
+    {
+        config()->set('features.nation_community_enabled', true);
+        $seller = $this->character('国家出品者', 100_000);
+        $member = $this->character('同国の購入者', 2_000_000);
+        $outsider = $this->character('他国の購入者', 2_000_000);
+        $nation = app(NationService::class)->create($seller, '市場共有');
+        NationMembership::create(['nation_id' => $nation->id, 'character_id' => $member->id, 'role' => 'citizen', 'joined_at' => now()]);
+        $characterItem = $this->marketableEquipment($seller);
+        $price = app(EquipmentMarketAppraisalService::class)->appraisal($characterItem)['appraisal_price'];
+
+        $this->actingAs($seller->user)
+            ->withSession(['current_character_id' => $seller->id])
+            ->get(route('equipment-market.index', ['tab' => 'sell']))
+            ->assertOk()->assertSee('国家限定')->assertSee($nation->display_name);
+        $this->post(route('equipment-market.store'), [
+            'character_item_id' => $characterItem->id,
+            'listing_price' => $price,
+            'listing_scope' => 'nation',
+        ])->assertRedirect(route('equipment-market.index', ['tab' => 'listings']));
+        $listing = EquipmentMarketListing::query()->where('character_item_id', $characterItem->id)->sole();
+        $this->assertSame($nation->id, $listing->nation_id_snapshot);
+        $this->assertSame($seller->id, $listing->recipient_character_id);
+        $this->assertFalse(EquipmentMarketListing::query()
+            ->whereKey($listing->id)
+            ->where(fn ($query) => $query->whereNull('recipient_character_id')->orWhere('recipient_character_id', $member->id))
+            ->exists());
+        $this->actingAs(User::factory()->create(['role' => 'admin']))
+            ->get(route('admin.equipment-market.index'))
+            ->assertOk()
+            ->assertSee('国家限定：'.$nation->display_name);
+
+        $this->actingAs($member->user)->withSession(['current_character_id' => $member->id])
+            ->get(route('equipment-market.index'))->assertOk()->assertSee($listing->display_name_snapshot);
+        $this->get(route('equipment-market.show', $listing))->assertOk()->assertSee('国家限定');
+        $this->get(route('shops.show', $listing->shop_id))->assertOk()->assertSee($listing->display_name_snapshot);
+
+        $this->actingAs($outsider->user)->withSession(['current_character_id' => $outsider->id])
+            ->get(route('equipment-market.index'))->assertOk()->assertDontSee($listing->display_name_snapshot);
+        $this->get(route('equipment-market.show', $listing))->assertNotFound();
+        $this->get(route('shops.show', $listing->shop_id))->assertOk()->assertDontSee($listing->display_name_snapshot);
+        try {
+            app(EquipmentMarketService::class)->buyEquipment($outsider, $listing);
+            $this->fail('国家外の冒険者が購入できてしまいました。');
+        } catch (RuntimeException $exception) {
+            $this->assertSame('この出品は購入できません。', $exception->getMessage());
+        }
+
+        NationMembership::query()->where('character_id', $member->id)->delete();
+        $this->actingAs($member->user)->withSession(['current_character_id' => $member->id])
+            ->get(route('equipment-market.show', $listing))->assertNotFound();
+        try {
+            app(EquipmentMarketService::class)->buyEquipment($member, $listing);
+            $this->fail('脱退した冒険者が購入できてしまいました。');
+        } catch (RuntimeException $exception) {
+            $this->assertSame('この出品は購入できません。', $exception->getMessage());
+        }
+        $this->actingAs($seller->user)->withSession(['current_character_id' => $seller->id])
+            ->get(route('equipment-market.show', $listing))->assertOk();
+
+        NationMembership::create(['nation_id' => $nation->id, 'character_id' => $outsider->id, 'role' => 'citizen', 'joined_at' => now()]);
+        $transaction = app(EquipmentMarketService::class)->buyEquipment($outsider, $listing);
+        $this->assertSame($outsider->id, $transaction->buyer_character_id);
+    }
+
+    public function test_nation_listing_requires_membership(): void
+    {
+        config()->set('features.nation_community_enabled', true);
+        $seller = $this->character('無所属出品者', 100_000);
+        $characterItem = $this->marketableEquipment($seller);
+        $price = app(EquipmentMarketAppraisalService::class)->appraisal($characterItem)['appraisal_price'];
+
+        $this->actingAs($seller->user)->withSession(['current_character_id' => $seller->id])
+            ->post(route('equipment-market.store'), [
+                'character_item_id' => $characterItem->id,
+                'listing_price' => $price,
+                'listing_scope' => 'nation',
+            ])->assertRedirect(route('equipment-market.index', ['tab' => 'sell']))
+            ->assertSessionHas('error');
+        $this->assertDatabaseCount('equipment_market_listings', 0);
+    }
+
+    public function test_armor_rank_uses_the_weapon_style_prefix_and_old_snapshots_display_it(): void
+    {
+        $armor = Item::query()->create(['name' => '試験鎧', 'type' => 'armor', 'armor_rank' => 'A']);
+        $characterItem = new CharacterItem();
+        $characterItem->setRelation('item', $armor);
+        $this->assertSame('[A] 試験鎧', $characterItem->displayName());
+
+        $oldListing = new EquipmentMarketListing([
+            'display_name_snapshot' => '試験鎧',
+            'weapon_rank' => 'A',
+            'item_snapshot' => ['item_type' => 'armor'],
+        ]);
+        $this->assertSame('[A] 試験鎧', $oldListing->displayNameWithRank());
+        $oldListing->display_name_snapshot = '[A] 試験鎧';
+        $this->assertSame('[A] 試験鎧', $oldListing->displayNameWithRank());
     }
 
     private function character(string $name, int $money): Character

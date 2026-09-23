@@ -6,6 +6,7 @@ use App\Models\Character;
 use App\Models\CharacterItem;
 use App\Models\EquipmentMarketListing;
 use App\Models\EquipmentMarketTransaction;
+use App\Models\NationMembership;
 use App\Services\EquipmentMarketAppraisalService;
 use App\Services\EquipmentMarketService;
 use App\Services\RecentAdventurerService;
@@ -28,7 +29,7 @@ class EquipmentMarketController extends Controller
         if (! $character) return redirect()->route('home')->with('error', 'キャラクターが見つかりません。');
 
         $tab = in_array($request->query('tab'), ['buy', 'sell', 'listings', 'history'], true) ? $request->query('tab') : 'buy';
-        $query = EquipmentMarketListing::query()->active()->visibleTo($character)->with(['seller', 'recipient']);
+        $query = EquipmentMarketListing::query()->active()->visibleTo($character)->with(['seller', 'recipient', 'nation']);
         foreach (['weapon_category', 'weapon_rank', 'quality_key'] as $key) {
             if ($request->filled($key)) $query->where($key, (string) $request->input($key));
         }
@@ -85,7 +86,10 @@ class EquipmentMarketController extends Controller
             try { $item->market_appraisal = $appraisalService->appraisal($item); } catch (RuntimeException) { $item->market_appraisal = null; }
             return $item;
         });
-        $ownListings = EquipmentMarketListing::query()->with('recipient')->where('seller_character_id', $character->id)->orderByRaw("CASE status WHEN 'active' THEN 1 WHEN 'sold' THEN 2 ELSE 3 END")->latest()->limit(100)->get();
+        $ownListings = EquipmentMarketListing::query()->with(['recipient', 'nation'])->where('seller_character_id', $character->id)->orderByRaw("CASE status WHEN 'active' THEN 1 WHEN 'sold' THEN 2 ELSE 3 END")->latest()->limit(100)->get();
+        $nationMembership = config('features.nation_community_enabled', false)
+            ? NationMembership::query()->with('nation')->where('character_id', $character->id)->first()
+            : null;
         $history = EquipmentMarketTransaction::query()->where(fn ($q) => $q->where('seller_character_id', $character->id)->orWhere('buyer_character_id', $character->id))->latest('sold_at')->limit(100)->get();
         $recipientSearch = mb_substr(trim((string) $request->query('recipient_search', '')), 0, 40);
         $recentAdventurerWindowMinutes = RecentAdventurerService::ACTIVE_WINDOW_MINUTES;
@@ -121,7 +125,7 @@ class EquipmentMarketController extends Controller
         return view('equipment-market.index', compact(
             'character', 'tab', 'listings', 'listingsCount', 'sellable', 'ownListings', 'history', 'sort',
             'engravingOptions', 'slayerOptions', 'categoryOptions', 'recipientSearch', 'selectedRecipient',
-            'recipientCandidates', 'recentAdventurerWindowMinutes'
+            'recipientCandidates', 'recentAdventurerWindowMinutes', 'nationMembership'
         ));
     }
 
@@ -132,7 +136,7 @@ class EquipmentMarketController extends Controller
         abort_unless($listing->isVisibleTo($character), 404);
         if ($listing->status === 'active' && $listing->expires_at->isPast()) $this->service->expireListings();
         $listing->refresh();
-        $listing->load(['seller', 'recipient']);
+        $listing->load(['seller', 'recipient', 'nation']);
         $paymentSummary = app(\App\Services\BankService::class)->paymentSummary($character, (int) $listing->listing_price);
         return view('equipment-market.show', compact('character', 'listing', 'paymentSummary'));
     }
@@ -145,16 +149,21 @@ class EquipmentMarketController extends Controller
             'character_item_id' => ['required', 'integer', 'exists:character_items,id'],
             'listing_price' => ['required', 'integer', 'min:1', 'max:999999999'],
             'recipient_character_id' => ['nullable', 'integer', 'exists:characters,id'],
+            'listing_scope' => ['nullable', 'in:all,character,nation'],
         ]);
+        $scope = $data['listing_scope'] ?? (isset($data['recipient_character_id']) ? 'character' : 'all');
+        if ($scope === 'character' && ! isset($data['recipient_character_id'])) {
+            throw ValidationException::withMessages(['recipient_character_id' => '宛先の冒険者を選んでください。']);
+        }
         $item = CharacterItem::findOrFail($data['character_item_id']);
-        $recipient = isset($data['recipient_character_id'])
+        $recipient = $scope === 'character' && isset($data['recipient_character_id'])
             ? Character::query()->visibleToPublic()->find($data['recipient_character_id'])
             : null;
-        if (isset($data['recipient_character_id']) && ! $recipient) {
+        if ($scope === 'character' && ! $recipient) {
             return redirect()->route('equipment-market.index', ['tab' => 'sell'])->with('error', '指定した宛先が見つかりません。');
         }
         try {
-            $listing = $this->service->listEquipment($character, $item, (int) $data['listing_price'], $recipient);
+            $listing = $this->service->listEquipment($character, $item, (int) $data['listing_price'], $recipient, $scope === 'nation');
         } catch (ValidationException $e) {
             throw $e;
         } catch (RuntimeException $e) {
@@ -165,7 +174,7 @@ class EquipmentMarketController extends Controller
             return redirect()->route('equipment-market.index', ['tab' => 'sell'])->with('error', '出品処理に失敗しました。時間をおいて再度お試しください。');
         }
 
-        $recipientLabel = $recipient ? "（{$recipient->name}さん宛て）" : '';
+        $recipientLabel = $scope === 'nation' ? '（国家限定）' : ($recipient ? "（{$recipient->name}さん宛て）" : '');
 
         return redirect()->route('equipment-market.index', ['tab' => 'listings'])->with('status', "{$listing->display_name_snapshot}を" . number_format($listing->listing_price) . "Gで出品しました。{$recipientLabel}");
     }

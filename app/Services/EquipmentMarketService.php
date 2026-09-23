@@ -6,6 +6,7 @@ use App\Models\Character;
 use App\Models\CharacterItem;
 use App\Models\EquipmentMarketListing;
 use App\Models\EquipmentMarketTransaction;
+use App\Models\NationMembership;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use RuntimeException;
@@ -26,10 +27,19 @@ class EquipmentMarketService
         CharacterItem $characterItem,
         int $listingPrice,
         ?Character $recipient = null,
+        bool $nationOnly = false,
     ): EquipmentMarketListing
     {
-        return DB::transaction(function () use ($seller, $characterItem, $listingPrice, $recipient) {
+        return DB::transaction(function () use ($seller, $characterItem, $listingPrice, $recipient, $nationOnly) {
             $seller = Character::query()->lockForUpdate()->findOrFail($seller->id);
+            if ($nationOnly && $recipient) throw new RuntimeException('国家限定と個人宛ては同時に指定できません。');
+            $nationId = null;
+            if ($nationOnly) {
+                $nationId = config('features.nation_community_enabled', false)
+                    ? NationMembership::query()->where('character_id', $seller->id)->lockForUpdate()->value('nation_id')
+                    : null;
+                if ($nationId === null) throw new RuntimeException('国家に所属している冒険者だけが国家限定で出品できます。');
+            }
             $requestedRecipientId = $recipient?->id;
             $recipient = $requestedRecipientId
                 ? Character::query()->visibleToPublic()->find($requestedRecipientId)
@@ -54,7 +64,9 @@ class EquipmentMarketService
 
             $listing = EquipmentMarketListing::create([
                 'seller_character_id' => $seller->id,
-                'recipient_character_id' => $recipient?->id,
+                // Older market code understands only personal recipients. Keep nation listings private there.
+                'recipient_character_id' => $nationOnly ? $seller->id : $recipient?->id,
+                'nation_id_snapshot' => $nationId,
                 'shop_id' => $shop?->id,
                 'character_item_id' => $item->id,
                 'item_id' => $item->item_id,
@@ -117,7 +129,14 @@ class EquipmentMarketService
                 throw new RuntimeException('この出品は期限切れです。');
             }
             if ((int) $listing->seller_character_id === (int) $buyer->id) throw new RuntimeException('自分の出品は購入できません。');
-            if ($listing->recipient_character_id !== null
+            if ($listing->nation_id_snapshot !== null) {
+                $buyerNationId = config('features.nation_community_enabled', false)
+                    ? NationMembership::query()->where('character_id', $buyer->id)->lockForUpdate()->value('nation_id')
+                    : null;
+                if ((int) $buyerNationId !== (int) $listing->nation_id_snapshot) {
+                    throw new RuntimeException('この出品は購入できません。');
+                }
+            } elseif ($listing->recipient_character_id !== null
                 && (int) $listing->recipient_character_id !== (int) $buyer->id) {
                 throw new RuntimeException('この出品は購入できません。');
             }

@@ -4,6 +4,7 @@ Legend: D=done, P=partial, N=not implemented, ?=unverified, X=removed
 
 | Feature | St | Evidence | Notes |
 |---|---:|---|---|
+| Equipment market nation scope / armor rank prefix | D | `EquipmentMarketListing`, `EquipmentMarketService`, `EquipmentMarketController`, `CharacterItem`, `2026_09_23_100000_add_nation_scope_to_equipment_market_listings.php`, `EquipmentMarketDirectedListingTest` | 出品時の所属国家を固定し、その国家の現所属者だけが閲覧・購入可能。旧コードでは出品者のみが見えるように保存する。武器と同じ［ランク］を防具名にも表示し、既存出品は表示時に補う。 |
 | Silver Week exploration stamina | D | `config/exploration_stamina_campaign.php`, `ExplorationStaminaService`, `ExplorationStaminaCampaignTest` | 2026-09-19 0:00〜24 0:00 JSTの期間だけ自然回復45秒/1・通常上限+500。支援パス加算を維持し、終了後の上限超過分は保持する。 |
 | Exploration map publication visibility | D | `MapPublicationVisibilityService`, `MapPublicationService`, `ExplorationMapController`, `MapExplorationBatchService`, `TownMapRegistration`, `ExplorationMapVisibilityTest` | 公開時に自分だけ・公開時の所属国家・すべての冒険者から選択する。個人限定は無料、国家限定は公開時の国家を固定する。範囲外の一覧・詳細・新規入場を遮断し、入場済みなら脱退後もその入場だけ継続可能。既存公開は全体公開、全体ログは全体公開の英雄・伝説地図だけ。公開枠は範囲合計3件。 |
 | Nation join policy / capacity waitlist | D | `NationJoinApplication`, `NationJoinApplicationService`, `NationProfileService`, `NationScreen`, `2026_09_09_200000_add_join_policy_to_nations.php`, `NationCommunityTest`, `HomeActionNationPromptTest` | 統治者が100文字以内の公開加入方針を設定できる。満員かつ募集ONでは`waitlisted`として申請と順番を保持し、空き発生後に従来の統治者承認で加入する。自動加入・枠予約・FIFO強制は行わず、承認時の定員再確認を維持する。本番未公開。 |

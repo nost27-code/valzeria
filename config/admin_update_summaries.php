@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-09-23-equipment-market-nation-scope-armor-rank',
+        'date' => '2026-09-23',
+        'category' => 'added',
+        'title' => '装備市場の国家限定販売と防具ランク表示',
+        'detail' => '装備市場の販売範囲に国家限定を追加し、出品時の国家に現在所属する冒険者だけが購入できるようにしました。防具名も武器と同じ形式でランクを表示します。',
+    ],
+    [
         'id' => '2026-09-23-chat-drawer-appearance-settings',
         'date' => '2026-09-23',
         'category' => 'changed',
