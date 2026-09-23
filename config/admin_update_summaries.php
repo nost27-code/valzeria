@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-09-23-battle-chat-drawer-swipe-hint',
+        'date' => '2026-09-23',
+        'category' => 'changed',
+        'title' => '戦闘画面でも右端からチャットを開けるように',
+        'detail' => '戦闘結果の右端からスワイプまたは取っ手のタップでチャットを開けます。初回は方向案内を表示し、チャットを開くと消えます。画面下部の従来型表示は維持します。',
+    ],
+    [
         'id' => '2026-09-23-chat-drawer-live-appearance-and-tab-restore',
         'date' => '2026-09-23',
         'category' => 'fixed',

@@ -19,6 +19,8 @@ class ChatLog extends Component
     public string $activeTab = 'all';
     public bool $isExpanded = false;
     public bool $drawer = false;
+    #[Locked]
+    public bool $battleDrawer = false;
     public int $logLimit = 50;
     public array $allTabVisibility = [];
     public array $drawerAppearance = [];
@@ -110,9 +112,10 @@ class ChatLog extends Component
     public string $editingMessage = '';
     public string $nationChatRequestId = '';
 
-    public function mount(bool $drawer = false): void
+    public function mount(bool $drawer = false, bool $battleDrawer = false): void
     {
         $this->drawer = $drawer;
+        $this->battleDrawer = $drawer && $battleDrawer;
         $character = auth()->check() ? auth()->user()->currentCharacter() : null;
         $this->currentCharacterId = $character?->id;
         $this->allTabVisibility = $this->storedAllTabVisibility($character);

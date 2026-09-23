@@ -270,6 +270,11 @@
                 </div>
             @endif
         </div>
+
+        @if($showBattleChatLog)
+            <!-- 戦闘画面でも右端から開けるチャット。下部の従来表示は残す。 -->
+            <livewire:chat-log :drawer="true" :battle-drawer="true" :key="'battle-drawer-chat'" />
+        @endif
         
         @livewireScripts
     </body>

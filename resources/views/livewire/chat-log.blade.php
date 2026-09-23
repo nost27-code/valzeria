@@ -22,6 +22,8 @@
         touchStartAtDrawerEdge: false,
         drawerTabStorageKey: 'valzeria.chat.drawer.active-tab',
         drawerTabRestoredFromSession: @js($drawerTabRestoredFromSession),
+        drawerHintStorageKey: @js($battleDrawer ? 'valzeria.chat.drawer.battle-swipe-hint-v1-seen' : 'valzeria.chat.drawer.swipe-hint-seen'),
+        showDrawerSwipeHint: false,
         availableDrawerTabs: @js(array_values(array_filter([
             'all',
             'system',
@@ -38,6 +40,7 @@
             }
 
             this.restoreDrawerTab();
+            this.restoreDrawerSwipeHint();
         },
         restoreDrawerTab() {
             if (this.drawerTabRestoredFromSession) return;
@@ -66,6 +69,22 @@
                 // ブラウザが保存を拒否した場合は、現在の表示だけを維持する。
             }
         },
+        restoreDrawerSwipeHint() {
+            try {
+                this.showDrawerSwipeHint = window.localStorage.getItem(this.drawerHintStorageKey) !== '1';
+            } catch (error) {
+                this.showDrawerSwipeHint = true;
+            }
+        },
+        dismissDrawerSwipeHint() {
+            if (!this.drawerMode || !this.showDrawerSwipeHint) return;
+            this.showDrawerSwipeHint = false;
+            try {
+                window.localStorage.setItem(this.drawerHintStorageKey, '1');
+            } catch (error) {
+                // 保存不可でも、この画面では案内を停止する。
+            }
+        },
         scrollToBottom(smooth = false) {
             this.stickToBottom = true;
             this.$nextTick(() => {
@@ -86,6 +105,7 @@
         },
         openDrawer() {
             if (!this.drawerMode || this.drawerOpen) return;
+            this.dismissDrawerSwipeHint();
             this.previousBodyOverflow = document.body.style.overflow;
             document.body.style.overflow = 'hidden';
             this.drawerOpen = true;
@@ -152,6 +172,21 @@
     @endif
 
     @if($drawerMode)
+        <style>
+            @keyframes chat-drawer-swipe-hint {
+                0%, 100% { transform: translateX(0); opacity: 0.55; }
+                50% { transform: translateX(-0.5rem); opacity: 1; }
+            }
+
+            .chat-drawer-swipe-hint-arrow {
+                animation: chat-drawer-swipe-hint 1.6s ease-in-out infinite;
+            }
+
+            @media (prefers-reduced-motion: reduce) {
+                .chat-drawer-swipe-hint-arrow { animation: none; }
+            }
+        </style>
+
         <div
             data-chat-drawer-edge-swipe
             x-show="!drawerOpen"
@@ -161,8 +196,34 @@
             @touchmove.stop
             @touchend.stop="handleTouchEnd($event)"
             @touchcancel.stop="resetTouchGesture()"
-            aria-hidden="true"
-        ></div>
+        >
+            <div
+                x-show="showDrawerSwipeHint"
+                x-transition.opacity.duration.200ms
+                data-chat-drawer-swipe-hint
+                class="pointer-events-none absolute right-4 top-1/2 flex -translate-y-1/2 items-center gap-1 rounded-l-full border border-blue-200 bg-white/95 py-1.5 pl-2.5 pr-3 text-[10px] font-black whitespace-nowrap text-blue-900 shadow-lg"
+                style="display: none;"
+                aria-hidden="true"
+            >
+                <svg class="chat-drawer-swipe-hint-arrow h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="m15 18-6-6 6-6" />
+                </svg>
+                <span>右端から中央へスワイプ</span>
+            </div>
+
+            <button
+                type="button"
+                data-chat-drawer-edge-handle
+                @click.stop="openDrawer()"
+                class="absolute right-0 top-1/2 flex h-16 w-5 -translate-y-1/2 flex-col items-center justify-center gap-0.5 rounded-l-xl border border-r-0 border-blue-300 bg-blue-700 text-white shadow-lg transition active:bg-blue-800"
+                aria-label="チャットを開く。右端から中央へスワイプしても開けます"
+            >
+                <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                    <path d="M4 4h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H9l-5 3v-3a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z" />
+                </svg>
+                <span class="text-sm font-black leading-none" aria-hidden="true">‹</span>
+            </button>
+        </div>
 
         <button
             type="button"

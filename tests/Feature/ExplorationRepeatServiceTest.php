@@ -466,6 +466,10 @@ class ExplorationRepeatServiceTest extends TestCase
         $response->assertOk();
         $response->assertSee('新しい50回探索の結果');
         $response->assertDontSee('古いダンジョン主の戦闘結果');
+        $response->assertSee('data-chat-log-mode="drawer"', false);
+        $response->assertSee('data-chat-drawer-edge-swipe', false);
+        $response->assertSee('data-chat-drawer-swipe-hint', false);
+        $response->assertSee('valzeria.chat.drawer.battle-swipe-hint-v1-seen', false);
     }
 
     public function test_cached_battle_result_with_incomplete_enemy_and_unlocked_area_can_be_displayed(): void
