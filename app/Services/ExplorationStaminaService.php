@@ -37,9 +37,7 @@ class ExplorationStaminaService
 
     public function maxForCharacter(Character $character): int
     {
-        $max = $this->normalMaxForCharacter($character);
-
-        return $max + ($this->campaignActiveAt(now()) ? (int) config('exploration_stamina_campaign.max_bonus', 0) : 0);
+        return $this->maxForCharacterAt($character, now());
     }
 
     public function baseMaxForCharacter(Character $character): int
@@ -100,6 +98,11 @@ class ExplorationStaminaService
         return $this->campaignActiveAt(now())
             ? max(1, (int) config('exploration_stamina_campaign.recovery_seconds', self::DEFAULT_RECOVERY_SECONDS))
             : $this->normalRecoverySeconds();
+    }
+
+    public function recoverySecondsFor(Character $character): int
+    {
+        return $this->recoverySecondsForAt($character, now());
     }
 
     public function cost(): int
@@ -261,7 +264,7 @@ class ExplorationStaminaService
                 'bonus_max' => 0,
                 'growth' => $growth,
                 'cost' => $this->cost(),
-                'recovery_seconds' => $this->recoverySeconds(),
+                'recovery_seconds' => $this->recoverySecondsFor($character),
                 'next_recovery_seconds' => null,
             ];
         }
@@ -273,7 +276,8 @@ class ExplorationStaminaService
 
         if ($current < $max) {
             $elapsed = max(0, (int) $updatedAt->diffInSeconds(now(), false));
-            $nextRecovery = max(1, $this->recoverySeconds() - ($elapsed % $this->recoverySeconds()));
+            $recoverySeconds = $this->recoverySecondsFor($character);
+            $nextRecovery = max(1, $recoverySeconds - ($elapsed % $recoverySeconds));
         }
 
         return [
@@ -284,7 +288,7 @@ class ExplorationStaminaService
             'bonus_max' => max(0, $max - $growth['base_max']),
             'growth' => $growth,
             'cost' => $this->cost(),
-            'recovery_seconds' => $this->recoverySeconds(),
+            'recovery_seconds' => $this->recoverySecondsFor($character),
             'next_recovery_seconds' => $nextRecovery,
         ];
     }
@@ -322,9 +326,32 @@ class ExplorationStaminaService
         return $character;
     }
 
-    private function normalMaxForCharacter(Character $character): int
+    private function maxForCharacterAt(Character $character, CarbonInterface $at): int
     {
-        return $this->baseMaxForCharacter($character) + app(SupportPassService::class)->staminaBonusFor($character);
+        $normalMax = $this->baseMaxForCharacter($character)
+            + app(SupportPassService::class)->staminaBonusForAt($character, $at);
+        $campaignBonus = $this->campaignActiveAt($at)
+            ? max(0, (int) config('exploration_stamina_campaign.max_bonus', 0))
+            : 0;
+        $extensionBonus = app(SilverWeekExtensionPassService::class)->staminaBonusForAt($character, $at);
+
+        return $normalMax + max($campaignBonus, $extensionBonus);
+    }
+
+    private function recoverySecondsForAt(Character $character, CarbonInterface $at): int
+    {
+        $seconds = $this->normalRecoverySeconds();
+
+        if ($this->campaignActiveAt($at)) {
+            $seconds = min(
+                $seconds,
+                max(1, (int) config('exploration_stamina_campaign.recovery_seconds', self::DEFAULT_RECOVERY_SECONDS))
+            );
+        }
+
+        $extensionSeconds = app(SilverWeekExtensionPassService::class)->recoverySecondsForAt($character, $at);
+
+        return $extensionSeconds === null ? $seconds : min($seconds, $extensionSeconds);
     }
 
     private function normalRecoverySeconds(): int
@@ -359,26 +386,31 @@ class ExplorationStaminaService
 
         [$start, $end] = $this->campaignWindow();
         $points = [$updatedAt->copy()];
-        foreach ([$start, $end] as $boundary) {
+        $user = $character->user;
+        $supportPassExpiresAt = app(SupportPassService::class)->expiresAt($user);
+        $extensionPassStartsAt = app(SilverWeekExtensionPassService::class)->startsAt($user);
+        $extensionPassExpiresAt = app(SilverWeekExtensionPassService::class)->expiresAt($user);
+        foreach ([$start, $end, $supportPassExpiresAt, $extensionPassStartsAt, $extensionPassExpiresAt] as $boundary) {
+            if (!$boundary) {
+                continue;
+            }
+
             if ($boundary->greaterThan($updatedAt) && $boundary->lessThanOrEqualTo($now)) {
                 $points[] = $boundary;
             }
         }
         $points[] = $now;
 
-        $normalMax = $this->normalMaxForCharacter($character);
-        $normalSeconds = $this->normalRecoverySeconds();
-        $bonus = max(0, (int) config('exploration_stamina_campaign.max_bonus', 0));
-        $campaignSeconds = max(1, (int) config('exploration_stamina_campaign.recovery_seconds', self::DEFAULT_RECOVERY_SECONDS));
+        usort($points, fn (CarbonInterface $left, CarbonInterface $right) => $left->getTimestamp() <=> $right->getTimestamp());
+
         $remainder = 0;
         $anchor = $updatedAt->copy();
 
         for ($index = 0; $index < count($points) - 1; $index++) {
             $segmentStart = $points[$index];
             $segmentEnd = $points[$index + 1];
-            $active = $segmentStart->greaterThanOrEqualTo($start) && $segmentStart->lessThan($end);
-            $cap = $normalMax + ($active ? $bonus : 0);
-            $seconds = $active ? $campaignSeconds : $normalSeconds;
+            $cap = $this->maxForCharacterAt($character, $segmentStart);
+            $seconds = $this->recoverySecondsForAt($character, $segmentStart);
 
             if ($current >= $cap) {
                 $remainder = 0;

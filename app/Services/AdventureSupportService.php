@@ -234,6 +234,10 @@ class AdventureSupportService
             return $this->useSupportPassTicket($character, $itemKey, $items[$itemKey]);
         }
 
+        if (($items[$itemKey]['effect_type'] ?? null) === SilverWeekExtensionPassService::ACTIVATION_EFFECT_TYPE) {
+            return $this->useSilverWeekExtensionPassTicket($character, $itemKey, $items[$itemKey]);
+        }
+
         if (($items[$itemKey]['effect_type'] ?? null) === 'normal_exploration_exp_boost') {
             return app(ExperienceTalismanService::class)->use($character);
         }
@@ -283,6 +287,7 @@ class AdventureSupportService
             'material_storage_gold_expand' => $this->expandStorage($character, 'material_storage_limit', $itemKey, $item),
             'equipment_storage_expand' => $this->expandStorage($character, 'equipment_storage_limit', $itemKey, $item),
             SupportPassService::PASS_TYPE => $this->grantSupportPassTicket($character),
+            SilverWeekExtensionPassService::PASS_TYPE => $this->grantSilverWeekExtensionPassTicket($character),
             'adventurer_supply_box' => $this->grantSupplyBox($character),
             self::RESCUE_INSURANCE,
             self::EMERGENCY_RESCUE_REQUEST => $this->grantConsumable($character, $itemKey, $item['name']),
@@ -297,6 +302,13 @@ class AdventureSupportService
         $this->grantConsumableQuantity($character, 'support_pass_30d_ticket', 1);
 
         return '冒険者支援パス30日利用券を購入しました。所持品から使用すると支援パスが有効になります。';
+    }
+
+    private function grantSilverWeekExtensionPassTicket(Character $character): string
+    {
+        $this->grantConsumableQuantity($character, SilverWeekExtensionPassService::TICKET_ITEM_KEY, 1);
+
+        return 'シルバーウィーク仕様延長パス30日利用券を購入しました。所持品から使用すると延長パスが有効になります。';
     }
 
     private function grantAdventurerDepartureSet(Character $character, string $itemKey, array $item): string
@@ -427,6 +439,38 @@ class AdventureSupportService
         });
     }
 
+    private function useSilverWeekExtensionPassTicket(Character $character, string $itemKey, array $item): array
+    {
+        return DB::transaction(function () use ($character, $itemKey, $item) {
+            $row = CharacterConsumableItem::where('character_id', $character->id)
+                ->where('item_key', $itemKey)
+                ->lockForUpdate()
+                ->first();
+
+            if (!$row || (int) $row->quantity <= 0) {
+                return ['success' => false, 'message' => "{$item['name']}を所持していません。"];
+            }
+
+            $lockedCharacter = Character::query()->whereKey($character->id)->lockForUpdate()->firstOrFail();
+            $lockedCharacter->loadMissing('user');
+
+            if (!app(SilverWeekExtensionPassService::class)->saleAvailableAt()) {
+                return ['success' => false, 'message' => 'シルバーウィーク仕様延長パスは2026/09/24 00:00から利用できます。'];
+            }
+
+            app(ExplorationStaminaService::class)->recover($lockedCharacter);
+            $result = app(SilverWeekExtensionPassService::class)->activateFor($lockedCharacter, 0, 'ticket');
+            if (!($result['success'] ?? false)) {
+                return ['success' => false, 'message' => $result['message'] ?? 'シルバーウィーク仕様延長パスを有効にできませんでした。'];
+            }
+
+            $row->decrement('quantity');
+            $character->setRawAttributes($lockedCharacter->getAttributes(), true);
+
+            return ['success' => true, 'message' => $result['message']];
+        });
+    }
+
     private function grantSupplyBox(Character $character): string
     {
         foreach (['薬草', '回復薬', '魔力水'] as $name) {
@@ -538,6 +582,9 @@ class AdventureSupportService
             $disabledReason = "{$item['name']}は現在販売していません。";
         } elseif (!app(AdventureSupportItemControlService::class)->isEnabled($key, $item)) {
             $disabledReason = "{$item['name']}は現在販売休止中です。";
+        } elseif (($item['effect_type'] ?? null) === SilverWeekExtensionPassService::PASS_TYPE
+            && !app(SilverWeekExtensionPassService::class)->saleAvailableAt()) {
+            $disabledReason = 'シルバーウィーク仕様延長パスは2026/09/24 00:00から販売します。';
         } elseif (($item['purchase_limit'] ?? null) && $purchasedCount >= (int) $item['purchase_limit']) {
             $disabledReason = $key === 'adventurer_departure_set'
                 ? 'このセットは一度限りの購入です。すでに購入済みです。'
@@ -571,6 +618,9 @@ class AdventureSupportService
             'support_pass' => ($item['effect_type'] ?? null) === SupportPassService::PASS_TYPE
                 ? app(SupportPassService::class)->statusForCharacter($character)
                 : null,
+            'silver_week_extension_pass' => ($item['effect_type'] ?? null) === SilverWeekExtensionPassService::PASS_TYPE
+                ? app(SilverWeekExtensionPassService::class)->statusForCharacter($character)
+                : null,
         ];
     }
 
@@ -588,6 +638,16 @@ class AdventureSupportService
                 }
 
                 return '購入不可';
+            }
+
+            return '利用券を購入';
+        }
+
+        if (($item['effect_type'] ?? null) === SilverWeekExtensionPassService::PASS_TYPE) {
+            if (!($state['can_purchase'] ?? false)) {
+                return str_contains((string) ($state['disabled_reason'] ?? ''), '2026/09/24 00:00')
+                    ? '9/24 0:00販売開始'
+                    : '購入不可';
             }
 
             return '利用券を購入';
@@ -709,7 +769,7 @@ class AdventureSupportService
     {
         return collect($this->supportItemDefinitions())
             ->filter(fn (array $item, string $key) => in_array($key, [self::RESCUE_INSURANCE, self::EMERGENCY_RESCUE_REQUEST], true)
-                || in_array(($item['effect_type'] ?? null), ['explore_stamina_recovery', 'support_pass_activation', 'normal_exploration_exp_boost'], true))
+                || in_array(($item['effect_type'] ?? null), ['explore_stamina_recovery', 'support_pass_activation', SilverWeekExtensionPassService::ACTIVATION_EFFECT_TYPE, 'normal_exploration_exp_boost'], true))
             ->keys()
             ->values();
     }
@@ -717,7 +777,7 @@ class AdventureSupportService
     private function canUseFromInventory(string $key, array $item): bool
     {
         return $key === self::RESCUE_INSURANCE
-            || in_array(($item['effect_type'] ?? null), ['explore_stamina_recovery', 'support_pass_activation', 'normal_exploration_exp_boost'], true);
+            || in_array(($item['effect_type'] ?? null), ['explore_stamina_recovery', 'support_pass_activation', SilverWeekExtensionPassService::ACTIVATION_EFFECT_TYPE, 'normal_exploration_exp_boost'], true);
     }
 
     private function useLabel(string $key, array $item): string
@@ -726,7 +786,7 @@ class AdventureSupportService
             return '探索前に使用';
         }
 
-        return in_array(($item['effect_type'] ?? null), ['explore_stamina_recovery', 'support_pass_activation', 'normal_exploration_exp_boost'], true)
+        return in_array(($item['effect_type'] ?? null), ['explore_stamina_recovery', 'support_pass_activation', SilverWeekExtensionPassService::ACTIVATION_EFFECT_TYPE, 'normal_exploration_exp_boost'], true)
             ? '使用する'
             : '';
     }
@@ -743,6 +803,10 @@ class AdventureSupportService
 
         if (($item['effect_type'] ?? null) === 'support_pass_activation') {
             return '使用すると冒険者支援パスが30日間有効になります。残り期間がある場合は現在の期限から30日延長されます。';
+        }
+
+        if (($item['effect_type'] ?? null) === SilverWeekExtensionPassService::ACTIVATION_EFFECT_TYPE) {
+            return '使用すると探索力が45秒で1回復し、上限が+500される延長パスが30日間有効になります。通常の冒険者支援パスとは独立して利用できます。';
         }
 
         if (($item['effect_type'] ?? null) === 'normal_exploration_exp_boost') {

@@ -49,6 +49,15 @@
         </div>
     @endif
 
+    @if($silverWeekExtensionPassStatus['active'] ?? false)
+        <div class="mb-5 rounded-lg border {{ (int) ($silverWeekExtensionPassStatus['remaining_days'] ?? 0) <= 3 ? 'border-amber-300 bg-amber-50 text-amber-800' : 'border-cyan-200 bg-cyan-50 text-cyan-900' }} px-3 py-2.5 text-[11px] font-bold leading-relaxed">
+            シルバーウィーク仕様延長パス：有効 / あと{{ number_format((int) ($silverWeekExtensionPassStatus['remaining_days'] ?? 0)) }}日
+            @if(!empty($silverWeekExtensionPassStatus['expires_at']))
+                <span class="ml-1 text-[10px] opacity-80">有効期限 {{ $silverWeekExtensionPassStatus['expires_at']->format('Y/m/d H:i') }}</span>
+            @endif
+        </div>
+    @endif
+
     {{-- 商品一覧 --}}
     <div class="space-y-6">
         @foreach($supportCatalog as $category => $items)
@@ -84,8 +93,8 @@
                             $currencyIcon = array_key_exists('currency_icon_image', $supportItem) ? $supportItem['currency_icon_image'] : 'images/icon/kiseki.webp';
                             $purchaseLabel = (string) ($supportItem['purchase_label'] ?? '購入する');
                         @endphp
-                        <div @if(($supportItem['effect_type'] ?? null) === 'support_pass_30d') id="adventurer-support-pass" @elseif(($supportItem['effect_type'] ?? null) === 'adventurer_departure_set') id="adventurer-departure-set" @endif
-                             class="scroll-mt-4 rounded-xl border {{ ($supportItem['effect_type'] ?? null) === 'adventurer_departure_set' ? 'border-amber-400 bg-gradient-to-br from-amber-50 via-white to-sky-50 ring-1 ring-amber-200' : ($canPurchase ? 'border-slate-200 bg-white' : 'border-slate-100 bg-slate-50/50') }} shadow-sm transition target:border-amber-400 target:bg-amber-50 target:ring-2 target:ring-amber-300/60">
+                        <div @if(($supportItem['effect_type'] ?? null) === 'support_pass_30d') id="adventurer-support-pass" @elseif(($supportItem['effect_type'] ?? null) === 'silver_week_extension_pass_30d') id="silver-week-extension-pass" @elseif(($supportItem['effect_type'] ?? null) === 'adventurer_departure_set') id="adventurer-departure-set" @endif
+                             class="scroll-mt-4 rounded-xl border {{ ($supportItem['effect_type'] ?? null) === 'adventurer_departure_set' ? 'border-amber-400 bg-gradient-to-br from-amber-50 via-white to-sky-50 ring-1 ring-amber-200' : (($supportItem['effect_type'] ?? null) === 'silver_week_extension_pass_30d' ? 'border-cyan-300 bg-gradient-to-br from-slate-50 via-white to-cyan-50 ring-1 ring-cyan-100' : ($canPurchase ? 'border-slate-200 bg-white' : 'border-slate-100 bg-slate-50/50')) }} shadow-sm transition target:border-amber-400 target:bg-amber-50 target:ring-2 target:ring-amber-300/60">
                             <div class="flex gap-3 p-3">
                                 {{-- アイコン --}}
                                 @if(!empty($supportItem['icon_image']))
@@ -102,6 +111,8 @@
                                                 <span class="text-sm font-black leading-tight text-slate-900">{{ $supportItem['name'] }}</span>
                                                 @if(($supportItem['effect_type'] ?? null) === 'adventurer_departure_set')
                                                     <span class="rounded bg-gradient-to-r from-amber-500 to-orange-500 px-1.5 py-0.5 text-[9px] font-black leading-none text-white">一度限り</span>
+                                                @elseif(($supportItem['effect_type'] ?? null) === 'silver_week_extension_pass_30d')
+                                                    <span class="rounded bg-gradient-to-r from-slate-600 to-cyan-700 px-1.5 py-0.5 text-[9px] font-black leading-none text-white">独立パス</span>
                                                 @endif
                                                 @if($limitText)
                                                     <span class="rounded border border-slate-200 bg-white px-1.5 py-px text-[10px] font-black leading-none text-slate-500">{{ $limitText }}</span>
@@ -167,8 +178,13 @@
                                         <p class="mt-1 text-[11px] font-black text-sky-700">所持数: {{ number_format($supportCounts['emergency_rescue_request'] ?? 0) }}</p>
                                     @elseif(($supportItem['effect_type'] ?? null) === 'explore_stamina_recovery')
                                         <p class="mt-1 text-[11px] font-black text-sky-700">所持数: {{ number_format($supportCounts[$supportItem['key']] ?? 0) }}</p>
-                                    @elseif(($supportItem['effect_type'] ?? null) === 'support_pass_30d')
-                                        @php $passStatus = $supportItem['support_pass'] ?? []; @endphp
+                                    @elseif(in_array(($supportItem['effect_type'] ?? null), ['support_pass_30d', 'silver_week_extension_pass_30d'], true))
+                                        @php
+                                            $isExtensionPass = ($supportItem['effect_type'] ?? null) === 'silver_week_extension_pass_30d';
+                                            $passStatus = $isExtensionPass
+                                                ? ($supportItem['silver_week_extension_pass'] ?? [])
+                                                : ($supportItem['support_pass'] ?? []);
+                                        @endphp
                                         <div class="mt-2 space-y-1">
                                             @if(!empty($supportItem['effects']))
                                                 <ul class="grid gap-1 text-[11px] font-bold leading-relaxed text-slate-600 sm:grid-cols-2">
@@ -180,15 +196,17 @@
                                             @if($passStatus['active'] ?? false)
                                                 <div class="flex flex-wrap items-center gap-2">
                                                     <p class="text-[11px] font-black {{ (int) ($passStatus['remaining_days'] ?? 0) <= 3 ? 'text-amber-700' : 'text-emerald-700' }}">
-                                                        冒険者支援パス：あと{{ number_format((int) ($passStatus['remaining_days'] ?? 0)) }}日
+                                                        {{ $isExtensionPass ? 'シルバーウィーク仕様延長パス' : '冒険者支援パス' }}：あと{{ number_format((int) ($passStatus['remaining_days'] ?? 0)) }}日
                                                         @if(!empty($passStatus['expires_at']))
                                                             <span class="font-bold text-slate-500">（{{ $passStatus['expires_at']->format('Y/m/d H:i') }}まで）</span>
                                                         @endif
                                                     </p>
-                                                    <a href="{{ route('profile.edit') }}#card_skin"
-                                                       class="inline-flex items-center rounded-lg border border-sky-200 bg-sky-50 px-3 py-1 text-[11px] font-black text-sky-700 shadow-sm transition hover:bg-sky-100 active:scale-95">
-                                                        カード見た目を変更
-                                                    </a>
+                                                    @if(!$isExtensionPass)
+                                                        <a href="{{ route('profile.edit') }}#card_skin"
+                                                           class="inline-flex items-center rounded-lg border border-sky-200 bg-sky-50 px-3 py-1 text-[11px] font-black text-sky-700 shadow-sm transition hover:bg-sky-100 active:scale-95">
+                                                            カード見た目を変更
+                                                        </a>
+                                                    @endif
                                                 </div>
                                             @endif
                                         </div>
@@ -200,7 +218,7 @@
                                             @click="confirming = @js($supportItem)"
                                             @disabled(!$canPurchase)
                                             class="rounded-lg px-4 py-1.5 text-xs font-black shadow-sm transition {{ $canPurchase ? 'bg-amber-600 text-white hover:bg-amber-700 active:scale-95' : 'cursor-not-allowed bg-slate-200 text-slate-400' }}">
-                                            {{ $canPurchase ? $purchaseLabel : (($supportItem['effect_type'] ?? null) === 'support_pass_30d' ? $purchaseLabel : '購入不可') }}
+                                            {{ $canPurchase ? $purchaseLabel : (in_array(($supportItem['effect_type'] ?? null), ['support_pass_30d', 'silver_week_extension_pass_30d'], true) ? $purchaseLabel : '購入不可') }}
                                         </button>
                                         @if(!$canPurchase && !empty($supportItem['disabled_reason']))
                                             <span class="text-[10px] font-bold leading-tight text-red-600">

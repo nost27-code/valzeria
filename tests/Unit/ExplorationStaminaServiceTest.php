@@ -12,6 +12,20 @@ use Tests\TestCase;
 
 class ExplorationStaminaServiceTest extends TestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-07-01 12:00:00', 'Asia/Tokyo'));
+    }
+
+    protected function tearDown(): void
+    {
+        CarbonImmutable::setTestNow();
+
+        parent::tearDown();
+    }
+
     public function test_summary_calculates_recovery_without_mutating_character(): void
     {
         $this->app->instance(GameSettingService::class, new class
@@ -84,6 +98,11 @@ class ExplorationStaminaServiceTest extends TestCase
         $this->app->instance(SupportPassService::class, new class extends SupportPassService
         {
             public function staminaBonusFor(Character $character): int
+            {
+                return 250;
+            }
+
+            public function staminaBonusForAt(Character $character, \Carbon\CarbonInterface $at): int
             {
                 return 250;
             }

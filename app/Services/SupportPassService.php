@@ -53,13 +53,18 @@ class SupportPassService
 
     public function isActive(?User $user): bool
     {
+        return $this->isActiveAt($user, now());
+    }
+
+    public function isActiveAt(?User $user, CarbonInterface $at): bool
+    {
         if (!$this->enabled()) {
             return false;
         }
 
         $expiresAt = $this->expiresAt($user);
 
-        return $expiresAt !== null && $expiresAt->isFuture();
+        return $expiresAt !== null && $expiresAt->greaterThan($at);
     }
 
     public function expiresAt(?User $user): ?CarbonInterface
@@ -243,7 +248,12 @@ class SupportPassService
 
     public function staminaBonusFor(Character $character): int
     {
-        return $this->isActiveForCharacter($character)
+        return $this->staminaBonusForAt($character, now());
+    }
+
+    public function staminaBonusForAt(Character $character, CarbonInterface $at): int
+    {
+        return $this->isActiveAt($character->user, $at)
             ? max(0, (int) config('support_pass.stamina_bonus', 250))
             : 0;
     }

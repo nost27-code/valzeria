@@ -1101,6 +1101,12 @@
                             </div>
                         </template>
 
+                        <template x-if="supportConfirm?.effect_type === 'silver_week_extension_pass_activation'">
+                            <div class="mt-4 rounded-lg border border-cyan-200 bg-cyan-50 px-3 py-3 text-sm font-bold leading-relaxed text-cyan-950">
+                                使用すると30日間、探索力が45秒で1回復し、上限が+500されます。通常の冒険者支援パスとは独立して利用でき、残り期間がある場合は現在の期限から30日延長されます。最大90日先まで延長できます。
+                            </div>
+                        </template>
+
                         <div class="mt-5 grid grid-cols-2 gap-3">
                             <button type="button" @click="supportConfirm = null; submittingSupport = false" class="rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm font-black text-slate-600 hover:bg-slate-50">
                                 キャンセル
