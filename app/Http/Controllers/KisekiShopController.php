@@ -167,4 +167,21 @@ class KisekiShopController extends Controller
 
         return back()->with($result['success'] ? 'status' : 'error', $result['message']);
     }
+
+    public function useSilverWeekExtensionPass(AdventureSupportService $supportService)
+    {
+        $character = Auth::user()->characters()->first();
+        if (!$character) {
+            return redirect()->route('character.create');
+        }
+
+        $result = $supportService->useConsumable(
+            $character,
+            SilverWeekExtensionPassService::TICKET_ITEM_KEY
+        );
+
+        return redirect()
+            ->route('kiseki.support')
+            ->with($result['success'] ? 'status' : 'error', $result['message']);
+    }
 }

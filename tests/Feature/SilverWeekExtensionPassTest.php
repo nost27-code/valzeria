@@ -70,6 +70,51 @@ class SilverWeekExtensionPassTest extends TestCase
             ->assertSee('images/icon/silver_week_extension_pass.webp');
     }
 
+    public function test_support_shop_explains_ticket_activation_and_shows_confirmed_use_action(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-09-24 00:00:00', 'Asia/Tokyo'));
+        [$user, $character] = $this->createCharacterWithKiseki(0, 0);
+        CharacterConsumableItem::create([
+            'character_id' => $character->id,
+            'item_key' => SilverWeekExtensionPassService::TICKET_ITEM_KEY,
+            'quantity' => 1,
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('kiseki.support'))
+            ->assertOk()
+            ->assertSee('利用券所持数：1枚')
+            ->assertSee('購入しただけでは効果は発動しません。所持品から利用券を使用してください。')
+            ->assertSee('延長パス利用券を使用しますか？')
+            ->assertSee('使用する')
+            ->assertSee(route('kiseki.support.silver-week-extension-pass.use'), false);
+    }
+
+    public function test_extension_ticket_can_be_used_from_support_shop_after_confirmation(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-09-24 00:00:00', 'Asia/Tokyo'));
+        [$user, $character] = $this->createCharacterWithKiseki(0, 0);
+        CharacterConsumableItem::create([
+            'character_id' => $character->id,
+            'item_key' => SilverWeekExtensionPassService::TICKET_ITEM_KEY,
+            'quantity' => 1,
+        ]);
+
+        $this->actingAs($user)
+            ->post(route('kiseki.support.silver-week-extension-pass.use'))
+            ->assertRedirect(route('kiseki.support'))
+            ->assertSessionHas('status');
+
+        $user->refresh();
+        $this->assertSame('2026-09-24 00:00:00', $user->silver_week_extension_pass_started_at?->format('Y-m-d H:i:s'));
+        $this->assertSame('2026-10-24 00:00:00', $user->silver_week_extension_pass_expires_at?->format('Y-m-d H:i:s'));
+        $this->assertDatabaseHas('character_consumable_items', [
+            'character_id' => $character->id,
+            'item_key' => SilverWeekExtensionPassService::TICKET_ITEM_KEY,
+            'quantity' => 0,
+        ]);
+    }
+
     public function test_launch_catalog_shows_both_independent_passes_without_the_departure_set(): void
     {
         Carbon::setTestNow(Carbon::parse('2026-09-23 23:59:59', 'Asia/Tokyo'));

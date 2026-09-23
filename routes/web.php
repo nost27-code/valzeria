@@ -541,6 +541,8 @@ Route::middleware('auth')->group(function () {
         ->name('kiseki.support.purchase');
     Route::post('/kiseki/support/rescue-insurance/use', [\App\Http\Controllers\KisekiShopController::class, 'useRescueInsurance'])
         ->name('kiseki.support.rescue-insurance.use');
+    Route::post('/kiseki/support/silver-week-extension-pass/use', [\App\Http\Controllers\KisekiShopController::class, 'useSilverWeekExtensionPass'])
+        ->name('kiseki.support.silver-week-extension-pass.use');
     Route::get('/kiseki/success', [\App\Http\Controllers\KisekiShopController::class, 'success'])
         ->name('kiseki.success');
     Route::get('/kiseki/cancel', [\App\Http\Controllers\KisekiShopController::class, 'cancel'])

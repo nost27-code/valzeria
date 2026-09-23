@@ -1,6 +1,6 @@
 <x-layouts.facility title="補給商会" headerIconImage="images/icon/icon_007.webp" bgImage="images/bg-castle.webp">
 
-    <div x-data="{ confirming: null, submitting: false }">
+    <div x-data="{ confirming: null, submitting: false, useConfirming: false, useSubmitting: false }">
 
     @if(session('status'))
         <div class="mb-3 whitespace-pre-line rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-700">
@@ -92,6 +92,13 @@
                             $currencySuffix = (string) ($supportItem['currency_suffix'] ?? '');
                             $currencyIcon = array_key_exists('currency_icon_image', $supportItem) ? $supportItem['currency_icon_image'] : 'images/icon/kiseki.webp';
                             $purchaseLabel = (string) ($supportItem['purchase_label'] ?? '購入する');
+                            $isExtensionPass = ($supportItem['effect_type'] ?? null) === 'silver_week_extension_pass_30d';
+                            $extensionTicketCount = $isExtensionPass
+                                ? (int) ($supportCounts['silver_week_extension_pass_30d_ticket'] ?? 0)
+                                : 0;
+                            $canUseExtensionTicket = $isExtensionPass
+                                && $extensionTicketCount > 0
+                                && (bool) ($supportItem['silver_week_extension_pass']['can_extend'] ?? false);
                         @endphp
                         <div @if(($supportItem['effect_type'] ?? null) === 'support_pass_30d') id="adventurer-support-pass" @elseif(($supportItem['effect_type'] ?? null) === 'silver_week_extension_pass_30d') id="silver-week-extension-pass" @elseif(($supportItem['effect_type'] ?? null) === 'adventurer_departure_set') id="adventurer-departure-set" @endif
                              class="scroll-mt-4 rounded-xl border {{ ($supportItem['effect_type'] ?? null) === 'adventurer_departure_set' ? 'border-amber-400 bg-gradient-to-br from-amber-50 via-white to-sky-50 ring-1 ring-amber-200' : (($supportItem['effect_type'] ?? null) === 'silver_week_extension_pass_30d' ? 'border-cyan-300 bg-gradient-to-br from-slate-50 via-white to-cyan-50 ring-1 ring-cyan-100' : ($canPurchase ? 'border-slate-200 bg-white' : 'border-slate-100 bg-slate-50/50')) }} shadow-sm transition target:border-amber-400 target:bg-amber-50 target:ring-2 target:ring-amber-300/60">
@@ -180,7 +187,6 @@
                                         <p class="mt-1 text-[11px] font-black text-sky-700">所持数: {{ number_format($supportCounts[$supportItem['key']] ?? 0) }}</p>
                                     @elseif(in_array(($supportItem['effect_type'] ?? null), ['support_pass_30d', 'silver_week_extension_pass_30d'], true))
                                         @php
-                                            $isExtensionPass = ($supportItem['effect_type'] ?? null) === 'silver_week_extension_pass_30d';
                                             $passStatus = $isExtensionPass
                                                 ? ($supportItem['silver_week_extension_pass'] ?? [])
                                                 : ($supportItem['support_pass'] ?? []);
@@ -192,6 +198,12 @@
                                                         <li class="flex gap-1.5"><span class="text-amber-600">・</span><span>{{ $effectLine }}</span></li>
                                                     @endforeach
                                                 </ul>
+                                            @endif
+                                            @if($isExtensionPass)
+                                                <div class="rounded-lg border border-cyan-200 bg-cyan-50/80 px-3 py-2 text-[11px] font-bold leading-relaxed text-cyan-950">
+                                                    <p class="font-black">利用券所持数：{{ number_format($extensionTicketCount) }}枚</p>
+                                                    <p class="mt-0.5">購入しただけでは効果は発動しません。所持品から利用券を使用してください。</p>
+                                                </div>
                                             @endif
                                             @if($passStatus['active'] ?? false)
                                                 <div class="flex flex-wrap items-center gap-2">
@@ -240,6 +252,20 @@
                                                     探索前に使用
                                                 </button>
                                             </form>
+                                        @endif
+                                        @if($isExtensionPass)
+                                            <button
+                                                type="button"
+                                                @click="useConfirming = true; useSubmitting = false"
+                                                @disabled(!$canUseExtensionTicket)
+                                                class="rounded-lg border px-3 py-1.5 text-xs font-black transition {{ $canUseExtensionTicket ? 'border-cyan-400 bg-cyan-50 text-cyan-800 hover:bg-cyan-100 active:scale-95' : 'cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400' }}">
+                                                使用する
+                                            </button>
+                                            @if($extensionTicketCount <= 0)
+                                                <span class="text-[10px] font-bold text-slate-500">利用券を購入すると使用できます。</span>
+                                            @elseif(!($supportItem['silver_week_extension_pass']['can_extend'] ?? false))
+                                                <span class="text-[10px] font-bold text-amber-700">現在は有効期限をこれ以上延長できません。</span>
+                                            @endif
                                         @endif
                                     </div>
                                 </div>
@@ -304,6 +330,54 @@
                         <x-loading-spinner x-show="submitting" style="display: none;" />
                         <span x-show="!submitting" x-text="confirming?.purchase_label ?? '購入する'">購入する</span>
                         <span x-show="submitting" style="display: none;">処理中...</span>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    {{-- 延長パス利用確認モーダル --}}
+    <div
+        x-show="useConfirming"
+        x-cloak
+        @keydown.escape.window="if (!useSubmitting) useConfirming = false"
+        @click.self="if (!useSubmitting) useConfirming = false"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 px-4"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="silver-week-extension-pass-use-title">
+        <div class="w-full max-w-sm rounded-2xl bg-white p-5 shadow-2xl">
+            <div class="flex items-center gap-3">
+                <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-cyan-200 bg-cyan-50 p-1.5">
+                    <img src="{{ asset('images/icon/silver_week_extension_pass.webp') }}" alt="" class="h-full w-full object-contain">
+                </div>
+                <div id="silver-week-extension-pass-use-title" class="text-base font-black text-slate-950">
+                    延長パス利用券を使用しますか？
+                </div>
+            </div>
+            <div class="mt-3 space-y-2 text-xs font-bold leading-relaxed text-slate-600">
+                <p>使用すると、シルバーウィーク仕様延長パスが30日間有効になります。</p>
+                <p>有効期間が残っている場合は、現在の有効期限から30日延長されます。</p>
+            </div>
+            <ul class="mt-3 space-y-1 rounded-lg bg-cyan-50 px-3 py-2 text-[11px] font-bold leading-relaxed text-cyan-950">
+                <li class="flex gap-1.5"><span>・</span><span>探索力の自然回復：45秒で1</span></li>
+                <li class="flex gap-1.5"><span>・</span><span>探索力上限 +500</span></li>
+                <li class="flex gap-1.5"><span>・</span><span>通常の冒険者支援パスと併用可能</span></li>
+            </ul>
+            <div class="mt-4 grid grid-cols-2 gap-3">
+                <button
+                    type="button"
+                    @click="useConfirming = false"
+                    :disabled="useSubmitting"
+                    class="rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-black text-slate-600 transition hover:bg-slate-50 disabled:cursor-wait disabled:opacity-60">
+                    キャンセル
+                </button>
+                <form method="POST" action="{{ route('kiseki.support.silver-week-extension-pass.use') }}" @submit="if (useSubmitting) { $event.preventDefault(); return; } useSubmitting = true">
+                    @csrf
+                    <button type="submit" :disabled="useSubmitting" class="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-cyan-700 px-4 py-2.5 text-sm font-black text-white shadow-sm transition hover:bg-cyan-800 disabled:cursor-wait disabled:opacity-60">
+                        <x-loading-spinner x-show="useSubmitting" style="display: none;" />
+                        <span x-show="!useSubmitting">使用する</span>
+                        <span x-show="useSubmitting" style="display: none;">使用中...</span>
                     </button>
                 </form>
             </div>
