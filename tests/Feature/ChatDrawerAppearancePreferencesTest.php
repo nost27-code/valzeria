@@ -126,6 +126,35 @@ class ChatDrawerAppearancePreferencesTest extends TestCase
             ->assertSet('drawerTabRestoredFromSession', false);
     }
 
+    public function test_all_appearance_controls_share_one_save_lock_and_busy_indicator(): void
+    {
+        [$user, $character] = $this->player();
+        session(['current_character_id' => $character->id]);
+
+        $html = Livewire::actingAs($user)->test(ChatLog::class, ['drawer' => true])->html();
+        $document = new \DOMDocument();
+        $previousErrors = libxml_use_internal_errors(true);
+        $document->loadHTML('<?xml encoding="utf-8"?>'.$html);
+        libxml_clear_errors();
+        libxml_use_internal_errors($previousErrors);
+        $xpath = new \DOMXPath($document);
+
+        $controls = $xpath->query('//*[@data-chat-appearance-controls]')->item(0);
+        $status = $xpath->query('//*[@data-chat-appearance-saving]')->item(0);
+        $this->assertNotNull($controls);
+        $this->assertNotNull($status);
+        $this->assertSame('disabled', $controls->getAttribute('wire:loading.attr'));
+        $this->assertSame('status', $status->getAttribute('role'));
+
+        $targets = 'setDrawerAppearanceColor,setDrawerAppearanceFontSize,applyDrawerAppearancePreset,resetDrawerAppearance';
+        $this->assertSame($targets, $controls->getAttribute('wire:target'));
+        $this->assertSame($targets, $status->getAttribute('wire:target'));
+        $this->assertSame(3, $xpath->query('.//input[@type="color"]', $controls)->length);
+        foreach (['setDrawerAppearanceFontSize', 'applyDrawerAppearancePreset', 'resetDrawerAppearance'] as $method) {
+            $this->assertGreaterThan(0, $xpath->query('.//button[contains(@*[name()="wire:click"], "'.$method.'")]', $controls)->length);
+        }
+    }
+
     private function player(): array
     {
         $user = User::factory()->create();

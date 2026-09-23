@@ -317,6 +317,25 @@
                     <div class="text-[12px] font-black text-slate-800">見た目</div>
                     <div class="mt-0.5 text-[10px] font-bold text-slate-500">この冒険者の右側チャットだけに反映・自動保存されます</div>
 
+                    <div
+                        wire:loading.flex
+                        wire:target="setDrawerAppearanceColor,setDrawerAppearanceFontSize,applyDrawerAppearancePreset,resetDrawerAppearance"
+                        role="status"
+                        aria-live="polite"
+                        class="mt-2 items-center gap-2 rounded-md border border-blue-200 bg-white px-2.5 py-2 text-[11px] font-bold text-blue-800"
+                        data-chat-appearance-saving
+                    >
+                        <span class="submit-lock-spinner" aria-hidden="true"></span>
+                        <span>設定を保存中…</span>
+                    </div>
+
+                    <fieldset
+                        wire:loading.attr="disabled"
+                        wire:target="setDrawerAppearanceColor,setDrawerAppearanceFontSize,applyDrawerAppearancePreset,resetDrawerAppearance"
+                        class="m-0 min-w-0 border-0 p-0 disabled:opacity-60"
+                        data-chat-appearance-controls
+                    >
+
                     <div data-chat-drawer-presets class="mt-3">
                         <div class="mb-1.5 text-[11px] font-black text-slate-700">プリセット</div>
                         <div class="grid grid-cols-1 gap-1.5 min-[360px]:grid-cols-2">
@@ -392,6 +411,7 @@
                         wire:target="resetDrawerAppearance"
                         class="mt-3 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-[11px] font-black text-slate-600 hover:border-slate-300 hover:bg-slate-50 disabled:opacity-60"
                     >デフォルトに戻す</button>
+                    </fieldset>
                 </section>
                 <div class="mb-2 text-[11px] font-black text-slate-700">全体タブの表示項目</div>
             @endif

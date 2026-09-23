@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-09-23-chat-drawer-appearance-saving-feedback',
+        'date' => '2026-09-23',
+        'category' => 'fixed',
+        'title' => '右側チャット設定の保存中表示を改善',
+        'detail' => '色・プリセット・文字サイズの保存中にスピナーを表示し、設定操作の連打を防ぎます。',
+    ],
+    [
         'id' => '2026-09-23-battle-chat-drawer-swipe-hint',
         'date' => '2026-09-23',
         'category' => 'changed',
