@@ -32,12 +32,18 @@ class WeaponTraitWorkshopViewTest extends TestCase
         $this->assertIsString($source);
         $this->assertStringContainsString('x-model.debounce.150ms="pickerQuery"', $source);
         $this->assertStringContainsString("pickerType: 'all'", $source);
+        $this->assertStringContainsString("pickerCategory: 'all'", $source);
         $this->assertStringContainsString("pickerStatus: 'all'", $source);
         $this->assertStringContainsString("pickerQuality: 'all'", $source);
         $this->assertStringContainsString("pickerTrait: 'all'", $source);
         $this->assertStringContainsString("pickerSort: 'default'", $source);
         $this->assertStringContainsString('matchesPickerItem(item)', $source);
         $this->assertStringContainsString('sortPickerItems(items)', $source);
+        $this->assertStringContainsString('pickerCategories()', $source);
+        $this->assertStringContainsString("this.pickerCategory === 'all' || item.weapon_category === this.pickerCategory", $source);
+        $this->assertStringContainsString('value="category_asc"', $source);
+        $this->assertStringContainsString('装備種順', $source);
+        $this->assertStringContainsString('すべての装備種', $source);
         $this->assertStringContainsString('装備名・装備種・ランク・銘・特攻を入力', $source);
         $this->assertStringContainsString('条件に合う装備がありません。', $source);
     }

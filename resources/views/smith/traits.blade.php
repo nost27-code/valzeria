@@ -225,6 +225,7 @@
                                                 <option value="newest">新着順</option>
                                                 <option value="rank_asc">ランクが低い順</option>
                                                 <option value="quality_desc">品質が高い順</option>
+                                                <option value="category_asc">装備種順</option>
                                                 <option value="prefix_desc">銘段階が高い順</option>
                                                 <option value="suffix_desc">特攻・耐性段階が高い順</option>
                                                 <option value="enhance_desc">強化値が高い順</option>
@@ -233,10 +234,19 @@
                                     </div>
                                     <div class="mt-2 flex flex-wrap items-center gap-1.5">
                                         <span class="mr-1 text-[11px] font-bold text-amber-800">種類</span>
-                                        <button type="button" @click="pickerType = 'all'" :class="pickerType === 'all' ? 'border-amber-600 bg-amber-600 text-white' : 'border-amber-200 bg-white text-amber-800 hover:bg-amber-100'" class="rounded-full border px-2.5 py-1 text-[11px] font-bold">すべて</button>
-                                        <button type="button" @click="pickerType = 'weapon'" :class="pickerType === 'weapon' ? 'border-amber-600 bg-amber-600 text-white' : 'border-amber-200 bg-white text-amber-800 hover:bg-amber-100'" class="rounded-full border px-2.5 py-1 text-[11px] font-bold">武器</button>
-                                        <button type="button" @click="pickerType = 'armor'" :class="pickerType === 'armor' ? 'border-amber-600 bg-amber-600 text-white' : 'border-amber-200 bg-white text-amber-800 hover:bg-amber-100'" class="rounded-full border px-2.5 py-1 text-[11px] font-bold">防具</button>
+                                        <button type="button" @click="setPickerType('all')" :class="pickerType === 'all' ? 'border-amber-600 bg-amber-600 text-white' : 'border-amber-200 bg-white text-amber-800 hover:bg-amber-100'" class="rounded-full border px-2.5 py-1 text-[11px] font-bold">すべて</button>
+                                        <button type="button" @click="setPickerType('weapon')" :class="pickerType === 'weapon' ? 'border-amber-600 bg-amber-600 text-white' : 'border-amber-200 bg-white text-amber-800 hover:bg-amber-100'" class="rounded-full border px-2.5 py-1 text-[11px] font-bold">武器</button>
+                                        <button type="button" @click="setPickerType('armor')" :class="pickerType === 'armor' ? 'border-amber-600 bg-amber-600 text-white' : 'border-amber-200 bg-white text-amber-800 hover:bg-amber-100'" class="rounded-full border px-2.5 py-1 text-[11px] font-bold">防具</button>
                                     </div>
+                                    <label class="mt-2 block">
+                                        <span class="mb-1 block text-[11px] font-bold text-amber-800">装備種</span>
+                                        <select x-model="pickerCategory" class="w-full rounded-md border border-amber-200 bg-white px-3 py-2 text-sm font-bold text-slate-700 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-100">
+                                            <option value="all">すべての装備種</option>
+                                            <template x-for="category in pickerCategories()" :key="category">
+                                                <option :value="category" x-text="category"></option>
+                                            </template>
+                                        </select>
+                                    </label>
                                     <div class="mt-2 flex flex-wrap items-center gap-1.5">
                                         <span class="mr-1 text-[11px] font-bold text-amber-800">状態</span>
                                         <button type="button" @click="pickerStatus = 'all'" :class="pickerStatus === 'all' ? 'border-amber-600 bg-amber-600 text-white' : 'border-amber-200 bg-white text-amber-800 hover:bg-amber-100'" class="rounded-full border px-2.5 py-1 text-[11px] font-bold">すべて</button>
@@ -399,6 +409,7 @@
                 picker: null,
                 pickerQuery: '',
                 pickerType: 'all',
+                pickerCategory: 'all',
                 pickerStatus: 'all',
                 pickerQuality: 'all',
                 pickerTrait: 'all',
@@ -420,6 +431,7 @@
                 resetPickerControls() {
                     this.pickerQuery = '';
                     this.pickerType = 'all';
+                    this.pickerCategory = 'all';
                     this.pickerStatus = 'all';
                     this.pickerQuality = 'all';
                     this.pickerTrait = 'all';
@@ -428,6 +440,7 @@
                 pickerHasActiveFilters() {
                     return this.pickerQuery !== ''
                         || this.pickerType !== 'all'
+                        || this.pickerCategory !== 'all'
                         || this.pickerStatus !== 'all'
                         || this.pickerQuality !== 'all'
                         || this.pickerTrait !== 'all'
@@ -435,6 +448,26 @@
                 },
                 normalizePickerText(value) {
                     return String(value || '').toLocaleLowerCase('ja-JP').replace(/[\s　]+/g, '');
+                },
+                pickerOptions() {
+                    return this.picker === 'base'
+                        ? this.activeData.base_options
+                        : this.activeData.material_options;
+                },
+                pickerCategories() {
+                    const otherId = this.picker === 'base' ? this.materialId : this.baseId;
+                    return [...new Set(this.pickerOptions()
+                        .filter((item) => Number(item.id) !== Number(otherId))
+                        .filter((item) => this.pickerType === 'all' || item.item_type === this.pickerType)
+                        .map((item) => item.weapon_category)
+                        .filter(Boolean))]
+                        .sort((a, b) => String(a).localeCompare(String(b), 'ja'));
+                },
+                setPickerType(type) {
+                    this.pickerType = type;
+                    if (this.pickerCategory !== 'all' && !this.pickerCategories().includes(this.pickerCategory)) {
+                        this.pickerCategory = 'all';
+                    }
                 },
                 pickerSearchText(item) {
                     return [
@@ -457,6 +490,7 @@
 
                     return (!query || searchText.includes(query))
                         && (this.pickerType === 'all' || item.item_type === this.pickerType)
+                        && (this.pickerCategory === 'all' || item.weapon_category === this.pickerCategory)
                         && (
                             this.pickerStatus === 'all'
                             || (this.pickerStatus === 'equipped' && item.is_equipped)
@@ -485,6 +519,13 @@
                         if (this.pickerSort === 'rank_asc') return Number(a.rank_sort || 0) - Number(b.rank_sort || 0) || nameCompare;
                         if (this.pickerSort === 'rank_desc') return Number(b.rank_sort || 0) - Number(a.rank_sort || 0) || nameCompare;
                         if (this.pickerSort === 'quality_desc') return this.pickerQualitySort(b) - this.pickerQualitySort(a) || Number(b.rank_sort || 0) - Number(a.rank_sort || 0) || nameCompare;
+                        if (this.pickerSort === 'category_asc') {
+                            const typeOrder = { weapon: 0, armor: 1 };
+                            return (typeOrder[a.item_type] ?? 2) - (typeOrder[b.item_type] ?? 2)
+                                || compareText(a.weapon_category, b.weapon_category)
+                                || Number(b.rank_sort || 0) - Number(a.rank_sort || 0)
+                                || nameCompare;
+                        }
                         if (this.pickerSort === 'prefix_desc') return Number(b.engraving?.level || 0) - Number(a.engraving?.level || 0) || this.pickerQualitySort(b) - this.pickerQualitySort(a) || nameCompare;
                         if (this.pickerSort === 'suffix_desc') return Number(b.slayer?.level || 0) - Number(a.slayer?.level || 0) || this.pickerQualitySort(b) - this.pickerQualitySort(a) || nameCompare;
                         if (this.pickerSort === 'enhance_desc') return Number(b.enhance_level || 0) - Number(a.enhance_level || 0) || Number(b.rank_sort || 0) - Number(a.rank_sort || 0) || nameCompare;
@@ -493,12 +534,9 @@
                     });
                 },
                 pickerItems() {
-                    const options = this.picker === 'base'
-                        ? this.activeData.base_options
-                        : this.activeData.material_options;
                     const otherId = this.picker === 'base' ? this.materialId : this.baseId;
 
-                    const matches = options
+                    const matches = this.pickerOptions()
                         .filter((item) => Number(item.id) !== Number(otherId))
                         .filter((item) => this.matchesPickerItem(item));
 

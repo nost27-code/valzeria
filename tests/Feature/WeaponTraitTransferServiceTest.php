@@ -28,6 +28,7 @@ class WeaponTraitTransferServiceTest extends TestCase
 
         $this->assertSame($weapon->item->name, $payload['item_name']);
         $this->assertSame((int) $weapon->item->weapon_rank_sort, $payload['rank_sort']);
+        $this->assertSame('剣', $payload['weapon_category']);
         $this->assertSame($weapon->created_at->getTimestamp(), $payload['created_at_timestamp']);
         $this->assertSame(route('equipment.lock', $weapon), $payload['lock_url']);
         $this->assertContains('攻撃 +100', $payload['base_performance_lines']);
