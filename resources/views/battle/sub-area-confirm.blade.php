@@ -6,9 +6,11 @@
         );
     @endphp
     <div class="mx-auto max-w-md px-4 py-5">
-        <a href="{{ route('home') }}" class="mb-4 inline-flex items-center text-sm font-bold text-slate-600 hover:text-slate-900">
-            ← 探索画面へ戻る
-        </a>
+        @unless ($isResume)
+            <a href="{{ route('home') }}" class="mb-4 inline-flex items-center text-sm font-bold text-slate-600 hover:text-slate-900">
+                ← 探索画面へ戻る
+            </a>
+        @endunless
 
         <section class="overflow-hidden rounded-xl border border-indigo-200 bg-white shadow-sm">
             <div class="border-b border-indigo-100 bg-indigo-50 px-4 py-3">
@@ -18,6 +20,29 @@
             </div>
 
             <div class="space-y-3 px-4 py-4">
+                @if ($isResume)
+                    <div class="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-3 text-emerald-950">
+                        <div class="text-xs font-black">中断していた亜域探索</div>
+                        <p class="mt-1 text-xs font-bold leading-relaxed">
+                            ログアウト前の進行状況と持ち込み品を引き継いでいます。
+                        </p>
+                        <div class="mt-2 grid grid-cols-3 gap-2 text-center">
+                            <div class="rounded-md bg-white/80 px-2 py-1.5">
+                                <div class="text-[10px] font-black text-emerald-700">探索度</div>
+                                <div class="text-sm font-black">{{ number_format((int) ($explorationSummary['exploration_point'] ?? 0)) }}</div>
+                            </div>
+                            <div class="rounded-md bg-white/80 px-2 py-1.5">
+                                <div class="text-[10px] font-black text-emerald-700">連戦</div>
+                                <div class="text-sm font-black">{{ number_format((int) ($explorationSummary['chain_count'] ?? 0)) }}</div>
+                            </div>
+                            <div class="rounded-md bg-white/80 px-2 py-1.5">
+                                <div class="text-[10px] font-black text-emerald-700">危険度</div>
+                                <div class="text-sm font-black">{{ number_format((int) ($explorationSummary['danger_rate'] ?? 0)) }}%</div>
+                            </div>
+                        </div>
+                    </div>
+                @endif
+
                 <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
                     <div class="text-[11px] font-black text-slate-400">入口</div>
                     <div class="mt-0.5 text-sm font-black text-slate-800">{{ $route->route_name }}</div>
@@ -43,10 +68,22 @@
 
                 <form action="{{ route('battle.sub_area.explore', ['discovery' => $discovery]) }}" method="POST">
                     @csrf
+                    @if ($isResume)
+                        <input type="hidden" name="continue_chain" value="1">
+                    @endif
                     <button type="submit" class="w-full rounded-lg bg-slate-900 px-4 py-3 text-sm font-black text-white shadow-md transition hover:bg-slate-800 active:scale-95">
-                        探索開始
+                        {{ $isResume ? '探索を再開' : '探索開始' }}
                     </button>
                 </form>
+
+                @if ($isResume)
+                    <form action="{{ route('battle.resume.return') }}" method="POST">
+                        @csrf
+                        <button type="submit" class="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm font-black text-slate-700 transition hover:bg-slate-50 active:scale-95">
+                            探索を切り上げて街へ帰還する
+                        </button>
+                    </form>
+                @endif
             </div>
         </section>
     </div>

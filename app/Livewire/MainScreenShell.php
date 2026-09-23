@@ -6,6 +6,7 @@ use App\Services\ExplorationStateService;
 use App\Services\HomeActionService;
 use App\Services\MapExplorationItemService;
 use App\Services\Nation\NationChatService;
+use App\Services\SubAreaExplorationStateService;
 use App\Support\TitleUnlockMessage;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
@@ -65,9 +66,20 @@ class MainScreenShell extends Component
             return;
         }
 
+        $hasActiveSubArea = $this->character
+            && app(SubAreaExplorationStateService::class)->hasActiveExploration($this->character);
+        if ($hasActiveSubArea
+            && request()->routeIs('home')
+            && !request()->boolean('skip_resume')
+            && !request()->hasHeader('X-Livewire')) {
+            $this->redirectRoute('battle.sub_area.resume', navigate: false);
+
+            return;
+        }
+
         $hasActiveExploration = $this->character
             && app(ExplorationStateService::class)->hasActiveExploration($this->character);
-        $defaultLocation = ($activeMapRegistration || $hasActiveExploration) ? 'dungeon' : 'home';
+        $defaultLocation = ($activeMapRegistration || $hasActiveSubArea || $hasActiveExploration) ? 'dungeon' : 'home';
 
         if ($hasActiveExploration
             && request()->routeIs('home')
@@ -79,7 +91,7 @@ class MainScreenShell extends Component
         }
 
         $this->currentLocation = $this->normalizeLocation(session('current_location', $defaultLocation));
-        if (($activeMapRegistration || $hasActiveExploration) && $this->currentLocation === 'home') {
+        if (($activeMapRegistration || $hasActiveSubArea || $hasActiveExploration) && $this->currentLocation === 'home') {
             $this->currentLocation = 'dungeon';
         }
         $this->initialLocation = $this->currentLocation;

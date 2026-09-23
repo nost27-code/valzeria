@@ -12,7 +12,9 @@ class CharacterSubAreaExplorationState extends Model
         'exploration_point' => 'integer',
         'chain_count' => 'integer',
         'danger_rate' => 'integer',
+        'selected_explore_count' => 'integer',
         'sub_area_lord_encountered' => 'boolean',
+        'is_active' => 'boolean',
         'started_at' => 'datetime',
     ];
 

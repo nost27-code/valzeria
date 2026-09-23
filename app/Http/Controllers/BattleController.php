@@ -23,6 +23,7 @@ use App\Services\ExplorationDepthService;
 use App\Services\ExplorationStateService;
 use App\Services\ArenaNpcBattleService;
 use App\Services\ArenaNpcRankingService;
+use App\Services\SubAreaExplorationStateService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -472,13 +473,54 @@ class BattleController extends Controller
             return redirect()->route('home')->with('error', 'この入口は現在利用できません。');
         }
 
+        $stateService = app(SubAreaExplorationStateService::class);
+        $activeDiscovery = $stateService->activeDiscovery($character);
+        if ($activeDiscovery && (int) $activeDiscovery->id !== (int) $discovery->id) {
+            return redirect()
+                ->route('battle.sub_area.resume')
+                ->with('error', '別の亜域を探索中です。探索中の入口へ戻りました。');
+        }
+
+        $isResume = $activeDiscovery !== null;
+        $explorationSummary = $isResume ? $stateService->summary($character, $discovery) : null;
+        if ($explorationSummary) {
+            session([
+                $this->exploreCountSessionKey($character) => ExplorationService::normalizeRepeatCount(
+                    $explorationSummary['selected_explore_count'] ?? 1
+                ),
+            ]);
+        }
+
         return view('battle.sub-area-confirm', [
             'character' => $character,
             'discovery' => $discovery,
             'route' => $discovery->route,
             'subArea' => $discovery->route->subArea,
             'sourceArea' => $discovery->route->sourceArea,
+            'isResume' => $isResume,
+            'explorationSummary' => $explorationSummary,
         ]);
+    }
+
+    public function resumeSubArea()
+    {
+        $character = Auth::user()->currentCharacter();
+        if (!$character) {
+            return redirect()->route('character.select');
+        }
+
+        $discovery = app(SubAreaExplorationStateService::class)->activeDiscovery($character);
+        if (!$discovery) {
+            session(['current_location' => 'home']);
+
+            return redirect()->route('home')->with('message', '進行中の亜域探索はありません。');
+        }
+
+        session(['current_location' => 'dungeon']);
+
+        return redirect()
+            ->route('battle.sub_area.confirm', ['discovery' => $discovery])
+            ->with('message', '中断していた亜域探索へ戻りました。');
     }
 
     public function exploreSubArea(Request $request, CharacterSubAreaRouteDiscovery $discovery)
@@ -486,6 +528,13 @@ class BattleController extends Controller
         $character = Auth::user()->currentCharacter();
         if (!$character || (int) $discovery->character_id !== (int) $character->id) {
             return redirect()->route('home')->with('error', 'この入口は利用できません。');
+        }
+
+        $activeDiscovery = app(SubAreaExplorationStateService::class)->activeDiscovery($character);
+        if ($activeDiscovery && (int) $activeDiscovery->id !== (int) $discovery->id) {
+            return redirect()
+                ->route('battle.sub_area.resume')
+                ->with('error', '別の亜域を探索中です。探索中の入口へ戻りました。');
         }
 
         if ($character->is_frozen) {
@@ -512,6 +561,10 @@ class BattleController extends Controller
         $result = $batchCount > 1 && app(\App\Services\ExplorationStaminaService::class)->enabled()
             ? $subAreaService->exploreRepeated($character, $discovery, $batchCount)
             : $subAreaService->explore($character, $discovery);
+        if (!isset($result['error'])) {
+            app(SubAreaExplorationStateService::class)
+                ->rememberSelectedExploreCount($character, $discovery, $batchCount);
+        }
         $result = array_merge($result, [
             'special_event' => 'sub_area_explore',
             'sub_area_name' => $discovery->route?->subArea?->name,
@@ -603,6 +656,7 @@ class BattleController extends Controller
             app(\App\Services\RegionDepthDungeonService::class)->finalize($character, 'returned');
             $explorationStateService = app(\App\Services\ExplorationStateService::class);
             $explorationStateService->reset($character);
+            app(SubAreaExplorationStateService::class)->reset($character);
             app(\App\Services\MapExplorationItemService::class)->end($character);
             $this->forgetExploreCount($character);
         }
@@ -639,6 +693,7 @@ class BattleController extends Controller
         if ($character) {
             app(\App\Services\ValmonService::class)->hatchActiveEggs($character);
             app(ExplorationStateService::class)->reset($character);
+            app(SubAreaExplorationStateService::class)->reset($character);
             app(\App\Services\MapExplorationItemService::class)->end($character);
             $this->forgetExploreCount($character);
         }

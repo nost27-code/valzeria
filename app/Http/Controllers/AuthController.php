@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Models\User;
 use App\Services\AuthService;
 use App\Services\GameSettingService;
+use App\Services\SubAreaExplorationStateService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
@@ -223,7 +224,10 @@ class AuthController extends Controller
         $character = Auth::user()?->currentCharacter();
         if ($character) {
             try {
-                app(\App\Services\ExplorationStateService::class)->reset($character);
+                $hasActiveSubArea = app(SubAreaExplorationStateService::class)->hasActiveExploration($character);
+                if (! $hasActiveSubArea) {
+                    app(\App\Services\ExplorationStateService::class)->reset($character);
+                }
             } catch (\Throwable $e) {
                 // reset失敗してもログアウトは継続
             }

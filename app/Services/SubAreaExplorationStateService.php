@@ -23,7 +23,9 @@ class SubAreaExplorationStateService
                 'exploration_point' => 0,
                 'chain_count' => 0,
                 'danger_rate' => 0,
+                'selected_explore_count' => 1,
                 'sub_area_lord_encountered' => false,
+                'is_active' => true,
                 'started_at' => now(),
             ]
         );
@@ -35,7 +37,14 @@ class SubAreaExplorationStateService
                 'exploration_point' => 0,
                 'chain_count' => 0,
                 'danger_rate' => 0,
+                'selected_explore_count' => 1,
                 'sub_area_lord_encountered' => false,
+                'is_active' => true,
+                'started_at' => now(),
+            ])->save();
+        } elseif (! $state->is_active) {
+            $state->forceFill([
+                'is_active' => true,
                 'started_at' => now(),
             ])->save();
         }
@@ -45,6 +54,50 @@ class SubAreaExplorationStateService
         }
 
         return $state->fresh();
+    }
+
+    public function activeDiscovery(Character $character): ?CharacterSubAreaRouteDiscovery
+    {
+        $state = CharacterSubAreaExplorationState::query()
+            ->where('character_id', $character->id)
+            ->where('is_active', true)
+            ->first();
+
+        if (! $state || ! $state->sub_area_route_id) {
+            return null;
+        }
+
+        $discovery = CharacterSubAreaRouteDiscovery::query()
+            ->with(['route.subArea', 'route.sourceArea'])
+            ->where('character_id', $character->id)
+            ->where('sub_area_route_id', $state->sub_area_route_id)
+            ->first();
+
+        if (! $discovery?->route?->is_enabled || ! $discovery->route?->subArea?->is_enabled) {
+            $state->forceFill(['is_active' => false])->save();
+
+            return null;
+        }
+
+        return $discovery;
+    }
+
+    public function hasActiveExploration(Character $character): bool
+    {
+        return $this->activeDiscovery($character) !== null;
+    }
+
+    public function rememberSelectedExploreCount(
+        Character $character,
+        CharacterSubAreaRouteDiscovery $discovery,
+        int $count
+    ): void
+    {
+        CharacterSubAreaExplorationState::query()
+            ->where('character_id', $character->id)
+            ->where('sub_area_route_id', $discovery->sub_area_route_id)
+            ->where('is_active', true)
+            ->update(['selected_explore_count' => max(1, min(50, $count))]);
     }
 
     public function recordVictory(Character $character, CharacterSubAreaRouteDiscovery $discovery, Enemy $enemy): array
@@ -93,6 +146,7 @@ class SubAreaExplorationStateService
             'exploration_point' => $point,
             'chain_count' => $chain,
             'danger_rate' => $danger,
+            'selected_explore_count' => $isCurrent ? max(1, (int) $state->selected_explore_count) : 1,
             'danger_label' => app(ExplorationStateService::class)->dangerLabel($danger),
             'depth' => [
                 'label' => $subArea?->layer_type === 'otherworld' ? '異界層' : '共有深層',

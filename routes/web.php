@@ -283,6 +283,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/battle/pvp-random', [BattleController::class, 'randomPvp'])->name('battle.pvp_random');
 
         Route::get('/battle/resume', [BattleController::class, 'resumeExploration'])->name('battle.resume');
+        Route::get('/battle/sub-area/resume', [BattleController::class, 'resumeSubArea'])->name('battle.sub_area.resume');
         Route::get('/exploration-maps', [\App\Http\Controllers\ExplorationMapController::class, 'index'])->name('exploration-maps.index');
         Route::get('/exploration-maps/published', [\App\Http\Controllers\ExplorationMapController::class, 'published'])->name('exploration-maps.published');
         Route::get('/exploration-maps/leave', [\App\Http\Controllers\ExplorationMapController::class, 'leave'])->name('exploration-maps.leave');
