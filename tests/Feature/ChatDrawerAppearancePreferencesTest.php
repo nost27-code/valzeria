@@ -93,6 +93,39 @@ class ChatDrawerAppearancePreferencesTest extends TestCase
             ]);
     }
 
+    public function test_drawer_tab_is_rendered_from_session_after_refresh_without_changing_inline_chat(): void
+    {
+        [$user, $character] = $this->player();
+        session(['current_character_id' => $character->id]);
+
+        Livewire::actingAs($user)
+            ->test(ChatLog::class, ['drawer' => true])
+            ->call('setTab', 'chat')
+            ->assertSet('activeTab', 'chat');
+
+        $this->assertSame('chat', session('chat_drawer_active_tab'));
+
+        Livewire::actingAs($user)
+            ->test(ChatLog::class, ['drawer' => true])
+            ->assertSet('activeTab', 'chat')
+            ->assertSet('drawerTabRestoredFromSession', true);
+
+        Livewire::actingAs($user)
+            ->test(ChatLog::class)
+            ->assertSet('activeTab', 'all');
+    }
+
+    public function test_invalid_saved_drawer_tab_does_not_disable_browser_fallback(): void
+    {
+        [$user, $character] = $this->player();
+        session(['current_character_id' => $character->id, 'chat_drawer_active_tab' => 'invalid']);
+
+        Livewire::actingAs($user)
+            ->test(ChatLog::class, ['drawer' => true])
+            ->assertSet('activeTab', 'all')
+            ->assertSet('drawerTabRestoredFromSession', false);
+    }
+
     private function player(): array
     {
         $user = User::factory()->create();

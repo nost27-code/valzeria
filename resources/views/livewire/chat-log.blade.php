@@ -21,6 +21,7 @@
         touchStartY: null,
         touchStartAtDrawerEdge: false,
         drawerTabStorageKey: 'valzeria.chat.drawer.active-tab',
+        drawerTabRestoredFromSession: @js($drawerTabRestoredFromSession),
         availableDrawerTabs: @js(array_values(array_filter([
             'all',
             'system',
@@ -39,6 +40,7 @@
             this.restoreDrawerTab();
         },
         restoreDrawerTab() {
+            if (this.drawerTabRestoredFromSession) return;
             let storedTab = null;
             try {
                 storedTab = window.localStorage.getItem(this.drawerTabStorageKey);
@@ -182,7 +184,7 @@
             x-transition:leave-start="translate-x-0"
             x-transition:leave-end="translate-x-full"
             class="fixed inset-y-0 right-0 z-[100] flex h-dvh w-[80vw] max-w-[28rem] flex-col overflow-hidden border-l border-[#d4af37] bg-white font-sans shadow-2xl"
-            style="display: none; padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); --chat-drawer-background: {{ $resolvedDrawerAppearance['background_color'] }}; --chat-own-bubble-background: {{ $resolvedDrawerAppearance['own_bubble_color'] }}; --chat-own-bubble-text: {{ $drawerOwnTextColor }}; --chat-other-bubble-background: {{ $resolvedDrawerAppearance['other_bubble_color'] }}; --chat-other-bubble-text: {{ $drawerOtherTextColor }}; --chat-drawer-meta-color: {{ $drawerMetaTextColor }}; --chat-drawer-font-size: {{ \App\Support\ChatDrawerAppearance::fontSizePixels($resolvedDrawerAppearance['font_size']) }}px;"
+            style="display: none; padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom);"
             role="dialog"
             aria-modal="true"
             aria-label="チャット"
@@ -397,7 +399,7 @@
         x-ref="logScroller"
         @scroll.passive="updateStickiness()"
         class="flex-grow overflow-y-auto p-3 font-sans leading-relaxed sm:p-4"
-        style="background-color: var(--chat-drawer-background); font-size: var(--chat-drawer-font-size);"
+        style="--chat-drawer-background: {{ $resolvedDrawerAppearance['background_color'] }}; --chat-own-bubble-background: {{ $resolvedDrawerAppearance['own_bubble_color'] }}; --chat-own-bubble-text: {{ $drawerOwnTextColor }}; --chat-other-bubble-background: {{ $resolvedDrawerAppearance['other_bubble_color'] }}; --chat-other-bubble-text: {{ $drawerOtherTextColor }}; --chat-drawer-meta-color: {{ $drawerMetaTextColor }}; --chat-drawer-font-size: {{ \App\Support\ChatDrawerAppearance::fontSizePixels($resolvedDrawerAppearance['font_size']) }}px; background-color: var(--chat-drawer-background); font-size: var(--chat-drawer-font-size);"
         data-chat-log-scroller
         data-chat-line-presentation
         data-chat-drawer-customized

@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-09-23-chat-drawer-live-appearance-and-tab-restore',
+        'date' => '2026-09-23',
+        'category' => 'fixed',
+        'title' => '右側チャットの色反映とタブ復元を改善',
+        'detail' => 'プリセットや個別設定の色・文字サイズが変更直後に反映されます。最後に選んだタブは再読み込み時の初期表示から復元します。画面下部の従来型チャットは変更していません。',
+    ],
+    [
         'id' => '2026-09-23-equipment-market-nation-scope-armor-rank',
         'date' => '2026-09-23',
         'category' => 'added',

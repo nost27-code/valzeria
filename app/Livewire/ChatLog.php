@@ -23,6 +23,8 @@ class ChatLog extends Component
     public array $allTabVisibility = [];
     public array $drawerAppearance = [];
     #[Locked]
+    public bool $drawerTabRestoredFromSession = false;
+    #[Locked]
     public ?int $currentCharacterId = null;
     #[Locked]
     public ?string $logsVersion = null;
@@ -33,6 +35,7 @@ class ChatLog extends Component
 
     const LOG_STEP = 50;
     const LOG_MAX  = 500;
+    private const DRAWER_TAB_SESSION_KEY = 'chat_drawer_active_tab';
     private const ALL_TAB_FILTERS = [
         'chat' => [
             'label' => 'チャット',
@@ -114,6 +117,14 @@ class ChatLog extends Component
         $this->currentCharacterId = $character?->id;
         $this->allTabVisibility = $this->storedAllTabVisibility($character);
         $this->drawerAppearance = $this->storedDrawerAppearance($character);
+        if ($this->drawer && session()->has(self::DRAWER_TAB_SESSION_KEY)) {
+            $storedTab = session(self::DRAWER_TAB_SESSION_KEY);
+            if (is_string($storedTab) && in_array($storedTab, ['all', 'system', 'chat', 'nation', 'private', 'drop', 'info'], true)
+                && ($storedTab !== 'nation' || $this->nationChatEnabled())) {
+                $this->drawerTabRestoredFromSession = true;
+                $this->activeTab = $storedTab;
+            }
+        }
         $nationChatService = app(NationChatService::class);
         $this->nationUnreadPollingEnabled = (bool) ($character
             && $this->nationChatEnabled()
@@ -133,6 +144,7 @@ class ChatLog extends Component
 
         $this->activeTab = $tab;
         if ($this->drawer) {
+            session([self::DRAWER_TAB_SESSION_KEY => $tab]);
             $this->dispatch('chat-drawer-tab-changed', tab: $tab);
         }
 
