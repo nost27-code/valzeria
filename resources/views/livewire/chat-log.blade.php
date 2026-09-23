@@ -17,68 +17,26 @@
         settingsModalOpen: false,
         stickToBottom: true,
         previousBodyOverflow: '',
-        touchStartX: null,
-        touchStartY: null,
-        touchStartAtDrawerEdge: false,
-        drawerTabStorageKey: 'valzeria.chat.drawer.active-tab',
-        drawerTabRestoredFromSession: @js($drawerTabRestoredFromSession),
-        drawerHintStorageKey: @js($battleDrawer ? 'valzeria.chat.drawer.battle-swipe-hint-v1-seen' : 'valzeria.chat.drawer.swipe-hint-seen'),
-        showDrawerSwipeHint: false,
-        availableDrawerTabs: @js(array_values(array_filter([
-            'all',
-            'system',
-            'chat',
-            $nationChatEnabled ? 'nation' : null,
-            'private',
-            'drop',
-            'info',
-        ]))),
+        drawerHintStorageKey: @js($battleDrawer ? 'valzeria.chat.drawer.battle-handle-hint-v1-seen' : 'valzeria.chat.drawer.handle-hint-v1-seen'),
+        showDrawerHandleHint: false,
         init() {
             if (!this.drawerMode) {
                 this.scrollToBottom(false);
                 return;
             }
 
-            this.restoreDrawerTab();
-            this.restoreDrawerSwipeHint();
+            this.restoreDrawerHandleHint();
         },
-        restoreDrawerTab() {
-            if (this.drawerTabRestoredFromSession) return;
-            let storedTab = null;
+        restoreDrawerHandleHint() {
             try {
-                storedTab = window.localStorage.getItem(this.drawerTabStorageKey);
+                this.showDrawerHandleHint = window.localStorage.getItem(this.drawerHintStorageKey) !== '1';
             } catch (error) {
-                return;
-            }
-
-            if (!storedTab) return;
-            if (!this.availableDrawerTabs.includes(storedTab)) {
-                storedTab = 'all';
-                this.rememberDrawerTab(storedTab);
-            }
-
-            if (storedTab !== @js($activeTab)) {
-                this.$wire.setTab(storedTab);
+                this.showDrawerHandleHint = true;
             }
         },
-        rememberDrawerTab(tab) {
-            if (!this.drawerMode || !this.availableDrawerTabs.includes(tab)) return;
-            try {
-                window.localStorage.setItem(this.drawerTabStorageKey, tab);
-            } catch (error) {
-                // ブラウザが保存を拒否した場合は、現在の表示だけを維持する。
-            }
-        },
-        restoreDrawerSwipeHint() {
-            try {
-                this.showDrawerSwipeHint = window.localStorage.getItem(this.drawerHintStorageKey) !== '1';
-            } catch (error) {
-                this.showDrawerSwipeHint = true;
-            }
-        },
-        dismissDrawerSwipeHint() {
-            if (!this.drawerMode || !this.showDrawerSwipeHint) return;
-            this.showDrawerSwipeHint = false;
+        dismissDrawerHandleHint() {
+            if (!this.drawerMode || !this.showDrawerHandleHint) return;
+            this.showDrawerHandleHint = false;
             try {
                 window.localStorage.setItem(this.drawerHintStorageKey, '1');
             } catch (error) {
@@ -105,7 +63,7 @@
         },
         openDrawer() {
             if (!this.drawerMode || this.drawerOpen) return;
-            this.dismissDrawerSwipeHint();
+            this.dismissDrawerHandleHint();
             this.previousBodyOverflow = document.body.style.overflow;
             document.body.style.overflow = 'hidden';
             this.drawerOpen = true;
@@ -117,49 +75,15 @@
             this.settingsOpen = false;
             this.settingsModalOpen = false;
             document.body.style.overflow = this.previousBodyOverflow;
-        },
-        resetTouchGesture() {
-            this.touchStartX = null;
-            this.touchStartY = null;
-            this.touchStartAtDrawerEdge = false;
-        },
-        handleTouchStart(event, fromEdgeHandle = false) {
-            if (!this.drawerMode || !event.touches.length) return;
-            const x = event.touches[0].clientX;
-            const y = event.touches[0].clientY;
-            this.touchStartX = x;
-            this.touchStartY = y;
-            if (!this.drawerOpen) {
-                this.touchStartAtDrawerEdge = fromEdgeHandle || x >= window.innerWidth - 48;
-                return;
-            }
-            const drawerLeft = this.$refs.drawerPanel?.getBoundingClientRect().left ?? window.innerWidth;
-            this.touchStartAtDrawerEdge = x <= drawerLeft + 40;
-        },
-        handleTouchEnd(event) {
-            if (!this.drawerMode || this.touchStartX === null || this.touchStartY === null || !event.changedTouches.length) return;
-            const deltaX = event.changedTouches[0].clientX - this.touchStartX;
-            const deltaY = event.changedTouches[0].clientY - this.touchStartY;
-            const isHorizontalSwipe = Math.abs(deltaX) > Math.abs(deltaY) * 1.2;
-            if (!this.drawerOpen && this.touchStartAtDrawerEdge && isHorizontalSwipe && deltaX < -48) {
-                this.openDrawer();
-            } else if (this.drawerOpen && this.touchStartAtDrawerEdge && isHorizontalSwipe && deltaX > 48) {
-                this.closeDrawer();
-            }
-            this.resetTouchGesture();
         }
     }"
     x-init="init()"
     @visibilitychange.window="if (!document.hidden) { $wire.pollForUpdates() }"
     @open-chat-drawer.window="openDrawer()"
-    @chat-drawer-tab-changed.window="rememberDrawerTab($event.detail.tab)"
     @chat-scroll-bottom.window="scrollToBottom(false)"
     @chat-logs-refreshed.window="if (stickToBottom) scrollToBottom(false)"
     @open-chat-settings-modal.window="settingsModalOpen = true"
     @keydown.escape.window="if (settingsModalOpen) { settingsModalOpen = false } else if (drawerOpen) { closeDrawer() }"
-    @touchstart.window.passive="handleTouchStart($event)"
-    @touchend.window.passive="handleTouchEnd($event)"
-    @touchcancel.window.passive="resetTouchGesture()"
     @class([
         'relative w-full bg-white rounded-xl shadow-[0_8px_22px_rgba(126,96,28,0.18)] border border-[#d4af37] flex flex-col shrink-0 overflow-hidden font-sans' => ! $drawerMode,
         'h-[330px] md:h-[380px]' => ! $drawerMode && $isExpanded,
@@ -172,51 +96,32 @@
     @endif
 
     @if($drawerMode)
-        <style>
-            @keyframes chat-drawer-swipe-hint {
-                0%, 100% { transform: translateX(0); opacity: 0.55; }
-                50% { transform: translateX(-0.5rem); opacity: 1; }
-            }
-
-            .chat-drawer-swipe-hint-arrow {
-                animation: chat-drawer-swipe-hint 1.6s ease-in-out infinite;
-            }
-
-            @media (prefers-reduced-motion: reduce) {
-                .chat-drawer-swipe-hint-arrow { animation: none; }
-            }
-        </style>
-
         <div
-            data-chat-drawer-edge-swipe
+            data-chat-drawer-edge-handle-container
             x-show="!drawerOpen"
-            class="fixed inset-y-0 right-0 z-[80] w-6 sm:hidden"
-            style="display: none; touch-action: pan-y;"
-            @touchstart.stop="handleTouchStart($event, true)"
-            @touchmove.stop
-            @touchend.stop="handleTouchEnd($event)"
-            @touchcancel.stop="resetTouchGesture()"
+            class="pointer-events-none fixed inset-y-0 right-0 z-[80] w-6 sm:hidden"
+            style="display: none;"
         >
             <div
-                x-show="showDrawerSwipeHint"
+                x-show="showDrawerHandleHint"
                 x-transition.opacity.duration.200ms
-                data-chat-drawer-swipe-hint
+                data-chat-drawer-handle-hint
                 class="pointer-events-none absolute right-4 top-1/2 flex -translate-y-1/2 items-center gap-1 rounded-l-full border border-blue-200 bg-white/95 py-1.5 pl-2.5 pr-3 text-[10px] font-black whitespace-nowrap text-blue-900 shadow-lg"
                 style="display: none;"
                 aria-hidden="true"
             >
-                <svg class="chat-drawer-swipe-hint-arrow h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="m15 18-6-6 6-6" />
+                <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                    <path d="M4 4h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H9l-5 3v-3a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z" />
                 </svg>
-                <span>右端から中央へスワイプ</span>
+                <span>右端の取っ手をタップ</span>
             </div>
 
             <button
                 type="button"
                 data-chat-drawer-edge-handle
                 @click.stop="openDrawer()"
-                class="absolute right-0 top-1/2 flex h-16 w-5 -translate-y-1/2 flex-col items-center justify-center gap-0.5 rounded-l-xl border border-r-0 border-blue-300 bg-blue-700 text-white shadow-lg transition active:bg-blue-800"
-                aria-label="チャットを開く。右端から中央へスワイプしても開けます"
+                class="pointer-events-auto absolute right-0 top-1/2 flex h-16 w-5 -translate-y-1/2 flex-col items-center justify-center gap-0.5 rounded-l-xl border border-r-0 border-blue-300 bg-blue-700 text-white shadow-lg transition active:bg-blue-800"
+                aria-label="チャットを開く"
             >
                 <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                     <path d="M4 4h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H9l-5 3v-3a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z" />
@@ -274,15 +179,15 @@
     <!-- タブ -->
     <div class="relative flex shrink-0 items-stretch border-b border-gray-200 bg-gray-50 text-[11px] font-sans font-bold text-gray-500">
         <div class="flex min-w-0 flex-1 overflow-x-auto">
-            <button @click="rememberDrawerTab('all')" wire:click="setTab('all')" class="px-4 py-2 whitespace-nowrap {{ $activeTab === 'all' ? 'bg-white text-[#1e40af] border-t-2 border-[#1e40af]' : 'hover:bg-white border-t-2 border-transparent' }}">全体</button>
-            <button @click="rememberDrawerTab('system')" wire:click="setTab('system')" class="px-4 py-2 whitespace-nowrap {{ $activeTab === 'system' ? 'bg-white text-[#1e40af] border-t-2 border-[#1e40af]' : 'hover:bg-white border-t-2 border-transparent' }}">システム</button>
-            <button @click="rememberDrawerTab('chat')" wire:click="setTab('chat')" class="px-4 py-2 whitespace-nowrap {{ $activeTab === 'chat' ? 'bg-white text-[#1e40af] border-t-2 border-[#1e40af]' : 'hover:bg-white border-t-2 border-transparent' }}">チャット</button>
+            <button wire:click="setTab('all')" class="px-4 py-2 whitespace-nowrap {{ $activeTab === 'all' ? 'bg-white text-[#1e40af] border-t-2 border-[#1e40af]' : 'hover:bg-white border-t-2 border-transparent' }}">全体</button>
+            <button wire:click="setTab('system')" class="px-4 py-2 whitespace-nowrap {{ $activeTab === 'system' ? 'bg-white text-[#1e40af] border-t-2 border-[#1e40af]' : 'hover:bg-white border-t-2 border-transparent' }}">システム</button>
+            <button wire:click="setTab('chat')" class="px-4 py-2 whitespace-nowrap {{ $activeTab === 'chat' ? 'bg-white text-[#1e40af] border-t-2 border-[#1e40af]' : 'hover:bg-white border-t-2 border-transparent' }}">チャット</button>
             @if($nationChatEnabled)
-                <button data-chat-nation-tab @click="rememberDrawerTab('nation')" wire:click="setTab('nation')" class="px-4 py-2 whitespace-nowrap {{ $activeTab === 'nation' ? 'bg-white text-[#1e40af] border-t-2 border-[#1e40af]' : 'hover:bg-white border-t-2 border-transparent' }}">国家</button>
+                <button data-chat-nation-tab wire:click="setTab('nation')" class="px-4 py-2 whitespace-nowrap {{ $activeTab === 'nation' ? 'bg-white text-[#1e40af] border-t-2 border-[#1e40af]' : 'hover:bg-white border-t-2 border-transparent' }}">国家</button>
             @endif
-            <button @click="rememberDrawerTab('private')" wire:click="setTab('private')" class="px-4 py-2 whitespace-nowrap {{ $activeTab === 'private' ? 'bg-white text-[#1e40af] border-t-2 border-[#1e40af]' : 'hover:bg-white border-t-2 border-transparent' }}">個人(手紙)</button>
-            <button @click="rememberDrawerTab('drop')" wire:click="setTab('drop')" class="px-4 py-2 whitespace-nowrap {{ $activeTab === 'drop' ? 'bg-white text-[#1e40af] border-t-2 border-[#1e40af]' : 'hover:bg-white border-t-2 border-transparent text-gray-400' }}">レアドロップ</button>
-            <button @click="rememberDrawerTab('info')" wire:click="setTab('info')" class="px-4 py-2 whitespace-nowrap {{ $activeTab === 'info' ? 'bg-white text-[#1e40af] border-t-2 border-[#1e40af]' : 'hover:bg-white border-t-2 border-transparent text-gray-400' }}">お知らせ</button>
+            <button wire:click="setTab('private')" class="px-4 py-2 whitespace-nowrap {{ $activeTab === 'private' ? 'bg-white text-[#1e40af] border-t-2 border-[#1e40af]' : 'hover:bg-white border-t-2 border-transparent' }}">個人(手紙)</button>
+            <button wire:click="setTab('drop')" class="px-4 py-2 whitespace-nowrap {{ $activeTab === 'drop' ? 'bg-white text-[#1e40af] border-t-2 border-[#1e40af]' : 'hover:bg-white border-t-2 border-transparent text-gray-400' }}">レアドロップ</button>
+            <button wire:click="setTab('info')" class="px-4 py-2 whitespace-nowrap {{ $activeTab === 'info' ? 'bg-white text-[#1e40af] border-t-2 border-[#1e40af]' : 'hover:bg-white border-t-2 border-transparent text-gray-400' }}">お知らせ</button>
         </div>
         <button
             type="button"

@@ -115,7 +115,7 @@ class ChatDrawerAppearancePreferencesTest extends TestCase
             ->assertSet('activeTab', 'all');
     }
 
-    public function test_invalid_saved_drawer_tab_does_not_disable_browser_fallback(): void
+    public function test_invalid_saved_drawer_tab_falls_back_to_all(): void
     {
         [$user, $character] = $this->player();
         session(['current_character_id' => $character->id, 'chat_drawer_active_tab' => 'invalid']);

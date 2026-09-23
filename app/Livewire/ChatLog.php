@@ -148,7 +148,6 @@ class ChatLog extends Component
         $this->activeTab = $tab;
         if ($this->drawer) {
             session([self::DRAWER_TAB_SESSION_KEY => $tab]);
-            $this->dispatch('chat-drawer-tab-changed', tab: $tab);
         }
 
         if ($tab === 'nation') {
