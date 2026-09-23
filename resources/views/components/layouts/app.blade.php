@@ -149,10 +149,8 @@
                 </div>
             </div>
 
-            <!-- ホーム画面下部の従来チャット -->
-            <div x-show="currentLocation === 'home'"
-                 style="{{ $currentLocation === 'home' ? '' : 'display: none;' }}"
-                 class="w-full">
+            <!-- /home 配下の各タブ最下部に表示する従来チャット -->
+            <div class="w-full" data-home-inline-chat>
                 <livewire:chat-log :key="'home-inline-chat'" />
             </div>
 

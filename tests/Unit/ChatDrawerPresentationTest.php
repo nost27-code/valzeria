@@ -38,7 +38,7 @@ class ChatDrawerPresentationTest extends TestCase
         $this->assertStringContainsString('chara_001.webp', $logs[0]['avatar_url']);
     }
 
-    public function test_home_layout_restores_inline_chat_and_keeps_the_drawer_chat(): void
+    public function test_home_layout_keeps_inline_chat_visible_across_tabs_and_keeps_the_drawer_chat(): void
     {
         $layout = file_get_contents(resource_path('views/components/layouts/app.blade.php'));
         $header = file_get_contents(resource_path('views/livewire/city-header.blade.php'));
@@ -50,6 +50,13 @@ class ChatDrawerPresentationTest extends TestCase
         $this->assertSame(2, substr_count($layout, '<livewire:chat-log'));
         $this->assertStringContainsString('<livewire:chat-log :key="\'home-inline-chat\'" />', $layout);
         $this->assertStringContainsString('<livewire:chat-log :drawer="true" :key="\'home-drawer-chat\'" />', $layout);
+        $inlineChatStart = strpos($layout, 'data-home-inline-chat');
+        $drawerChatStart = strpos($layout, '<!-- 街ヘッダーから開くLINE風チャットドロワー -->');
+        $this->assertNotFalse($inlineChatStart);
+        $this->assertNotFalse($drawerChatStart);
+        $inlineChatSection = substr($layout, $inlineChatStart, $drawerChatStart - $inlineChatStart);
+        $this->assertStringNotContainsString('x-show=', $inlineChatSection);
+        $this->assertStringNotContainsString('display: none', $inlineChatSection);
         $this->assertStringContainsString(':show-chat-launcher="true"', $layout);
         $this->assertStringContainsString("open-chat-drawer", $header);
         $this->assertSame(1, substr_count($header, 'aria-label="チャットを開く"'));

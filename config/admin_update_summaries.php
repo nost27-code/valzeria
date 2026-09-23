@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-09-23-home-inline-chat-all-tabs',
+        'date' => '2026-09-23',
+        'category' => 'fixed',
+        'title' => 'ホーム内の各タブで従来チャットを表示',
+        'detail' => '街・探索などのタブでも、画面最下部に従来形式のチャットを表示するよう修正しました。',
+    ],
+    [
         'id' => '2026-09-23-chat-drawer-edge-gesture-conflict',
         'date' => '2026-09-23',
         'category' => 'fixed',

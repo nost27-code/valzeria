@@ -6,6 +6,10 @@ Do not record tiny refactors, formatting-only changes, or AI docs-only edits.
 
 ## Unreleased
 
+### Fixed: ホーム内の各タブで従来チャットを表示（2026-09-23）
+
+- 街・探索などのタブを開いていると最下部の従来チャットが隠れる問題を修正しました。
+
 ### Fixed: iPhone版Chromeの右側チャット操作（2026-09-23）
 
 - iPhone版Chromeのブラウザ操作と競合するため、画面右端からのスワイプ操作を廃止しました。右側チャットは街ヘッダのチャットボタン、または画面右端の取っ手をタップして開けます。
