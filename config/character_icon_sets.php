@@ -610,6 +610,15 @@ return [
                 'defeat' => '/images/chara/exclusive/exclusive_067/04_defeat.webp',
             ],
         ],
+        'exclusive_068' => [
+            'label' => '限定キャラアイコン #068',
+            'paths' => [
+                'normal' => '/images/chara/exclusive/exclusive_068/01_normal.webp',
+                'victory' => '/images/chara/exclusive/exclusive_068/02_victory.webp',
+                'battle' => '/images/chara/exclusive/exclusive_068/03_battle.webp',
+                'defeat' => '/images/chara/exclusive/exclusive_068/04_defeat.webp',
+            ],
+        ],
         'exclusive_069' => [
             'label' => '限定キャラアイコン #069',
             'paths' => [
