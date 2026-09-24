@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-09-24-exclusive-character-icon-069',
+        'date' => '2026-09-24',
+        'category' => 'internal',
+        'title' => 'ウルトラ専用のキャラアイコンを追加',
+        'detail' => 'ウルトラ専用の通常・勝利・戦闘・敗北の4ポーズを追加しました。',
+    ],
+    [
         'id' => '2026-09-24-exclusive-character-icon-067',
         'date' => '2026-09-24',
         'category' => 'internal',
