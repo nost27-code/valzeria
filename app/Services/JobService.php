@@ -230,6 +230,10 @@ class JobService
 
         $characterJob->save();
 
+        if ($levelUp || $mastered) {
+            CharacterStatusService::clearRequestCache((int) $character->id);
+        }
+
         return [
             'level_up' => $levelUp,
             'mastered' => $mastered,

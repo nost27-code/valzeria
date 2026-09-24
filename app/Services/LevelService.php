@@ -118,9 +118,8 @@ class LevelService
             $character->luck_base += $lukUp;
             $character->bonus_points = (int) ($character->bonus_points ?? 0) + self::BONUS_POINTS_PER_LEVEL;
 
-            // 一旦保存しないとステータス計算に最新のbase値が反映されない可能性があるが、
-            // getFinalStats内で引数の$characterのプロパティを読んでいるため、
-            // 保存前でも更新されたプロパティベースで計算される
+            // 地図連続探索や複数レベルアップでも、成長前の能力値を再利用しない。
+            CharacterStatusService::clearRequestCache((int) $character->id);
             $statusService = app(CharacterStatusService::class);
             $finalStats = $statusService->getFinalStats($character);
 

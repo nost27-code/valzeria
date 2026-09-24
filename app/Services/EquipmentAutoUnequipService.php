@@ -41,6 +41,7 @@ class EquipmentAutoUnequipService
         }
 
         if ($messages) {
+            CharacterStatusService::clearRequestCache((int) $character->id);
             $finalStats = $this->statusService->getFinalStats($character);
             $newMaxHp = $finalStats['max_hp'] ?? $character->hp_base;
             $newMaxMp = $finalStats['max_mp'] ?? $character->mp_base;

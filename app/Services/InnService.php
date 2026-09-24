@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use App\Models\Character;
-use App\Services\CharacterStatusService;
 use Illuminate\Support\Facades\DB;
 
 class InnService
@@ -40,21 +39,24 @@ class InnService
      */
     public function rest(Character $character): array
     {
-        $result = DB::transaction(function () use ($character): array {
-            $lockedCharacter = Character::query()
-                ->whereKey($character->id)
-                ->lockForUpdate()
-                ->firstOrFail();
+        try {
+            $result = DB::transaction(function () use ($character): array {
+                $lockedCharacter = Character::query()
+                    ->whereKey($character->id)
+                    ->lockForUpdate()
+                    ->firstOrFail();
 
-            CharacterStatusService::clearRequestCache((int) $lockedCharacter->id);
+                CharacterStatusService::clearRequestCache((int) $lockedCharacter->id);
 
-            return $this->restLocked($lockedCharacter);
-        }, 3);
+                return $this->restLocked($lockedCharacter);
+            }, 3);
 
-        $character->refresh();
-        CharacterStatusService::clearRequestCache((int) $character->id);
+            $character->refresh();
 
-        return $result;
+            return $result;
+        } finally {
+            CharacterStatusService::clearRequestCache((int) $character->id);
+        }
     }
 
     private function restLocked(Character $character): array

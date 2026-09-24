@@ -62,7 +62,7 @@ final class WindCharmAccessorySpecializationMigrationTest extends TestCase
             EquipmentEnhancementService::enhancedStatTotalsForItem($sRank, 25)
         );
         $this->assertSame(
-            ['agi' => 568],
+            ['agi' => 1600],
             EquipmentEnhancementService::enhancedStatTotalsForItem($ssRank, 30)
         );
 

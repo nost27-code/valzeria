@@ -441,8 +441,13 @@ class CharacterStatusService
         ];
     }
 
-    public static function clearRequestCache(int $characterId): void
+    public static function clearRequestCache(?int $characterId = null): void
     {
+        if ($characterId === null) {
+            self::$requestCache = [];
+
+            return;
+        }
         unset(self::$requestCache[$characterId]);
     }
 

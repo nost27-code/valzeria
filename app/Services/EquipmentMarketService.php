@@ -121,8 +121,16 @@ class EquipmentMarketService
 
     public function buyEquipment(Character $buyer, EquipmentMarketListing $listing, bool $bankConfirmed = false): EquipmentMarketTransaction
     {
-        return DB::transaction(function () use ($buyer, $listing, $bankConfirmed) {
+        // ロック対象の候補だけ先に読み、出品の状態はロック取得後に再確認する。
+        $sellerId = (int) EquipmentMarketListing::query()->findOrFail($listing->id)->seller_character_id;
+
+        return DB::transaction(function () use ($buyer, $listing, $bankConfirmed, $sellerId) {
+            // 装備変更・出品と同じくCharacterを先にロックする。
+            $characterIds = [(int) $buyer->id, $sellerId];
+            sort($characterIds);
+            $characters = Character::query()->whereIn('id', $characterIds)->orderBy('id')->lockForUpdate()->get()->keyBy('id');
             $listing = EquipmentMarketListing::query()->with('shop')->lockForUpdate()->findOrFail($listing->id);
+            if ((int) $listing->seller_character_id !== $sellerId) throw new RuntimeException('出品者の状態が変更されています。');
             if ($listing->status !== 'active' || ($this->shopService->isEnabled() && ! $listing->shop?->isOpen())) throw new RuntimeException('この出品は購入できません。');
             if ($listing->expires_at->isPast()) {
                 $this->expireLockedListing($listing);
@@ -142,9 +150,6 @@ class EquipmentMarketService
             }
 
             $item = CharacterItem::query()->with('item')->lockForUpdate()->findOrFail($listing->character_item_id);
-            $characterIds = [(int) $buyer->id, (int) $listing->seller_character_id];
-            sort($characterIds);
-            $characters = Character::query()->whereIn('id', $characterIds)->orderBy('id')->lockForUpdate()->get()->keyBy('id');
             $buyer = $characters->get((int) $buyer->id) ?? throw new RuntimeException('購入者が見つかりません。');
             $seller = $characters->get((int) $listing->seller_character_id) ?? throw new RuntimeException('出品者が見つかりません。');
             $this->assertListingItemValid($listing, $item, $seller);
@@ -181,6 +186,7 @@ class EquipmentMarketService
     public function cancelListing(Character $seller, EquipmentMarketListing $listing): void
     {
         DB::transaction(function () use ($seller, $listing) {
+            $this->lockListingSeller($listing);
             $listing = EquipmentMarketListing::query()->lockForUpdate()->findOrFail($listing->id);
             if ($listing->status !== 'active' || (int) $listing->seller_character_id !== (int) $seller->id) throw new RuntimeException('この出品は取り消せません。');
             $item = CharacterItem::query()->lockForUpdate()->findOrFail($listing->character_item_id);
@@ -192,6 +198,7 @@ class EquipmentMarketService
     public function adminCancelListing(EquipmentMarketListing $listing): void
     {
         DB::transaction(function () use ($listing) {
+            $this->lockListingSeller($listing);
             $listing = EquipmentMarketListing::query()->lockForUpdate()->findOrFail($listing->id);
             if ($listing->status !== 'active') throw new RuntimeException('この出品は取り消せません。');
             $item = CharacterItem::query()->lockForUpdate()->find($listing->character_item_id);
@@ -204,6 +211,8 @@ class EquipmentMarketService
     {
         $ids = EquipmentMarketListing::query()->where('status', 'active')->where('expires_at', '<=', now())->pluck('id');
         foreach ($ids as $id) DB::transaction(function () use ($id) {
+            $sellerId = EquipmentMarketListing::query()->whereKey($id)->value('seller_character_id');
+            Character::query()->whereKey($sellerId)->lockForUpdate()->first();
             $listing = EquipmentMarketListing::query()->lockForUpdate()->find($id);
             if ($listing && $listing->status === 'active' && $listing->expires_at->isPast()) $this->expireLockedListing($listing);
         });
@@ -236,6 +245,12 @@ class EquipmentMarketService
     private function assertListingItemValid(EquipmentMarketListing $listing, CharacterItem $item, Character $seller): void
     {
         if ((int) $item->character_id !== (int) $seller->id || (int) $item->market_listing_id !== (int) $listing->id) throw new RuntimeException('出品装備の状態が変更されています。');
+    }
+
+    private function lockListingSeller(EquipmentMarketListing $listing): void
+    {
+        $sellerId = EquipmentMarketListing::query()->whereKey($listing->id)->value('seller_character_id');
+        Character::query()->whereKey($sellerId)->lockForUpdate()->first();
     }
 
     private function expireLockedListing(EquipmentMarketListing $listing): void

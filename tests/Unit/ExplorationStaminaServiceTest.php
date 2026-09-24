@@ -175,10 +175,16 @@ class ExplorationStaminaServiceTest extends TestCase
             'explore_stamina_updated_at' => CarbonImmutable::parse('2026-07-01 12:00:00'),
         ]);
 
-        $summary = $service->summary($character);
+        // 開催期間をまたぐ自然回復は別テストで扱い、旧上限の移行は通常日に固定する。
+        CarbonImmutable::setTestNow('2026-07-01 12:00:00');
+        try {
+            $summary = $service->summary($character);
 
-        $this->assertSame(250, $summary['current']);
-        $this->assertSame(250, $summary['max']);
+            $this->assertSame(250, $summary['current']);
+            $this->assertSame(250, $summary['max']);
+        } finally {
+            CarbonImmutable::setTestNow();
+        }
     }
 
     public function test_summary_adds_max_increase_instead_of_refilling_to_full(): void

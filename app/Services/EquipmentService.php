@@ -25,72 +25,51 @@ class EquipmentService
      */
     public function equip(Character $character, CharacterItem $characterItem): array
     {
-        if ($characterItem->character_id !== $character->id) {
-            return ['success' => false, 'message' => 'この装備は所持していません。'];
-        }
-        if ($characterItem->isMarketListed()) {
-            return ['success' => false, 'message' => 'この武器は冒険者市場へ出品中です。操作するには先に出品を取り消してください。'];
-        }
-
-        $item = $characterItem->item;
-        if (!$item) {
-            return ['success' => false, 'message' => '指定された装備が見つかりません。'];
-        }
-
-        if ($this->isMark($item)) {
-            return ['success' => false, 'message' => '印は装備できません。印図鑑で集める永続効果になりました。'];
-        }
-
-        $restrictionMessage = $this->permissionService->restrictionMessage($character, $item);
-        if ($restrictionMessage) {
-            return ['success' => false, 'message' => $restrictionMessage];
-        }
-
         try {
-            DB::beginTransaction();
+            return DB::transaction(function () use ($character, $characterItem): array {
+                // 市場・強化と同じく冒険者を先にロックし、同じ枠の変更も直列化する。
+                $lockedCharacter = Character::query()->lockForUpdate()->findOrFail($character->id);
+                $lockedItem = CharacterItem::query()->with('item')->lockForUpdate()->find($characterItem->id);
+                if (!$lockedItem || (int) $lockedItem->character_id !== (int) $lockedCharacter->id) {
+                    return ['success' => false, 'message' => 'この装備は所持していません。'];
+                }
+                if ($lockedItem->isMarketListed()) {
+                    return ['success' => false, 'message' => 'この武器は冒険者市場へ出品中です。操作するには先に出品を取り消してください。'];
+                }
 
-            if ($item->type === 'accessory') {
-                CharacterItem::where('character_id', $character->id)
-                    ->where('equipped_slot', self::ACCESSORY_SLOT)
+                $item = $lockedItem->item;
+                if (!$item) {
+                    return ['success' => false, 'message' => '指定された装備が見つかりません。'];
+                }
+                if ($this->isMark($item)) {
+                    return ['success' => false, 'message' => '印は装備できません。印図鑑で集める永続効果になりました。'];
+                }
+                if ($message = $this->permissionService->restrictionMessage($lockedCharacter, $item)) {
+                    return ['success' => false, 'message' => $message];
+                }
+
+                $slot = $item->type === 'accessory' ? self::ACCESSORY_SLOT : $item->type;
+                CharacterItem::where('character_id', $lockedCharacter->id)
+                    ->where('equipped_slot', $slot)
                     ->where('is_equipped', true)
                     ->update(['is_equipped' => false, 'equipped_slot' => null]);
 
-                $characterItem->is_equipped = true;
-                $characterItem->is_stored = false;
-                $characterItem->equipped_slot = self::ACCESSORY_SLOT;
-                $characterItem->save();
-            } else {
-                // 同じカテゴリの装備を解除（武器・防具など）
-                CharacterItem::where('character_id', $character->id)
-                    ->where('equipped_slot', $item->type)
-                    ->where('is_equipped', true)
-                    ->update(['is_equipped' => false, 'equipped_slot' => null]);
+                // 同じ装備の再送でも、直前の一括解除後の状態から必ず再装備する。
+                $lockedItem->refresh();
+                $lockedItem->forceFill(['is_equipped' => true, 'is_stored' => false, 'equipped_slot' => $slot])->save();
+                $this->clampCurrentResources($lockedCharacter);
+                app(PlayerLifecycleEventService::class)->recordFirstEquipmentChange($lockedCharacter);
 
-                // 対象のアイテムを装備状態にする
-                $characterItem->is_equipped = true;
-                $characterItem->is_stored = false;
-                $characterItem->equipped_slot = $item->type;
-                $characterItem->save();
-            }
+                $character->setRawAttributes($lockedCharacter->getAttributes(), true);
+                $characterItem->setRawAttributes($lockedItem->getAttributes(), true);
 
-            // 最大HPの変動に合わせて現在HPを調整する
-            // $statusServiceで新しい最大HPを取得する
-            $finalStats = $this->statusService->getFinalStats($character);
-            $newMaxHp = $finalStats['max_hp'];
-
-            if ($character->current_hp > $newMaxHp) {
-                $character->current_hp = $newMaxHp;
-                $character->save();
-            }
-
-            DB::commit();
-
-            app(PlayerLifecycleEventService::class)->recordFirstEquipmentChange($character);
-
-            return ['success' => true, 'message' => "{$characterItem->displayName()}を装備しました。"];
+                return ['success' => true, 'message' => "{$lockedItem->displayName()}を装備しました。"];
+            }, 3);
         } catch (\Exception $e) {
-            DB::rollBack();
+            report($e);
             return ['success' => false, 'message' => '装備変更処理に失敗しました。'];
+        } finally {
+            CharacterStatusService::clearRequestCache((int) $character->id);
         }
     }
 
@@ -99,36 +78,43 @@ class EquipmentService
      */
     public function unequip(Character $character, CharacterItem $characterItem): array
     {
-        if ($characterItem->character_id !== $character->id) {
-            return ['success' => false, 'message' => 'この装備は所持していません。'];
-        }
-
-        if (!$characterItem->is_equipped) {
-            return ['success' => false, 'message' => 'このアイテムは装備していません。'];
-        }
-
         try {
-            DB::beginTransaction();
+            return DB::transaction(function () use ($character, $characterItem): array {
+                $lockedCharacter = Character::query()->lockForUpdate()->findOrFail($character->id);
+                $lockedItem = CharacterItem::query()->lockForUpdate()->find($characterItem->id);
+                if (!$lockedItem || (int) $lockedItem->character_id !== (int) $lockedCharacter->id) {
+                    return ['success' => false, 'message' => 'この装備は所持していません。'];
+                }
+                if ($lockedItem->isMarketListed()) {
+                    return ['success' => false, 'message' => 'この武器は冒険者市場へ出品中です。操作するには先に出品を取り消してください。'];
+                }
+                if (!$lockedItem->is_equipped) {
+                    return ['success' => false, 'message' => 'このアイテムは装備していません。'];
+                }
 
-            $characterItem->is_equipped = false;
-            $characterItem->equipped_slot = null;
-            $characterItem->save();
+                $lockedItem->forceFill(['is_equipped' => false, 'equipped_slot' => null])->save();
+                $this->clampCurrentResources($lockedCharacter);
+                $character->setRawAttributes($lockedCharacter->getAttributes(), true);
+                $characterItem->setRawAttributes($lockedItem->getAttributes(), true);
 
-            // 最大HPの変動に合わせて現在HPを調整する
-            $finalStats = $this->statusService->getFinalStats($character);
-            $newMaxHp = $finalStats['max_hp'];
-
-            if ($character->current_hp > $newMaxHp) {
-                $character->current_hp = $newMaxHp;
-                $character->save();
-            }
-
-            DB::commit();
-
-            return ['success' => true, 'message' => "{$characterItem->displayName()}を外しました。"];
+                return ['success' => true, 'message' => "{$lockedItem->displayName()}を外しました。"];
+            }, 3);
         } catch (\Exception $e) {
-            DB::rollBack();
+            report($e);
             return ['success' => false, 'message' => '装備解除処理に失敗しました。'];
+        } finally {
+            CharacterStatusService::clearRequestCache((int) $character->id);
+        }
+    }
+
+    private function clampCurrentResources(Character $character): void
+    {
+        CharacterStatusService::clearRequestCache((int) $character->id);
+        $stats = $this->statusService->getFinalStats($character);
+        $character->current_hp = min((int) $character->current_hp, $stats['max_hp']);
+        $character->current_mp = min((int) $character->current_mp, $stats['max_mp']);
+        if ($character->isDirty(['current_hp', 'current_mp'])) {
+            $character->save();
         }
     }
 
