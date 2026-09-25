@@ -54,6 +54,7 @@ final class NationRaidCrownTest extends TestCase
 
         $service = app(NationRaidCrownService::class);
         $this->assertSame('最終1位', $service->leaders()[$previousLeader->id]['status_label']);
+        $this->assertSame('最終1位', $service->leaderMarks()[$previousLeader->id]['max_action']['status_label']);
 
         $next = $this->event('next-raid', '天墜機神アストラギア', now()->addDay(), NationRaidEvent::STATUS_SCHEDULED);
         $this->assertArrayHasKey($previousLeader->id, $service->leaders());
@@ -64,22 +65,26 @@ final class NationRaidCrownTest extends TestCase
             'activated_at' => now(),
         ]);
         $this->assertSame([], $service->leaders());
+        $this->assertSame([], $service->leaderMarks());
 
         $unqualifiedLeader = $this->character('条件未達の首位');
         $qualifiedSecond = $this->character('条件達成の二位');
         $this->addPlayer($next, $unqualifiedLeader, 14, 2_000);
         $this->addPlayer($next, $qualifiedSecond, 15, 1_000);
         $this->assertSame([], $service->leaders(), '条件未達の1位を飛ばして2位へ王冠を付けない');
+        $this->assertSame([], $service->leaderMarks(), '条件未達の最大ダメージ1位を飛ばして2位へ専用マークを付けない');
 
         $this->addResolvedSortie($next, $next->participations()->where('character_id', $unqualifiedLeader->id)->firstOrFail(), 15, 2_000);
         $leaders = $service->leaders();
         $this->assertSame([$unqualifiedLeader->id], array_keys($leaders));
         $this->assertSame('現在首位', $leaders[$unqualifiedLeader->id]['status_label']);
+        $this->assertSame('現在首位', $service->leaderMarks()[$unqualifiedLeader->id]['max_action']['status_label']);
 
         $next->update(['status' => NationRaidEvent::STATUS_FINALIZING]);
         $this->assertArrayHasKey($unqualifiedLeader->id, $service->leaders());
         $this->completeWithCurrentStandings($next);
         $this->assertSame('最終1位', $service->leaders()[$unqualifiedLeader->id]['status_label']);
+        $this->assertSame('最終1位', $service->leaderMarks()[$unqualifiedLeader->id]['max_action']['status_label']);
     }
 
     public function test_all_qualified_competition_rank_one_players_receive_the_crown(): void
@@ -90,13 +95,37 @@ final class NationRaidCrownTest extends TestCase
         $this->addPlayer($event, $first, 15, 1_000);
         $this->addPlayer($event, $second, 15, 1_000);
 
+        $service = app(NationRaidCrownService::class);
         $this->assertEqualsCanonicalizing(
             [$first->id, $second->id],
-            array_keys(app(NationRaidCrownService::class)->leaders()),
+            array_keys($service->leaders()),
         );
+        $marks = $service->leaderMarks();
+        foreach ([$first->id, $second->id] as $characterId) {
+            $this->assertArrayHasKey('crown', $marks[$characterId]);
+            $this->assertArrayHasKey('max_action', $marks[$characterId]);
+        }
     }
 
-    public function test_online_list_shows_raid_and_six_hero_crowns_together(): void
+    public function test_cumulative_and_max_action_marks_can_have_different_leaders(): void
+    {
+        $event = $this->event('split-leaders', '分離確認レイド', now()->subHour(), NationRaidEvent::STATUS_ACTIVE);
+        $cumulativeLeader = $this->character('累計首位');
+        $maxActionLeader = $this->character('最大一撃首位');
+        $this->addPlayer($event, $cumulativeLeader, 15, 1_000, 100);
+        $this->addPlayer($event, $maxActionLeader, 15, 900, 900);
+
+        $service = app(NationRaidCrownService::class);
+        $marks = $service->leaderMarks();
+
+        $this->assertArrayHasKey('crown', $marks[$cumulativeLeader->id]);
+        $this->assertArrayNotHasKey('max_action', $marks[$cumulativeLeader->id]);
+        $this->assertArrayHasKey('max_action', $marks[$maxActionLeader->id]);
+        $this->assertArrayNotHasKey('crown', $marks[$maxActionLeader->id]);
+        $this->assertSame([$cumulativeLeader->id], array_keys($service->leaders()));
+    }
+
+    public function test_online_list_shows_both_raid_marks_and_six_hero_crowns_together(): void
     {
         $viewer = $this->character('王冠閲覧者');
         $leader = $this->character('二冠の冒険者');
@@ -129,9 +158,12 @@ final class NationRaidCrownTest extends TestCase
             ->assertSeeHtml('data-nation-raid-top-ranker="'.$leader->id.'"')
             ->assertSeeHtml('data-nation-raid-crown="current-raid"')
             ->assertSeeHtml('raid_champion_crown.webp')
+            ->assertSeeHtml('data-nation-raid-max-action-ranker="'.$leader->id.'"')
+            ->assertSeeHtml('data-nation-raid-max-action-emblem="current-raid"')
+            ->assertSeeHtml('raid_max_action_emblem.webp')
             ->assertSeeHtml('data-six-hero-top-ranker="'.$leader->id.'"')
             ->assertSeeHtml('data-six-hero-crown="divine_speed"')
-            ->assertSeeHtml('aria-label="国家対抗レイド 現在首位（天墜機神アストラギア）・六英雄戦 現在首位（神速の間） '.$leader->name.'"');
+            ->assertSeeHtml('aria-label="国家対抗レイド 現在首位（天墜機神アストラギア）・国家対抗レイド 1行動最大ダメージ 現在首位（天墜機神アストラギア）・六英雄戦 現在首位（神速の間） '.$leader->name.'"');
     }
 
     private function event(string $key, string $name, Carbon $startsAt, string $status): NationRaidEvent
@@ -159,8 +191,13 @@ final class NationRaidCrownTest extends TestCase
         ]);
     }
 
-    private function addPlayer(NationRaidEvent $event, Character $character, int $sorties, int $damage): void
-    {
+    private function addPlayer(
+        NationRaidEvent $event,
+        Character $character,
+        int $sorties,
+        int $damage,
+        ?int $maxActionDamage = null,
+    ): void {
         $participation = NationRaidParticipation::query()->create([
             'event_id' => $event->id,
             'account_id' => $character->user_id,
@@ -172,7 +209,7 @@ final class NationRaidCrownTest extends TestCase
         ]);
 
         foreach (range(1, $sorties) as $sortieNo) {
-            $this->addResolvedSortie($event, $participation, $sortieNo, $damage);
+            $this->addResolvedSortie($event, $participation, $sortieNo, $damage, $maxActionDamage);
         }
     }
 
@@ -181,6 +218,7 @@ final class NationRaidCrownTest extends TestCase
         NationRaidParticipation $participation,
         int $sortieNo,
         int $damage,
+        ?int $maxActionDamage = null,
     ): void {
         NationRaidBattleResult::query()->create([
             'event_id' => $event->id,
@@ -203,7 +241,7 @@ final class NationRaidCrownTest extends TestCase
             'applied_damage_total' => $damage,
             'coordination_damage_total' => 0,
             'nation_damage_total' => 0,
-            'max_action_damage' => $damage,
+            'max_action_damage' => $maxActionDamage ?? $damage,
             'started_at' => $event->starts_at,
             'resolved_at' => $event->starts_at,
             'resolution_deadline_at' => $event->starts_at->copy()->addMinutes(10),

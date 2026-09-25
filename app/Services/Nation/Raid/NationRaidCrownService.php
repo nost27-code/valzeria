@@ -7,7 +7,7 @@ use App\Services\SchemaStateService;
 use App\Support\NationRaidUiCatalog;
 use Illuminate\Support\Facades\Log;
 
-/** レイド順位を変更せず、オンライン名簿へ表示する現行1位の王冠だけを導出する。 */
+/** レイド順位を変更せず、オンライン名簿へ表示する現行1位の印だけを導出する。 */
 final class NationRaidCrownService
 {
     public function __construct(
@@ -19,6 +19,24 @@ final class NationRaidCrownService
      * @return array<int, array{event_id:int,event_key:string,event_name:string,status_label:string,is_final:bool,asset_url:string}>
      */
     public function leaders(): array
+    {
+        $leaders = [];
+        foreach ($this->leaderMarks() as $characterId => $marks) {
+            if (isset($marks['crown'])) {
+                $leaders[$characterId] = $marks['crown'];
+            }
+        }
+
+        return $leaders;
+    }
+
+    /**
+     * @return array<int, array{
+     *   crown?:array{event_id:int,event_key:string,event_name:string,status_label:string,is_final:bool,asset_url:string},
+     *   max_action?:array{event_id:int,event_key:string,event_name:string,status_label:string,is_final:bool,asset_url:string}
+     * }>
+     */
+    public function leaderMarks(): array
     {
         if (
             ! (bool) config('features.nation_competitive_raid_enabled', false)
@@ -37,7 +55,7 @@ final class NationRaidCrownService
         try {
             $standings = $this->rankings->standings($event);
         } catch (\DomainException $exception) {
-            Log::warning('国家対抗レイド王冠の順位を確認できないため、表示を停止しました。', [
+            Log::warning('国家対抗レイド首位マークの順位を確認できないため、表示を停止しました。', [
                 'event_id' => $event->id,
                 'error' => $exception->getMessage(),
             ]);
@@ -46,21 +64,41 @@ final class NationRaidCrownService
         }
 
         $isFinal = $event->status === NationRaidEvent::STATUS_COMPLETED;
-        $crown = [
+        $base = [
             'event_id' => (int) $event->id,
             'event_key' => (string) $event->event_key,
             'event_name' => (string) $event->name,
             'status_label' => $isFinal ? '最終1位' : '現在首位',
             'is_final' => $isFinal,
-            'asset_url' => NationRaidUiCatalog::championCrownUrl(),
         ];
 
-        return collect($standings['personal_total'] ?? [])
+        $marks = [];
+        foreach ($this->qualifiedFirstCharacterIds($standings['personal_total'] ?? []) as $characterId) {
+            $marks[$characterId]['crown'] = [
+                ...$base,
+                'asset_url' => NationRaidUiCatalog::championCrownUrl(),
+            ];
+        }
+        foreach ($this->qualifiedFirstCharacterIds($standings['max_action'] ?? []) as $characterId) {
+            $marks[$characterId]['max_action'] = [
+                ...$base,
+                'asset_url' => NationRaidUiCatalog::maxActionEmblemUrl(),
+            ];
+        }
+
+        return $marks;
+    }
+
+    /** @return list<int> */
+    private function qualifiedFirstCharacterIds(array $rows): array
+    {
+        return collect($rows)
             ->filter(static fn (array $row): bool => ($row['rank'] ?? null) === 1
                 && ($row['qualified'] ?? false) === true
                 && filter_var($row['character_id'] ?? null, FILTER_VALIDATE_INT) !== false
                 && (int) $row['character_id'] > 0)
-            ->mapWithKeys(static fn (array $row): array => [(int) $row['character_id'] => $crown])
+            ->map(static fn (array $row): int => (int) $row['character_id'])
+            ->values()
             ->all();
     }
 

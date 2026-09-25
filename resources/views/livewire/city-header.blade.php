@@ -1632,6 +1632,7 @@
                         @forelse($onlinePlayers as $player)
                             @php
                                 $nationRaidCrown = $player['nation_raid_crown'] ?? null;
+                                $nationRaidMaxActionEmblem = $player['nation_raid_max_action_emblem'] ?? null;
                                 $sixHeroCrowns = $player['six_hero_crowns'] ?? [];
                                 $sixHeroCrownRooms = implode('・', array_column($sixHeroCrowns, 'room_label'));
                                 $honorLabels = [];
@@ -1639,6 +1640,10 @@
                                 if ($nationRaidCrown) {
                                     $honorLabels[] = '国家対抗レイド '.$nationRaidCrown['status_label'].'（'.$nationRaidCrown['event_name'].'）';
                                     $honorTitles[] = '国家対抗レイド '.$nationRaidCrown['status_label'].'：'.$nationRaidCrown['event_name'];
+                                }
+                                if ($nationRaidMaxActionEmblem) {
+                                    $honorLabels[] = '国家対抗レイド 1行動最大ダメージ '.$nationRaidMaxActionEmblem['status_label'].'（'.$nationRaidMaxActionEmblem['event_name'].'）';
+                                    $honorTitles[] = '国家対抗レイド 1行動最大ダメージ '.$nationRaidMaxActionEmblem['status_label'].'：'.$nationRaidMaxActionEmblem['event_name'];
                                 }
                                 if ($sixHeroCrowns !== []) {
                                     $honorLabels[] = '六英雄戦 現在首位（'.$sixHeroCrownRooms.'）';
@@ -1650,6 +1655,9 @@
                                @if($player['is_nation_raid_top_ranker'] ?? false)
                                    data-nation-raid-top-ranker="{{ (int) $player['id'] }}"
                                @endif
+                               @if($player['is_nation_raid_max_action_ranker'] ?? false)
+                                   data-nation-raid-max-action-ranker="{{ (int) $player['id'] }}"
+                               @endif
                                @if($player['is_six_hero_top_ranker'] ?? false)
                                    data-six-hero-top-ranker="{{ (int) $player['id'] }}"
                                @endif
@@ -1658,7 +1666,7 @@
                                    title="{{ implode(' / ', $honorTitles) }}"
                                @endif
                                class="inline-flex items-center hover:underline hover:text-blue-800">
-                                @if($nationRaidCrown || $sixHeroCrowns !== [])
+                                @if($nationRaidCrown || $nationRaidMaxActionEmblem || $sixHeroCrowns !== [])
                                     <span aria-hidden="true" class="mr-0.5 inline-flex shrink-0 items-center gap-px">
                                         @if($nationRaidCrown)
                                             <img
@@ -1666,6 +1674,14 @@
                                                 alt=""
                                                 class="h-4 w-4 object-contain drop-shadow-[0_1px_1px_rgba(15,23,42,0.3)] sm:h-[18px] sm:w-[18px]"
                                                 data-nation-raid-crown="{{ $nationRaidCrown['event_key'] }}"
+                                            >
+                                        @endif
+                                        @if($nationRaidMaxActionEmblem)
+                                            <img
+                                                src="{{ $nationRaidMaxActionEmblem['asset_url'] }}"
+                                                alt=""
+                                                class="h-4 w-4 object-contain drop-shadow-[0_1px_1px_rgba(15,23,42,0.3)] sm:h-[18px] sm:w-[18px]"
+                                                data-nation-raid-max-action-emblem="{{ $nationRaidMaxActionEmblem['event_key'] }}"
                                             >
                                         @endif
                                         @foreach($sixHeroCrowns as $crown)

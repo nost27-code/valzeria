@@ -319,25 +319,29 @@ class CityHeader extends Component
     {
         $sixHeroUiEnabled = (bool) config('features.six_hero_ui_enabled', false);
         $nationRaidEnabled = (bool) config('features.nation_competitive_raid_enabled', false);
-        $cacheKey = 'city_header_online_players_v8_'
+        $cacheKey = 'city_header_online_players_v9_'
             .($sixHeroUiEnabled ? 'six-enabled' : 'six-disabled').'_'
             .($nationRaidEnabled ? 'raid-enabled' : 'raid-disabled');
 
         return Cache::remember($cacheKey, now()->addSeconds(20), function (): array {
             $sixHeroCrownsByCharacter = $this->currentSixHeroCrownsByCharacter();
-            $nationRaidCrownsByCharacter = app(NationRaidCrownService::class)->leaders();
+            $nationRaidMarksByCharacter = app(NationRaidCrownService::class)->leaderMarks();
 
             return app(RecentAdventurerService::class)->query()
                 ->get(['id', 'name'])
-                ->map(function (Character $char) use ($sixHeroCrownsByCharacter, $nationRaidCrownsByCharacter): array {
+                ->map(function (Character $char) use ($sixHeroCrownsByCharacter, $nationRaidMarksByCharacter): array {
                     $crowns = $sixHeroCrownsByCharacter[(int) $char->id] ?? [];
-                    $nationRaidCrown = $nationRaidCrownsByCharacter[(int) $char->id] ?? null;
+                    $nationRaidMarks = $nationRaidMarksByCharacter[(int) $char->id] ?? [];
+                    $nationRaidCrown = $nationRaidMarks['crown'] ?? null;
+                    $nationRaidMaxActionEmblem = $nationRaidMarks['max_action'] ?? null;
 
                     return [
                         'id' => (int) $char->id,
                         'name' => $char->name,
                         'is_nation_raid_top_ranker' => $nationRaidCrown !== null,
                         'nation_raid_crown' => $nationRaidCrown,
+                        'is_nation_raid_max_action_ranker' => $nationRaidMaxActionEmblem !== null,
+                        'nation_raid_max_action_emblem' => $nationRaidMaxActionEmblem,
                         'is_six_hero_top_ranker' => $crowns !== [],
                         'six_hero_crowns' => $crowns,
                     ];
