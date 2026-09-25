@@ -17,12 +17,14 @@ use App\Models\NationRaidPersonalReward;
 use App\Models\User;
 use App\Services\CharacterNotificationService;
 use App\Services\Nation\Raid\NationRaidEventService;
+use App\Services\Nation\Raid\NationRaidFinalResultService;
 use App\Services\Nation\Raid\NationRaidHonorService;
 use App\Services\Nation\Raid\NationRaidOperationsService;
 use App\Services\Nation\Raid\NationRaidPersonalRewardCatalog;
 use App\Services\Nation\Raid\NationRaidRankingService;
 use App\Services\Nation\Raid\NationRaidRewardIdentity;
 use App\Services\Nation\Raid\NationRaidRewardPolicy;
+use App\Services\Nation\Raid\NationRaidRewardScreenService;
 use App\Services\Nation\Raid\NationRaidRewardService;
 use App\Services\Nation\Raid\NationRaidRules;
 use Illuminate\Database\Events\QueryExecuted;
@@ -256,7 +258,13 @@ final class NationRaidRewardTest extends TestCase
             NationRaidRewardIdentity::ASTRAGIA_FIRST_TITLE_TARGET,
             $this->reward($event, 'personal_first', $character)->reward_snapshot['title_target_id'],
         );
-        $this->assertSame(1, $character->titles()->count());
+        $this->assertSame('天墜機神砕きの極撃', $this->reward($event, 'max_first', $character)->reward_snapshot['title']);
+        $this->assertSame(
+            NationRaidRewardIdentity::ASTRAGIA_MAX_ACTION_TITLE_TARGET,
+            $this->reward($event, 'max_first', $character)->reward_snapshot['title_target_id'],
+        );
+        app(NationRaidRewardService::class)->claim($event, $character, $this->reward($event, 'max_first', $character)->id);
+        $this->assertSame(2, $character->titles()->count());
         $this->assertSame(0, $nation->fresh()->development_exp);
         $this->assertDatabaseHas('nation_achievements', ['nation_id' => $nation->id, 'achievement_key' => 'astragia_defeat_participation']);
     }
@@ -388,7 +396,7 @@ final class NationRaidRewardTest extends TestCase
     {
         [$event, $character] = $this->scenario();
         $standings = app(NationRaidRankingService::class)->standings($event);
-        $screens = app(\App\Services\Nation\Raid\NationRaidRewardScreenService::class);
+        $screens = app(NationRaidRewardScreenService::class);
         foreach ($event->reward_policy_snapshot['damage_thresholds'] as $key => $threshold) {
             foreach ([-1 => 'unmet', 0 => 'awaiting'] as $offset => $expected) {
                 $standings['personal_total'][0]['damage'] = $threshold + $offset;
@@ -417,7 +425,7 @@ final class NationRaidRewardTest extends TestCase
         $response->assertOk()->assertSee('data-raid-claim-button', false)->assertSee('>入手</button>', false);
         $rows = collect($response->viewData('rewardScreen')['rows'])->keyBy('key');
         $this->assertSame(8, $rows->where('state', 'claimable')->count());
-        $dom = new \DOMDocument();
+        $dom = new \DOMDocument;
         @$dom->loadHTML($response->getContent());
         $xpath = new \DOMXPath($dom);
         $buttons = $xpath->query('//button[@data-raid-claim-button]');
@@ -461,7 +469,7 @@ final class NationRaidRewardTest extends TestCase
             ->assertDontSee('data-raid-claim-button', false)->assertDontSee('name="selection"', false);
         $this->assertSame(9, collect($response->viewData('rewardScreen')['rows'])->where('state', 'unmet')->count());
         $character->update(['is_frozen' => true]);
-        $screen = app(\App\Services\Nation\Raid\NationRaidRewardScreenService::class)->build(
+        $screen = app(NationRaidRewardScreenService::class)->build(
             $event->fresh(), $character->fresh(), app(NationRaidRankingService::class)->standings($event->fresh()),
             NationRaidPersonalReward::where('event_id', $event->id)->get());
         $this->assertSame(0, collect($screen['rows'])->where('state', 'claimable')->count());
@@ -524,12 +532,15 @@ final class NationRaidRewardTest extends TestCase
         $damageTitle = $definitions['damage2m']['payload'];
         $firstTitle = $definitions['personal_first']['payload'];
         $topThreeTitle = $definitions['personal_top3']['payload'];
+        $maxActionTitle = $definitions['max_first']['payload'];
         $this->assertSame('黒天竜を穿つ者', $damageTitle['title']);
         $this->assertArrayNotHasKey('title_target_id', $damageTitle);
         $this->assertSame('黒天竜討滅の覇者', $firstTitle['title']);
         $this->assertSame(NationRaidRewardIdentity::VALGREID_FIRST_TITLE_TARGET, $firstTitle['title_target_id']);
         $this->assertSame('黒天竜討滅の功臣', $topThreeTitle['title']);
         $this->assertArrayNotHasKey('title_target_id', $topThreeTitle);
+        $this->assertSame('黒天竜穿ちの極撃', $maxActionTitle['title']);
+        $this->assertSame(NationRaidRewardIdentity::VALGREID_MAX_ACTION_TITLE_TARGET, $maxActionTitle['title_target_id']);
         $this->assertSame('黒天竜討旗・', $identity->nationFlagPrefix($event));
         $this->assertSame([
             'label' => '黒天竜討滅参加',
@@ -554,6 +565,31 @@ final class NationRaidRewardTest extends TestCase
         $this->assertDatabaseHas('character_titles', [
             'character_id' => $character->id,
             'title_id' => 308,
+        ]);
+        $this->assertSame('claimed', $reward->fresh()->status);
+    }
+
+    public function test_legacy_max_action_title_reward_without_target_id_remains_claimable(): void
+    {
+        [$event, $character] = $this->scenario();
+        app(NationRaidEventService::class)->completeFinalization($event);
+        $reward = $this->reward($event, 'max_first', $character);
+        $snapshot = $reward->reward_snapshot;
+        unset($snapshot['title_target_id']);
+        $snapshot['title'] = '天穿の一撃';
+        $snapshot['label'] = '天穿の一撃';
+        $reward->update(['reward_snapshot' => $snapshot]);
+        config()->set('features.nation_competitive_raid_enabled', true);
+
+        app(NationRaidRewardService::class)->claim($event, $character, $reward->id);
+
+        $legacyTitleId = (int) DB::table('titles')
+            ->where('unlock_type', 'nation_raid_honor')
+            ->where('target_id', 'max_first')
+            ->value('id');
+        $this->assertDatabaseHas('character_titles', [
+            'character_id' => $character->id,
+            'title_id' => $legacyTitleId,
         ]);
         $this->assertSame('claimed', $reward->fresh()->status);
     }
@@ -586,7 +622,7 @@ final class NationRaidRewardTest extends TestCase
         $inserts = array_filter($queries, fn ($query) => str_starts_with(strtolower($query['query']), 'insert into "nation_raid_personal_rewards"'));
         $this->assertCount(8, $inserts);
         $otherParticipation = $event->participations()->where('character_id', $other->id)->sole();
-        $record = app(\App\Services\Nation\Raid\NationRaidFinalResultService::class)->forParticipant($completed, $otherParticipation);
+        $record = app(NationRaidFinalResultService::class)->forParticipant($completed, $otherParticipation);
         $this->assertFalse($record['qualified']);
         $this->assertSame(1, $record['resolved_sorties']);
         $this->assertSame(0, NationRaidPersonalReward::where('character_id', $other->id)->count());
