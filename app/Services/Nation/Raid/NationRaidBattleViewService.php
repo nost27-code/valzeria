@@ -4,6 +4,8 @@ namespace App\Services\Nation\Raid;
 
 use App\Models\Character;
 use App\Services\CharacterIconSetService;
+use App\Services\JobArtLineageCatalog;
+use App\Services\Nation\Raid\Simulation\NationRaidSimulationLineageAdapter;
 
 /** 試遊と正式出撃の戦闘ログ・編成・装備表示を共有する。 */
 final readonly class NationRaidBattleViewService
@@ -47,8 +49,7 @@ final readonly class NationRaidBattleViewService
         int $maxHp,
         ?string $lineage,
         ?array $rulesetSnapshot = null,
-    ): array
-    {
+    ): array {
         $form = $this->rules->formForHp($hp, $maxHp);
         $formParameters = $rulesetSnapshot === null
             ? $this->rules->formParameters($form)
@@ -70,10 +71,10 @@ final readonly class NationRaidBattleViewService
 
     public function lineageLabel(string $lineage): string
     {
-        $mapping = app(\App\Services\Nation\Raid\Simulation\NationRaidSimulationLineageAdapter::class)->mappings();
+        $mapping = app(NationRaidSimulationLineageAdapter::class)->mappings();
         $canonical = array_search($lineage, $mapping, true);
 
-        return app(\App\Services\JobArtLineageCatalog::class)->nameForKey($canonical === false ? null : $canonical) ?? '系譜観測';
+        return app(JobArtLineageCatalog::class)->nameForKey($canonical === false ? null : $canonical) ?? '系譜観測';
     }
 
     public function result(
@@ -91,6 +92,7 @@ final readonly class NationRaidBattleViewService
         $coordinationDamage = (int) floor($battle->calculatedBossDamage * (float) $coordination['bonus_rate']);
         $bossDamage = $battle->calculatedBossDamage + $coordinationDamage;
         $lastTurn = $battle->turns[array_key_last($battle->turns)] ?? [];
+
         return [
             'schema_version' => 'nation-raid-battle-view-v1',
             'boss_name' => $bossName,
@@ -106,7 +108,7 @@ final readonly class NationRaidBattleViewService
                 'max_hp' => $encounter['max_hp'],
             ],
             'strategy' => $strategy,
-            'strategy_label' => $strategy === NationRaidRules::STRATEGY_BOSS_SET ? 'ボス戦セット' : self::STRATEGIES[$strategy]['label'],
+            'strategy_label' => $strategy === NationRaidRules::STRATEGY_BOSS_SET ? 'レイド戦セット' : self::STRATEGIES[$strategy]['label'],
             'dominant_lineage' => $dominantLineage,
             'dominant_lineage_label' => $encounter['dominant_lineage_label'],
             'seed' => $seed,

@@ -115,7 +115,7 @@ class JobArtPvpSetViewTest extends TestCase
         $this->app->instance(GameTextService::class, $gameTextService);
 
         $method = new ReflectionMethod(MainScreen::class, 'applyFacilityOverrides');
-        $result = $method->invoke(new MainScreen(), [
+        $result = $method->invoke(new MainScreen, [
             ['name' => '戦技セット', 'desc' => '習得した奥義を最大5つまでセットする'],
             ['name' => 'ヘルプ', 'desc' => '遊び方や施設の説明を確認する'],
         ], 'home');
@@ -135,13 +135,13 @@ class JobArtPvpSetViewTest extends TestCase
         );
     }
 
-    public function test_help_copy_uses_five_slot_normal_boss_and_pvp_sets(): void
+    public function test_help_copy_uses_five_slot_normal_boss_pvp_and_raid_sets(): void
     {
         $helpContent = file_get_contents(config_path('help_content.php'));
 
         $this->assertIsString($helpContent);
         $this->assertStringNotContainsString('最大3つまでセット', $helpContent);
-        $this->assertStringContainsString('通常戦用・ボス戦用・PvP用にそれぞれ最大5つまでセット', $helpContent);
+        $this->assertStringContainsString('通常戦用・ボス戦用・PvP用・レイド用にそれぞれ最大5つまでセット', $helpContent);
         $this->assertStringContainsString('基礎発動率は始動50%・連携55%・奥義60%', $helpContent);
         $this->assertStringNotContainsString('始動35%・連携38%・奥義50%', $helpContent);
     }

@@ -73,7 +73,7 @@ class JobArtAnalyticsManager extends Component
     {
         $this->assertAdmin();
         $filters = $this->filters();
-        $filters['battle_context'] = in_array($filters['battle_context'], ['normal', 'boss', 'pvp'], true)
+        $filters['battle_context'] = in_array($filters['battle_context'], ['normal', 'boss', 'pvp', 'raid'], true)
             ? $filters['battle_context']
             : 'normal';
         $rows = app(JobArtAnalyticsService::class)->exportPlayerRows($filters);

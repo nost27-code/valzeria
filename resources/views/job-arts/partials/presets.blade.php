@@ -19,7 +19,7 @@
         <span class="shrink-0 rounded-full bg-white px-2 py-0.5 text-xs text-violet-700">{{ count($jobArtPresets) }} / {{ $jobArtPresetLimit }}</span>
     </button>
 
-    <p class="mt-1.5 text-[10px] font-bold leading-relaxed text-slate-400">現在の5枠を3件まで保存し、通常・ボス・PvPセットへ呼び出せます。</p>
+    <p class="mt-1.5 text-[10px] font-bold leading-relaxed text-slate-400">現在の5枠を3件まで保存し、通常・ボス・PvP・レイドセットへ呼び出せます。</p>
 
     <template x-teleport="body">
         <div
@@ -48,7 +48,7 @@
                             <p class="text-[10px] font-black tracking-[0.14em] text-violet-300">MY PRESETS</p>
                             <h2 id="job-art-personal-preset-title" class="mt-0.5 text-base font-black sm:text-lg">マイプリセット</h2>
                             <p class="mt-1 text-[11px] font-bold leading-relaxed text-slate-300">
-                                現在開いている<span class="text-white" x-text="({ normal: '通常', boss: 'ボス', pvp: 'PvP' })[activeContext] ?? activeContext"></span>セットを保存・呼び出しできます。
+                                現在開いている<span class="text-white" x-text="({ normal: '通常', boss: 'ボス', pvp: 'PvP', raid: 'レイド' })[activeContext] ?? activeContext"></span>セットを保存・呼び出しできます。
                             </p>
                         </div>
                         <button type="button" @click="personalPresetOpen = false" class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/10 text-lg font-black hover:bg-white/20" aria-label="マイプリセットを閉じる">×</button>
@@ -80,7 +80,7 @@
                                             <p class="mt-0.5 text-[10px] font-black text-indigo-700">SP方針：{{ $preset['sp_policy_label'] ?? '積極' }}</p>
                                         </div>
                                         @if($preset['source_context'])
-                                            <span class="shrink-0 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-black text-slate-500">{{ ['normal' => '通常', 'boss' => 'ボス', 'pvp' => 'PvP'][$preset['source_context']] ?? '保存済み' }}</span>
+                                            <span class="shrink-0 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-black text-slate-500">{{ ['normal' => '通常', 'boss' => 'ボス', 'pvp' => 'PvP', 'raid' => 'レイド'][$preset['source_context']] ?? '保存済み' }}</span>
                                         @endif
                                     </div>
 

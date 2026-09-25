@@ -8,10 +8,10 @@ use App\Models\CharacterJobArtSlot;
 use App\Models\JobArtPreset;
 use App\Models\Skill;
 use App\Models\User;
+use App\Services\JobArtLineageCatalog;
 use App\Services\JobArtPresetLimitProvider;
 use App\Services\JobArtPresetService;
 use App\Services\JobArtService;
-use App\Services\JobArtLineageCatalog;
 use App\Services\JobArtV2FeatureGate;
 use App\Services\JobArtV2LoadoutPresenter;
 use App\Services\JobArtV2OfficialPresetCatalog;
@@ -133,8 +133,8 @@ class JobArtPresetTest extends TestCase
         };
         $this->presetService = new JobArtPresetService(
             $this->jobArtService,
-            new JobArtV2FeatureGate(new JobArtV2PrototypeCatalog()),
-            new JobArtPresetLimitProvider(),
+            new JobArtV2FeatureGate(new JobArtV2PrototypeCatalog),
+            new JobArtPresetLimitProvider,
         );
     }
 
@@ -172,7 +172,7 @@ class JobArtPresetTest extends TestCase
 
     public function test_saves_raw_five_slots_order_policies_and_source_for_all_contexts(): void
     {
-        foreach (['normal' => 'conserve', 'boss' => 'normal', 'pvp' => 'aggressive'] as $context => $spPolicy) {
+        foreach (['normal' => 'conserve', 'boss' => 'normal', 'pvp' => 'aggressive', 'raid' => 'conserve'] as $context => $spPolicy) {
             $this->jobArtService->saveContextSpPolicy($this->character, $context, $spPolicy);
             $this->insertLoadout($this->character, $context, [101, 105, 109, 201, 202], ['aggressive', 'normal', 'conserve', 'normal', 'aggressive']);
             $preset = $this->presetService->createFromCurrentLoadout($this->character, "{$context}構成", $context);
@@ -189,9 +189,10 @@ class JobArtPresetTest extends TestCase
             $this->assertSame(['試験戦技101', '試験戦技105', '試験戦技109', '試験戦技201', '試験戦技202'], array_column($display['arts'], 'name'));
             $this->assertSame(['始動', '連携', '奥義', '始動', '連携'], array_column($display['arts'], 'role_label'));
             $this->assertSame($spPolicy, $display['sp_policy']);
+            $this->presetService->delete($this->character, $preset->id);
         }
 
-        $this->assertDatabaseCount('job_art_presets', 3);
+        $this->assertDatabaseCount('job_art_presets', 0);
         $presetColumns = Schema::getColumnListing('job_art_presets');
         $slotColumns = Schema::getColumnListing('job_art_preset_slots');
         foreach (['cost', 'sp_cost', 'resource', 'field', 'stance', 'restriction_group'] as $derivedColumn) {
@@ -269,13 +270,13 @@ class JobArtPresetTest extends TestCase
         $this->assertSame(2, JobArtPreset::query()->where('name', '同名')->count());
     }
 
-    public function test_applies_same_preset_to_normal_boss_and_pvp_with_all_slots_and_policies(): void
+    public function test_applies_same_preset_to_normal_boss_pvp_and_raid_with_all_slots_and_policies(): void
     {
         $this->jobArtService->saveContextSpPolicy($this->character, 'normal', 'conserve');
         $this->insertLoadout($this->character, 'normal', [101, 105, 109], ['aggressive', 'normal', 'conserve']);
         $preset = $this->presetService->createFromCurrentLoadout($this->character, '共通構成', 'normal');
 
-        foreach (['normal', 'boss', 'pvp'] as $target) {
+        foreach (['normal', 'boss', 'pvp', 'raid'] as $target) {
             $this->replaceLoadout($this->character, $target, [203]);
             $this->presetService->apply($this->character, $preset->id, $target);
             $this->assertSame([101, 105, 109], $this->storedSkillIds($this->character, $target));
@@ -291,7 +292,7 @@ class JobArtPresetTest extends TestCase
         $preset = $this->presetService->createFromCurrentLoadout($this->character, '条件保存', 'normal');
         $this->assertSame($conditions, $preset->slots->sortBy('slot_no')->pluck('condition_key')->all());
 
-        foreach (['normal', 'boss', 'pvp'] as $context) {
+        foreach (['normal', 'boss', 'pvp', 'raid'] as $context) {
             $this->replaceLoadout($this->character, $context, [203]);
             $this->presetService->apply($this->character, $preset->id, $context);
             $this->assertSame($conditions, $this->storedConditions($this->character, $context));
@@ -320,7 +321,7 @@ class JobArtPresetTest extends TestCase
         $this->insertLoadout($this->character, 'normal', $skillIds, $policies);
         $preset = $this->presetService->createFromCurrentLoadout($this->character, '混成Cost9', 'normal');
 
-        foreach (['normal', 'boss', 'pvp'] as $target) {
+        foreach (['normal', 'boss', 'pvp', 'raid'] as $target) {
             $this->replaceLoadout($this->character, $target, [203]);
             $this->presetService->apply($this->character, $preset->id, $target);
             $this->assertSame($skillIds, $this->storedSkillIds($this->character, $target), $target);
@@ -504,7 +505,7 @@ class JobArtPresetTest extends TestCase
 
         $page = file_get_contents(resource_path('views/job-arts/index.blade.php'));
         $this->assertStringContainsString('@if($jobArtPresetUiEnabled ?? false)', $page);
-        $this->assertStringContainsString("job-arts.partials.presets", $page);
+        $this->assertStringContainsString('job-arts.partials.presets', $page);
     }
 
     public function test_migration_up_and_down_only_manage_preset_tables(): void
@@ -536,7 +537,7 @@ class JobArtPresetTest extends TestCase
 
     public function test_direct_route_is_rejected_when_feature_is_off(): void
     {
-        config(['app.key' => 'base64:' . base64_encode(str_repeat('a', 32))]);
+        config(['app.key' => 'base64:'.base64_encode(str_repeat('a', 32))]);
         $character = new Character(['id' => 1, 'current_job_id' => 24]);
         $character->exists = true;
         $user = Mockery::mock(User::class)->makePartial();
@@ -557,7 +558,7 @@ class JobArtPresetTest extends TestCase
     public function test_official_starter_route_applies_to_selected_context_without_creating_personal_preset(): void
     {
         config([
-            'app.key' => 'base64:' . base64_encode(str_repeat('a', 32)),
+            'app.key' => 'base64:'.base64_encode(str_repeat('a', 32)),
             'battle.job_art_v2.loadout_v2' => true,
             'battle.job_art_v2.dynamic_single' => true,
             'battle.job_art_v2.hit_resolution' => true,
@@ -598,13 +599,13 @@ class JobArtPresetTest extends TestCase
                     ->get()
                     ->each(function (Skill $skill) use ($character): void {
                         $skill->setAttribute('job_art_origin', (int) $skill->job_id === (int) $character->current_job_id ? 'current' : 'inherited');
-                        $skill->setAttribute('job_art_effective_cost', match ((int) $skill->learn_rank) { 1 => 1, 5 => 2, 9 => 3 });
+                        $skill->setAttribute('job_art_effective_cost', match ((int) $skill->learn_rank) {
+                            1 => 1, 5 => 2, 9 => 3
+                        });
                     });
             }
 
-            public function validateSlotConfiguration(Character $character, array $slotSkillIds, string $slotContext): void
-            {
-            }
+            public function validateSlotConfiguration(Character $character, array $slotSkillIds, string $slotContext): void {}
 
             public function saveSlots(
                 Character $character,
@@ -656,7 +657,7 @@ class JobArtPresetTest extends TestCase
 
     public function test_direct_routes_cannot_apply_update_or_delete_another_characters_preset(): void
     {
-        config(['app.key' => 'base64:' . base64_encode(str_repeat('a', 32))]);
+        config(['app.key' => 'base64:'.base64_encode(str_repeat('a', 32))]);
         $this->insertLoadout($this->character, 'normal', [101]);
         $preset = $this->presetService->createFromCurrentLoadout($this->character, '所有者', 'normal');
         $intruder = Character::query()->findOrFail(2);

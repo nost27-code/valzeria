@@ -120,7 +120,7 @@ final class NationRaidTrialTest extends TestCase
             ->assertDontSee('ボスが対抗する最多系譜');
     }
 
-    public function test_local_trial_screen_presents_the_equipped_boss_art_lineage(): void
+    public function test_local_trial_screen_presents_the_equipped_raid_art_lineage(): void
     {
         $this->enableTrial();
         [, $character] = $this->character('戦技表示冒険者');
@@ -132,8 +132,11 @@ final class NationRaidTrialTest extends TestCase
         $art->setAttribute('id', 10_001);
         $art->setAttribute('slot_no', 1);
 
-        $this->app->instance(JobArtService::class, new class($art) extends JobArtService
+        $jobArts = new class($art) extends JobArtService
         {
+            /** @var list<string> */
+            public array $requestedContexts = [];
+
             public function __construct(private readonly Skill $art)
             {
                 parent::__construct();
@@ -141,14 +144,18 @@ final class NationRaidTrialTest extends TestCase
 
             public function battleArtsFor(Character $character, string $context = 'pve'): Collection
             {
+                $this->requestedContexts[] = $context;
+
                 return collect([$this->art]);
             }
-        });
+        };
+        $this->app->instance(JobArtService::class, $jobArts);
 
         $screen = app(NationRaidTrialService::class)->screen($character);
 
         $this->assertSame('試遊用反撃戦技', $screen['boss_set'][0]['name']);
         $this->assertSame('反撃', $screen['boss_set'][0]['lineage_name']);
+        $this->assertSame([JobArtService::RAID_SLOT_CONTEXT], $jobArts->requestedContexts);
     }
 
     public function test_local_trial_battle_uses_prg_persists_only_stamina_and_does_not_write_battle_or_telemetry(): void

@@ -271,6 +271,16 @@ class NationRaidPhase2SnapshotTest extends TestCase
         $character = $this->character(User::factory()->create(['role' => 'user']), '採取対象', $job, $now);
         $before = $character->fresh()->only(['current_hp', 'current_mp']);
         $battleLogsBefore = BattleLog::query()->count();
+        $this->partialMock(JobArtService::class, function ($mock): void {
+            $mock->shouldReceive('battleArtsFor')
+                ->once()
+                ->with(\Mockery::type(Character::class), JobArtService::RAID_SLOT_CONTEXT)
+                ->andReturn(collect());
+            $mock->shouldReceive('battleStrategy')
+                ->once()
+                ->with(\Mockery::type(Character::class), JobArtService::RAID_SLOT_CONTEXT)
+                ->andReturn(['mode' => 'custom', 'sp_policy' => 'aggressive', 'sp_output' => 'none', 'settings' => []]);
+        });
 
         $profiles = app(NationRaidPassiveBossActionProfileProvider::class)->profilesFor($character, 1);
 

@@ -623,7 +623,10 @@
                 </div>
 
                 <div class="mt-3">
-                    <h3 class="text-xs font-black text-slate-700">ボス戦セット</h3>
+                    <div class="flex items-center justify-between gap-3">
+                        <h3 class="text-xs font-black text-slate-700">レイド戦セット</h3>
+                        <a href="{{ route('job-arts.index', ['context' => 'raid']) }}" class="text-[11px] font-black text-indigo-700 underline decoration-indigo-300 underline-offset-2">戦技を変更</a>
+                    </div>
                     <div class="mt-2 grid gap-1 sm:grid-cols-5">
                         @foreach($screen['boss_set'] as $art)
                             <div class="flex items-center gap-2 border-b border-slate-100 py-2 text-xs sm:block sm:border-b-0 sm:border-r sm:px-2 sm:py-0 last:border-0">

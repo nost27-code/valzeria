@@ -20,6 +20,7 @@ class JobArtAnalyticsService
         'normal' => '通常戦',
         'boss' => 'ボス戦',
         'pvp' => 'PvP',
+        'raid' => 'レイド戦',
     ];
 
     private const ACTIVITY_WINDOWS = ['7', '30', '90', 'all'];
@@ -633,7 +634,7 @@ class JobArtAnalyticsService
     private function availabilityContext(string $battleContext): string
     {
         return match ($battleContext) {
-            'boss' => 'boss',
+            'boss', 'raid' => 'boss',
             'pvp' => 'champ',
             default => 'pve',
         };

@@ -8,6 +8,7 @@ use App\Models\Skill;
 use App\Services\JobArtService;
 use App\Services\JobArtV2FeatureGate;
 use App\Services\JobArtV2PrototypeCatalog;
+use App\Services\JobArtV2StrategyService;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -226,13 +227,13 @@ class JobArtLoadoutV2Test extends TestCase
         );
     }
 
-    public function test_v2_sp_policies_are_independent_for_normal_boss_and_pvp_and_conditions_are_dormant(): void
+    public function test_v2_sp_policies_are_independent_for_normal_boss_pvp_and_raid_and_conditions_are_dormant(): void
     {
         config([
             'battle.job_art_v2.loadout_v2' => true,
             'battle.job_art_v2.pvp_set' => true,
         ]);
-        foreach (['normal', 'boss', 'pvp'] as $context) {
+        foreach (['normal', 'boss', 'pvp', 'raid'] as $context) {
             $this->service->saveSlots(
                 $this->character,
                 [1 => 101],
@@ -245,11 +246,13 @@ class JobArtLoadoutV2Test extends TestCase
         $this->service->saveContextSpPolicy($this->character, 'normal', 'conserve');
         $this->service->saveContextSpPolicy($this->character, 'boss', 'normal');
         $this->service->saveContextSpPolicy($this->character, 'pvp', 'aggressive');
+        $this->service->saveContextSpPolicy($this->character, 'raid', 'conserve');
 
         foreach ([
             'pve' => ['conserve', 'normal'],
             'boss' => ['normal', 'boss'],
             'champ' => ['aggressive', 'pvp'],
+            'raid' => ['conserve', 'raid'],
         ] as $battleContext => [$expectedPolicy, $expectedSlotContext]) {
             $art = $this->service->battleArtsFor($this->character, $battleContext)->first();
             $this->assertSame($expectedPolicy, $art?->getAttribute('job_art_activation_policy'), $battleContext);
@@ -258,7 +261,7 @@ class JobArtLoadoutV2Test extends TestCase
         }
     }
 
-    public function test_sp_outputs_are_saved_independently_for_normal_boss_and_pvp(): void
+    public function test_sp_outputs_are_saved_independently_for_normal_boss_pvp_and_raid(): void
     {
         $this->enableSpOutput();
         config(['battle.job_art_v2.detailed_strategy' => true]);
@@ -266,22 +269,25 @@ class JobArtLoadoutV2Test extends TestCase
         $this->service->saveContextSpOutput($this->character, 'normal', 'low');
         $this->service->saveContextSpOutput($this->character, 'boss', 'standard');
         $this->service->saveContextSpOutput($this->character, 'pvp', 'max');
+        $this->service->saveContextSpOutput($this->character, 'raid', 'high');
 
         $this->assertSame('low', $this->service->contextStrategy($this->character, 'normal')['sp_output']);
         $this->assertSame('standard', $this->service->contextStrategy($this->character, 'boss')['sp_output']);
         $this->assertSame('max', $this->service->contextStrategy($this->character, 'pvp')['sp_output']);
+        $this->assertSame('high', $this->service->contextStrategy($this->character, 'raid')['sp_output']);
 
         $this->service->saveContextStrategy(
             $this->character,
             'normal',
             'auto',
             'aggressive',
-            app(\App\Services\JobArtV2StrategyService::class)->autoSettings(),
+            app(JobArtV2StrategyService::class)->autoSettings(),
         );
 
         $this->assertSame('low', $this->service->contextStrategy($this->character, 'normal')['sp_output']);
         $this->assertSame('standard', $this->service->contextStrategy($this->character, 'boss')['sp_output']);
         $this->assertSame('max', $this->service->contextStrategy($this->character, 'pvp')['sp_output']);
+        $this->assertSame('high', $this->service->contextStrategy($this->character, 'raid')['sp_output']);
     }
 
     public function test_pvp_set_off_reads_none_and_rejects_output_save_without_throwing(): void
@@ -338,7 +344,7 @@ class JobArtLoadoutV2Test extends TestCase
             'normal',
             'auto',
             'aggressive',
-            app(\App\Services\JobArtV2StrategyService::class)->autoSettings(),
+            app(JobArtV2StrategyService::class)->autoSettings(),
         );
     }
 
@@ -556,21 +562,22 @@ class JobArtLoadoutV2Test extends TestCase
         $this->assertSame(5, DB::table('character_job_art_slots')->count());
     }
 
-    public function test_normal_boss_and_pvp_use_the_same_non_destructive_pause_rule(): void
+    public function test_normal_boss_pvp_and_raid_use_the_same_non_destructive_pause_rule(): void
     {
         config([
             'battle.job_art_v2.loadout_v2' => true,
             'battle.job_art_v2.pvp_set' => true,
         ]);
 
-        foreach (['normal', 'boss', 'pvp'] as $context) {
+        foreach (['normal', 'boss', 'pvp', 'raid'] as $context) {
             $this->insertSlots($context, [109, 204, 203, 201, 202]);
         }
 
         $this->assertSame([109, 204, 203], $this->service->battleArtsFor($this->character, 'pve')->pluck('id')->all());
         $this->assertSame([109, 204, 203], $this->service->battleArtsFor($this->character, 'boss')->pluck('id')->all());
         $this->assertSame([109, 204, 203], $this->service->battleArtsFor($this->character, 'champ')->pluck('id')->all());
-        $this->assertSame(15, DB::table('character_job_art_slots')->count());
+        $this->assertSame([109, 204, 203], $this->service->battleArtsFor($this->character, 'raid')->pluck('id')->all());
+        $this->assertSame(20, DB::table('character_job_art_slots')->count());
     }
 
     public function test_v2_trusted_current_job_chain_can_share_a_legacy_group_in_every_set_and_reload(): void
@@ -583,7 +590,7 @@ class JobArtLoadoutV2Test extends TestCase
             $this->assertTrue($catalog->isTrustedCurrentJobArt(24, $skill));
         }
 
-        foreach (['normal' => 'pve', 'boss' => 'boss', 'pvp' => 'champ'] as $slotContext => $availabilityContext) {
+        foreach (['normal' => 'pve', 'boss' => 'boss', 'pvp' => 'champ', 'raid' => 'boss'] as $slotContext => $availabilityContext) {
             $this->service->saveSlots(
                 $this->character,
                 [1 => 101, 2 => 105, 3 => 109],
@@ -603,6 +610,7 @@ class JobArtLoadoutV2Test extends TestCase
         $this->assertSame([101, 105, 109], $this->service->battleArtsFor($this->character, 'pve')->pluck('id')->all());
         $this->assertSame([101, 105, 109], $this->service->battleArtsFor($this->character, 'boss')->pluck('id')->all());
         $this->assertSame([101, 105, 109], $this->service->battleArtsFor($this->character, 'champ')->pluck('id')->all());
+        $this->assertSame([101, 105, 109], $this->service->battleArtsFor($this->character, 'raid')->pluck('id')->all());
     }
 
     public function test_v2_restriction_compatibility_keeps_cost_nine_and_rejects_cost_ten_without_overwriting(): void

@@ -217,7 +217,7 @@ class JobArtV2LoadoutViewTest extends TestCase
 
         $this->assertIsString($view);
         $this->assertStringContainsString("\$pageTitle = \$jobArtV2UiEnabled ? '戦技セット' : '奥義セット'", $view);
-        $this->assertStringContainsString("['normal' => '通常', 'boss' => 'ボス', 'pvp' => 'PvP'][\$slotContext]", $view);
+        $this->assertStringContainsString("['normal' => '通常', 'boss' => 'ボス', 'pvp' => 'PvP', 'raid' => 'レイド'][\$slotContext]", $view);
         $this->assertStringContainsString('data-job-art-overview', $view);
         $this->assertStringContainsString('data-job-art-overview-meta', $view);
         $this->assertStringNotContainsString('data-job-art-current-lineage', $view);
@@ -238,7 +238,7 @@ class JobArtV2LoadoutViewTest extends TestCase
         $this->assertStringContainsString("\$v2Display['effect_template'] ?? null", $view);
         $this->assertStringContainsString('@if(!$jobArtV2UiEnabled && $art->cooldown_turns)', $view);
         $this->assertStringContainsString('@if(!$jobArtV2UiEnabled && $art->max_uses_per_battle)', $view);
-        $this->assertStringContainsString("(?:CT\\s*\\d+|1戦\\s*\\d+\\s*回)", $view);
+        $this->assertStringContainsString('(?:CT\\s*\\d+|1戦\\s*\\d+\\s*回)', $view);
         $this->assertStringContainsString('@unless($jobArtV2UiEnabled)', $view);
         $this->assertStringContainsString('data-job-art-resource-guide', $view);
         $this->assertStringContainsString('data-job-art-sortable="true"', $view);
@@ -252,11 +252,11 @@ class JobArtV2LoadoutViewTest extends TestCase
         $this->assertStringContainsString("'current' => '現在職'", $view);
         $this->assertStringContainsString("'inherited' => '継承'", $view);
         $this->assertStringContainsString('initializeSlotAccordions', $view);
-        $this->assertStringContainsString("job-arts.partials.starter-presets", $view);
+        $this->assertStringContainsString('job-arts.partials.starter-presets', $view);
         $this->assertStringContainsString('$jobArtStarterPresetCount', $view);
         $this->assertStringNotContainsString('$jobArtStarterPresetsByContext', $view);
         $this->assertStringContainsString('data-job-art-active-lineages="{{ $slotContext }}"', $view);
-        $this->assertStringContainsString("job-arts.partials.active-lineages", $view);
+        $this->assertStringContainsString('job-arts.partials.active-lineages', $view);
         $this->assertStringContainsString('replaceActiveLineages(context, payload.active_lineages_html)', $view);
         $this->assertStringContainsString('data-job-art-pvp-reward-note', $view);
         $this->assertStringContainsString('報酬系の戦技も設定できます', $view);
@@ -279,7 +279,7 @@ class JobArtV2LoadoutViewTest extends TestCase
         ])->render();
 
         $this->assertIsString($page);
-        $this->assertStringContainsString("job-arts.partials.system-guide", $page);
+        $this->assertStringContainsString('job-arts.partials.system-guide', $page);
         $this->assertStringContainsString('data-job-art-system-guide-link', $html);
         $this->assertStringContainsString('戦技セットの解説を見る', $html);
         $this->assertStringContainsString('x-teleport="body"', $html);
@@ -289,6 +289,7 @@ class JobArtV2LoadoutViewTest extends TestCase
         $this->assertStringContainsString('5枠の順番と系譜リソース', $html);
         $this->assertStringContainsString('1 → 2 → 3 → 4 → 5 → 1…', $html);
         $this->assertStringContainsString('基礎発動率は始動50%・連携55%・奥義60%', $html);
+        $this->assertStringContainsString('通常・ボス・PvP・レイドは別々のセットです', $html);
         $this->assertStringContainsString('同じ手番で後ろの枠を再抽選しません', $html);
         $this->assertStringContainsString('候補優先とある効果は先に判定されます', $html);
         $this->assertSame(10, substr_count($html, 'data-job-art-system-guide-lineage='));
@@ -404,7 +405,7 @@ class JobArtV2LoadoutViewTest extends TestCase
         $this->assertStringNotContainsString('data-job-art-card-stats', $view);
         $this->assertStringContainsString('data-job-art-card-favorite', $view);
         $this->assertStringContainsString('data-job-art-card-icon', $view);
-        $this->assertStringContainsString("asset(\$jobArtIconPath)", $view);
+        $this->assertStringContainsString('asset($jobArtIconPath)', $view);
         $this->assertStringContainsString('data-job-art-lineage-icon', $view);
         $this->assertStringContainsString("asset(\$v2Display['source_lineage_icon_path'])", $view);
         $this->assertStringContainsString('{{ $lineageDisplayLabel }}のアイコン', $view);
@@ -416,8 +417,8 @@ class JobArtV2LoadoutViewTest extends TestCase
         $this->assertStringContainsString('data-job-art-replace-modal', $view);
         $this->assertStringContainsString('data-job-art-replace-slots', $view);
         $this->assertStringContainsString('現在セット中の5枠です。入れ替える枠をタップしてください。', $view);
-        $this->assertStringContainsString("const openReplacementModal = (button) =>", $view);
-        $this->assertStringContainsString("await assignSkillToSlot(", $view);
+        $this->assertStringContainsString('const openReplacementModal = (button) =>', $view);
+        $this->assertStringContainsString('await assignSkillToSlot(', $view);
         $this->assertStringContainsString("const POLICY_URL = @json(route('job-arts.policy'))", $view);
         $this->assertStringContainsString("'Accept': 'application/json'", $view);
         $this->assertStringContainsString('data-job-art-context-sp-policy-status', $view);

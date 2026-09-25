@@ -168,7 +168,7 @@ final class NationRaidRules
 
     public const FORM_EXPOSED_CORE = 'exposed_core';
 
-    /** 作戦補正なし。既存ボス戦セットの候補順をそのまま使う。 */
+    /** 作戦補正なし。レイド戦セットの候補順をそのまま使う。 */
     public const STRATEGY_BOSS_SET = 'boss_set';
 
     public const STRATEGY_ASSAULT = 'assault';

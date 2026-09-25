@@ -29,6 +29,7 @@
                     <option value="normal">通常戦</option>
                     <option value="boss">ボス戦</option>
                     <option value="pvp">PvP</option>
+                    <option value="raid">レイド戦</option>
                 </select>
             </label>
             <label class="text-xs font-black text-slate-600">

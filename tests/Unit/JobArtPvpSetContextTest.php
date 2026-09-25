@@ -19,10 +19,13 @@ class JobArtPvpSetContextTest extends TestCase
         config(['battle.job_art_v2.pvp_set' => false]);
         $service = app(JobArtService::class);
 
-        $this->assertSame(['normal', 'boss'], $service->slotContexts());
+        $this->assertSame(['normal', 'boss', 'raid'], $service->slotContexts());
         $this->assertArrayNotHasKey('pvp', $service->slotContextLabels());
+        $this->assertSame('レイド戦セット', $service->slotContextLabels()['raid']);
+        $this->assertSame('boss', $service->availabilityContextForSlotContext('raid'));
         $this->assertSame('normal', $service->battleSlotContext('pve'));
         $this->assertSame('boss', $service->battleSlotContext('boss'));
+        $this->assertSame('raid', $service->battleSlotContext('raid'));
         $this->assertSame('boss', $service->battleSlotContext('champ'));
         $this->assertSame('boss', $service->battleSlotContext('pvp'));
         $this->assertSame('boss', $service->battleSlotContext('arena_npc'));
@@ -33,7 +36,7 @@ class JobArtPvpSetContextTest extends TestCase
         config(['battle.job_art_v2.pvp_set' => true]);
         $service = app(JobArtService::class);
 
-        $this->assertSame(['normal', 'boss', 'pvp'], $service->slotContexts());
+        $this->assertSame(['normal', 'boss', 'pvp', 'raid'], $service->slotContexts());
         $this->assertSame('PvPセット', $service->slotContextLabels()['pvp']);
         $this->assertSame('champ', $service->availabilityContextForSlotContext('pvp'));
         $this->assertSame('pvp', $service->battleSlotContext('champ'));
@@ -41,6 +44,7 @@ class JobArtPvpSetContextTest extends TestCase
         $this->assertSame('pvp', $service->battleSlotContext('arena_npc'));
         $this->assertSame('normal', $service->battleSlotContext('pve'));
         $this->assertSame('boss', $service->battleSlotContext('boss'));
+        $this->assertSame('raid', $service->battleSlotContext('raid'));
     }
 
     public function test_pr2_does_not_change_slot_or_cost_limits(): void

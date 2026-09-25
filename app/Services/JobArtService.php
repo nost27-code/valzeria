@@ -13,17 +13,29 @@ use Illuminate\Validation\ValidationException;
 class JobArtService
 {
     public const MAX_SLOTS = 3;
+
     public const MAX_COST = 5;
+
     public const V2_MAX_SLOTS = 5;
+
     public const V2_MAX_COST = 9;
+
     public const ACTIVATION_POLICIES = ['aggressive', 'normal', 'conserve', 'boss_only'];
+
     public const SLOT_ACTIVATION_POLICIES = ['aggressive', 'normal', 'conserve'];
+
     public const SLOT_CONTEXTS = ['normal', 'boss'];
+
     public const PVP_SLOT_CONTEXT = 'pvp';
 
+    public const RAID_SLOT_CONTEXT = 'raid';
+
     private readonly JobArtV2SlotConditionCatalog $slotConditionCatalog;
+
     private readonly JobArtV2DeckRoleResolver $deckRoleResolver;
+
     private readonly JobArtV2StrategyService $strategyService;
+
     private readonly JobArtV2FeatureGate $featureGate;
 
     public function __construct(
@@ -67,9 +79,13 @@ class JobArtService
 
     public function slotContexts(): array
     {
-        return $this->pvpSetEnabled()
-            ? [...self::SLOT_CONTEXTS, self::PVP_SLOT_CONTEXT]
-            : self::SLOT_CONTEXTS;
+        $contexts = self::SLOT_CONTEXTS;
+        if ($this->pvpSetEnabled()) {
+            $contexts[] = self::PVP_SLOT_CONTEXT;
+        }
+        $contexts[] = self::RAID_SLOT_CONTEXT;
+
+        return $contexts;
     }
 
     public function slotContextLabels(): array
@@ -82,6 +98,7 @@ class JobArtService
         if ($this->pvpSetEnabled()) {
             $labels[self::PVP_SLOT_CONTEXT] = 'PvPセット';
         }
+        $labels[self::RAID_SLOT_CONTEXT] = 'レイド戦セット';
 
         return $labels;
     }
@@ -96,6 +113,7 @@ class JobArtService
         if ($this->pvpSetEnabled()) {
             $descriptions[self::PVP_SLOT_CONTEXT] = 'プレイヤーPvP、チャンプ戦、闘技場NPC戦で使う戦技です。Gold・ドロップなどの報酬補正は発動しません。';
         }
+        $descriptions[self::RAID_SLOT_CONTEXT] = '国家レイドで使う戦技です。ボス戦セットとは別に保存されます。';
 
         return $descriptions;
     }
@@ -341,6 +359,7 @@ class JobArtService
                 // カードに書かれた効果を100%発揮する。
                 $skill->setAttribute('job_art_rate', 1.0);
                 $skill->setAttribute('job_art_effective_cost', $this->effectiveArtCostFor($character, $skill));
+
                 return $skill;
             })
             ->values();
@@ -351,8 +370,7 @@ class JobArtService
         string $context = 'pve',
         string $slotContext = 'normal',
         ?Collection $availableArts = null,
-    ): Collection
-    {
+    ): Collection {
         $slotContext = $this->normalizeSlotContext($slotContext);
         $available = ($availableArts ?? $this->availableArts($character, $context))->keyBy('id');
         $slots = $character->jobArtSlots()
@@ -362,7 +380,7 @@ class JobArtService
             ->get()
             ->map(function (CharacterJobArtSlot $slot) use ($available): ?CharacterJobArtSlot {
                 $skill = $available->get($slot->skill_id);
-                if (!$skill) {
+                if (! $skill) {
                     return null;
                 }
 
@@ -370,6 +388,7 @@ class JobArtService
                 $slot->setAttribute('job_art_slot_condition', $this->slotConditionCatalog->normalize(
                     $this->hasConditionKeyColumn() ? (string) $slot->condition_key : null,
                 ));
+
                 return $slot;
             })
             ->filter()
@@ -399,7 +418,7 @@ class JobArtService
             ->get()
             ->map(function (CharacterJobArtSlot $slot) use ($available): ?CharacterJobArtSlot {
                 $skill = $available->get($slot->skill_id);
-                if (!$skill) {
+                if (! $skill) {
                     return null;
                 }
 
@@ -407,6 +426,7 @@ class JobArtService
                 $slot->setAttribute('job_art_slot_condition', $this->slotConditionCatalog->normalize(
                     $this->hasConditionKeyColumn() ? (string) $slot->condition_key : null,
                 ));
+
                 return $slot;
             })
             ->filter()
@@ -419,7 +439,7 @@ class JobArtService
 
                 $skill->setAttribute('slot_no', (int) $slot->slot_no);
                 $skill->setAttribute('job_art_effective_cost', (int) $slot->getAttribute('job_art_effective_cost'));
-                // 戦技v2は個別方針ではなく、通常・ボス・PvPごとのSP方針を
+                // 戦技v2は個別方針ではなく、通常・ボス・PvP・レイドごとのSP方針を
                 // 5枠すべてへ適用する。旧戦技は保存済みの個別方針を維持する。
                 $skill->setAttribute(
                     'job_art_activation_policy',
@@ -433,13 +453,14 @@ class JobArtService
                         : (string) $slot->getAttribute('job_art_slot_condition'),
                 ));
                 $skill->setAttribute('job_art_strategy', $contextStrategy);
+
                 return $skill;
             })
             ->values();
     }
 
     /**
-     * @param array<int, int|null|string> $orderedSkillIds
+     * @param  array<int, int|null|string>  $orderedSkillIds
      */
     public function reorderSlots(Character $character, string $slotContext, array $orderedSkillIds): void
     {
@@ -464,6 +485,7 @@ class JobArtService
                 }
 
                 $skillId = (int) $skillId;
+
                 return $skillId > 0 ? $skillId : null;
             },
             $orderedSkillIds,
@@ -515,8 +537,7 @@ class JobArtService
         string $availabilityContext = 'pve',
         array $slotPolicies = [],
         ?array $slotConditions = null,
-    ): void
-    {
+    ): void {
         $slotContext = $this->normalizeSlotContext($slotContext);
         $this->validateSubmittedSlotNumbers($slotSkillIds);
         $normalized = $this->normalizeSlotInput($slotSkillIds);
@@ -570,8 +591,7 @@ class JobArtService
         array $slotSkillIds,
         string $slotContext,
         ?Collection $availableArts = null,
-    ): void
-    {
+    ): void {
         $slotContext = $this->normalizeSlotContext($slotContext);
         $this->validateSubmittedSlotNumbers($slotSkillIds);
         $this->validateSlots(
@@ -628,8 +648,7 @@ class JobArtService
         ?int $skillId,
         ?string $policy = null,
         ?string $condition = null,
-    ): void
-    {
+    ): void {
         $slotContext = $this->normalizeSlotContext($slotContext);
         $availabilityContext = $this->availabilityContextForSlotContext($slotContext);
         $selectedSlots = $this->selectedSlots($character, $availabilityContext, $slotContext);
@@ -667,7 +686,7 @@ class JobArtService
 
     public function saveActivationPolicy(Character $character, string $policy): void
     {
-        if (!in_array($policy, self::ACTIVATION_POLICIES, true)) {
+        if (! in_array($policy, self::ACTIVATION_POLICIES, true)) {
             throw ValidationException::withMessages(['activation_policy' => '奥義発動方針が正しくありません。']);
         }
 
@@ -759,7 +778,7 @@ class JobArtService
 
     public function setupSeenSessionKey(Character $character): string
     {
-        return 'job_art_setup_seen_' . (int) $character->id;
+        return 'job_art_setup_seen_'.(int) $character->id;
     }
 
     public function setupSignature(Character $character, ?Collection $availableArts = null, ?Collection $selectedSlots = null): string
@@ -791,7 +810,7 @@ class JobArtService
                             $this->hasConditionKeyColumn() ? (string) $slot->condition_key : null,
                         ),
                 ])
-                ->sortBy(fn (array $slot): string => $slot['context'] . ':' . $slot['slot'])
+                ->sortBy(fn (array $slot): string => $slot['context'].':'.$slot['slot'])
                 ->values()
                 ->all(),
             'selected_count' => $selectedSkills->count(),
@@ -815,11 +834,10 @@ class JobArtService
         array $slotSkillIds,
         string $availabilityContext = 'pve',
         ?Collection $availableArts = null,
-    ): void
-    {
+    ): void {
         $usesV2Loadout = $this->usesV2LoadoutFor($character);
         if (count($slotSkillIds) > $this->maxSlots()) {
-            throw ValidationException::withMessages(['slots' => '戦技は最大' . $this->maxSlots() . 'つまで設定できます。']);
+            throw ValidationException::withMessages(['slots' => '戦技は最大'.$this->maxSlots().'つまで設定できます。']);
         }
 
         $available = ($availableArts ?? $this->availableArts($character, $availabilityContext))->keyBy('id');
@@ -828,7 +846,7 @@ class JobArtService
 
         foreach ($slotSkillIds as $slotNo => $skillId) {
             if ($slotNo < 1 || $slotNo > $this->maxSlots()) {
-                throw ValidationException::withMessages(['slots' => '戦技枠は1〜' . $this->maxSlots() . 'のみ使用できます。']);
+                throw ValidationException::withMessages(['slots' => '戦技枠は1〜'.$this->maxSlots().'のみ使用できます。']);
             }
             if (isset($seen[$skillId])) {
                 throw ValidationException::withMessages(['slots' => '同じ戦技を複数セットすることはできません。']);
@@ -836,7 +854,7 @@ class JobArtService
             $seen[$skillId] = true;
 
             $skill = $available->get($skillId);
-            if (!$skill) {
+            if (! $skill) {
                 throw ValidationException::withMessages(['slots' => 'この戦技はまだ習得していません。']);
             }
             if (! $usesV2Loadout
@@ -854,7 +872,7 @@ class JobArtService
         }
 
         if ($this->totalEffectiveCostFor($character, $selected) > $this->maxCost()) {
-            throw ValidationException::withMessages(['slots' => '戦技Costの合計は' . $this->maxCost() . 'までです。']);
+            throw ValidationException::withMessages(['slots' => '戦技Costの合計は'.$this->maxCost().'までです。']);
         }
 
         if (! $usesV2Loadout) {
@@ -887,6 +905,7 @@ class JobArtService
         }
 
         ksort($normalized);
+
         return $normalized;
     }
 
@@ -900,7 +919,7 @@ class JobArtService
             $slotNo = (int) $slotNo;
             if ($slotNo < 1 || $slotNo > $this->maxSlots()) {
                 throw ValidationException::withMessages([
-                    'slots' => '奥義枠は1〜' . $this->maxSlots() . 'のみ使用できます。',
+                    'slots' => '奥義枠は1〜'.$this->maxSlots().'のみ使用できます。',
                 ]);
             }
         }
@@ -934,13 +953,17 @@ class JobArtService
             return $this->pvpSetEnabled() ? self::PVP_SLOT_CONTEXT : 'boss';
         }
 
-        return $battleContext === 'boss' ? 'boss' : 'normal';
+        return match ($battleContext) {
+            'boss' => 'boss',
+            self::RAID_SLOT_CONTEXT => self::RAID_SLOT_CONTEXT,
+            default => 'normal',
+        };
     }
 
     public function availabilityContextForSlotContext(string $slotContext): string
     {
         return match ($slotContext) {
-            'boss' => 'boss',
+            'boss', self::RAID_SLOT_CONTEXT => 'boss',
             self::PVP_SLOT_CONTEXT => 'champ',
             default => 'pve',
         };
@@ -948,7 +971,7 @@ class JobArtService
 
     private function normalizeSlotContext(string $slotContext): string
     {
-        if (!in_array($slotContext, $this->slotContexts(), true)) {
+        if (! in_array($slotContext, $this->slotContexts(), true)) {
             throw ValidationException::withMessages(['slot_context' => '奥義セット種別が正しくありません。']);
         }
 
@@ -991,7 +1014,7 @@ class JobArtService
 
     private function availabilityFor(Skill $skill, Character $character, Collection $histories, int $currentJobId, int $currentRank, string $context): array
     {
-        if (!$this->contextAllows($skill, $context)) {
+        if (! $this->contextAllows($skill, $context)) {
             return ['available' => false, 'origin' => 'disabled', 'rate' => 0.0];
         }
 
@@ -1006,10 +1029,10 @@ class JobArtService
         $history = $histories->get((int) $skill->job_id);
         $maxRank = (int) ($history?->jobClass?->max_job_level ?? 10);
         $mastered = (bool) ($history?->is_mastered ?? false) || (int) ($history?->job_level ?? 0) >= $maxRank;
-        if (!$mastered) {
+        if (! $mastered) {
             return ['available' => false, 'origin' => 'locked', 'rate' => 0.0];
         }
-        if (!$skill->inherit_on_master || $skill->isTimeLimited()) {
+        if (! $skill->inherit_on_master || $skill->isTimeLimited()) {
             return ['available' => false, 'origin' => 'not_inheritable', 'rate' => 0.0];
         }
 

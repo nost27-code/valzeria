@@ -82,7 +82,7 @@
                 </div>
                 @if(!$jobArtV2UiEnabled)
                     <div class="shrink-0 space-y-0.5 text-right text-xs font-black text-slate-500">
-                        @foreach(['normal' => '通常', 'boss' => 'ボス', 'pvp' => '対人'] as $slotContext => $shortLabel)
+                        @foreach(['normal' => '通常', 'boss' => 'ボス', 'pvp' => '対人', 'raid' => 'レイド'] as $slotContext => $shortLabel)
                             @if(array_key_exists($slotContext, $slotContextLabels))
                                 <div>{{ $shortLabel }} <span data-job-art-total-cost="{{ $slotContext }}">{{ $totalCostByContext[$slotContext] ?? 0 }}</span>/{{ $maxCost }}</div>
                             @endif
@@ -134,7 +134,7 @@
                 @if($jobArtV2UiEnabled)
                     <div class="overflow-hidden rounded-xl border border-slate-200 bg-white" data-job-art-context-summary>
                         <div class="flex items-center gap-2 p-1.5 sm:gap-3 sm:p-2">
-                            <div class="grid min-w-0 flex-1 {{ count($slotContextLabels) === 3 ? 'grid-cols-3' : 'grid-cols-2' }} gap-1 rounded-lg bg-slate-50 p-1">
+                            <div class="grid min-w-0 flex-1 {{ count($slotContextLabels) === 4 ? 'grid-cols-4' : (count($slotContextLabels) === 3 ? 'grid-cols-3' : 'grid-cols-2') }} gap-1 rounded-lg bg-slate-50 p-1">
                                 @foreach($slotContextLabels as $slotContext => $slotContextLabel)
                                     <button
                                         type="button"
@@ -142,7 +142,7 @@
                                         class="min-h-9 rounded-md px-2 text-xs font-black transition-colors sm:text-sm"
                                         :class="activeContext === @js($slotContext) ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:bg-white hover:text-slate-700'"
                                     >
-                                        {{ ['normal' => '通常', 'boss' => 'ボス', 'pvp' => 'PvP'][$slotContext] ?? $slotContextLabel }}
+                                        {{ ['normal' => '通常', 'boss' => 'ボス', 'pvp' => 'PvP', 'raid' => 'レイド'][$slotContext] ?? $slotContextLabel }}
                                     </button>
                                 @endforeach
                             </div>
@@ -169,7 +169,7 @@
                         </div>
                     </div>
                 @else
-                    <div class="grid {{ count($slotContextLabels) === 3 ? 'grid-cols-3' : 'grid-cols-2' }} gap-1 rounded-lg bg-slate-100 p-1">
+                    <div class="grid {{ count($slotContextLabels) === 4 ? 'grid-cols-4' : (count($slotContextLabels) === 3 ? 'grid-cols-3' : 'grid-cols-2') }} gap-1 rounded-lg bg-slate-100 p-1">
                         @foreach($slotContextLabels as $slotContext => $slotContextLabel)
                             <button
                                 type="button"
@@ -256,7 +256,7 @@
                                         'starterPresetCount' => $jobArtStarterPresetCount,
                                         'starterPresetHighlighted' => $jobArtStarterPresetHighlighted ?? false,
                                         'slotContext' => $slotContext,
-                                        'slotContextLabel' => ['normal' => '通常', 'boss' => 'ボス', 'pvp' => 'PvP'][$slotContext] ?? $slotContextLabel,
+                                        'slotContextLabel' => ['normal' => '通常', 'boss' => 'ボス', 'pvp' => 'PvP', 'raid' => 'レイド'][$slotContext] ?? $slotContextLabel,
                                         'compact' => true,
                                     ])
                                 @endif
@@ -277,7 +277,7 @@
                                             <div class="text-xs font-black text-slate-800">SP方針</div>
                                                 <span class="hidden text-[10px] font-black text-emerald-600" data-job-art-context-sp-policy-status aria-live="polite"></span>
                                         </div>
-                                        <p class="mt-0.5 text-[10px] font-bold leading-relaxed text-slate-500">この{{ ['normal' => '通常', 'boss' => 'ボス', 'pvp' => 'PvP'][$slotContext] ?? '' }}セットの5枠へ一括適用します。</p>
+                                        <p class="mt-0.5 text-[10px] font-bold leading-relaxed text-slate-500">この{{ ['normal' => '通常', 'boss' => 'ボス', 'pvp' => 'PvP', 'raid' => 'レイド'][$slotContext] ?? '' }}セットの5枠へ一括適用します。</p>
                                     </div>
                                     <div class="grid grid-cols-3 gap-1 rounded-lg bg-white p-1 shadow-sm">
                                         @foreach($activationPolicyLabels as $policyKey => $policyLabel)
@@ -306,7 +306,7 @@
                                 'starterPresetCount' => $jobArtStarterPresetCount,
                                 'starterPresetHighlighted' => $jobArtStarterPresetHighlighted ?? false,
                                 'slotContext' => $slotContext,
-                                'slotContextLabel' => ['normal' => '通常', 'boss' => 'ボス', 'pvp' => 'PvP'][$slotContext] ?? $slotContextLabel,
+                                'slotContextLabel' => ['normal' => '通常', 'boss' => 'ボス', 'pvp' => 'PvP', 'raid' => 'レイド'][$slotContext] ?? $slotContextLabel,
                             ])
                         @endif
 
@@ -722,14 +722,14 @@
 
                                 <div class="flex justify-end" data-job-art-card-footer>
                                     <div class="space-y-0.5 text-right">
-                                        @foreach(['normal' => '通常', 'boss' => 'ボス', 'pvp' => '対人'] as $slotContext => $shortLabel)
+                                        @foreach(['normal' => '通常', 'boss' => 'ボス', 'pvp' => '対人', 'raid' => 'レイド'] as $slotContext => $shortLabel)
                                             @continue(!array_key_exists($slotContext, $slotContextLabels))
                                             @php
                                                 $selectedSlotForContext = (int) (($selectedSlotBySkillByContext[$slotContext][$art->id] ?? 0) ?: 0);
                                             @endphp
                                             <div
                                                 data-job-art-status="{{ $slotContext }}"
-                                                class="text-[10px] font-black {{ $slotContext === 'normal' ? 'text-emerald-600' : ($slotContext === 'boss' ? 'text-indigo-600' : 'text-rose-600') }} {{ $selectedSlotForContext ? '' : 'hidden' }}"
+                                                class="text-[10px] font-black {{ $slotContext === 'normal' ? 'text-emerald-600' : ($slotContext === 'boss' ? 'text-indigo-600' : ($slotContext === 'raid' ? 'text-violet-600' : 'text-rose-600')) }} {{ $selectedSlotForContext ? '' : 'hidden' }}"
                                             >{{ $shortLabel }} Slot<span data-job-art-status-slot>{{ $selectedSlotForContext ?: '' }}</span> セット中</div>
                                         @endforeach
                                     </div>
@@ -746,14 +746,14 @@
                                         <button type="button" data-job-art-favorite-toggle="{{ $art->id }}" aria-pressed="false" class="inline-flex h-7 w-7 items-center justify-center rounded-full border border-slate-200 bg-white text-sm font-black text-slate-300 shadow-sm transition-colors hover:border-amber-300 hover:text-amber-500" title="お気に入り">☆</button>
                                         <div class="inline-flex rounded border px-2 py-1 text-xs font-black {{ $costBadgeClass }}">Cost {{ $cost }}</div>
                                     </div>
-                                    @foreach(['normal' => '通常', 'boss' => 'ボス', 'pvp' => '対人'] as $slotContext => $shortLabel)
+                                    @foreach(['normal' => '通常', 'boss' => 'ボス', 'pvp' => '対人', 'raid' => 'レイド'] as $slotContext => $shortLabel)
                                         @continue(!array_key_exists($slotContext, $slotContextLabels))
                                         @php
                                             $selectedSlotForContext = (int) (($selectedSlotBySkillByContext[$slotContext][$art->id] ?? 0) ?: 0);
                                         @endphp
                                         <div
                                             data-job-art-status="{{ $slotContext }}"
-                                            class="text-[10px] font-black {{ $slotContext === 'normal' ? 'text-emerald-600' : ($slotContext === 'boss' ? 'text-indigo-600' : 'text-rose-600') }} {{ $selectedSlotForContext ? '' : 'hidden' }}"
+                                            class="text-[10px] font-black {{ $slotContext === 'normal' ? 'text-emerald-600' : ($slotContext === 'boss' ? 'text-indigo-600' : ($slotContext === 'raid' ? 'text-violet-600' : 'text-rose-600')) }} {{ $selectedSlotForContext ? '' : 'hidden' }}"
                                         >{{ $shortLabel }} Slot<span data-job-art-status-slot>{{ $selectedSlotForContext ?: '' }}</span> セット中</div>
                                     @endforeach
                                 </div>
@@ -857,7 +857,7 @@
             const SP_OUTPUT_URL = @json(route('job-arts.sp-output'));
             const STRATEGY_URL = @json(route('job-arts.strategy'));
             const CSRF_TOKEN = @json(csrf_token());
-            const CONTEXT_LABELS = { normal: '通常', boss: 'ボス', pvp: '対人' };
+            const CONTEXT_LABELS = { normal: '通常', boss: 'ボス', pvp: '対人', raid: 'レイド' };
             const SP_POLICY_DESCRIPTIONS = @json($activationPolicyDescriptions);
 
             const replaceDiagnosis = (context, html) => {

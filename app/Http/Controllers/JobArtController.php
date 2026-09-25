@@ -4,20 +4,20 @@ namespace App\Http\Controllers;
 
 use App\Models\Character;
 use App\Models\Skill;
-use App\Services\JobArtService;
 use App\Services\CharacterStatusService;
 use App\Services\JobArtLineageCatalog;
+use App\Services\JobArtPresetService;
+use App\Services\JobArtService;
 use App\Services\JobArtV2BattleRules;
 use App\Services\JobArtV2FeatureGate;
-use App\Services\JobArtV2LoadoutPresenter;
-use App\Services\JobArtV2LoadoutDiagnosisService;
 use App\Services\JobArtV2LineageGuideCatalog;
+use App\Services\JobArtV2LoadoutDiagnosisService;
+use App\Services\JobArtV2LoadoutPresenter;
 use App\Services\JobArtV2ResourceCatalog;
 use App\Services\JobArtV2SlotConditionCatalog;
 use App\Services\JobArtV2SpCostCalculator;
 use App\Services\JobArtV2SpPowerScalingService;
 use App\Services\JobArtV2StarterPresetService;
-use App\Services\JobArtPresetService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
@@ -41,10 +41,9 @@ class JobArtController extends Controller
         JobArtLineageCatalog $lineageCatalog,
         JobArtPresetService $presetService,
         JobArtV2StarterPresetService $starterPresetService,
-    )
-    {
+    ) {
         $character = Auth::user()->currentCharacter();
-        if (!$character) {
+        if (! $character) {
             return redirect()->route('character.select');
         }
 
@@ -225,7 +224,7 @@ class JobArtController extends Controller
             return response()->json(['message' => '現在利用できる公式プリセットはありません。'], 404);
         }
 
-        $slotContextLabel = ['normal' => '通常', 'boss' => 'ボス', 'pvp' => 'PvP'][$slotContext]
+        $slotContextLabel = ['normal' => '通常', 'boss' => 'ボス', 'pvp' => 'PvP', 'raid' => 'レイド'][$slotContext]
             ?? ($jobArtService->slotContextLabels()[$slotContext] ?? $slotContext);
 
         return response()->json([
@@ -240,7 +239,7 @@ class JobArtController extends Controller
     public function set(Request $request, JobArtService $jobArtService)
     {
         $character = Auth::user()->currentCharacter();
-        if (!$character) {
+        if (! $character) {
             return redirect()->route('character.select');
         }
 
@@ -251,9 +250,9 @@ class JobArtController extends Controller
                     $policies = [];
                     $conditions = [];
                     for ($slotNo = 1; $slotNo <= $jobArtService->maxSlots(); $slotNo++) {
-                        $slots[$slotNo] = $request->input($slotContext . '_slot_' . $slotNo);
-                        $policies[$slotNo] = $request->input($slotContext . '_policy_' . $slotNo);
-                        $conditions[$slotNo] = $request->input($slotContext . '_condition_' . $slotNo);
+                        $slots[$slotNo] = $request->input($slotContext.'_slot_'.$slotNo);
+                        $policies[$slotNo] = $request->input($slotContext.'_policy_'.$slotNo);
+                        $conditions[$slotNo] = $request->input($slotContext.'_condition_'.$slotNo);
                     }
                     $jobArtService->saveSlots(
                         $character,
@@ -269,19 +268,19 @@ class JobArtController extends Controller
             return back()->withErrors($e->errors())->withInput();
         }
 
-        return redirect()->route('job-arts.index')->with('message', $this->displayTerm($character) . 'セットを保存しました。');
+        return redirect()->route('job-arts.index')->with('message', $this->displayTerm($character).'セットを保存しました。');
     }
 
     public function assign(Request $request, JobArtService $jobArtService)
     {
         $character = Auth::user()->currentCharacter();
-        if (!$character) {
+        if (! $character) {
             return redirect()->route('character.select');
         }
 
         $data = $request->validate([
             'skill_id' => ['required', 'integer'],
-            'slot_no' => ['nullable', 'integer', 'min:1', 'max:' . $jobArtService->maxSlots()],
+            'slot_no' => ['nullable', 'integer', 'min:1', 'max:'.$jobArtService->maxSlots()],
             'slot_context' => ['nullable', 'string', Rule::in($jobArtService->slotContexts())],
             'filter' => ['nullable', 'string'],
         ]);
@@ -298,7 +297,7 @@ class JobArtController extends Controller
         } catch (ValidationException $e) {
             if ($request->expectsJson()) {
                 return response()->json([
-                    'message' => collect($e->errors())->flatten()->first() ?: $this->displayTerm($character) . 'スロットを更新できませんでした。',
+                    'message' => collect($e->errors())->flatten()->first() ?: $this->displayTerm($character).'スロットを更新できませんでした。',
                     'errors' => $e->errors(),
                 ], 422);
             }
@@ -315,7 +314,7 @@ class JobArtController extends Controller
             $selectedSkills = $selectedSlots->pluck('skill')->filter()->values();
 
             return response()->json([
-                'message' => $this->displayTerm($character) . 'スロットを更新しました。',
+                'message' => $this->displayTerm($character).'スロットを更新しました。',
                 'total_cost' => $jobArtService->totalCost($selectedSkills),
                 'slot_context' => $slotContext,
                 'selected_slot_by_skill' => $selectedSlots
@@ -326,7 +325,7 @@ class JobArtController extends Controller
 
         return redirect()
             ->route('job-arts.index', ['filter' => $data['filter'] ?? 'available'])
-            ->with('message', $this->displayTerm($character) . 'スロットを更新しました。');
+            ->with('message', $this->displayTerm($character).'スロットを更新しました。');
     }
 
     public function slotSet(
@@ -340,16 +339,15 @@ class JobArtController extends Controller
         JobArtV2SpPowerScalingService $spPowerScalingService,
         JobArtV2ResourceCatalog $resourceCatalog,
         JobArtLineageCatalog $lineageCatalog,
-    )
-    {
+    ) {
         $character = Auth::user()->currentCharacter();
-        if (!$character) {
+        if (! $character) {
             return redirect()->route('character.select');
         }
 
         $data = $request->validate([
             'slot_context' => ['required', 'string', Rule::in($jobArtService->slotContexts())],
-            'slot_no' => ['required', 'integer', 'min:1', 'max:' . $jobArtService->maxSlots()],
+            'slot_no' => ['required', 'integer', 'min:1', 'max:'.$jobArtService->maxSlots()],
             'skill_id' => ['nullable', 'integer'],
             'activation_policy' => ['nullable', 'string'],
             'slot_condition' => ['nullable', 'string', Rule::in(array_keys($slotConditionCatalog->labels()))],
@@ -370,7 +368,7 @@ class JobArtController extends Controller
         } catch (ValidationException $e) {
             if ($request->expectsJson()) {
                 return response()->json([
-                    'message' => collect($e->errors())->flatten()->first() ?: $this->displayTerm($character) . 'スロットを更新できませんでした。',
+                    'message' => collect($e->errors())->flatten()->first() ?: $this->displayTerm($character).'スロットを更新できませんでした。',
                     'errors' => $e->errors(),
                 ], 422);
             }
@@ -465,7 +463,7 @@ class JobArtController extends Controller
             );
 
             return response()->json([
-                'message' => $this->displayTerm($character) . 'スロットを更新しました。',
+                'message' => $this->displayTerm($character).'スロットを更新しました。',
                 'slot_context' => $slotContext,
                 'total_cost' => $contextTotalCost,
                 'slots_html' => $slotsHtml,
@@ -489,23 +487,22 @@ class JobArtController extends Controller
 
         return redirect()
             ->route('job-arts.index', ['filter' => $data['filter'] ?? 'available'])
-            ->with('message', $this->displayTerm($character) . 'スロットを更新しました。');
+            ->with('message', $this->displayTerm($character).'スロットを更新しました。');
     }
 
     public function reorder(
         Request $request,
         JobArtService $jobArtService,
         JobArtV2LoadoutDiagnosisService $loadoutDiagnosisService,
-    )
-    {
+    ) {
         $character = Auth::user()->currentCharacter();
-        if (!$character) {
+        if (! $character) {
             return redirect()->route('character.select');
         }
 
         $data = $request->validate([
             'slot_context' => ['required', 'string', Rule::in($jobArtService->slotContexts())],
-            'ordered_skill_ids' => ['required', 'array', 'size:' . $jobArtService->maxSlots()],
+            'ordered_skill_ids' => ['required', 'array', 'size:'.$jobArtService->maxSlots()],
             'ordered_skill_ids.*' => ['nullable', 'integer', 'min:1'],
         ]);
         $slotContext = (string) $data['slot_context'];
@@ -553,8 +550,7 @@ class JobArtController extends Controller
         JobArtV2SpCostCalculator $spCostCalculator,
         JobArtV2BattleRules $battleRules,
         JobArtV2LoadoutPresenter $loadoutPresenter,
-    ): void
-    {
+    ): void {
         $currentJobId = $character->current_job_id !== null
             ? (int) $character->current_job_id
             : null;
@@ -572,7 +568,7 @@ class JobArtController extends Controller
     }
 
     /**
-     * @param iterable<mixed> $skills
+     * @param  iterable<mixed>  $skills
      * @return list<array{lineage_key:string,lineage_name:string,resource_name:string,icon_path:?string}>
      */
     private function activeLineagesForSkills(
@@ -631,13 +627,14 @@ class JobArtController extends Controller
 
     private function slotContextDescriptions(JobArtService $jobArtService, bool $jobArtV2UiEnabled): array
     {
-        if (!$jobArtV2UiEnabled) {
+        if (! $jobArtV2UiEnabled) {
             return $jobArtService->slotContextDescriptions();
         }
 
         $descriptions = [
             'normal' => '通常探索で使う戦技です。低Costや継戦向きの戦技が扱いやすいです。',
             'boss' => 'ボス戦で使う戦技です。高Cost、回復、防御、弱体の戦技も候補にしやすいです。',
+            'raid' => '国家レイドで使う戦技です。ボス戦セットとは別に保存されます。',
         ];
         if ($jobArtService->pvpSetEnabled()) {
             $descriptions['pvp'] = 'プレイヤーPvP、チャンプ戦、闘技場NPC戦で使う戦技です。Gold・ドロップなどの報酬補正は発動しません。';
@@ -661,8 +658,7 @@ class JobArtController extends Controller
         JobArtService $jobArtService,
         JobArtV2BattleRules $battleRules,
         ?int $currentJobId,
-    ): array
-    {
+    ): array {
         $descriptions = $jobArtService->activationPolicyDescriptions();
         $threshold = $battleRules->conserveThresholdPercentForCurrentJob($currentJobId);
         $descriptions['conserve'] = "SPが{$threshold}%以上ある時だけ発動します";
@@ -674,10 +670,9 @@ class JobArtController extends Controller
         Request $request,
         JobArtService $jobArtService,
         JobArtV2LoadoutDiagnosisService $loadoutDiagnosisService,
-    )
-    {
+    ) {
         $character = Auth::user()->currentCharacter();
-        if (!$character) {
+        if (! $character) {
             return redirect()->route('character.select');
         }
 
@@ -732,7 +727,7 @@ class JobArtController extends Controller
             return response()->json([
                 'message' => isset($data['slot_context'])
                     ? 'SP方針を保存しました。'
-                    : $this->displayTerm($character) . '発動方針を保存しました。',
+                    : $this->displayTerm($character).'発動方針を保存しました。',
                 'slot_context' => $data['slot_context'] ?? null,
                 'activation_policy' => (string) $data['activation_policy'],
                 'diagnosis_html' => $diagnosisHtml,
@@ -743,7 +738,7 @@ class JobArtController extends Controller
             ->route('job-arts.index', ['filter' => $data['filter'] ?? 'available'])
             ->with('message', isset($data['slot_context'])
                 ? 'SP方針を保存しました。'
-                : $this->displayTerm($character) . '発動方針を保存しました。');
+                : $this->displayTerm($character).'発動方針を保存しました。');
     }
 
     public function spOutput(Request $request, JobArtService $jobArtService)
@@ -841,8 +836,8 @@ class JobArtController extends Controller
     }
 
     /**
-     * @param iterable<Skill> $skills
-     * @param array<string,string> $outputLabels
+     * @param  iterable<Skill>  $skills
+     * @param  array<string,string>  $outputLabels
      * @return array<string,array<string,mixed>>
      */
     private function spOutputPreviews(

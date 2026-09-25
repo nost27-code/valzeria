@@ -34,6 +34,7 @@ class AdminJobArtAnalyticsTest extends TestCase
         $this->setSlots($first, 'normal', [$opening, $link]);
         $this->setSlots($second, 'normal', [$link, $opening]);
         $this->setSlots($first, 'boss', [$bossArt]);
+        $this->setSlots($first, 'raid', [$bossArt]);
         CharacterJobArtContextSetting::query()->create([
             'character_id' => $first->id,
             'battle_context' => 'normal',
@@ -114,6 +115,15 @@ class AdminJobArtAnalyticsTest extends TestCase
             [$opening->name, $link->name],
             collect($exportRows[0]['slots'])->pluck('name')->all(),
         );
+
+        $raidAnalysis = app(JobArtAnalyticsService::class)->analyze([
+            'battle_context' => 'raid',
+            'activity_window' => '30',
+        ]);
+        $this->assertSame('レイド戦', $raidAnalysis['contextLabel']);
+        $raidArts = collect($raidAnalysis['artRows'])->keyBy('skill_id');
+        $this->assertSame(1, $raidArts[$bossArt->id]['selected_count']);
+        $this->assertArrayNotHasKey($opening->id, $raidArts);
     }
 
     public function test_admin_page_is_protected_and_can_switch_contexts(): void
@@ -123,6 +133,7 @@ class AdminJobArtAnalyticsTest extends TestCase
         $this->learnJob($player, $sourceJob, 10, true);
         $this->setSlots($player, 'normal', [$opening]);
         $this->setSlots($player, 'boss', [$bossArt]);
+        $this->setSlots($player, 'raid', [$bossArt]);
 
         $this->get(route('admin.job-art-analytics'))->assertRedirect();
 
@@ -144,7 +155,10 @@ class AdminJobArtAnalyticsTest extends TestCase
             ->assertSee('効果：'.$opening->memo)
             ->set('battleContext', 'boss')
             ->assertSee($bossArt->name)
-            ->assertDontSee($opening->name);
+            ->assertDontSee($opening->name)
+            ->set('battleContext', 'raid')
+            ->assertSet('battleContext', 'raid')
+            ->assertSee($bossArt->name);
     }
 
     /**

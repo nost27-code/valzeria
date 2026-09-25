@@ -103,7 +103,7 @@ Down:
 実施後:
 
 - 既存行が残り、両列が`always`であることを確認する
-- normal/boss/pvpの保存・再読込とpreset保存・適用を確認する
+- normal/boss/pvp/raidの保存・再読込とpreset保存・適用を確認する
 - 未知conditionを一時fixtureで読み、`always`へ解決しつつDB値が書き換わらないことを確認する
 
 ## Feature flag matrix
@@ -148,7 +148,7 @@ RC READY後も一括ONにはしない。
 ## 手動smoke
 
 - flag OFF: 従来3枠/Cost5、legacy抽選、legacy SP、legacyログ
-- flag ON、対応職: 5枠/Cost9、通常/ボス/PvP、condition保存・再読込
+- flag ON、対応職: 5枠/Cost9、通常/ボス/PvP/レイド、condition保存・再読込
 - preset: conditionを含めて保存し、別値へ変更後に適用して復元
 - 転職: preset/slotを削除せず、元職へ戻ると同じconditionを読める
 - Job63 Rank1: cycle順、上書き時だけ+6、それ以外+4、同一行動への自己適用なし

@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-09-25-nation-raid-job-art-set',
+        'date' => '2026-09-25',
+        'category' => 'added',
+        'title' => 'レイド専用の戦技セット枠を追加',
+        'detail' => '戦技セットにレイド用の独立枠を追加しました。戦技5枠、SP方針、発動条件、戦術設定、戦技出力を個別に保存でき、各プリセットも適用できます。既存設定はレイド未設定時だけボス戦用から引き継ぎます。',
+    ],
+    [
         'id' => '2026-09-25-nation-raid-first-place-titles-crown',
         'date' => '2026-09-25',
         'category' => 'changed',

@@ -252,21 +252,22 @@ class JobArtV2StarterPresetServiceTest extends TestCase
         }
     }
 
-    public function test_apply_uses_exact_variant_order_and_counterplay_condition(): void
+    public function test_apply_uses_exact_variant_order_and_counterplay_condition_for_boss_and_raid(): void
     {
         $keys = config('job_art_official_presets.counter.tactical.variants.crown.skills');
         [$service, $jobArtService] = $this->serviceWithJobArt($this->arts($keys, 60));
         $character = $this->character(60);
 
-        $service->apply($character, 'counter', JobArtV2StarterPresetService::TACTICAL, 'boss', 'crown');
-
         $expectedIds = array_map(fn (string $key): int => $this->skillId($key), $keys);
-        $this->assertSame($expectedIds, array_values($jobArtService->saved['boss']['slots']));
-        $this->assertSame(['normal', 'normal', 'normal', 'normal', 'normal'], array_values($jobArtService->saved['boss']['policies']));
-        $this->assertSame(
-            ['always', 'always', 'opponent_ultimate_preparing', 'always', 'always'],
-            array_values($jobArtService->saved['boss']['conditions']),
-        );
+        foreach (['boss', 'raid'] as $context) {
+            $service->apply($character, 'counter', JobArtV2StarterPresetService::TACTICAL, $context, 'crown');
+            $this->assertSame($expectedIds, array_values($jobArtService->saved[$context]['slots']));
+            $this->assertSame(['normal', 'normal', 'normal', 'normal', 'normal'], array_values($jobArtService->saved[$context]['policies']));
+            $this->assertSame(
+                ['always', 'always', 'opponent_ultimate_preparing', 'always', 'always'],
+                array_values($jobArtService->saved[$context]['conditions']),
+            );
+        }
     }
 
     public function test_obsolete_c_design_flag_does_not_hide_presets_and_unsupported_jobs_fail_closed_without_randomness(): void
@@ -370,9 +371,7 @@ class JobArtV2StarterPresetServiceTest extends TestCase
                 return $this->arts;
             }
 
-            public function validateSlotConfiguration(Character $character, array $slotSkillIds, string $slotContext): void
-            {
-            }
+            public function validateSlotConfiguration(Character $character, array $slotSkillIds, string $slotContext): void {}
 
             public function saveSlots(
                 Character $character,
@@ -461,7 +460,9 @@ class JobArtV2StarterPresetServiceTest extends TestCase
                 'name' => "戦技{$key}",
                 'skill_type' => 'job_art',
                 'learn_rank' => $rank,
-                'art_cost' => match ($rank) { 1 => 1, 5 => 2, 9 => 3 },
+                'art_cost' => match ($rank) {
+                    1 => 1, 5 => 2, 9 => 3
+                },
                 'effect_template' => 'PHYSICAL_DAMAGE',
                 'limit_group' => null,
                 'inherit_on_master' => true,

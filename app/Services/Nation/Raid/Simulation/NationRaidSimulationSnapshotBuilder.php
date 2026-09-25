@@ -180,7 +180,7 @@ final class NationRaidSimulationSnapshotBuilder
             'resolved_context_plan_coverage_complete' => $resolvedContextCoverageComplete,
             'resolved_context_plan_hash' => $resolvedContextPlanHash,
             'status_path' => CharacterStatusService::class.'::getFinalStats',
-            'boss_set_path' => JobArtService::class.'::battleArtsFor:boss',
+            'boss_set_path' => JobArtService::class.'::battleArtsFor:raid',
             'raid_killer_contract_hash' => $raidKillerContractHash,
         ], JSON_UNESCAPED_UNICODE));
 
@@ -251,7 +251,7 @@ final class NationRaidSimulationSnapshotBuilder
             }
         }
 
-        $arts = $this->jobArtService->battleArtsFor($character, 'boss');
+        $arts = $this->jobArtService->battleArtsFor($character, JobArtService::RAID_SLOT_CONTEXT);
         $set = array_fill(0, 5, null);
         $setDetails = [];
         $votes = [];

@@ -12,6 +12,7 @@ use App\Services\Battle\DamageSourceType;
 use App\Services\Battle\HitResult;
 use App\Services\Battle\ScopedBattleRandomizer;
 use App\Services\BattleService;
+use App\Services\JobArtService;
 use App\Services\JobArtV2DeckRoleResolution;
 use App\Services\Nation\Raid\NationRaidRules;
 use Random\Engine\Mt19937;
@@ -64,7 +65,7 @@ class NationRaidPassiveBossActionProfileProvider extends BattleService implement
                     'auto_unequip_invalid_items' => false,
                     'starting_hp' => (int) $stats['max_hp'],
                     'starting_mp' => (int) ($stats['max_mp'] ?? 0),
-                    'job_art_context' => 'boss',
+                    'job_art_context' => JobArtService::RAID_SLOT_CONTEXT,
                     'max_turns' => NationRaidRules::MAX_TURNS,
                     'force_player_first' => true,
                 ],

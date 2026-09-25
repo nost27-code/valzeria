@@ -12,9 +12,10 @@ use App\Services\JobArtLineageCatalog;
 use App\Services\JobArtService;
 use App\Services\JobArtV2DeckRoleResolution;
 use App\Services\JobArtV2DeckRoleResolver;
+use App\Services\Nation\Raid\Simulation\NationRaidSimulationLineageAdapter;
 use RuntimeException;
 
-/** 正式出撃と試遊が同じ最終能力・ボス戦セット・装備効果を使うための開始snapshot。 */
+/** 正式出撃と試遊が同じ最終能力・レイド戦セット・装備効果を使うための開始snapshot。 */
 final readonly class NationRaidPlayerPreparationService
 {
     public function __construct(
@@ -40,7 +41,7 @@ final readonly class NationRaidPlayerPreparationService
             }
         }
 
-        $arts = $this->jobArtService->battleArtsFor($character, 'boss');
+        $arts = $this->jobArtService->battleArtsFor($character, JobArtService::RAID_SLOT_CONTEXT);
         $identities = array_fill(0, 5, null);
         $set = array_fill(0, 5, null);
         foreach ($arts as $skill) {
@@ -49,7 +50,7 @@ final readonly class NationRaidPlayerPreparationService
             }
             $slot = (int) $skill->getAttribute('slot_no');
             if ($slot < 1 || $slot > 5) {
-                throw new RuntimeException('ボス戦セットに範囲外のスロットがあります。');
+                throw new RuntimeException('レイド戦セットに範囲外のスロットがあります。');
             }
             $identity = JobArtV2DeckRoleResolution::artKey($skill);
             $lineage = $this->lineageCatalog->forArt($skill);
@@ -61,7 +62,7 @@ final readonly class NationRaidPlayerPreparationService
                 'exact_identity' => $identity,
                 'canonical_lineage' => $lineage['lineage_key'] ?? null,
                 'raid_lineage' => isset($lineage['lineage_key'])
-                    ? app(\App\Services\Nation\Raid\Simulation\NationRaidSimulationLineageAdapter::class)->toRaid($lineage['lineage_key']) : null,
+                    ? app(NationRaidSimulationLineageAdapter::class)->toRaid($lineage['lineage_key']) : null,
                 'lineage_name' => $lineage['lineage_name'] ?? null,
                 'is_counterplay' => $this->rules->counterplayArt($identity) !== null,
             ];
@@ -115,7 +116,7 @@ final readonly class NationRaidPlayerPreparationService
                 'armor_resist_species_key' => $armor?->resist_species_key,
                 'armor_species_damage_reduction_rate' => $armor ? $this->permissions->effectiveSpeciesDamageReductionRate($character, $armor) : 0.0,
                 'job_art_activation_policy' => (string) ($character->job_art_activation_policy ?: 'normal'),
-                'job_art_strategy' => $this->jobArtService->battleStrategy($character, $this->jobArtService->battleSlotContext('boss')),
+                'job_art_strategy' => $this->jobArtService->battleStrategy($character, JobArtService::RAID_SLOT_CONTEXT),
                 // Runtime属性（発動率・slot・条件）も保存。後からskills/slotを読み直さない。
                 'job_arts' => $arts->map(fn (Skill $art): array => $art->getAttributes())->values()->all(),
             ],
@@ -152,5 +153,4 @@ final readonly class NationRaidPlayerPreparationService
             && (bool) config('battle.job_art_v2.damage_application', false)
             && (bool) config('battle.job_art_v2.resources', false);
     }
-
 }

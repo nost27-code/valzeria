@@ -2,27 +2,44 @@
 
 namespace Tests\Feature;
 
+use App\Http\Middleware\CheckCharacterSelected;
 use App\Models\Character;
+use App\Models\CharacterItem;
+use App\Models\Item;
+use App\Models\NationMembership;
 use App\Models\NationRaidBattleResult;
+use App\Models\NationRaidBattleTelemetryLog;
 use App\Models\NationRaidBossCycle;
+use App\Models\NationRaidCoordinationParticipant;
+use App\Models\NationRaidDailyLineageSnapshot;
 use App\Models\NationRaidDailyUsage;
 use App\Models\NationRaidEvent;
-use App\Models\NationRaidDailyLineageSnapshot;
-use App\Models\NationRaidCoordinationParticipant;
 use App\Models\NationRaidParticipation;
-use App\Models\NationMembership;
-use App\Models\NationRaidBattleTelemetryLog;
+use App\Models\Skill;
 use App\Models\User;
+use App\Services\Battle\BattleActor;
 use App\Services\CharacterStatusService;
+use App\Services\JobArtService;
+use App\Services\JobArtV2RandomSource;
+use App\Services\JobArtV2SelectionService;
+use App\Services\JobArtV2SpCostCalculator;
+use App\Services\JobArtV2SpPowerScalingResult;
+use App\Services\JobArtV2SpPowerScalingService;
+use App\Services\Nation\CompetitionEventCoordinatorService;
+use App\Services\Nation\NationRaidBattleTelemetryService;
+use App\Services\Nation\NationService;
 use App\Services\Nation\Raid\NationRaidEventService;
-use App\Services\Nation\Raid\NationRaidSortieService;
-use App\Services\Nation\Raid\NationRaidSortieCombatService;
-use App\Services\Nation\Raid\NationRaidSettlementService;
 use App\Services\Nation\Raid\NationRaidJson;
 use App\Services\Nation\Raid\NationRaidRules;
+use App\Services\Nation\Raid\NationRaidScreenService;
+use App\Services\Nation\Raid\NationRaidSettlementService;
+use App\Services\Nation\Raid\NationRaidSharedHpService;
+use App\Services\Nation\Raid\NationRaidSortieCombatService;
+use App\Services\Nation\Raid\NationRaidSortieService;
 use App\Services\Nation\Raid\NationRaidTransactionRunner;
-use App\Services\Nation\NationService;
+use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class NationRaidSortieTest extends TestCase
@@ -54,8 +71,8 @@ class NationRaidSortieTest extends TestCase
     public function test_strategy_is_off_by_default_and_http_sorties_ignore_client_strategy(): void
     {
         $this->assertFalse((bool) config('nation_raid.strategy_enabled', false));
-        $this->withoutMiddleware(\App\Http\Middleware\CheckCharacterSelected::class);
-        $this->withoutMiddleware(\Illuminate\Foundation\Http\Middleware\PreventRequestForgery::class);
+        $this->withoutMiddleware(CheckCharacterSelected::class);
+        $this->withoutMiddleware(PreventRequestForgery::class);
         $character = $this->character();
         $event = $this->event();
         $this->actingAs($character->user)->withSession(['current_character_id' => $character->id]);
@@ -94,7 +111,7 @@ class NationRaidSortieTest extends TestCase
             unset($stage['max_hp']);
         }
         unset($stage);
-        $hash = hash('sha256', \App\Services\Nation\Raid\NationRaidJson::encode($snapshot, JSON_UNESCAPED_UNICODE));
+        $hash = hash('sha256', NationRaidJson::encode($snapshot, JSON_UNESCAPED_UNICODE));
         $event->update(['ruleset_snapshot' => $snapshot, 'ruleset_hash' => $hash,
             'ruleset_version' => $snapshot['version'], 'cycle_max_hp' => 5_000_000, 'total_target_hp' => 100_000_000]);
         $cycle = $event->cycles()->sole();
@@ -141,8 +158,8 @@ class NationRaidSortieTest extends TestCase
     public function test_strategy_enabled_keeps_three_choices_and_request_validation(): void
     {
         config()->set('nation_raid.strategy_enabled', true);
-        $this->withoutMiddleware(\App\Http\Middleware\CheckCharacterSelected::class);
-        $this->withoutMiddleware(\Illuminate\Foundation\Http\Middleware\PreventRequestForgery::class);
+        $this->withoutMiddleware(CheckCharacterSelected::class);
+        $this->withoutMiddleware(PreventRequestForgery::class);
         $character = $this->character();
         $event = $this->event();
         $this->actingAs($character->user)->withSession(['current_character_id' => $character->id]);
@@ -205,9 +222,9 @@ class NationRaidSortieTest extends TestCase
 
     public function test_missing_telemetry_does_not_roll_back_combat_and_recovery_never_refights_or_spends_again(): void
     {
-        $writer = app(\App\Services\Nation\NationRaidBattleTelemetryService::class);
+        $writer = app(NationRaidBattleTelemetryService::class);
         (new \ReflectionProperty($writer, 'tableExists'))->setValue($writer, false);
-        $this->app->instance(\App\Services\Nation\NationRaidBattleTelemetryService::class, $writer);
+        $this->app->instance(NationRaidBattleTelemetryService::class, $writer);
         $character = $this->character();
         $event = $this->event();
         $result = app(NationRaidSortieService::class)->fight($event, $character, 'assault', bin2hex(random_bytes(32)));
@@ -216,7 +233,7 @@ class NationRaidSortieTest extends TestCase
         $hp = NationRaidBossCycle::query()->sole()->current_hp;
         $this->assertSame(0, NationRaidBattleTelemetryLog::query()->count());
 
-        $this->app->instance(\App\Services\Nation\NationRaidBattleTelemetryService::class, new \App\Services\Nation\NationRaidBattleTelemetryService);
+        $this->app->instance(NationRaidBattleTelemetryService::class, new NationRaidBattleTelemetryService);
         $this->mock(NationRaidSortieCombatService::class)->shouldNotReceive('resolve');
         $this->artisan('nation-raid:telemetry', ['event' => $event->id])->assertSuccessful();
         $stored = NationRaidBattleTelemetryLog::query()->sole();
@@ -242,10 +259,10 @@ class NationRaidSortieTest extends TestCase
         $this->assertSame(220, $character->fresh()->explore_stamina);
         $this->assertSame(6, NationRaidDailyUsage::query()->sole()->resolved_count);
         $this->assertSame(6, $result->day_sortie_no);
-        $screen = app(\App\Services\Nation\Raid\NationRaidScreenService::class)->screen($event->fresh(), $character->fresh());
+        $screen = app(NationRaidScreenService::class)->screen($event->fresh(), $character->fresh());
         $this->assertTrue($screen['can_challenge']);
         $this->assertSame(6, $screen['used_sorties']);
-        $this->withoutMiddleware(\App\Http\Middleware\CheckCharacterSelected::class);
+        $this->withoutMiddleware(CheckCharacterSelected::class);
         $this->actingAs($character->user)->withSession(['current_character_id' => $character->id]);
         $this->get(route('nation-raid.show', $event))->assertOk()
             ->assertSee('回数制限なし')->assertSee('本日 6回出撃')->assertDontSee('本日の残り出撃');
@@ -275,7 +292,7 @@ class NationRaidSortieTest extends TestCase
     {
         $character = $this->character();
         $event = $this->event();
-        \Illuminate\Support\Facades\DB::statement(<<<'SQL'
+        DB::statement(<<<'SQL'
             CREATE TRIGGER force_raid_observation_insert_failure
             BEFORE INSERT ON nation_raid_battle_telemetry
             BEGIN
@@ -289,7 +306,7 @@ class NationRaidSortieTest extends TestCase
             $this->assertSame(30_000_000 - $result->applied_damage_total, NationRaidBossCycle::query()->sole()->current_hp);
             $this->assertSame(0, NationRaidBattleTelemetryLog::query()->count());
         } finally {
-            \Illuminate\Support\Facades\DB::statement('DROP TRIGGER IF EXISTS force_raid_observation_insert_failure');
+            DB::statement('DROP TRIGGER IF EXISTS force_raid_observation_insert_failure');
         }
     }
 
@@ -395,11 +412,11 @@ class NationRaidSortieTest extends TestCase
         $before = $combat->resolve($battle);
         $character->update(['attack_base' => 1, 'defense_base' => 1, 'hp_base' => 1]);
         CharacterStatusService::clearRequestCache($character->id);
-        \Illuminate\Support\Facades\DB::enableQueryLog();
-        \Illuminate\Support\Facades\DB::flushQueryLog();
+        DB::enableQueryLog();
+        DB::flushQueryLog();
         $after = $combat->resolve($battle->fresh());
-        $queries = \Illuminate\Support\Facades\DB::getQueryLog();
-        \Illuminate\Support\Facades\DB::disableQueryLog();
+        $queries = DB::getQueryLog();
+        DB::disableQueryLog();
         foreach ($queries as $query) {
             $this->assertDoesNotMatchRegularExpression('/from ["`]?character(?:s|_items|_job_art_slots)["`]?/i', $query['query']);
         }
@@ -535,8 +552,8 @@ class NationRaidSortieTest extends TestCase
 
     public function test_official_http_is_owner_scoped_persistent_and_prg_with_no_trial_labels(): void
     {
-        $this->withoutMiddleware(\App\Http\Middleware\CheckCharacterSelected::class);
-        $this->withoutMiddleware(\Illuminate\Foundation\Http\Middleware\PreventRequestForgery::class);
+        $this->withoutMiddleware(CheckCharacterSelected::class);
+        $this->withoutMiddleware(PreventRequestForgery::class);
         $character = $this->character();
         $other = $this->character();
         $event = $this->event();
@@ -576,11 +593,14 @@ class NationRaidSortieTest extends TestCase
         $character = $this->character();
         $event = $this->event();
         $stats = app(CharacterStatusService::class)->getFinalStats($character);
-        $runner = new class extends NationRaidTransactionRunner {
+        $runner = new class extends NationRaidTransactionRunner
+        {
             public int $transactions = 0;
+
             public function run(callable $callback): mixed
             {
                 $this->transactions++;
+
                 return parent::run($callback);
             }
         };
@@ -590,6 +610,7 @@ class NationRaidSortieTest extends TestCase
                 $this->assertSame(2, $runner->transactions);
                 $this->assertSame('started', NationRaidBattleResult::sole()->status);
                 $this->assertSame(250, $character->fresh()->explore_stamina);
+
                 return $stats;
             });
         $token = bin2hex(random_bytes(32));
@@ -640,13 +661,16 @@ class NationRaidSortieTest extends TestCase
     {
         $character = $this->character();
         $event = $this->event();
-        $runner = new class extends NationRaidTransactionRunner {
+        $runner = new class extends NationRaidTransactionRunner
+        {
             private int $calls = 0;
+
             public function run(callable $callback): mixed
             {
                 if (++$this->calls > 1) {
                     throw new \RuntimeException('Connection unavailable after reservation.');
                 }
+
                 return parent::run($callback);
             }
         };
@@ -675,7 +699,7 @@ class NationRaidSortieTest extends TestCase
         $realCombat = new NationRaidSortieCombatService;
         $this->mock(NationRaidSortieCombatService::class)->shouldReceive('resolve')->once()
             ->andReturnUsing(fn ($battle) => $realCombat->resolve($battle));
-        $beforeLevel = \Illuminate\Support\Facades\DB::transactionLevel();
+        $beforeLevel = DB::transactionLevel();
         $battle = app(NationRaidSortieService::class)->fight($event, $character, 'assault', bin2hex(random_bytes(32)));
         $this->assertSame('resolved', $battle->status);
         $this->assertSame(3, $battle->settlement_attempts);
@@ -750,7 +774,7 @@ class NationRaidSortieTest extends TestCase
         config()->set('battle.job_art_v2.loadout_v2', true);
         config()->set('battle.job_art_v2.normalized_sp', true);
         // このtestの対象は保存/復元。発動窓の確率でflakyにしない。
-        $this->app->bind(\App\Services\JobArtV2RandomSource::class, static fn () => new class extends \App\Services\JobArtV2RandomSource
+        $this->app->bind(JobArtV2RandomSource::class, static fn () => new class extends JobArtV2RandomSource
         {
             public function percentRoll(): int
             {
@@ -759,7 +783,7 @@ class NationRaidSortieTest extends TestCase
         });
         $character = $this->character();
         $character->update(['current_job_id' => 49, 'hp_base' => 1_000_000_000]);
-        $art = new \App\Models\Skill([
+        $art = new Skill([
             'name' => '大錬成爆装', 'skill_type' => 'job_art', 'job_id' => 49, 'learn_rank' => 5,
             'art_cost' => 2, 'activation_rate' => 100, 'sp_cost_fixed' => 0,
             'effect_template' => 'PHYSICAL_DAMAGE', 'power' => 100, 'hit_count' => 1,
@@ -768,18 +792,18 @@ class NationRaidSortieTest extends TestCase
             'job_art_activation_policy' => 'aggressive', 'job_art_slot_condition' => 'opponent_ultimate_preparing'] as $key => $value) {
             $art->setAttribute($key, $value);
         }
-        $this->partialMock(\App\Services\JobArtService::class, function ($mock) use ($art): void {
-            $mock->shouldReceive('battleArtsFor')->once()->andReturn(collect([$art]));
-            $mock->shouldReceive('battleStrategy')->once()->andReturn(['mode' => 'auto', 'sp_policy' => 'aggressive', 'settings' => []]);
+        $this->partialMock(JobArtService::class, function ($mock) use ($art): void {
+            $mock->shouldReceive('battleArtsFor')->once()->with(\Mockery::type(Character::class), JobArtService::RAID_SLOT_CONTEXT)->andReturn(collect([$art]));
+            $mock->shouldReceive('battleStrategy')->once()->with(\Mockery::type(Character::class), JobArtService::RAID_SLOT_CONTEXT)->andReturn(['mode' => 'auto', 'sp_policy' => 'aggressive', 'settings' => []]);
         });
         $event = $this->event();
         // 対抗予告がある再臨へ進めるfixture。微睡のT20まで待つと、
         // 奥義を装備していない錬成producerは触媒上限に達して選択不可になる。
-        \Illuminate\Support\Facades\DB::transaction(function () use ($event): void {
-            app(\App\Services\Nation\CompetitionEventCoordinatorService::class)->lock();
+        DB::transaction(function () use ($event): void {
+            app(CompetitionEventCoordinatorService::class)->lock();
             $locked = NationRaidEvent::query()->whereKey($event->id)->lockForUpdate()->firstOrFail();
             $cycle = $locked->cycles()->lockForUpdate()->sole();
-            app(\App\Services\Nation\Raid\NationRaidSharedHpService::class)->apply($locked, $cycle, 60_000_000, 'personal');
+            app(NationRaidSharedHpService::class)->apply($locked, $cycle, 60_000_000, 'personal');
             $locked->save();
         });
         $this->travel(1)->days();
@@ -796,9 +820,9 @@ class NationRaidSortieTest extends TestCase
         $this->assertNull($battle->job_art_slots_snapshot[1]['exact_identity']);
         $this->assertSame('opponent_ultimate_preparing', $battle->summary['admission']['player']['actor']['job_arts'][0]['job_art_slot_condition']);
         $character->update(['current_job_id' => 1]);
-        $selection = app(\App\Services\JobArtV2SelectionService::class);
+        $selection = app(JobArtV2SelectionService::class);
         $selectionTrace = [];
-        $selectionMock = $this->mock(\App\Services\JobArtV2SelectionService::class);
+        $selectionMock = $this->mock(JobArtV2SelectionService::class);
         $selectionMock->shouldReceive('commitSuccessfulSelection')
             ->andReturnUsing(fn (...$arguments) => $selection->commitSuccessfulSelection(...$arguments));
         $selectionMock->shouldReceive('isEligible')->andReturnUsing(fn (...$arguments) => $selection->isEligible(...$arguments));
@@ -889,25 +913,25 @@ class NationRaidSortieTest extends TestCase
         config(['battle.job_art_v2.sp_power_scaling.enabled' => true, 'battle.job_art_v2.rank5_v6' => true]);
         $character = $this->character();
         $character->update(['current_job_id' => 1, 'hp_base' => 1_000_000_000]);
-        $armor = \App\Models\Item::create(['name' => 'SP確認鎧', 'type' => 'armor', 'armor_rank' => 'G', 'mp_bonus' => 10_000, 'is_active' => true]);
-        \App\Models\CharacterItem::create(['character_id' => $character->id, 'item_id' => $armor->id,
+        $armor = Item::create(['name' => 'SP確認鎧', 'type' => 'armor', 'armor_rank' => 'G', 'mp_bonus' => 10_000, 'is_active' => true]);
+        CharacterItem::create(['character_id' => $character->id, 'item_id' => $armor->id,
             'is_equipped' => true, 'equipped_slot' => 'armor']);
         CharacterStatusService::clearRequestCache((int) $character->id);
         $stats = app(CharacterStatusService::class)->getFinalStats($character->fresh());
         $this->assertGreaterThan($stats['pre_equipment']['mp'], $stats['max_mp']);
-        $art = new \App\Models\Skill(['name' => '斬撃', 'skill_type' => 'job_art', 'job_id' => 1,
+        $art = new Skill(['name' => '斬撃', 'skill_type' => 'job_art', 'job_id' => 1,
             'learn_rank' => 1, 'art_cost' => 0, 'activation_rate' => 100, 'sp_cost_fixed' => 4,
             'effect_template' => 'PHYSICAL_DAMAGE', 'power' => 100, 'hit_count' => 1]);
         foreach (['id' => 1001, 'slot_no' => 1, 'job_art_rate' => 1.0, 'job_art_origin' => 'current',
             'job_art_activation_policy' => 'aggressive', 'job_art_slot_condition' => 'always'] as $key => $value) {
             $art->setAttribute($key, $value);
         }
-        $this->partialMock(\App\Services\JobArtService::class, function ($mock) use ($art): void {
-            $mock->shouldReceive('battleArtsFor')->once()->andReturn(collect([$art]));
-            $mock->shouldReceive('battleStrategy')->once()->andReturn(['mode' => 'auto', 'sp_policy' => 'aggressive', 'sp_output' => 'max', 'settings' => []]);
+        $this->partialMock(JobArtService::class, function ($mock) use ($art): void {
+            $mock->shouldReceive('battleArtsFor')->once()->with(\Mockery::type(Character::class), JobArtService::RAID_SLOT_CONTEXT)->andReturn(collect([$art]));
+            $mock->shouldReceive('battleStrategy')->once()->with(\Mockery::type(Character::class), JobArtService::RAID_SLOT_CONTEXT)->andReturn(['mode' => 'auto', 'sp_policy' => 'aggressive', 'sp_output' => 'max', 'settings' => []]);
         });
         $calculator = app(NationRaidObservedSpCalculator::class);
-        $this->app->instance(\App\Services\JobArtV2SpCostCalculator::class, $calculator);
+        $this->app->instance(JobArtV2SpCostCalculator::class, $calculator);
         [$battle] = app(NationRaidSortieService::class)->start($this->event(), $character, 'boss_set', bin2hex(random_bytes(32)));
         $this->assertSame($stats['max_mp'], $battle->summary['admission']['player']['actor']['sp_power_reference']);
         $character->characterItems()->update(['is_equipped' => false]);
@@ -915,7 +939,7 @@ class NationRaidSortieTest extends TestCase
         $result = app(NationRaidSortieCombatService::class)->resolve($battle->fresh());
         $this->assertNotEmpty($calculator->committed);
         $actual = $calculator->committed[0];
-        $scaling = app(\App\Services\JobArtV2SpPowerScalingService::class);
+        $scaling = app(JobArtV2SpPowerScalingService::class);
         $this->assertSame($stats['max_mp'], $actual->powerReference);
         $this->assertSame($scaling->variableCostFor($stats['max_mp'], 1, 'max'), $actual->variableCost);
         $this->assertSame($scaling->bonusPartsFor($stats['max_mp'], 'max')['total'], $actual->bonusBps);
@@ -956,8 +980,11 @@ class NationRaidSortieTest extends TestCase
 class NationRaidInjectedTransactionRunner extends NationRaidTransactionRunner
 {
     public int $resolvedFailures = 0;
+
     public int $refundFailures = 0;
+
     public array $waits = [];
+
     public array $waitLevels = [];
 
     public function run(callable $callback): mixed
@@ -979,19 +1006,22 @@ class NationRaidInjectedTransactionRunner extends NationRaidTransactionRunner
     protected function waitBeforeRetry(int $attempt): void
     {
         $this->waits[] = $attempt;
-        $this->waitLevels[] = \Illuminate\Support\Facades\DB::transactionLevel();
+        $this->waitLevels[] = DB::transactionLevel();
     }
 }
 
 /** Actual prepared-battle SP commits, without replacing cost or power calculation. */
-class NationRaidObservedSpCalculator extends \App\Services\JobArtV2SpCostCalculator
+class NationRaidObservedSpCalculator extends JobArtV2SpCostCalculator
 {
     public array $committed = [];
 
-    public function commitForActor(\App\Services\Battle\BattleActor $actor, \App\Models\Skill $skill): ?\App\Services\JobArtV2SpPowerScalingResult
+    public function commitForActor(BattleActor $actor, Skill $skill): ?JobArtV2SpPowerScalingResult
     {
         $result = parent::commitForActor($actor, $skill);
-        if ($result !== null) { $this->committed[] = $result; }
+        if ($result !== null) {
+            $this->committed[] = $result;
+        }
+
         return $result;
     }
 }

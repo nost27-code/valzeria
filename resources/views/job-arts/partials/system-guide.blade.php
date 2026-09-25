@@ -190,7 +190,7 @@
                                 <li class="rounded-lg bg-slate-50 px-3 py-2">始動はCost1、連携はCost2、奥義はCost3です。</li>
                                 <li class="rounded-lg bg-slate-50 px-3 py-2">奥義は1セットにつき1つまで。同じ戦技を複数枠へ入れることもできません。</li>
                                 <li class="rounded-lg bg-slate-50 px-3 py-2">習得済みで、その戦闘種別に使用できる戦技だけをセットできます。</li>
-                                <li class="rounded-lg bg-slate-50 px-3 py-2">通常・ボス・PvPは別々のセットです。変更するとその場で自動保存されます。</li>
+                                <li class="rounded-lg bg-slate-50 px-3 py-2">通常・ボス・PvP・レイドは別々のセットです。変更するとその場で自動保存されます。</li>
                                 <li class="rounded-lg bg-slate-50 px-3 py-2">SP方針は5枠へ一括適用されます。通常はSP30%以上、温存はSP60%以上で候補になります。</li>
                             </ul>
                         </section>
