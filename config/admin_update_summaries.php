@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-09-26-exclusive-character-icon-070',
+        'date' => '2026-09-26',
+        'category' => 'internal',
+        'title' => 'MBOJSN専用のキャラアイコンを追加',
+        'detail' => 'MBOJSN専用の通常・勝利・戦闘・敗北の4ポーズを追加しました。',
+    ],
+    [
         'id' => '2026-09-26-nation-raid-max-action-top-three-titles',
         'date' => '2026-09-26',
         'category' => 'changed',
