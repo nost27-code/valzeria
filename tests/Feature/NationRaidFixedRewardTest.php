@@ -97,7 +97,7 @@ final class NationRaidFixedRewardTest extends TestCase
         $screen = $response->viewData('rewardScreen');
         $rows = collect($screen['rows'])->keyBy('key');
         $this->assertSame(['participation', 'damage', 'server', 'honor'], array_keys($screen['groups']));
-        $this->assertSame([1, 9, 2, 4], array_values(array_map(fn ($group) => count($group['rows']), $screen['groups'])));
+        $this->assertSame([1, 9, 2, 5], array_values(array_map(fn ($group) => count($group['rows']), $screen['groups'])));
         $this->assertSame('50万ダメージ', $screen['next_damage_goal']['display_label']);
         $this->assertSame(87_068, $screen['next_damage_goal']['remaining']);
         $this->assertSame(60, $rows['participation']['meter']['percent']);
@@ -164,7 +164,7 @@ final class NationRaidFixedRewardTest extends TestCase
         config()->set('nation_raid_rewards.bottles.participation', 99);
         app(NationRaidEventService::class)->completeFinalization($event);
         $final = collect($this->screen($event->fresh(), $character)['rows'])->keyBy('key');
-        $this->assertCount(16, $final);
+        $this->assertCount(17, $final);
         foreach (NationRaidPersonalReward::where('event_id', $event->id)->get() as $reward) {
             $this->assertSame($preview[$reward->reward_key]['contents'], $final[$reward->reward_key]['contents']);
             $this->assertSame('claimable', $final[$reward->reward_key]['state']);

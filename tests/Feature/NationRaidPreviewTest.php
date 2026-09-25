@@ -77,7 +77,7 @@ final class NationRaidPreviewTest extends TestCase
         $definitions = app(NationRaidPersonalRewardCatalog::class)->definitions(new NationRaidEvent(['status' => 'draft']), $policy, null, null);
         $screen = app(NationRaidRewardScreenService::class)->preview();
         $rows = collect($screen['groups'])->flatMap(fn ($group) => $group['rows'])->keyBy('key');
-        $this->assertCount(16, $rows);
+        $this->assertCount(17, $rows);
         $this->assertEqualsCanonicalizing(array_keys($definitions), $rows->keys()->all());
         foreach ($definitions as $key => $definition) {
             $this->assertSame($definition['payload'], $rows[$key]['payload']);
@@ -90,10 +90,12 @@ final class NationRaidPreviewTest extends TestCase
             ->assertSee('予定報酬一覧')->assertSee('有効出撃5回')->assertSee('有効出撃15回')
             ->assertSee('経験の護符')->assertSee('無償輝石 ×3')->assertSee('500万ダメージ')
             ->assertSee('称号・順位報酬')->assertSee('固有称号（詳細は開戦時に公開）')
-            ->assertDontSee('天墜機神を穿つ者')->assertDontSee('天墜機神討滅の功臣')
+            ->assertDontSee('天墜機神を穿つ者')->assertDontSee('天墜機神討滅の覇者')
+            ->assertDontSee('天墜機神討滅の功臣')->assertDontSee('天墜機神砕きの極撃')
+            ->assertDontSee('天墜機神砕きの剛撃')
             ->assertDontSee('黒天竜を穿つ者')->assertDontSee('黒天竜討滅の功臣')
             ->assertDontSee('data-raid-claim-button', false);
-        $this->assertSame(16, substr_count($response->getContent(), 'data-reward-state="preview"'));
+        $this->assertSame(17, substr_count($response->getContent(), 'data-reward-state="preview"'));
     }
 
     public function test_preview_is_explicitly_gated_authenticated_get_only_and_allowlisted(): void

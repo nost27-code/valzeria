@@ -160,10 +160,10 @@ final readonly class NationRaidRewardService
             $rank = $this->rules->supportsNextCycleSystems($event->ruleset_snapshot)
                 ? match ($key) {
                     'personal_first', 'personal_top3' => $player['rank'] ?? null,
-                    'max_first' => $maxRank,
+                    'max_first', 'max_top3' => $maxRank,
                     default => null,
                 }
-            : ($key === 'max_first' ? $maxRank : ($player['rank'] ?? null));
+            : (in_array($key, ['max_first', 'max_top3'], true) ? $maxRank : ($player['rank'] ?? null));
             $payload = [...$definition['payload'], 'policy_hash' => $event->reward_policy_hash,
                 'character_name' => $player['name'], 'rank' => $rank];
             $attributes = [

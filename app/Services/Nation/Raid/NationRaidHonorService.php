@@ -20,7 +20,7 @@ final class NationRaidHonorService
         return NationRaidPersonalReward::query()->with('event:id,name,ends_at')
             ->where('character_id_snapshot', $character->id)->where('account_id_snapshot', $character->user_id)
             ->where('status', NationRaidPersonalReward::STATUS_CLAIMED)
-            ->whereIn('reward_key', ['damage2m', 'personal_first', 'personal_top3', 'max_first'])
+            ->whereIn('reward_key', ['damage2m', 'personal_first', 'personal_top3', 'max_first', 'max_top3'])
             ->whereHas('event', fn ($query) => $query->where('status', NationRaidEvent::STATUS_COMPLETED))
             ->latest('claimed_at')->limit(20)->get()->map(fn ($reward) => [
                 'label' => $reward->reward_snapshot['title'], 'badge' => (bool) $reward->reward_snapshot['badge'],

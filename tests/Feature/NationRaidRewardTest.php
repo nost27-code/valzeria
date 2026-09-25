@@ -269,6 +269,48 @@ final class NationRaidRewardTest extends TestCase
         $this->assertDatabaseHas('nation_achievements', ['nation_id' => $nation->id, 'achievement_key' => 'astragia_defeat_participation']);
     }
 
+    public function test_max_action_second_and_third_place_receive_the_boss_specific_title_without_a_badge(): void
+    {
+        [$event, $first] = $this->scenario();
+        $second = $this->character();
+        $third = $this->character();
+        $this->addPlayer($event, $second, null);
+        $this->addPlayer($event, $third, null);
+        $event->battleResults()->where('character_id', $second->id)->update(['max_action_damage' => 15_000]);
+        $event->battleResults()->where('character_id', $third->id)->update(['max_action_damage' => 10_000]);
+
+        app(NationRaidEventService::class)->completeFinalization($event);
+
+        $this->assertDatabaseMissing('nation_raid_personal_rewards', [
+            'event_id' => $event->id,
+            'character_id_snapshot' => $first->id,
+            'reward_key' => 'max_top3',
+        ]);
+        foreach ([[$second, 2], [$third, 3]] as [$character, $rank]) {
+            $reward = $this->reward($event, 'max_top3', $character);
+            $this->assertSame('天墜機神砕きの剛撃', $reward->reward_snapshot['title']);
+            $this->assertSame(NationRaidRewardIdentity::ASTRAGIA_MAX_ACTION_TOP_THREE_TITLE_TARGET, $reward->reward_snapshot['title_target_id']);
+            $this->assertSame($rank, $reward->reward_snapshot['rank']);
+            $this->assertFalse($reward->reward_snapshot['badge']);
+            $this->assertSame(NationRaidPersonalRewardCatalog::AVAILABILITY_FINALIZATION, $reward->availability_type);
+        }
+        $this->assertDatabaseMissing('nation_raid_personal_rewards', [
+            'event_id' => $event->id,
+            'character_id_snapshot' => $second->id,
+            'reward_key' => 'max_first',
+        ]);
+
+        config()->set('features.nation_competitive_raid_enabled', true);
+        app(NationRaidRewardService::class)->claim($event, $second, $this->reward($event, 'max_top3', $second)->id);
+        $this->assertDatabaseHas('character_titles', [
+            'character_id' => $second->id,
+            'title_id' => DB::table('titles')
+                ->where('target_id', NationRaidRewardIdentity::ASTRAGIA_MAX_ACTION_TOP_THREE_TITLE_TARGET)
+                ->value('id'),
+        ]);
+        $this->assertSame('天墜機神砕きの剛撃', app(NationRaidHonorService::class)->forCharacter($second)[0]['label']);
+    }
+
     public function test_unqualified_high_rank_does_not_take_rewards_and_milestones_do_not_repeat_for_echoes(): void
     {
         [$event, $character, $nation] = $this->scenario();
@@ -361,7 +403,7 @@ final class NationRaidRewardTest extends TestCase
             ->assertSee('14 / 15')->assertSee('2,100,000')->assertSee('探索力の小瓶 ×3')
             ->assertSee('条件を満たした時点で獲得')->assertDontSee('探索力の小瓶 ×99')
             ->assertDontSee('data-raid-claim-button', false)->assertDontSee('name="selection"', false);
-        $this->assertCount(9, $response->viewData('rewardScreen')['rows']);
+        $this->assertCount(10, $response->viewData('rewardScreen')['rows']);
         foreach ($response->viewData('rewardScreen')['rows'] as $row) {
             $this->assertSame('unmet', $row['state']);
         }
@@ -409,6 +451,12 @@ final class NationRaidRewardTest extends TestCase
             $rows = collect($screens->build($event, $character, $standings, collect())['rows'])->keyBy('key');
             $this->assertSame($rank === 1 ? 'awaiting' : 'unmet', $rows['personal_first']['state']);
             $this->assertSame(in_array($rank, [2, 3], true) ? 'awaiting' : 'unmet', $rows['personal_top3']['state']);
+        }
+        foreach ([1, 2, 3, 4] as $rank) {
+            $standings['max_action'][0]['rank'] = $rank;
+            $rows = collect($screens->build($event, $character, $standings, collect())['rows'])->keyBy('key');
+            $this->assertSame($rank === 1 ? 'awaiting' : 'unmet', $rows['max_first']['state']);
+            $this->assertSame(in_array($rank, [2, 3], true) ? 'awaiting' : 'unmet', $rows['max_top3']['state']);
         }
     }
 
@@ -467,7 +515,7 @@ final class NationRaidRewardTest extends TestCase
         $response = $this->actingAs($outsider->user)->get(route('nation-raid.rewards', $event));
         $response->assertOk()->assertSee('0 / 15')->assertSee('条件未達')
             ->assertDontSee('data-raid-claim-button', false)->assertDontSee('name="selection"', false);
-        $this->assertSame(9, collect($response->viewData('rewardScreen')['rows'])->where('state', 'unmet')->count());
+        $this->assertSame(10, collect($response->viewData('rewardScreen')['rows'])->where('state', 'unmet')->count());
         $character->update(['is_frozen' => true]);
         $screen = app(NationRaidRewardScreenService::class)->build(
             $event->fresh(), $character->fresh(), app(NationRaidRankingService::class)->standings($event->fresh()),
@@ -533,6 +581,7 @@ final class NationRaidRewardTest extends TestCase
         $firstTitle = $definitions['personal_first']['payload'];
         $topThreeTitle = $definitions['personal_top3']['payload'];
         $maxActionTitle = $definitions['max_first']['payload'];
+        $maxActionTopThreeTitle = $definitions['max_top3']['payload'];
         $this->assertSame('黒天竜を穿つ者', $damageTitle['title']);
         $this->assertArrayNotHasKey('title_target_id', $damageTitle);
         $this->assertSame('黒天竜討滅の覇者', $firstTitle['title']);
@@ -541,6 +590,9 @@ final class NationRaidRewardTest extends TestCase
         $this->assertArrayNotHasKey('title_target_id', $topThreeTitle);
         $this->assertSame('黒天竜穿ちの極撃', $maxActionTitle['title']);
         $this->assertSame(NationRaidRewardIdentity::VALGREID_MAX_ACTION_TITLE_TARGET, $maxActionTitle['title_target_id']);
+        $this->assertSame('黒天竜穿ちの剛撃', $maxActionTopThreeTitle['title']);
+        $this->assertSame(NationRaidRewardIdentity::VALGREID_MAX_ACTION_TOP_THREE_TITLE_TARGET, $maxActionTopThreeTitle['title_target_id']);
+        $this->assertFalse($maxActionTopThreeTitle['badge']);
         $this->assertSame('黒天竜討旗・', $identity->nationFlagPrefix($event));
         $this->assertSame([
             'label' => '黒天竜討滅参加',

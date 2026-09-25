@@ -15,6 +15,10 @@ final class NationRaidRewardIdentity
 
     public const ASTRAGIA_MAX_ACTION_TITLE_TARGET = 'astragia_max_first';
 
+    public const VALGREID_MAX_ACTION_TOP_THREE_TITLE_TARGET = 'valgreid_max_top3';
+
+    public const ASTRAGIA_MAX_ACTION_TOP_THREE_TITLE_TARGET = 'astragia_max_top3';
+
     public const ASTRAGIA_DAMAGE_TITLE_TARGET = 'astragia_damage2m';
 
     public const ASTRAGIA_TOP_THREE_TITLE_TARGET = 'astragia_personal_top3';
@@ -28,6 +32,7 @@ final class NationRaidRewardIdentity
             return match ($rewardKey) {
                 'personal_first' => ['name' => '黒天竜討滅の覇者', 'target_id' => self::VALGREID_FIRST_TITLE_TARGET],
                 'max_first' => ['name' => '黒天竜穿ちの極撃', 'target_id' => self::VALGREID_MAX_ACTION_TITLE_TARGET],
+                'max_top3' => ['name' => '黒天竜穿ちの剛撃', 'target_id' => self::VALGREID_MAX_ACTION_TOP_THREE_TITLE_TARGET],
                 default => ['name' => $legacyName, 'target_id' => null],
             };
         }
@@ -37,6 +42,7 @@ final class NationRaidRewardIdentity
             'damage2m' => ['name' => '天墜機神を穿つ者', 'target_id' => self::ASTRAGIA_DAMAGE_TITLE_TARGET],
             'personal_top3' => ['name' => '天墜機神討滅の功臣', 'target_id' => self::ASTRAGIA_TOP_THREE_TITLE_TARGET],
             'max_first' => ['name' => '天墜機神砕きの極撃', 'target_id' => self::ASTRAGIA_MAX_ACTION_TITLE_TARGET],
+            'max_top3' => ['name' => '天墜機神砕きの剛撃', 'target_id' => self::ASTRAGIA_MAX_ACTION_TOP_THREE_TITLE_TARGET],
             default => ['name' => $legacyName, 'target_id' => null],
         };
     }

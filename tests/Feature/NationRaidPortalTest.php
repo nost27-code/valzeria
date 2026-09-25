@@ -118,7 +118,10 @@ final class NationRaidPortalTest extends TestCase
         $this->get(route('nation-raid.rewards', $event))
             ->assertSee('固有称号（詳細は開戦時に公開）')
             ->assertDontSee('天墜機神を穿つ者')
-            ->assertDontSee('天墜機神討滅の功臣');
+            ->assertDontSee('天墜機神討滅の覇者')
+            ->assertDontSee('天墜機神討滅の功臣')
+            ->assertDontSee('天墜機神砕きの極撃')
+            ->assertDontSee('天墜機神砕きの剛撃');
 
         $homeBefore = Blade::render('<x-nation-raid-home-spotlight />');
         $this->assertStringContainsString('次回レイド準備中', $homeBefore);
@@ -134,7 +137,10 @@ final class NationRaidPortalTest extends TestCase
         $this->get(route('nation-raid.rankings', $event))->assertOk()->assertSee(NationRaidRules::EVENT_NAME);
         $this->get(route('nation-raid.rewards', $event))->assertOk()
             ->assertSee('天墜機神を穿つ者')
-            ->assertSee('天墜機神討滅の功臣');
+            ->assertSee('天墜機神討滅の覇者')
+            ->assertSee('天墜機神討滅の功臣')
+            ->assertSee('天墜機神砕きの極撃')
+            ->assertSee('天墜機神砕きの剛撃');
     }
 
     public function test_rankings_include_coordination_keep_ties_and_highlight_frozen_nation(): void
@@ -285,6 +291,7 @@ final class NationRaidPortalTest extends TestCase
         }
         $event = $service->approveBalance($event, User::factory()->create(['role' => 'admin']), 'test fixture only');
         $event = $service->schedule($event, $event->starts_at->copy()->subHours(72));
+
         return $service->activate($event);
     }
 
@@ -296,6 +303,7 @@ final class NationRaidPortalTest extends TestCase
     private function participant(NationRaidEvent $event, string $name, bool $eligible = true): NationRaidParticipation
     {
         $nation = $eligible ? $this->nation($name) : null;
+
         return NationRaidParticipation::create(['event_id' => $event->id, 'account_id' => User::factory()->create()->id,
             'nation_id' => $nation?->id, 'nation_id_snapshot' => $nation?->id, 'is_nation_eligible' => $eligible,
             'reference_active_count' => 3, 'character_name_snapshot' => '冒険者', 'nation_name_snapshot' => $name]);

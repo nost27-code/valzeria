@@ -74,7 +74,8 @@ final class NationRaidPersonalRewardCatalog
         ];
         foreach (['personal_first' => ['万軍の先鋒', '個人累計ダメージ1位', $rank, $rank === 1, true],
             'personal_top3' => ['黒天竜討滅の功臣', '個人累計ダメージ2〜3位', $rank, in_array($rank, [2, 3], true), false],
-            'max_first' => ['天穿の一撃', '1行動最大ダメージ1位', $maxRank, $maxRank === 1, true]] as $key => [$label, $condition, $place, $met, $badge]) {
+            'max_first' => ['天穿の一撃', '1行動最大ダメージ1位', $maxRank, $maxRank === 1, true],
+            'max_top3' => ['一撃の功士', '1行動最大ダメージ2〜3位', $maxRank, in_array($maxRank, [2, 3], true), false]] as $key => [$label, $condition, $place, $met, $badge]) {
             $title = $this->identities->personalTitle($event, $key, $label);
             $definitions[$key] = ['payload' => $this->honor($title['name'], $badge, $title['target_id']), 'condition' => $condition,
                 'progress' => $place === null ? '記録なし' : ($event->status === NationRaidEvent::STATUS_COMPLETED ? '最終' : '現在').$place.'位', 'met' => $met];
@@ -92,7 +93,7 @@ final class NationRaidPersonalRewardCatalog
             $usesImmediateRewards = ! $event->exists
                 || ($event->ruleset_snapshot['version'] ?? null) === NationRaidRules::RULESET_VERSION;
             $definition['availability_type'] = $usesImmediateRewards
-                && ! in_array($key, ['personal_first', 'personal_top3', 'max_first'], true)
+                && ! in_array($key, ['personal_first', 'personal_top3', 'max_first', 'max_top3'], true)
                     ? self::AVAILABILITY_IMMEDIATE
                     : self::AVAILABILITY_FINALIZATION;
         }

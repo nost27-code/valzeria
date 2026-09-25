@@ -180,6 +180,7 @@ final class NationRaidNextCycleSystemsTest extends TestCase
         $this->assertSame('immediate', $reward->availability_type);
         $this->assertNotNull($reward->available_at);
         $this->assertDatabaseMissing('nation_raid_personal_rewards', ['reward_key' => 'personal_first']);
+        $this->assertDatabaseMissing('nation_raid_personal_rewards', ['reward_key' => 'max_top3']);
 
         app(NationRaidRewardService::class)->claim($event->fresh(), $character, $reward->id);
         $this->assertSame('claimed', $reward->fresh()->status);
@@ -225,6 +226,7 @@ final class NationRaidNextCycleSystemsTest extends TestCase
         $this->assertContains('stage10', $keys);
         $this->assertNotContains('completion', $keys);
         $this->assertNotContains('personal_first', $keys);
+        $this->assertNotContains('max_top3', $keys);
     }
 
     public function test_invasion_damage_is_mitigated_and_normal_victories_complete_reconstruction(): void

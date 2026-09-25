@@ -185,14 +185,18 @@ final readonly class NationRaidRewardScreenService
 
     private function concealBossSpecificHonor(array $row): array
     {
-        if (! in_array($row['key'], ['damage2m', 'personal_top3'], true)) {
+        if (! in_array($row['key'], ['damage2m', 'personal_first', 'personal_top3', 'max_first', 'max_top3'], true)) {
             return $row;
         }
 
         $row['label'] = '固有称号';
-        if ($row['key'] === 'personal_top3') {
-            $row['display_label'] = '個人累計ダメージ2〜3位の称号';
-        }
+        $row['display_label'] = match ($row['key']) {
+            'personal_first' => '個人累計ダメージ1位の称号',
+            'personal_top3' => '個人累計ダメージ2〜3位の称号',
+            'max_first' => '1行動最大ダメージ1位の称号',
+            'max_top3' => '1行動最大ダメージ2〜3位の称号',
+            default => $row['display_label'],
+        };
         $row['items'] = array_map(static function (array $item): array {
             if (str_starts_with((string) ($item['label'] ?? ''), '称号「')) {
                 $item['label'] = '固有称号（詳細は開戦時に公開）';
