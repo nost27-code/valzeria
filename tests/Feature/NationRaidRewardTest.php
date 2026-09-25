@@ -251,6 +251,11 @@ final class NationRaidRewardTest extends TestCase
             'name' => '天墜機神を穿つ者',
         ]);
         $this->assertSame('astragia_damage2m', $this->reward($event, 'damage2m', $character)->reward_snapshot['title_target_id']);
+        $this->assertSame('天墜機神討滅の覇者', $this->reward($event, 'personal_first', $character)->reward_snapshot['title']);
+        $this->assertSame(
+            NationRaidRewardIdentity::ASTRAGIA_FIRST_TITLE_TARGET,
+            $this->reward($event, 'personal_first', $character)->reward_snapshot['title_target_id'],
+        );
         $this->assertSame(1, $character->titles()->count());
         $this->assertSame(0, $nation->fresh()->development_exp);
         $this->assertDatabaseHas('nation_achievements', ['nation_id' => $nation->id, 'achievement_key' => 'astragia_defeat_participation']);
@@ -488,7 +493,7 @@ final class NationRaidRewardTest extends TestCase
         config()->set('features.nation_competitive_raid_enabled', true);
         $this->assertSame('天墜機神討旗・金', $honors->forNation($nation)['label']);
         app(NationRaidRewardService::class)->claim($event, $character, $this->reward($event, 'personal_first')->id);
-        $this->assertSame('万軍の先鋒', $honors->forCharacter($character)[0]['label']);
+        $this->assertSame('天墜機神討滅の覇者', $honors->forCharacter($character)[0]['label']);
         $this->assertSame(['label', 'badge', 'event', 'date'], array_keys($honors->forCharacter($character)[0]));
         [$next] = $this->scenario();
         app(NationRaidEventService::class)->completeFinalization($next);
@@ -496,7 +501,7 @@ final class NationRaidRewardTest extends TestCase
         $this->assertSame(3, DB::table('nation_activity_logs')->where('nation_id', $nation->id)->where('event_type', 'raid_reward')->count());
     }
 
-    public function test_valgreid_snapshot_keeps_legacy_reward_identity(): void
+    public function test_valgreid_snapshot_keeps_boss_identity_and_uses_its_dedicated_first_place_title(): void
     {
         [$event] = $this->scenario();
         $rules = app(NationRaidRules::class);
@@ -517,9 +522,12 @@ final class NationRaidRewardTest extends TestCase
         $identity = app(NationRaidRewardIdentity::class);
 
         $damageTitle = $definitions['damage2m']['payload'];
+        $firstTitle = $definitions['personal_first']['payload'];
         $topThreeTitle = $definitions['personal_top3']['payload'];
         $this->assertSame('黒天竜を穿つ者', $damageTitle['title']);
         $this->assertArrayNotHasKey('title_target_id', $damageTitle);
+        $this->assertSame('黒天竜討滅の覇者', $firstTitle['title']);
+        $this->assertSame(NationRaidRewardIdentity::VALGREID_FIRST_TITLE_TARGET, $firstTitle['title_target_id']);
         $this->assertSame('黒天竜討滅の功臣', $topThreeTitle['title']);
         $this->assertArrayNotHasKey('title_target_id', $topThreeTitle);
         $this->assertSame('黒天竜討旗・', $identity->nationFlagPrefix($event));

@@ -7,6 +7,10 @@ use App\Models\NationRaidEvent;
 /** 開催snapshotから、過去開催を改名せずに報酬の固有名を選ぶ。 */
 final class NationRaidRewardIdentity
 {
+    public const VALGREID_FIRST_TITLE_TARGET = 'valgreid_personal_first';
+
+    public const ASTRAGIA_FIRST_TITLE_TARGET = 'astragia_personal_first';
+
     public const ASTRAGIA_DAMAGE_TITLE_TARGET = 'astragia_damage2m';
 
     public const ASTRAGIA_TOP_THREE_TITLE_TARGET = 'astragia_personal_top3';
@@ -17,10 +21,13 @@ final class NationRaidRewardIdentity
     public function personalTitle(NationRaidEvent $event, string $rewardKey, string $legacyName): array
     {
         if (! $this->isAstragia($event)) {
-            return ['name' => $legacyName, 'target_id' => null];
+            return $rewardKey === 'personal_first'
+                ? ['name' => '黒天竜討滅の覇者', 'target_id' => self::VALGREID_FIRST_TITLE_TARGET]
+                : ['name' => $legacyName, 'target_id' => null];
         }
 
         return match ($rewardKey) {
+            'personal_first' => ['name' => '天墜機神討滅の覇者', 'target_id' => self::ASTRAGIA_FIRST_TITLE_TARGET],
             'damage2m' => ['name' => '天墜機神を穿つ者', 'target_id' => self::ASTRAGIA_DAMAGE_TITLE_TARGET],
             'personal_top3' => ['name' => '天墜機神討滅の功臣', 'target_id' => self::ASTRAGIA_TOP_THREE_TITLE_TARGET],
             default => ['name' => $legacyName, 'target_id' => null],

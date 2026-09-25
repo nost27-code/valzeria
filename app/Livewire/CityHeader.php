@@ -21,6 +21,7 @@ use App\Services\ExplorationStaminaService;
 use App\Services\FerdiaMapService;
 use App\Services\FavoriteWeaponService;
 use App\Services\JobService;
+use App\Services\Nation\Raid\NationRaidCrownService;
 use App\Services\RecentAdventurerService;
 use App\Services\SchemaStateService;
 use App\Services\SupportPassService;
@@ -317,19 +318,26 @@ class CityHeader extends Component
     private function onlinePlayers(): array
     {
         $sixHeroUiEnabled = (bool) config('features.six_hero_ui_enabled', false);
-        $cacheKey = 'city_header_online_players_v7_'.($sixHeroUiEnabled ? 'enabled' : 'disabled');
+        $nationRaidEnabled = (bool) config('features.nation_competitive_raid_enabled', false);
+        $cacheKey = 'city_header_online_players_v8_'
+            .($sixHeroUiEnabled ? 'six-enabled' : 'six-disabled').'_'
+            .($nationRaidEnabled ? 'raid-enabled' : 'raid-disabled');
 
         return Cache::remember($cacheKey, now()->addSeconds(20), function (): array {
             $sixHeroCrownsByCharacter = $this->currentSixHeroCrownsByCharacter();
+            $nationRaidCrownsByCharacter = app(NationRaidCrownService::class)->leaders();
 
             return app(RecentAdventurerService::class)->query()
                 ->get(['id', 'name'])
-                ->map(function (Character $char) use ($sixHeroCrownsByCharacter): array {
+                ->map(function (Character $char) use ($sixHeroCrownsByCharacter, $nationRaidCrownsByCharacter): array {
                     $crowns = $sixHeroCrownsByCharacter[(int) $char->id] ?? [];
+                    $nationRaidCrown = $nationRaidCrownsByCharacter[(int) $char->id] ?? null;
 
                     return [
                         'id' => (int) $char->id,
                         'name' => $char->name,
+                        'is_nation_raid_top_ranker' => $nationRaidCrown !== null,
+                        'nation_raid_crown' => $nationRaidCrown,
                         'is_six_hero_top_ranker' => $crowns !== [],
                         'six_hero_crowns' => $crowns,
                     ];
