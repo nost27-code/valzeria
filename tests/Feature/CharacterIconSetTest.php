@@ -171,6 +171,32 @@ class CharacterIconSetTest extends TestCase
         }
     }
 
+    public function test_new_akase_set_keeps_the_existing_akase_set_selectable(): void
+    {
+        $character = $this->createCharacter('赤瀬');
+        $service = app(CharacterIconSetService::class);
+
+        $service->grant($character, 'exclusive_008');
+        $service->grant($character, 'exclusive_072');
+        $character->refresh();
+
+        $this->assertSame(
+            '/images/chara/exclusive/exclusive_072/01_normal.webp',
+            $character->icon_path
+        );
+        foreach (['exclusive_008', 'exclusive_072'] as $setKey) {
+            $this->assertDatabaseHas('character_icon_entitlements', [
+                'character_id' => $character->id,
+                'icon_set_key' => $setKey,
+                'revoked_at' => null,
+            ]);
+            $this->assertTrue($service->canSelect(
+                $character,
+                "/images/chara/exclusive/{$setKey}/01_normal.webp"
+            ));
+        }
+    }
+
     public function test_new_exclusive_icon_sets_have_complete_four_pose_assets(): void
     {
         $setKeys = [
@@ -240,6 +266,7 @@ class CharacterIconSetTest extends TestCase
             'exclusive_069',
             'exclusive_070',
             'exclusive_071',
+            'exclusive_072',
         ];
 
         foreach ($setKeys as $setKey) {

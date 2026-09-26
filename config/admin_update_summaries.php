@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-09-26-exclusive-character-icon-072',
+        'date' => '2026-09-26',
+        'category' => 'internal',
+        'title' => '赤瀬専用のキャラアイコンを追加',
+        'detail' => '赤瀬専用の通常・勝利・戦闘・敗北の4ポーズを追加しました。以前の専用アイコンも選択できます。',
+    ],
+    [
         'id' => '2026-09-26-exclusive-character-icon-071',
         'date' => '2026-09-26',
         'category' => 'internal',
