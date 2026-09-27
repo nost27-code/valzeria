@@ -601,7 +601,8 @@
                             throw new Error(data.message || '保護の切り替えに失敗しました。');
                         }
                         buttons.forEach((button) => {
-                            button.textContent = data.is_locked ? '★ 保護中' : '☆ 保護する';
+                            button.textContent = data.is_locked ? '★' : '☆';
+                            button.title = data.is_locked ? '保護を解除する' : '保護する';
                             button.setAttribute('aria-pressed', String(data.is_locked));
                         });
                         document.querySelectorAll('[data-smith-sell-form]').forEach((sellForm) => {
