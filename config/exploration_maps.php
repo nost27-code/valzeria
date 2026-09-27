@@ -46,10 +46,18 @@ return [
             'modifiers' => ['job_exp_multiplier' => 2.0, 'job_exp_cap' => 6],
         ],
         'material' => ['label' => '素材探索', 'weight' => 13, 'modifiers' => ['material_drop_bonus_points' => 5]],
-        'equipment' => ['label' => '装備の兆し', 'weight' => 13, 'modifiers' => ['equipment_drop_bonus_points' => ['weapon' => 0.10, 'armor' => 0.10, 'accessory' => 0.03]]],
+        'equipment' => ['label' => '装備の兆し', 'weight' => 13, 'modifiers' => ['equipment_drop_bonus_points' => ['weapon' => 0.20, 'armor' => 0.20, 'accessory' => 0.06]]],
         'windfall' => ['label' => '落銭の気配', 'weight' => 13, 'modifiers' => ['gold_drop_rate_bonus_points' => 3]],
         'vitality' => ['label' => '精気の余韻', 'weight' => 13, 'modifiers' => ['victory_hp_recovery_percent' => 1.5, 'victory_sp_recovery_percent' => 0.5]],
         'ancient_fragment' => ['label' => '古代片', 'weight' => 9, 'minimum_enemy_level' => 142, 'drop_rate_basis_points' => 100, 'guaranteed_after_wins_without_fragment' => 100, 'modifiers' => []],
+    ],
+    // 表示互換用。既存地図の保存済み補正値は変更しない。
+    'legacy_reward_modifiers' => [
+        'equipment' => [
+            ['equipment_drop_bonus_points' => ['weapon' => 0.10, 'armor' => 0.10, 'accessory' => 0.03]],
+            ['equipment_drop_bonus_points' => ['weapon' => 0.20, 'armor' => 0.20, 'accessory' => 0.08]],
+            ['equipment_drop_bonus_points' => ['weapon' => 0.30, 'armor' => 0.30, 'accessory' => 0.12]],
+        ],
     ],
     'grade_reward_profile_overrides' => [
         'hero' => [
@@ -60,7 +68,7 @@ return [
                 'modifiers' => ['job_exp_multiplier' => 2.0, 'job_exp_flat_bonus' => 1, 'job_exp_cap' => 7],
             ],
             'material' => ['modifiers' => ['material_drop_bonus_points' => 8]],
-            'equipment' => ['modifiers' => ['equipment_drop_bonus_points' => ['weapon' => 0.20, 'armor' => 0.20, 'accessory' => 0.08]]],
+            'equipment' => ['modifiers' => ['equipment_drop_bonus_points' => ['weapon' => 0.40, 'armor' => 0.40, 'accessory' => 0.16]]],
             'windfall' => ['modifiers' => ['gold_drop_rate_bonus_points' => 5]],
             'vitality' => ['modifiers' => ['victory_hp_recovery_percent' => 2.0, 'victory_sp_recovery_percent' => 0.75]],
         ],
@@ -72,7 +80,7 @@ return [
                 'modifiers' => ['job_exp_multiplier' => 2.0, 'job_exp_flat_bonus' => 2, 'job_exp_cap' => 8],
             ],
             'material' => ['modifiers' => ['material_drop_bonus_points' => 10]],
-            'equipment' => ['modifiers' => ['equipment_drop_bonus_points' => ['weapon' => 0.30, 'armor' => 0.30, 'accessory' => 0.12]]],
+            'equipment' => ['modifiers' => ['equipment_drop_bonus_points' => ['weapon' => 0.60, 'armor' => 0.60, 'accessory' => 0.24]]],
             'windfall' => ['modifiers' => ['gold_drop_rate_bonus_points' => 7]],
             'vitality' => ['modifiers' => ['victory_hp_recovery_percent' => 2.5, 'victory_sp_recovery_percent' => 1.0]],
         ],

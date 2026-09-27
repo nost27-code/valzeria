@@ -121,8 +121,9 @@ class ExplorationMapDisplayService
 
         $expectedModifiers = $this->rewardProfiles->modifiers((string) $map->reward_profile, (string) $map->map_grade);
         $legacyModifiers = $this->rewardProfiles->modifiers((string) $map->reward_profile);
+        $historicModifiers = (array) config('exploration_maps.legacy_reward_modifiers.' . $map->reward_profile, []);
         if (($label = $this->rewardProfiles->label((string) $map->reward_profile)) !== null
-            && ($expectedModifiers == $modifiers || $legacyModifiers == $modifiers)) {
+            && ($expectedModifiers == $modifiers || $legacyModifiers == $modifiers || in_array($modifiers, $historicModifiers))) {
             return $label;
         }
         if (($modifiers['exp_multiplier'] ?? 1) > 1) return '経験値が20%多い';

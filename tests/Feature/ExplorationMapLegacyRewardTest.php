@@ -65,6 +65,33 @@ class ExplorationMapLegacyRewardTest extends TestCase
         $this->assertSame('修練の導き', app(ExplorationMapDisplayService::class)->details($map)['reward']);
     }
 
+    public function test_equipment_maps_keep_their_label_and_saved_rewards_after_the_rate_increase(): void
+    {
+        [, $highEnemy, $lowEnemy] = $this->createEnemies();
+        $display = app(ExplorationMapDisplayService::class);
+        $profiles = app(\App\Services\ExplorationMapRewardProfileService::class);
+
+        foreach (['normal', 'rare', 'hero', 'legend'] as $grade) {
+            $savedModifiers = [
+                ['equipment_drop_bonus_points' => ['weapon' => 0.10, 'armor' => 0.10, 'accessory' => 0.03]],
+                ['equipment_drop_bonus_points' => ['weapon' => 0.20, 'armor' => 0.20, 'accessory' => 0.08]],
+                ['equipment_drop_bonus_points' => ['weapon' => 0.30, 'armor' => 0.30, 'accessory' => 0.12]],
+                $profiles->modifiers('equipment', $grade),
+            ];
+            foreach ($savedModifiers as $modifiers) {
+                $map = $this->legacyPlainMap($highEnemy, 142, 'equipment', $modifiers);
+                $map->map_grade = $grade;
+
+                $this->assertSame('装備の兆し', $display->details($map)['reward']);
+                $this->assertNull(app(ExplorationMapLegacyRewardService::class)->ancientFragmentFor($map));
+                $this->assertSame($modifiers, $map->reward_modifiers_json);
+            }
+        }
+
+        $emptyMap = $this->legacyPlainMap($lowEnemy, 141, 'equipment');
+        $this->assertNull($display->details($emptyMap)['reward']);
+    }
+
     public function test_current_ancient_fragment_profile_uses_its_saved_fragment(): void
     {
         [, $highEnemy] = $this->createEnemies();

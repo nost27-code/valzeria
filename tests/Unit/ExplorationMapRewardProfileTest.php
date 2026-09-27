@@ -37,11 +37,11 @@ class ExplorationMapRewardProfileTest extends TestCase
         $this->assertSame(8, $profiles->modifiers('material', 'hero')['material_drop_bonus_points']);
         $this->assertSame(10, $profiles->modifiers('material', 'legend')['material_drop_bonus_points']);
         $this->assertSame(
-            ['weapon' => 0.20, 'armor' => 0.20, 'accessory' => 0.08],
+            ['weapon' => 0.40, 'armor' => 0.40, 'accessory' => 0.16],
             $profiles->modifiers('equipment', 'hero')['equipment_drop_bonus_points'],
         );
         $this->assertSame(
-            ['weapon' => 0.30, 'armor' => 0.30, 'accessory' => 0.12],
+            ['weapon' => 0.60, 'armor' => 0.60, 'accessory' => 0.24],
             $profiles->modifiers('equipment', 'legend')['equipment_drop_bonus_points'],
         );
         $this->assertSame(2 / 7, $profiles->explorationLimitMultiplier('training', 'hero'));

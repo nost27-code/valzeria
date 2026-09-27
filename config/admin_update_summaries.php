@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-09-27-map-equipment-bonus',
+        'date' => '2026-09-27',
+        'category' => 'balance',
+        'title' => '探索地図の装備を見つけやすくする効果を強化',
+        'detail' => '新しく見つかる「装備の兆し」の地図で、装備の追加獲得補正を2倍にしました。すでに見つけた地図は従来の効果と報酬傾向の表示を維持します。',
+    ],
+    [
         'id' => '2026-09-27-chat-feedback-improvements',
         'date' => '2026-09-27',
         'category' => 'fixed',
