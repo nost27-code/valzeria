@@ -150,13 +150,14 @@ class EquipmentController extends Controller
         $character = Auth::user()->currentCharacter();
         $tab = $characterItem->item ? $equipmentService->getAccessoryTab($characterItem->item) : 'weapon';
         $mode = 'inventory';
+        $returnRoute = $request->boolean('return_to_smith') ? 'smith.index' : 'equipment.index';
 
         if (!$character || $characterItem->character_id !== $character->id || !$characterItem->item || !in_array($characterItem->item->type, ['weapon', 'armor', 'accessory'], true)) {
             if ($request->expectsJson()) {
                 return response()->json(['success' => false, 'message' => 'この装備は保護できません。'], 422);
             }
 
-            return redirect()->route('equipment.index')
+            return redirect()->route($returnRoute)
                 ->with('error', 'この装備は保護できません。')
                 ->with('activeMode', $mode)
                 ->with('activeTab', $tab);
@@ -169,7 +170,7 @@ class EquipmentController extends Controller
                 ], 422);
             }
 
-            return redirect()->route('equipment.index')->with('error', 'この武器は冒険者市場へ出品中です。操作するには先に出品を取り消してください。');
+            return redirect()->route($returnRoute)->with('error', 'この武器は冒険者市場へ出品中です。操作するには先に出品を取り消してください。');
         }
 
         $characterItem->is_locked = !$characterItem->is_locked;
@@ -193,7 +194,7 @@ class EquipmentController extends Controller
             ]);
         }
 
-        return redirect()->route('equipment.index')
+        return redirect()->route($returnRoute)
             ->with('status', $message)
             ->with('activeMode', $mode)
             ->with('activeTab', $tab);

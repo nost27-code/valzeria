@@ -33,8 +33,10 @@ class CommitExplorationRequest
             // 回数指定も一つの操作として確定する。外部応答やセッションを伴うため自動再試行しない。
             return DB::transaction(function () use ($request, $next, $character, $token, $hash) {
                 Character::whereKey($character->id)->lockForUpdate()->firstOrFail();
+                // 同じ冒険者の操作は上の行ロックで直列化済み。
+                // 未登録tokenのFOR UPDATEはInnoDBでgap lockを取り、別の冒険者のINSERTとも競合する。
                 $previous = DB::table('exploration_requests')->where('character_id', $character->id)
-                    ->where('token', $token)->lockForUpdate()->first();
+                    ->where('token', $token)->first();
                 if ($previous) {
                     abort_unless(hash_equals($previous->request_hash, $hash), 409, '探索操作の内容が変更されています。');
 

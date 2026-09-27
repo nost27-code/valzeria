@@ -95,6 +95,40 @@ class EquipmentWarehouseBulkSaleTest extends TestCase
         ]);
     }
 
+    public function test_smith_can_protect_then_unprotect_equipment_and_sellability_follows(): void
+    {
+        [$user, $character] = $this->createPlayer();
+        $equipment = $this->createEquipment($character, '合成用の剣', 450);
+        $this->withoutMiddleware()->actingAs($user);
+        $payload = $this->smithLockResponse($equipment)->getData(true);
+        $this->assertTrue($payload['is_locked']);
+        $this->assertFalse($payload['can_sell']);
+        $this->postJson(route('equipment.bulk-sell'), ['character_item_ids' => [$equipment->id]])->assertUnprocessable();
+        $this->assertDatabaseHas('character_items', ['id' => $equipment->id, 'is_locked' => true]);
+        $payload = $this->smithLockResponse($equipment->fresh())->getData(true);
+        $this->assertFalse($payload['is_locked']);
+        $this->assertTrue($payload['can_sell']);
+    }
+
+    public function test_smith_lock_form_returns_to_smith_and_cannot_change_other_players_equipment(): void
+    {
+        [$user, $character] = $this->createPlayer();
+        $equipment = $this->createEquipment($character, '合成用の鎧', 700, 'armor');
+        $this->actingAs($user);
+        $this->assertSame(route('smith.index'), $this->smithLockResponse($equipment, false)->getTargetUrl());
+        [$otherUser] = $this->createPlayer();
+        $this->actingAs($otherUser);
+        $this->assertSame(422, $this->smithLockResponse($equipment->fresh())->getStatusCode());
+        $this->assertDatabaseHas('character_items', ['id' => $equipment->id, 'is_locked' => true]);
+    }
+
+    private function smithLockResponse(CharacterItem $equipment, bool $json = true)
+    {
+        $request = Request::create(route('equipment.lock', $equipment), 'POST', ['return_to_smith' => 1]);
+        if ($json) $request->headers->set('Accept', 'application/json');
+        return app(EquipmentController::class)->toggleLock($equipment, app(EquipmentService::class), $request);
+    }
+
     private function createPlayer(): array
     {
         $user = User::factory()->create();

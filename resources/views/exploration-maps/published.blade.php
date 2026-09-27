@@ -74,6 +74,8 @@
                                 @endif
                             </dl>
 
+                            @include('exploration-maps.partials.equipment-bonus', ['description' => $details['equipment_bonus_description'] ?? null])
+
                             <div class="mt-4 rounded-lg border p-3 {{ $isEnded ? 'border-red-200 bg-red-50' : 'border-emerald-200 bg-emerald-50' }}">
                                 <p class="text-sm font-black {{ $isEnded ? 'text-red-900' : 'text-emerald-950' }}">{{ $isEnded ? 'この地図の公開は終了しました' : ($isActive ? 'この地図を探索中です' : 'この地図に入場する') }}</p>
                                 <p class="mt-1 text-xs font-bold {{ $isEnded ? 'text-red-800' : 'text-emerald-800' }}">{{ $isEnded ? '終了した地図は、公開終了からしばらく一覧で確認できます。' : ($isActive ? 'このまま探索を続けられます。追加の入場料はかかりません。' : ($registration->visibilityScope() === \App\Models\TownMapRegistration::VISIBILITY_OWNER ? '発見者だけが無料で探索できます。' : ($owner ? '発見者として無料で入場できます。共有相手の入場料：' . number_format($registration->entry_fee_per_exploration) . 'G' : '入場料：' . number_format($registration->entry_fee_per_exploration) . 'G（街へ戻るまで1回だけ）'))) }}</p>

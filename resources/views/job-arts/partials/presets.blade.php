@@ -19,7 +19,7 @@
         <span class="shrink-0 rounded-full bg-white px-2 py-0.5 text-xs text-violet-700">{{ count($jobArtPresets) }} / {{ $jobArtPresetLimit }}</span>
     </button>
 
-    <p class="mt-1.5 text-[10px] font-bold leading-relaxed text-slate-400">現在の5枠を3件まで保存し、通常・ボス・PvP・レイドセットへ呼び出せます。</p>
+    <p class="mt-1.5 text-[10px] font-bold leading-relaxed text-slate-400">現在の5枠を3件まで保存し、通常・ボス・PvP・レイドセットへ呼び出せます。転職後も、すべての戦技を使用でき、Cost上限などの条件を満たせば呼び出せます。</p>
 
     <template x-teleport="body">
         <div

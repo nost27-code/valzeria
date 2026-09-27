@@ -118,7 +118,6 @@ class JobArtPresetService
 
         DB::transaction(function () use ($character, $presetId, $targetContext): void {
             $preset = $this->ownedPreset($character, $presetId, true);
-            $this->ensureCurrentJobMatches($character, $preset);
             [$slots, $policies, $conditions] = $this->presetInputs($preset->slots);
 
             $this->jobArtService->saveSlots(
@@ -196,7 +195,6 @@ class JobArtPresetService
     private function applicationStatus(Character $character, JobArtPreset $preset, string $targetContext): array
     {
         try {
-            $this->ensureCurrentJobMatches($character, $preset);
             [$slots] = $this->presetInputs($preset->slots);
             $this->jobArtService->validateSlotConfiguration($character, $slots, $targetContext);
 
@@ -253,15 +251,6 @@ class JobArtPresetService
                     ),
                 ]);
             });
-    }
-
-    private function ensureCurrentJobMatches(Character $character, JobArtPreset $preset): void
-    {
-        if ((int) $character->current_job_id !== (int) $preset->current_job_id) {
-            throw ValidationException::withMessages([
-                'preset' => '保存した時と現在の職業が異なるため、このプリセットは適用できません。',
-            ]);
-        }
     }
 
     private function ensureEnabled(Character $character): void

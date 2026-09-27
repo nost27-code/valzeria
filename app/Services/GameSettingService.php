@@ -3,7 +3,9 @@
 namespace App\Services;
 
 use App\Models\GameSetting;
+use Illuminate\Cache\DatabaseStore;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 
 class GameSettingService
 {
@@ -58,17 +60,26 @@ class GameSettingService
             return [];
         }
 
-        return Cache::remember($this->cacheKey(), now()->addMinutes(5), function () {
-            return GameSetting::query()
-                ->orderBy('id')
-                ->get()
-                ->keyBy('setting_key')
-                ->map(fn (GameSetting $setting): array => [
-                    'value' => $setting->value,
-                    'value_type' => $setting->value_type,
-                ])
-                ->all();
-        });
+        // DBキャッシュは期限切れの読み取りでもDELETE/INSERTが発生する。
+        // 探索等でプレイヤー行をロックしている間は共有cache行をロックしない。
+        if (DB::transactionLevel() > 0 && Cache::getStore() instanceof DatabaseStore) {
+            return $this->loadSettings();
+        }
+
+        return Cache::remember($this->cacheKey(), now()->addMinutes(5), fn () => $this->loadSettings());
+    }
+
+    private function loadSettings(): array
+    {
+        return GameSetting::query()
+            ->orderBy('id')
+            ->get()
+            ->keyBy('setting_key')
+            ->map(fn (GameSetting $setting): array => [
+                'value' => $setting->value,
+                'value_type' => $setting->value_type,
+            ])
+            ->all();
     }
 
     private function get(string $key, int|float $default): int|float

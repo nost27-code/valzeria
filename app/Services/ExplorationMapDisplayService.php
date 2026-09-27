@@ -34,6 +34,7 @@ class ExplorationMapDisplayService
             'enemy_power_max' => $powerRange['max'],
             'threat_tier' => $threatTier['name'],
             'reward' => $this->rewardLabel($map),
+            'equipment_bonus_description' => $this->equipmentBonusDescription($map),
             'environment' => $this->environment($map),
         ];
     }
@@ -93,6 +94,21 @@ class ExplorationMapDisplayService
         $max = max($levels);
 
         return $min === $max ? 'Lv' . $min : 'Lv' . $min . '〜' . $max;
+    }
+
+    private function equipmentBonusDescription(ExplorationMap $map): ?string
+    {
+        // 生成時点の補正を表示する。現在の等級設定で既存地図を上書きしない。
+        $bonuses = (array) ($map->reward_modifiers_json['equipment_drop_bonus_points'] ?? []);
+        $parts = [];
+        foreach (['weapon' => '武器', 'armor' => '防具', 'accessory' => '装飾品'] as $slot => $label) {
+            $bonus = (float) ($bonuses[$slot] ?? 0);
+            if ($bonus > 0) {
+                $parts[] = $label.' ＋'.number_format($bonus, 2).'ポイント';
+            }
+        }
+
+        return $parts === [] ? null : implode(' ／ ', $parts);
     }
 
     private function rewardLabel(ExplorationMap $map): ?string

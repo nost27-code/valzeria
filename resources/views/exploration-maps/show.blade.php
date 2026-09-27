@@ -50,6 +50,7 @@
                         <div><dt class="text-xs text-slate-500">公開終了</dt><dd class="mt-1 text-slate-900">{{ $registration->expires_at->format('n月j日 H:i') }}</dd></div>
                     @endif
                 </dl>
+                @include('exploration-maps.partials.equipment-bonus', ['description' => $mapDetails['equipment_bonus_description'] ?? null])
 
                 <h2 class="mt-4 font-black">主な出現モンスター</h2>
                 <ul class="mt-2 space-y-1 text-sm font-bold text-slate-700">

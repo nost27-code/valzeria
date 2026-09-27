@@ -185,6 +185,7 @@
                                 @endif
                                 <span class="rounded border border-emerald-100 bg-emerald-50 px-2 py-1 text-emerald-800">目安戦力：{{ $details['enemy_power_range'] }}</span>
                             </div>
+                            @include('exploration-maps.partials.equipment-bonus', ['description' => $details['equipment_bonus_description'] ?? null])
                         @endif
 
                         @if($map->status === 'uninvestigated')

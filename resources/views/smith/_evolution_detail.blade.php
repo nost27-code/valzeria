@@ -47,23 +47,23 @@
                 ? '装備中は売却不可'
                 : (($singleSourceOption['is_locked'] ?? false) ? '保護中は売却不可' : '売却不可');
         @endphp
-        <div class="flex items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white px-2 py-1.5" x-data="{ confirmSell: false }">
+        <div class="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white px-2 py-1.5" x-data="{ confirmSell: false }">
             <div class="min-w-0">
                 <div class="truncate text-[11px] font-black text-slate-700">{{ $singleSourceOption['display_name'] }}</div>
                 <div class="text-[10px] font-bold {{ $sourceSellPrice > 0 ? 'text-orange-600' : 'text-slate-400' }}">
                     {{ $sourceSellPrice > 0 ? '売却額 ' . number_format($sourceSellPrice) . 'G' : '売却不可' }}
                 </div>
             </div>
+            @include('smith.partials.equipment-lock', ['sourceOption' => $singleSourceOption])
             <form action="{{ route('equipment.sell', $singleSourceOption['id']) }}" method="POST" class="shrink-0" data-smith-sell-form data-source-item-id="{{ (int) $singleSourceOption['id'] }}">
                 @csrf
                 <input type="hidden" name="return_to_smith" value="1">
-                <button type="button"
+                <button type="button" data-smith-sell-open
                     @click="confirmSell = true"
                     @if(!$sourceCanSell) disabled title="{{ $sourceSellDisabledTitle }}" @endif
                     class="h-8 rounded px-3 text-xs font-black transition active:scale-95 {{ $sourceCanSell ? 'bg-orange-600 text-white hover:bg-orange-700' : 'bg-slate-100 text-slate-400 cursor-not-allowed' }}">
                     売却する
                 </button>
-                @if($sourceCanSell)
                     <div x-show="confirmSell" x-cloak @keydown.escape.window="confirmSell = false" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 px-4 py-6">
                         <div class="w-full max-w-sm rounded-xl border border-orange-200 bg-white p-4 shadow-2xl" @click.outside="confirmSell = false">
                             <div class="text-sm font-extrabold text-slate-900">装備を売却しますか？</div>
@@ -84,7 +84,6 @@
                             </div>
                         </div>
                     </div>
-                @endif
             </form>
         </div>
     @elseif(count($sourceOptions) > 1)
@@ -109,11 +108,7 @@
                                 <div class="mt-0.5 text-[10px] font-black text-emerald-700">強化値: +{{ (int) $sourceOption['enhance_level'] }} → +{{ (int) ($sourceOption['inherited_enhance_level'] ?? 0) }} を引き継ぐ</div>
                             @endif
                             <div class="mt-1 flex flex-wrap gap-1">
-                                @if($sourceOption['is_locked'])
-                                    <span class="text-sm leading-none text-yellow-500" title="保護中" aria-label="保護中">★</span>
-                                @else
-                                    <span class="text-sm leading-none text-slate-300" title="保護なし" aria-label="保護なし">☆</span>
-                                @endif
+                                @include('smith.partials.equipment-lock', ['sourceOption' => $sourceOption])
                                 @if($sourceOption['has_affix'])
                                     <span class="rounded bg-indigo-100 px-1.5 py-0.5 text-[10px] font-bold text-indigo-700">銘付き</span>
                                 @endif
@@ -130,13 +125,12 @@
                             <form action="{{ route('equipment.sell', $sourceOption['id']) }}" method="POST" data-smith-sell-form data-source-item-id="{{ (int) $sourceOption['id'] }}">
                                 @csrf
                                 <input type="hidden" name="return_to_smith" value="1">
-                                <button type="button"
+                                <button type="button" data-smith-sell-open
                                     @click="confirmSell = true"
                                     @if(!$sourceCanSell) disabled title="{{ $sourceSellDisabledTitle }}" @endif
                                     class="h-8 rounded px-3 text-xs font-black transition active:scale-95 {{ $sourceCanSell ? 'bg-orange-600 text-white hover:bg-orange-700' : 'bg-slate-100 text-slate-400 cursor-not-allowed' }}">
                                     {{ $sourceSellPrice > 0 ? '売却' : '売却不可' }}
                                 </button>
-                                @if($sourceCanSell)
                                     <div x-show="confirmSell" x-cloak @keydown.escape.window="confirmSell = false" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 px-4 py-6">
                                         <div class="w-full max-w-sm rounded-xl border border-orange-200 bg-white p-4 shadow-2xl" @click.outside="confirmSell = false">
                                             <div class="text-sm font-extrabold text-slate-900">装備を売却しますか？</div>
@@ -157,7 +151,6 @@
                                             </div>
                                         </div>
                                     </div>
-                                @endif
                             </form>
                             @if($canEvolve)
                                 <button

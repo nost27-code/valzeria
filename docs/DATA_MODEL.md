@@ -26,6 +26,7 @@ Job Art Rank5 v6.1: `2026_08_26_120000_redefine_rank5_job_arts_v6.php`は`databa
 ## Exploration request safety (2026-09-27)
 
 - `exploration_requests`: `(character_id, token)` unique、要求内容のSHA-256、遷移先、暗号化した結果表示データ、作成日時。通常探索/ボス/通常探索へ繋がる深度・発見先操作はCharacterをロックし、操作全体と結果記録を同一transactionで確定する。同一IDの再送は再戦せず保存先へ戻し、内容を変えた再送は409。操作IDのない旧画面は再表示を案内する。
+  - 操作IDの検索はCharacter行ロック後の通常SELECTとする。未登録IDへのgap lockを避け、別キャラクターの新規INSERTを巻き込まない。ゲーム設定の読取も、transaction中かつDB cache利用時はcacheの期限切れ削除・再作成を避けて`game_settings`を直接読む。
 - 結果表示データは `exploration:prune-results` の毎時処理で24時間後に破棄する。再送防止のID・要求hash・遷移先は保持し、削除後も同じ操作を再実行しない。表示期限後は現在の探索状況を案内する。暗号化データの復元には既存の `APP_KEY` が必要。
 - `character_exploration_states.dungeon_lord_token`: 遭遇時だけ発行するnullable UUID。現在のキャラクター・エリアの保留中の遭遇と照合し、挑戦/見送り/探索リセットで消費。例外時は戦闘・消費と共にrollbackする。
 - 追加migrationは `2026_09_27_120000_add_exploration_request_safety.php`。既存データの初期化やマスタ変更なし。適用後にコードを有効化する。実行記録がある場合はdownを拒否する。公開時は後方互換migrationとして適用する。MariaDB同時実行検証は未確認。

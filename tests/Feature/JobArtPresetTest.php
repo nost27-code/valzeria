@@ -333,24 +333,41 @@ class JobArtPresetTest extends TestCase
         }
     }
 
-    public function test_job_change_rejects_without_deleting_then_original_job_can_reuse(): void
+    public function test_job_change_allows_a_usable_preset_in_every_context_without_rewriting_it(): void
     {
         $conditions = ['main_resource_lt_4', 'main_resource_ge_4', 'target_hp_le_30'];
         $this->insertLoadout($this->character, 'normal', [101, 105, 109], [], $conditions);
         $preset = $this->presetService->createFromCurrentLoadout($this->character, '司祭', 'normal');
         $this->character->forceFill(['current_job_id' => 53])->save();
 
-        $this->replaceLoadout($this->character, 'boss', [203]);
-        $this->assertValidationFailureKeepsLoadout(fn () => $this->presetService->apply($this->character, $preset->id, 'boss'), [203], 'boss');
-        $this->assertDatabaseHas('job_art_presets', ['id' => $preset->id]);
         $display = $this->presetService->presetsForDisplay($this->character, 'boss')[0];
-        $this->assertFalse($display['can_apply']);
-        $this->assertStringContainsString('職業', $display['unavailable_reason']);
+        $this->assertTrue($display['can_apply']);
+        $this->assertNull($display['unavailable_reason']);
+        foreach (['normal', 'boss', 'pvp', 'raid'] as $context) {
+            $this->replaceLoadout($this->character, $context, [203]);
+            $this->presetService->apply($this->character, $preset->id, $context);
+            $this->assertSame([101, 105, 109], $this->storedSkillIds($this->character, $context));
+            $this->assertSame($conditions, $this->storedConditions($this->character, $context));
+        }
+        $this->assertDatabaseHas('job_art_presets', ['id' => $preset->id, 'current_job_id' => 24]);
 
         $this->character->forceFill(['current_job_id' => 24])->save();
         $this->presetService->apply($this->character, $preset->id, 'boss');
         $this->assertSame([101, 105, 109], $this->storedSkillIds($this->character, 'boss'));
         $this->assertSame($conditions, $this->storedConditions($this->character, 'boss'));
+    }
+
+    public function test_unavailable_art_after_job_change_rejects_the_whole_preset(): void
+    {
+        $preset = $this->presetWithSlots('転職前の構成', [101, 105, 109]);
+        $this->character->forceFill(['current_job_id' => 53])->save();
+        $this->jobArtService->excludedSkillIds = [105];
+        $this->replaceLoadout($this->character, 'normal', [203]);
+        $this->assertValidationFailureKeepsLoadout(fn () => $this->presetService->apply($this->character, $preset->id, 'normal'), [203]);
+        $display = $this->presetService->presetsForDisplay($this->character)[0];
+        $this->assertFalse($display['can_apply']);
+        $this->assertNotEmpty($display['unavailable_reason']);
+        $this->assertSame([101, 105, 109], $preset->slots()->orderBy('slot_no')->pluck('skill_id')->map(fn ($id) => (int) $id)->all());
     }
 
     public function test_cost_is_recalculated_and_legacy_limit_groups_do_not_restrict_v2(): void

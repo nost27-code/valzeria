@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-09-27-chat-feedback-improvements',
+        'date' => '2026-09-27',
+        'category' => 'fixed',
+        'title' => '探索の安定性と保存構成・装備保護を改善',
+        'detail' => '同時探索の保存処理を改善しました。装備の兆しの効果説明を追加し、マイプリセットは転職後も使用条件を満たせば呼び出せます。進化合成画面から装備の保護も切り替えられます。',
+    ],
+    [
         'id' => '2026-09-27-public-readiness-safety',
         'date' => '2026-09-27',
         'category' => 'fixed',

@@ -38,6 +38,25 @@ class MapExplorationBatchServiceTest extends TestCase
         parent::tearDown();
     }
 
+    public function test_equipment_profile_passes_saved_fractional_bonuses_to_the_victory_drop_roll(): void
+    {
+        [$visitor, $registration] = $this->createPublishedMapAndVisitor('装備補正試験地', 'map-equipment-bonus-test');
+        $saved = ['weapon' => 0.10, 'armor' => 0.10, 'accessory' => 0.03];
+        $registration->map->update(['reward_profile' => 'equipment', 'reward_modifiers_json' => ['equipment_drop_bonus_points' => $saved]]);
+        $victory = new BattleResult();
+        $victory->result = 'victory';
+        $this->mock(BattleService::class)->shouldReceive('executeBattle')->once()->andReturn($victory);
+        $this->mock(DropService::class)->shouldReceive('rollBattleDrops')->once()
+            ->withArgs(fn ($character, $enemy, $dropBonus, $rareBonus, $rollMark, $trackLoot, $weight, $bonuses) =>
+                $character->id === $visitor->id && $bonuses === ['material' => 0.0, ...$saved])
+            ->andReturn(['materials' => [], 'equipment' => []]);
+        $this->mock(ExplorationMapGradeRewardService::class)->shouldReceive('tryDrop')->once()->andReturn(['materials' => [], 'equipment' => []]);
+        $service = app(MapExplorationBatchService::class);
+        $batch = $service->reserve($visitor, $registration, 1, (string) Str::uuid());
+        $execution = $service->execute($visitor, $batch);
+        $this->assertSame(1, (int) $execution['batch']->executed_count);
+    }
+
     #[DataProvider('equipmentDropBatchSizes')]
     public function test_map_equipment_drops_publish_normal_and_grade_bonus_logs_only_once(int $count): void
     {

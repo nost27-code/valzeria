@@ -578,6 +578,55 @@
                     }
                 });
 
+                const pendingLocks = new Set();
+                document.addEventListener('submit', async (event) => {
+                    const form = event.target.closest('[data-smith-lock-form]');
+                    if (!form) return;
+                    event.preventDefault();
+                    const itemId = form.dataset.sourceItemId;
+                    if (pendingLocks.has(itemId)) return;
+                    pendingLocks.add(itemId);
+                    const buttons = Array.from(document.querySelectorAll('[data-smith-lock-form]'))
+                        .filter((candidate) => candidate.dataset.sourceItemId === itemId)
+                        .map((candidate) => candidate.querySelector('[data-smith-lock-submit]'));
+                    buttons.forEach((button) => { button.disabled = true; });
+                    try {
+                        const response = await fetch(form.action, {
+                            method: 'POST',
+                            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                            body: new FormData(form),
+                        });
+                        const data = await response.json().catch(() => ({}));
+                        if (!response.ok || data.success !== true) {
+                            throw new Error(data.message || '保護の切り替えに失敗しました。');
+                        }
+                        buttons.forEach((button) => {
+                            button.textContent = data.is_locked ? '★ 保護中' : '☆ 保護する';
+                            button.setAttribute('aria-pressed', String(data.is_locked));
+                        });
+                        document.querySelectorAll('[data-smith-sell-form]').forEach((sellForm) => {
+                            if (sellForm.dataset.sourceItemId !== itemId) return;
+                            const button = sellForm.querySelector('[data-smith-sell-open]');
+                            button.disabled = !data.can_sell;
+                            button.title = data.can_sell ? '' : (data.is_locked ? '保護中は売却不可' : '売却不可');
+                            ['bg-orange-600', 'text-white', 'hover:bg-orange-700'].forEach((name) => button.classList.toggle(name, data.can_sell));
+                            ['bg-slate-100', 'text-slate-400', 'cursor-not-allowed'].forEach((name) => button.classList.toggle(name, !data.can_sell));
+                        });
+                        document.querySelectorAll('[data-smith-bulk-sell-checkbox]').forEach((checkbox) => {
+                            if (checkbox.dataset.sourceItemId !== itemId) return;
+                            checkbox.disabled = !data.can_sell;
+                            if (!data.can_sell) checkbox.checked = false;
+                        });
+                        updateBulkSellBar();
+                        showSmithMessage(data.message, true);
+                    } catch (error) {
+                        showSmithMessage(error.message || '保護の切り替えに失敗しました。', false);
+                    } finally {
+                        buttons.forEach((button) => { button.disabled = false; });
+                        pendingLocks.delete(itemId);
+                    }
+                });
+
                 document.addEventListener('submit', async (event) => {
                     const form = event.target.closest('[data-smith-sell-form]');
                     if (!form) return;
