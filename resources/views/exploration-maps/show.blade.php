@@ -11,7 +11,7 @@
     <div class="mx-auto max-w-2xl space-y-4">
         <section class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
             <div class="grid grid-cols-2 gap-3 text-sm font-bold text-slate-700">
-                <div>発見者：{{ $map->owner->name }}</div>
+                <div>発見者：{{ $map->owner?->name ?? '退会した冒険者' }}</div>
                 <div>公開地図院：{{ $registration->town->name }}</div>
                 <div>地図等級：{{ ['normal' => '通常', 'rare' => '希少', 'hero' => '英雄', 'legend' => '伝説'][$map->map_grade] ?? $map->map_grade }}</div>
                 <div>状態：{{ match ($registration->status) {

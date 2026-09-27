@@ -1,5 +1,9 @@
 # DATA_MODEL.md
 
+2026-09-28: 地図関連5参照（`exploration_maps.owner_character_id`、`map_exploration_batches.character_id`、`map_exploration_results.character_id`、`map_income_logs.payer_character_id/owner_character_id`）はnullable / ON DELETE SET NULL。退会時は所有地図をwithdrawnとし、既存の地図・探索・収益行を保持する。公開登録は公開中だけwithdrawn、未公開はdiscardedとし、終了済み登録の終了日時は維持する。精算待ちがある場合は退会transaction全体を中止する。NULL履歴が存在する場合のmigration巻戻しは拒否し、履歴を削除・架空所有者で埋めない。
+
+2026-09-28: 最終アクセス更新と所持品監視は`CharacterBackgroundOperation`でCharacterをNOWAITロックし、使用中なら変更せず次回へ回す。所持品監視は一人ずつ再集計し、検知と基準値更新を同じtransactionで確定する。全員分のupsertを行わず、保留時は従来の基準値を保持する。レイド受付でもCharacter待ちの間に全体coordinatorを保持し続けず、NOWAIT競合時は受付をrollbackする。結果復元はDB読取だけを最大3試行とし、戦闘は再実行しない。
+
 Purpose: compressed DB/data contract map.
 
 Exploration map publication visibility（2026-09-11）: `town_map_registrations.visibility_scope`は`owner`・`nation`・`all`で、既定値`all`により既存公開を全体公開として維持する。nullable `nation_id_snapshot`は`nation`時だけ公開時の国家を保存し、国家削除時はNULLになる。

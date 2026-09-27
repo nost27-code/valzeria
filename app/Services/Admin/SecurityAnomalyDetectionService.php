@@ -244,8 +244,6 @@ class SecurityAnomalyDetectionService
             ->merge(SecurityInventorySnapshot::query()->pluck('character_id'))
             ->unique();
         $this->primeCharacterCache($characterIds);
-        $snapshots = SecurityInventorySnapshot::query()->whereIn('character_id', $characterIds)->get()->keyBy('character_id');
-        $snapshotRows = [];
 
         foreach ($characterIds as $characterId) {
             $characterId = (int) $characterId;
@@ -254,40 +252,39 @@ class SecurityAnomalyDetectionService
                 continue;
             }
 
-            $equipmentCount = (int) ($equipment[$characterId] ?? 0);
-            $materialQuantity = (int) ($materials[$characterId] ?? 0);
-            $snapshot = $snapshots->get($characterId);
+            $nextResult = $result;
+            $saved = app(\App\Services\CharacterBackgroundOperation::class)->run($characterId, function () use ($characterId, $subject, $rule, &$nextResult): void {
+                // Read counts only after locking this character, and commit this
+                // baseline with its detection. A busy player keeps the old baseline.
+                $equipmentCount = DB::table('character_items')->join('items', 'items.id', '=', 'character_items.item_id')
+                    ->where('character_items.character_id', $characterId)
+                    ->whereIn('items.type', ['weapon', 'armor', 'accessory'])->count();
+                $materialQuantity = (int) DB::table('character_materials')->where('character_id', $characterId)->sum('quantity');
+                $snapshot = SecurityInventorySnapshot::query()->where('character_id', $characterId)->lockForUpdate()->first();
 
-            if ($snapshot) {
-                $equipmentDelta = $equipmentCount - (int) $snapshot->equipment_count;
-                $materialDelta = $materialQuantity - (int) $snapshot->material_quantity;
-                if ($equipmentDelta >= (int) $rule['equipment_threshold'] || $materialDelta >= (int) $rule['material_threshold']) {
-                    $this->recordDetection($result, [
-                        'rule_key' => 'inventory_growth', 'severity' => 'warning', ...$subject,
-                        'title' => '装備・素材の急増',
-                        'summary' => sprintf('前回走査から装備%+d個、素材%+d個の純増を検知しました。', $equipmentDelta, $materialDelta),
-                        'evidence' => ['previous_equipment_count' => (int) $snapshot->equipment_count, 'equipment_count' => $equipmentCount, 'equipment_delta' => $equipmentDelta, 'previous_material_quantity' => (int) $snapshot->material_quantity, 'material_quantity' => $materialQuantity, 'material_delta' => $materialDelta, 'previous_captured_at' => $snapshot->captured_at?->toDateTimeString()],
-                        'signature' => 'inventory:'.$snapshot->captured_at?->timestamp.':'.$equipmentCount.':'.$materialQuantity,
-                    ]);
+                if ($snapshot) {
+                    $equipmentDelta = $equipmentCount - (int) $snapshot->equipment_count;
+                    $materialDelta = $materialQuantity - (int) $snapshot->material_quantity;
+                    if ($equipmentDelta >= (int) $rule['equipment_threshold'] || $materialDelta >= (int) $rule['material_threshold']) {
+                        $this->recordDetection($nextResult, [
+                            'rule_key' => 'inventory_growth', 'severity' => 'warning', ...$subject,
+                            'title' => '装備・素材の急増',
+                            'summary' => sprintf('前回走査から装備%+d個、素材%+d個の純増を検知しました。', $equipmentDelta, $materialDelta),
+                            'evidence' => ['previous_equipment_count' => (int) $snapshot->equipment_count, 'equipment_count' => $equipmentCount, 'equipment_delta' => $equipmentDelta, 'previous_material_quantity' => (int) $snapshot->material_quantity, 'material_quantity' => $materialQuantity, 'material_delta' => $materialDelta, 'previous_captured_at' => $snapshot->captured_at?->toDateTimeString()],
+                            'signature' => 'inventory:'.$snapshot->captured_at?->timestamp.':'.$equipmentCount.':'.$materialQuantity,
+                        ]);
+                    }
                 }
+
+                SecurityInventorySnapshot::query()->updateOrCreate(['character_id' => $characterId], [
+                    'equipment_count' => $equipmentCount,
+                    'material_quantity' => $materialQuantity,
+                    'captured_at' => now(),
+                ]);
+            });
+            if ($saved) {
+                $result = $nextResult;
             }
-
-            $snapshotRows[] = [
-                'character_id' => $characterId,
-                'equipment_count' => $equipmentCount,
-                'material_quantity' => $materialQuantity,
-                'captured_at' => now(),
-                'created_at' => $snapshot?->created_at ?? now(),
-                'updated_at' => now(),
-            ];
-        }
-
-        if ($snapshotRows !== []) {
-            SecurityInventorySnapshot::query()->upsert(
-                $snapshotRows,
-                ['character_id'],
-                ['equipment_count', 'material_quantity', 'captured_at', 'updated_at'],
-            );
         }
     }
 

@@ -156,6 +156,38 @@ class AdminSecurityAnomalyDetectionTest extends TestCase
         $this->assertDatabaseHas('security_anomaly_cases', ['rule_key' => 'inventory_growth', 'character_id' => $character->id]);
     }
 
+    public function test_busy_character_keeps_baseline_while_other_characters_are_scanned_and_next_scan_catches_growth(): void
+    {
+        config()->set('security_anomaly_detection.rules.inventory_growth.equipment_threshold', 1);
+        $busy = $this->createCharacter();
+        $other = $this->createCharacter();
+        $itemId = $this->equipmentItemId();
+        foreach ([$busy, $other] as $character) {
+            CharacterItem::create(['character_id' => $character->id, 'item_id' => $itemId]);
+        }
+        $service = app(SecurityAnomalyDetectionService::class);
+        $service->scan();
+        foreach ([$busy, $other] as $character) {
+            CharacterItem::create(['character_id' => $character->id, 'item_id' => $itemId]);
+        }
+        $this->app->instance(\App\Services\CharacterBackgroundOperation::class, new class($busy->id) extends \App\Services\CharacterBackgroundOperation {
+            public function __construct(private int $busyId) {}
+            public function run(int $characterId, \Closure $operation): bool
+            {
+                return $characterId === $this->busyId ? false : parent::run($characterId, $operation);
+            }
+        });
+        $service->scan();
+        $this->assertDatabaseHas('security_inventory_snapshots', ['character_id' => $busy->id, 'equipment_count' => 1]);
+        $this->assertDatabaseMissing('security_anomaly_cases', ['rule_key' => 'inventory_growth', 'character_id' => $busy->id]);
+        $this->assertDatabaseHas('security_inventory_snapshots', ['character_id' => $other->id, 'equipment_count' => 2]);
+        $this->app->instance(\App\Services\CharacterBackgroundOperation::class, new \App\Services\CharacterBackgroundOperation);
+        $service->scan();
+        $this->assertDatabaseHas('security_inventory_snapshots', ['character_id' => $busy->id, 'equipment_count' => 2]);
+        $this->assertDatabaseHas('security_anomaly_cases', ['rule_key' => 'inventory_growth', 'character_id' => $busy->id]);
+        $this->assertSame(1, SecurityAnomalyCase::where('rule_key', 'inventory_growth')->where('character_id', $other->id)->firstOrFail()->detection_count);
+    }
+
     public function test_high_value_trade_after_admin_grant_is_detected(): void
     {
         config()->set('security_anomaly_detection.rules.admin_grant_trade.price_threshold', 100);

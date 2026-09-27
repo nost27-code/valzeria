@@ -84,6 +84,19 @@ class NationRaidSortieService
                 return [$existing, false];
             }
             $this->assertAdmission($event);
+            try {
+                $query = Character::query()->whereKey($character->id);
+                $locked = in_array(\Illuminate\Support\Facades\DB::getDriverName(), ['mysql', 'mariadb'], true)
+                    ? $query->lock('for update nowait')->firstOrFail()
+                    : $query->lockForUpdate()->firstOrFail();
+            } catch (\Illuminate\Database\QueryException $exception) {
+                // Never hold the global raid coordinator while waiting for an
+                // unrelated exploration on this character. Admission rolls back.
+                if (in_array((int) ($exception->errorInfo[1] ?? 0), [1205, 3572], true)) {
+                    throw new \DomainException('ほかの操作を処理中です。完了してからもう一度出撃してください。', previous: $exception);
+                }
+                throw $exception;
+            }
             $day = $event->raidDayAt(now());
             throw_unless($day !== null && $day >= 1 && $day <= 7, \DomainException::class, '出撃できる期間ではありません。');
             $cycle = NationRaidBossCycle::query()->where('event_id', $event->id)
@@ -97,7 +110,6 @@ class NationRaidSortieService
                 ->whereIn('status', [SavedBattle::STATUS_STARTED, SavedBattle::STATUS_ABORTED])->exists(),
                 \DomainException::class, '前の出撃を処理中です。しばらく待ってから確認してください。');
             $used = (int) NationRaidDailyUsage::query()->where('event_id', $event->id)->where('account_id', $character->user_id)->sum('used_count');
-            $locked = Character::query()->whereKey($character->id)->lockForUpdate()->firstOrFail();
             $locked->load('user');
             throw_unless((int) $locked->user_id === (int) $participation->account_id
                 && ! $locked->isExcludedFromPublicLogs() && ! $locked->is_frozen

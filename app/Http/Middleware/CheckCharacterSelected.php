@@ -56,11 +56,7 @@ class CheckCharacterSelected
         }
 
         // オンライン状態を更新（1分以上経過していれば更新してDBへの書き込み頻度を抑える）
-        if (!$character->last_seen_at || $character->last_seen_at->diffInSeconds(now()) >= 60) {
-            $character->timestamps = false;
-            $character->update(['last_seen_at' => now()]);
-            $character->timestamps = true;
-        }
+        app(\App\Services\CharacterPresenceService::class)->touch($character);
 
         // Livewireのタブ切り替えやpollingはログインそのものではないため、
         // IP観測・日次ログイン記録のDB書き込み対象から外す。

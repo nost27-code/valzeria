@@ -49,7 +49,7 @@
                                     @endif
                                     <span class="rounded border border-sky-200 bg-sky-50 px-2 py-0.5 text-[11px] font-black text-sky-800">{{ $registration->visibilityLabel() }}</span>
                                 </div>
-                                <p class="mt-1 text-xs font-bold text-slate-500">公開地図院：{{ $registration->town->name }}　発見者：{{ $map->owner->name }}</p>
+                                <p class="mt-1 text-xs font-bold text-slate-500">公開地図院：{{ $registration->town->name }}　発見者：{{ $map->owner?->name ?? '退会した冒険者' }}</p>
                                 <div class="mt-2 flex flex-wrap gap-1.5 text-[11px] font-bold">
                                     <span class="rounded border border-indigo-100 bg-indigo-50 px-2 py-1 text-indigo-800">{{ $isEnded ? '公開終了' : '残り ' . number_format($registration->remaining_explorations) . ' 回' }}</span>
                                     <span class="rounded border border-emerald-100 bg-emerald-50 px-2 py-1 text-emerald-800">{{ $isEnded ? '入場できません' : ($isActive ? '入場中：追加料金なし' : ($registration->visibilityScope() === \App\Models\TownMapRegistration::VISIBILITY_OWNER ? '自分だけの地図：無料' : ($owner ? '発見者は無料（共有相手：' . number_format($registration->entry_fee_per_exploration) . 'G）' : '入場料：' . number_format($registration->entry_fee_per_exploration) . 'G'))) }}</span>

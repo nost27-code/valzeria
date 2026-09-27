@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-09-28-lock-contention-account-retirement',
+        'date' => '2026-09-28',
+        'category' => 'fixed',
+        'title' => '同時操作の安定性と退会時の地図履歴を改善',
+        'detail' => '操作中の待ち時間を軽減しました。退会時は所有地図を公開終了にし、他の冒険者の探索・収益履歴を残します。地図探索の精算中は、完了後の退会をお願いします。',
+    ],
+    [
         'id' => '2026-09-27-map-equipment-bonus',
         'date' => '2026-09-27',
         'category' => 'balance',

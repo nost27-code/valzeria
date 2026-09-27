@@ -8,6 +8,7 @@
         <div class="p-5 space-y-4">
             <div class="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-900 font-semibold leading-relaxed">
                 この操作は取り消せません。削除すると、キャラクター、装備、素材、進行状況、戦闘履歴など、このアカウントで作成したデータは復元できません。
+                <p class="mt-2">所有する地図は公開終了になります。他の冒険者に関係する地図の探索・収益履歴は「退会した冒険者」として残ります。地図探索の精算中は、完了後にもう一度お手続きください。</p>
             </div>
 
             <div class="rounded-lg border border-slate-200 bg-slate-50 p-4">

@@ -1256,7 +1256,7 @@ class BattleController extends Controller
                     Character::whereKey($character->id)->lockForUpdate()->firstOrFail();
                     return DB::table('exploration_requests')->where('character_id', $character->id)
                         ->where('token', $resultToken)->value('battle_data');
-                });
+                }, 3); // 保存済み結果の読取だけを再試行する。戦闘・報酬付与は実行しない。
                 if ($saved) {
                     $character->refresh();
                     CharacterStatusService::clearRequestCache();

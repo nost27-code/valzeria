@@ -38,6 +38,67 @@ class MapExplorationBatchServiceTest extends TestCase
         parent::tearDown();
     }
 
+    public function test_retirement_closes_owned_maps_and_anonymizes_history_without_deleting_other_players_results(): void
+    {
+        [$visitor, $registration] = $this->createPublishedMapAndVisitor('退会履歴試験', 'retirement-history');
+        $owner = $registration->map->owner;
+        $privateMap = $registration->map->replicate();
+        $privateMap->fill(['uuid' => (string) Str::uuid(), 'source_drop_event_uuid' => (string) Str::uuid(), 'status' => 'surveyed'])->save();
+        $privateRegistration = $registration->replicate();
+        $privateRegistration->fill(['map_id' => $privateMap->id, 'status' => 'surveyed', 'published_at' => null])->save();
+        $victory = new BattleResult;
+        $victory->result = 'victory';
+        $this->mock(BattleService::class)->shouldReceive('executeBattle')->once()->andReturn($victory);
+        $service = app(MapExplorationBatchService::class);
+        $batch = $service->reserve($visitor, $registration, 1, (string) Str::uuid());
+        $service->execute($visitor, $batch);
+        $resultIds = $batch->results()->pluck('id')->all();
+        $incomeBefore = DB::table('map_income_logs')->where('batch_id', $batch->id)->first();
+
+        app(\App\Services\AccountDeletionService::class)->deleteUser($owner->user);
+        $this->assertDatabaseMissing('characters', ['id' => $owner->id]);
+        $this->assertDatabaseHas('exploration_maps', ['id' => $registration->map_id, 'owner_character_id' => null, 'status' => 'withdrawn']);
+        $this->assertSame('withdrawn', $registration->fresh()->status);
+        $this->assertSame('discarded', $privateRegistration->fresh()->status);
+        $this->assertFalse($privateRegistration->fresh()->isRecentlyClosed());
+        $this->assertSame($resultIds, $batch->results()->pluck('id')->all());
+        $this->assertSame($visitor->id, $batch->fresh()->character_id);
+        $this->assertDatabaseHas('map_income_logs', ['batch_id' => $batch->id, 'owner_character_id' => null, 'payer_character_id' => $visitor->id, 'total_entry_fee' => $incomeBefore->total_entry_fee]);
+
+        app(\App\Services\AccountDeletionService::class)->deleteUser($visitor->user);
+        $this->assertNull($batch->fresh()->character_id);
+        $this->assertNull($batch->results()->firstOrFail()->character_id);
+        $this->assertDatabaseHas('map_income_logs', ['batch_id' => $batch->id, 'owner_character_id' => null, 'payer_character_id' => null]);
+        $this->assertSame($resultIds, $batch->results()->pluck('id')->all());
+        $migration = require database_path('migrations/2026_09_28_010000_preserve_map_history_after_account_deletion.php');
+        try {
+            $migration->down();
+            $this->fail('Rollback must not discard anonymous history.');
+        } catch (\RuntimeException $exception) {
+            $this->assertStringContainsString('巻き戻せません', $exception->getMessage());
+        }
+        $this->assertSame($resultIds, $batch->results()->pluck('id')->all());
+    }
+
+    public function test_retirement_waits_for_pending_map_settlement_without_partially_deleting_or_closing_maps(): void
+    {
+        [$visitor, $registration] = $this->createPublishedMapAndVisitor('退会予約試験', 'retirement-pending');
+        $owner = $registration->map->owner;
+        $batch = app(MapExplorationBatchService::class)->reserve($visitor, $registration, 1, (string) Str::uuid());
+        foreach ([$owner, $visitor] as $character) {
+            try {
+                app(\App\Services\AccountDeletionService::class)->deleteUser($character->user);
+                $this->fail('Pending exploration must prevent retirement.');
+            } catch (\Illuminate\Validation\ValidationException $exception) {
+                $this->assertArrayHasKey('confirmation', $exception->errors());
+            }
+            $this->assertDatabaseHas('users', ['id' => $character->user_id]);
+        }
+        $this->assertSame('published', $registration->fresh()->status);
+        $this->assertSame('reserved', $batch->fresh()->status);
+        $this->assertSame($owner->id, $registration->map->fresh()->owner_character_id);
+    }
+
     public function test_equipment_profile_passes_saved_fractional_bonuses_to_the_victory_drop_roll(): void
     {
         [$visitor, $registration] = $this->createPublishedMapAndVisitor('装備補正試験地', 'map-equipment-bonus-test');
