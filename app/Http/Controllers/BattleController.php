@@ -185,7 +185,10 @@ class BattleController extends Controller
         $metricContext = $isRegionDepthDungeon ? 'region_depth' : 'normal';
         $metricBefore = $gameplayMetrics->explorationSnapshot($character, $metricContext, $areaId);
 
-        if ($canBatchExplore) {
+        if ($forcedEvent === 'dungeon_lord') {
+            $lordToken = $request->input('dungeon_lord_token');
+            $result = $this->explorationService->challengeDungeonLord($character, $areaId, is_string($lordToken) ? $lordToken : '');
+        } elseif ($canBatchExplore) {
             $result = $this->explorationService->exploreRepeated(
                 $character,
                 $areaId,
@@ -261,7 +264,7 @@ class BattleController extends Controller
                 'area_id' => (int) $batch->map->source_area_id,
             ]]);
 
-            return redirect()->route('battle.result')->with('battleData', [
+            return $this->redirectToBattleResult($character, [
                 'result' => $execution['battle_result'],
                 'areaId' => (int) $batch->map->source_area_id,
                 'isBoss' => false,
@@ -645,19 +648,22 @@ class BattleController extends Controller
             'jobLevel' => $jobLevel,
         ];
 
-        return redirect()->route('battle.result')->with('battleData', $battleData);
+        return $this->redirectToBattleResult($character, $battleData);
     }
 
     public function returnToTown(Request $request)
     {
         $character = Auth::user()->currentCharacter();
         if ($character) {
-            $resolvedValmonEggs = app(\App\Services\ValmonService::class)->hatchActiveEggs($character);
-            app(\App\Services\RegionDepthDungeonService::class)->finalize($character, 'returned');
-            $explorationStateService = app(\App\Services\ExplorationStateService::class);
-            $explorationStateService->reset($character);
-            app(SubAreaExplorationStateService::class)->reset($character);
-            app(\App\Services\MapExplorationItemService::class)->end($character);
+            $resolvedValmonEggs = DB::transaction(function () use ($character) {
+                $character = Character::whereKey($character->id)->lockForUpdate()->firstOrFail();
+                $eggs = app(\App\Services\ValmonService::class)->hatchActiveEggs($character);
+                app(\App\Services\RegionDepthDungeonService::class)->finalize($character, 'returned');
+                app(ExplorationStateService::class)->reset($character);
+                app(SubAreaExplorationStateService::class)->reset($character);
+                app(\App\Services\MapExplorationItemService::class)->end($character);
+                return $eggs;
+            });
             $this->forgetExploreCount($character);
         }
 
@@ -691,10 +697,13 @@ class BattleController extends Controller
     {
         $character = Auth::user()->currentCharacter();
         if ($character) {
-            app(\App\Services\ValmonService::class)->hatchActiveEggs($character);
-            app(ExplorationStateService::class)->reset($character);
-            app(SubAreaExplorationStateService::class)->reset($character);
-            app(\App\Services\MapExplorationItemService::class)->end($character);
+            DB::transaction(function () use ($character) {
+                $character = Character::whereKey($character->id)->lockForUpdate()->firstOrFail();
+                app(\App\Services\ValmonService::class)->hatchActiveEggs($character);
+                app(ExplorationStateService::class)->reset($character);
+                app(SubAreaExplorationStateService::class)->reset($character);
+                app(\App\Services\MapExplorationItemService::class)->end($character);
+            });
             $this->forgetExploreCount($character);
         }
 
@@ -1241,6 +1250,20 @@ class BattleController extends Controller
                 }
             }
 
+            if (! is_array($battleData) && Str::isUuid($resultToken)) {
+                $saved = DB::transaction(function () use ($character, $resultToken) {
+                    // 通信切断直後の結果確認は、実行中の同一キャラクターの確定を待つ。
+                    Character::whereKey($character->id)->lockForUpdate()->firstOrFail();
+                    return DB::table('exploration_requests')->where('character_id', $character->id)
+                        ->where('token', $resultToken)->value('battle_data');
+                });
+                if ($saved) {
+                    $character->refresh();
+                    CharacterStatusService::clearRequestCache();
+                    $battleData = \Illuminate\Support\Facades\Crypt::decrypt($saved);
+                }
+            }
+
             if (! is_array($battleData)) {
                 return redirect()
                     ->route('home')
@@ -1341,6 +1364,10 @@ class BattleController extends Controller
     {
         // DBキャッシュへモデルをそのまま保存すると、読込時に__PHP_Incomplete_Classとなる。
         $battleData = $this->snapshotBattleResultDisplayObjects($battleData);
+        if ($token = request()->attributes->get('committed_exploration_token')) {
+            request()->attributes->set('committed_exploration_data', $battleData);
+            return redirect()->route('battle.result', [self::BATTLE_RESULT_QUERY_KEY => $token])->with('battleData', $battleData);
+        }
         $resultToken = (string) Str::uuid();
         $stored = false;
 

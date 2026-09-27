@@ -110,7 +110,7 @@ class ArenaNpcBattleService
         $state = new BattleState($attackerActor, $npcActor, 'arena_npc');
         $state->maxTurns = self::MAX_TURNS;
 
-        $state->addLog("【闘技場】{$attackerActor->name} が {$npcActor->name} に勝負を挑んだ！");
+        $state->addLog("【闘技場】{$attackerActor->logName()} が {$npcActor->logName()} に勝負を挑んだ！");
         $state->addLog("<span class=\"text-slate-600 font-bold\">相手は酒場でも噂される放浪冒険者だ。詳しい実力は分からない。</span>");
 
         while (!$state->isBattleEnded() && $state->turnCount < self::MAX_TURNS) {
@@ -154,15 +154,15 @@ class ArenaNpcBattleService
 
         $isAttackerWin = false;
         if ($npcActor->isDead()) {
-            $state->addLog("<br><span class=\"text-black font-extrabold text-xl\">決着！{$attackerActor->name}は、{$npcActor->name}を倒した！</span>");
+            $state->addLog("<br><span class=\"text-black font-extrabold text-xl\">決着！{$attackerActor->logName()}は、{$npcActor->logName()}を倒した！</span>");
             $result->result = 'victory';
             $isAttackerWin = true;
         } elseif (!$attackerActor->isDead() && $attackerActor->hasHigherRemainingHpRatioThan($npcActor)) {
-            $state->addLog("<br><span class=\"text-black font-extrabold text-xl\">判定勝利！{$attackerActor->name}が優勢のまま押し切った！</span>");
+            $state->addLog("<br><span class=\"text-black font-extrabold text-xl\">判定勝利！{$attackerActor->logName()}が優勢のまま押し切った！</span>");
             $result->result = 'victory';
             $isAttackerWin = true;
         } else {
-            $state->addLog("<br><span class=\"text-black font-extrabold text-xl\">決着！{$npcActor->name}が防衛に成功した！</span>");
+            $state->addLog("<br><span class=\"text-black font-extrabold text-xl\">決着！{$npcActor->logName()}が防衛に成功した！</span>");
             $result->result = 'defeat';
         }
 
@@ -364,7 +364,7 @@ class ArenaNpcBattleService
         $damageType = JobArtEffectCatalog::resolveDamageType($skill, $attacker->usesMagForNormalAttack());
         $damageClass = $damageType === 'magical' ? 'text-purple-600' : 'text-red-600';
         if ($addOpeningLog) {
-            $state->addLog("<span class=\"text-blue-600 font-bold\">【必殺技】{$attacker->name} の必殺技、{$skill->name} が発動！</span>");
+            $state->addLog("<span class=\"text-blue-600 font-bold\">【必殺技】{$attacker->logName()} の必殺技、{$skill->name} が発動！</span>");
         }
         if ($this->jobArtBattleSupport->isFieldOnlyArt($attacker, $state, $skill)) {
             return;
@@ -489,7 +489,7 @@ class ArenaNpcBattleService
                 );
                 $damage = $damageResult?->requestedDamage ?? $damage;
                 $totalDamage += $damage;
-                $state->addDamageLog("{$defender->name} に <span class=\"{$damageClass} font-extrabold text-lg\">{$damage}</span> のダメージ！");
+                $state->addDamageLog("{$defender->logName()} に <span class=\"{$damageClass} font-extrabold text-lg\">{$damage}</span> のダメージ！");
                 $this->logGutsIfTriggered($defender, $state);
             }
 
@@ -513,13 +513,13 @@ class ArenaNpcBattleService
         if ((int) $skill->heal_percent > 0) {
             $healAmount = (int) floor($attacker->maxHp * ((int) $skill->heal_percent / 100));
             $actualHeal = $this->jobArtBattleSupport->applyFieldHpHeal($attacker, $state, $healAmount);
-            $state->addLog("<span class=\"text-green-600 font-bold\">{$attacker->name} の傷が {$actualHeal} 回復した！</span>");
+            $state->addLog("<span class=\"text-green-600 font-bold\">{$attacker->logName()} の傷が {$actualHeal} 回復した！</span>");
         }
 
         if ((int) $skill->mp_recover_percent > 0 && $attacker->maxMp > 0) {
             $mpHealAmount = (int) floor($attacker->maxMp * ((int) $skill->mp_recover_percent / 100));
             $attacker->mp = min($attacker->maxMp, $attacker->mp + $mpHealAmount);
-            $state->addLog("<span class=\"text-blue-500 font-bold\">{$attacker->name} はSPを {$mpHealAmount} 回復した！</span>");
+            $state->addLog("<span class=\"text-blue-500 font-bold\">{$attacker->logName()} はSPを {$mpHealAmount} 回復した！</span>");
         }
 
         if ((int) $skill->self_damage_percent > 0) {
@@ -532,7 +532,7 @@ class ArenaNpcBattleService
                 DamageSourceType::RECOIL,
                 (int) $skill->id,
             );
-            $state->addLog("<span class=\"text-purple-600 font-bold\">反動により、{$attacker->name} は {$selfDamage} のダメージを受けた！</span>");
+            $state->addLog("<span class=\"text-purple-600 font-bold\">反動により、{$attacker->logName()} は {$selfDamage} のダメージを受けた！</span>");
             $this->jobArtBattleSupport->recordSelfDamage($attacker, $state, $selfDamage);
             $this->logGutsIfTriggered($attacker, $state);
         }
@@ -543,7 +543,7 @@ class ArenaNpcBattleService
 
         if ((int) $skill->damage_reduction_percent > 0 && ! ($skill->isJobArt() && in_array((string) $skill->effect_template, ['GUARD_BARRIER', 'DAMAGE_GUARD_BARRIER'], true))) {
             $attacker->damageReductionRate = max($attacker->damageReductionRate, min(50, (int) $skill->damage_reduction_percent));
-            $state->addLog("{$attacker->name} は次の被ダメージを軽減する構えをとった！");
+            $state->addLog("{$attacker->logName()} は次の被ダメージを軽減する構えをとった！");
         }
 
         if (!$skill->isJobArt() && (int) $skill->self_buff_percent > 0) {
@@ -584,14 +584,14 @@ class ArenaNpcBattleService
 
         if ($template === 'GUTS') {
             $attacker->gutsReady = true;
-            $state->addLog("<span class=\"text-orange-700 font-bold\">{$attacker->name} は一度だけ踏みとどまる覚悟を固めた！</span>");
+            $state->addLog("<span class=\"text-orange-700 font-bold\">{$attacker->logName()} は一度だけ踏みとどまる覚悟を固めた！</span>");
         }
 
         if (in_array($template, ['GUARD_BARRIER', 'DAMAGE_GUARD_BARRIER'], true)) {
             $rate = (float) ($attacker->jobArtRates[(int) $skill->id] ?? 1.0);
             $reduction = $this->jobArtGuardReduction($skill, $rate);
             $attacker->damageReductionRate = max($attacker->damageReductionRate, min(50, $reduction));
-            $state->addLog("<span class=\"text-blue-700 font-bold\">{$attacker->name} は次の被ダメージを {$reduction}% 軽減する！</span>");
+            $state->addLog("<span class=\"text-blue-700 font-bold\">{$attacker->logName()} は次の被ダメージを {$reduction}% 軽減する！</span>");
         }
 
         if (in_array($template, ['SELF_BUFF', 'DAMAGE_BUFF', 'MAGICAL_DAMAGE_BUFF'], true)) {
@@ -762,7 +762,7 @@ class ArenaNpcBattleService
             self::MAX_HIT_RATE,
             $this->jobArtBattleSupport->fieldAccuracyDelta($attacker, $state),
         )) {
-            $state->addLog("{$attacker->name} の攻撃！……しかし、{$defender->name} はかわした！");
+            $state->addLog("{$attacker->logName()} の攻撃！……しかし、{$defender->logName()} はかわした！");
             $this->jobArtBattleSupport->recordNormalAttackResolution($attacker, $defender, $state, HitResult::MISS, false);
             return;
         }
@@ -797,7 +797,7 @@ class ArenaNpcBattleService
 
         $critText = $isCritical ? "<span class=\"text-orange-500 font-bold\">【痛恨の一撃！】</span>" : '';
         $damageClass = $attackType === 'magical' ? 'text-purple-600' : 'text-red-600';
-        $state->addDamageLog("{$attacker->name} の攻撃！ {$critText} {$defender->name} に <span class=\"{$damageClass} font-extrabold text-lg\">{$damage}</span> のダメージ！");
+        $state->addDamageLog("{$attacker->logName()} の攻撃！ {$critText} {$defender->logName()} に <span class=\"{$damageClass} font-extrabold text-lg\">{$damage}</span> のダメージ！");
         $this->jobArtBattleSupport->recordNormalAttackResolution($attacker, $defender, $state, HitResult::HIT, false);
         $this->logGutsIfTriggered($defender, $state);
     }
@@ -818,7 +818,7 @@ class ArenaNpcBattleService
         }
 
         $actor->gutsJustTriggered = false;
-        $state->addLog("<span class=\"text-orange-700 font-extrabold\">{$actor->name} は不屈の精神で致死ダメージを耐えた！（HP1）</span>");
+        $state->addLog("<span class=\"text-orange-700 font-extrabold\">{$actor->logName()} は不屈の精神で致死ダメージを耐えた！（HP1）</span>");
     }
 
     private function normalAttackType(?object $job): string

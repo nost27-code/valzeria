@@ -328,3 +328,7 @@ Recent key points:
 - `BATTLE_JOB_ART_PRESETS` は既定OFF。LOADOUT_V2もONかつprototype対応40職の場合だけ「マイ戦技プリセット」を表示・操作できる。1キャラクター無料3件で、保存時の現在職と同じ職でのみ通常/ボス/PvPの現在タブへ適用可能。保存する正本は5枠の戦技ID・順番・発動方針・slot条件で、適用時に現行Cost・習得・restrictionを再検証する。戦闘はpreset tableを直接参照しない。冒険者パス・課金枠拡張は未実装
 - v2の12pt経済校正では、既存Rank5を維持し、必要な現在職の信頼済みRank9だけを `JobArtV2PowerResolver` で実行時補正する。53=410、60=455、61=585、62=同一戦闘でいずれかのRank5連携を使用済みなら470（未使用はmaster 355）、64=460、65=570、69=455。当時は66/67/68を固有効果込み比較でmaster 355維持としたが、67だけは2026-08-15の再裁定でmaster 315へ変更し、66/68は355を維持する。63はmaster powerを維持し、行動開始時の主場と本人の実上書き回数に基づく最大1.15倍だけを実行時に一度適用する。戦技セットの固定威力表示と実行時powerは同じResolverを使い、継承・対象外職・依存flag不成立時は既存マスタpowerへfail closedする。24/85と他のlegacy masterは変更せず、新しいpower専用flagは追加しない
 - 全v2戦闘依存flagが成立したprototype対応40職では、通常・ボス・塔・PvP・チャンプ・NPC闘技場の戦闘結果に表示専用の「戦技の流れ」を出す。サーバーで戦闘全体を解決した後の最終HUDと折りたたみ履歴で、現在職主系譜resource 0〜12、奥義までの残量、場/echo/構え/HIT/MISS/EVADE/貫通/SP変化を表示する。resource barは常に1本で、同系譜継承の増減も同じbarへ反映し、異系譜resourceは生成しない。日本語ログは解析せず、表示値を戦闘判定へ戻さない。flag OFF・対象外職はHUDを出さず、RNGと勝敗結果を変更しない
+
+## Public request safety (2026-09-27)
+
+通常探索・ボス・深度/発見先POSTは画面ごとの操作UUIDを必須とし、消費・報酬・結果を同じtransactionで確定する。結果は24時間DBから復元可能で、同じUUIDの再送では再戦しない。ダンジョン主は遭遇時の一度だけの権利を検証する。Google認証はセッションstate検証へ移行し、メール/管理者ログイン・登録/ゲスト作成に短時間の試行制限を設ける。スキーマと公開時の注意は `DATA_MODEL.md` の Exploration request safety を参照。

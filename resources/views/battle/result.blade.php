@@ -1628,7 +1628,7 @@
                                     <div class="mt-3 space-y-2">
                                         @foreach($newAreaDiscoveries as $areaDiscovery)
                                             <form action="{{ route('battle.discovered_area.travel', ['area' => $areaDiscovery['id']]) }}" method="POST">
-                                                @csrf
+                                                @csrf <x-exploration-request-token />
                                                 <button type="submit" class="w-full rounded-lg bg-emerald-700 px-4 py-2.5 text-sm font-black text-white shadow-sm transition hover:bg-emerald-800 active:scale-95">
                                                     {{ $areaDiscovery['name'] ?? '発見した場所' }}へ進む
                                                 </button>
@@ -1845,7 +1845,7 @@
                             @endphp
                             @if($canRecordDepthGate)
                                 <form action="{{ route('battle.depth.record', ['area' => $areaId]) }}" method="POST" class="w-full sm:w-auto">
-                                    @csrf
+                                    @csrf <x-exploration-request-token />
                                     <button type="submit" class="flex w-full flex-col rounded-lg border-2 border-amber-300 bg-amber-50 px-5 py-3 text-left shadow-sm transition hover:bg-amber-100 active:scale-95">
                                         <span class="text-sm font-black text-amber-900">地図に記録して探索を続ける</span>
                                         <span class="mt-1 text-[11px] font-bold leading-5 text-amber-700">入口を記録し、後で挑戦できるようにします。現在の探索は続きます。</span>
@@ -1853,7 +1853,7 @@
                                 </form>
                             @else
                                 <form action="{{ route('battle.depth.retreat', ['area' => $areaId]) }}" method="POST" class="w-full sm:w-auto">
-                                    @csrf
+                                    @csrf <x-exploration-request-token />
                                     <button type="submit" class="flex w-full flex-col rounded-lg border-2 border-slate-300 bg-white px-5 py-3 text-left shadow-sm transition hover:bg-slate-50 active:scale-95">
                                         <span class="text-sm font-black text-slate-800">引き返して探索を続ける</span>
                                         <span class="mt-1 text-[11px] font-bold leading-5 text-slate-500">{{ $depthGate['label'] ?? '深層' }}には入らず、現在のエリア探索を続けます。</span>
@@ -1861,7 +1861,7 @@
                                 </form>
                             @endif
                             <form action="{{ route('battle.explore', ['area' => $areaId]) }}" method="POST" class="w-full sm:w-auto">
-                                @csrf
+                                @csrf <x-exploration-request-token />
                                 <input type="hidden" name="continue_chain" value="1">
                                 <input type="hidden" name="depth_confirmed" value="{{ $depthKey }}">
                                 <button type="submit" class="flex w-full flex-col rounded-lg border-2 border-red-900 bg-red-700 px-5 py-3 text-left text-white shadow-md transition hover:bg-red-800 active:scale-95">
@@ -1871,15 +1871,16 @@
                             </form>
                         @elseif(!isset($result['error']) && !$isBoss && $isDungeonLordEncounter)
                             <form action="{{ route('battle.explore', ['area' => $areaId]) }}" method="POST">
-                                @csrf
+                                @csrf <x-exploration-request-token />
                                 <input type="hidden" name="continue_chain" value="1">
                                 <input type="hidden" name="challenge_dungeon_lord" value="1">
+                                <input type="hidden" name="dungeon_lord_token" value="{{ $result['dungeon_lord_token'] ?? '' }}">
                                 <button type="submit" class="bg-red-700 hover:bg-red-800 text-white font-bold py-2.5 px-8 rounded-lg shadow-md transition duration-200 text-sm flex items-center gap-2">
                                     <img src="{{ asset('images/icon/icon_043.webp') }}" alt="" class="w-4 h-4 object-contain"> ダンジョン主に挑む
                                 </button>
                             </form>
                             <form action="{{ route('battle.explore', ['area' => $areaId]) }}" method="POST" id="explore-form" data-async-explore-form data-ready-text="今は退いて探索を続ける" data-ready-html="{!! e('今は退いて探索を続ける ' . $staminaCostHtml) !!}" data-wait-seconds="{{ $battleWaitSeconds }}" data-initial-lock-seconds="{{ $initialExploreLockSeconds }}" data-current-stamina="{{ (int) ($stamina['current'] ?? 0) }}" data-required-stamina="{{ $staminaCost }}" data-stamina-warning="探索力が足りません。探索力の小瓶や薬で回復してから探索してください。">
-                                @csrf
+                                @csrf <x-exploration-request-token />
                                 <input type="hidden" name="continue_chain" value="1">
                                 <button type="submit" id="explore-btn" @disabled($battleWaitSeconds > 0 || !$hasStamina) class="bg-slate-700 hover:bg-slate-800 disabled:bg-slate-400 disabled:cursor-not-allowed text-white font-bold py-2.5 px-8 rounded-lg shadow-md transition duration-200 text-sm flex items-center gap-2">
                                     <x-loading-spinner class="hidden" data-explore-spinner size="h-4 w-4" />
@@ -1895,7 +1896,7 @@
                                 </span>
                             </a>
                             <form action="{{ route('battle.explore', ['area' => $areaId]) }}" method="POST" id="explore-form" data-async-explore-form data-ready-text="今は探索を続ける" data-ready-html="{!! e('今は探索を続ける ' . $staminaCostHtml) !!}" data-wait-seconds="{{ $battleWaitSeconds }}" data-initial-lock-seconds="{{ $initialExploreLockSeconds }}" data-current-stamina="{{ (int) ($stamina['current'] ?? 0) }}" data-required-stamina="{{ $staminaCost }}" data-stamina-warning="探索力が足りません。探索力の小瓶や薬で回復してから探索してください。">
-                                @csrf
+                                @csrf <x-exploration-request-token />
                                 <input type="hidden" name="continue_chain" value="1">
                                 <button type="submit" id="explore-btn" @disabled($battleWaitSeconds > 0 || !$hasStamina) class="bg-slate-700 hover:bg-slate-800 disabled:bg-slate-400 disabled:cursor-not-allowed text-white font-bold py-2.5 px-8 rounded-lg shadow-md transition duration-200 text-sm flex items-center gap-2">
                                     <x-loading-spinner class="hidden" data-explore-spinner size="h-4 w-4" />
@@ -1988,7 +1989,7 @@
                                       @battle-hp-updated.window="currentHp = Math.max(0, Number($event.detail.current || 0)); maxHp = Math.max(1, Number($event.detail.max || 1)); syncButtonState()"
                                       @battle-sp-updated.window="currentSp = Math.max(0, Number($event.detail.current || 0)); maxSp = Math.max(0, Number($event.detail.max || 0))"
                                       class="w-full max-w-md rounded-xl border border-amber-200 bg-amber-50/70 p-3 shadow-sm">
-                                    @csrf
+                                    @csrf <x-exploration-request-token />
                                     <input type="hidden" name="continue_chain" value="1">
                                     <input type="hidden" name="batch_count" x-bind:value="effectiveCount" value="{{ $selectedExploreCount }}">
 
@@ -2070,7 +2071,7 @@
                                 <div class="w-full max-w-md sm:w-auto">
                                     <div class="flex items-stretch justify-center gap-2">
                                         <form action="{{ $exploreAgainAction }}" method="POST" id="explore-form" data-async-explore-form data-ready-text="もう一度探索する" data-ready-html="{!! e('もう一度探索する ' . $staminaCostHtml) !!}" data-wait-seconds="{{ $battleWaitSeconds }}" data-initial-lock-seconds="{{ $initialExploreLockSeconds }}" data-current-stamina="{{ (int) ($stamina['current'] ?? 0) }}" data-required-stamina="{{ $staminaCost }}" data-stamina-warning="探索力が足りません。探索力の小瓶や薬で回復してから探索してください。" class="min-w-0 flex-1 sm:flex-none">
-                                            @csrf
+                                            @csrf <x-exploration-request-token />
                                             <input type="hidden" name="continue_chain" value="1">
                                             <button type="submit" id="explore-btn" @disabled($battleWaitSeconds > 0 || !$hasStamina) class="h-full w-full bg-amber-600 hover:bg-amber-700 disabled:bg-slate-400 disabled:cursor-not-allowed text-white font-bold py-2.5 px-7 rounded-lg shadow-md transition duration-200 text-sm flex items-center justify-center gap-2">
                                                 <x-loading-spinner class="hidden" data-explore-spinner size="h-4 w-4" />
@@ -2079,7 +2080,7 @@
                                         </form>
                                         @if($usesStamina)
                                             <form action="{{ $exploreAgainAction }}" method="POST" id="explore-form-batch" data-async-explore-form data-batch-explore-form data-ready-text="×10 探索" data-ready-html="{!! e('×10 探索') !!}" data-wait-seconds="0" data-initial-lock-seconds="{{ $initialExploreLockSeconds }}" data-current-hp="{{ $remainingHp ?? 0 }}" data-max-hp="{{ $maxHp ?? 1 }}" data-min-hp-percent="30" data-hp-warning="×10探索を続けるにはHPを回復してください。" data-current-stamina="{{ (int) ($stamina['current'] ?? 0) }}" data-required-stamina="{{ $batchStartStaminaCost }}" data-stamina-warning="探索力が足りません。探索力の小瓶や薬で回復してから探索してください。" data-inline-warning-target="batch-explore-inline-warning" class="shrink-0">
-                                                @csrf
+                                                @csrf <x-exploration-request-token />
                                                 <input type="hidden" name="continue_chain" value="1">
                                                 <input type="hidden" name="batch_count" value="{{ $batchExploreCount }}">
                                                 <button type="submit" id="explore-btn" title="探索力を{{ number_format($batchStaminaCost) }}消費して最大10回探索" class="h-full bg-sky-700 hover:bg-sky-800 disabled:bg-slate-400 disabled:cursor-not-allowed text-white font-bold px-3.5 rounded-lg shadow-md transition duration-200 text-xs sm:text-sm flex items-center justify-center gap-1.5">
@@ -2102,7 +2103,7 @@
                                 }
                             @endphp
                             <form action="{{ $exploreAgainAction }}" method="POST" id="explore-form" data-async-explore-form data-ready-text="探索を続ける" data-ready-html="{!! e('探索を続ける ' . $staminaCostHtml) !!}" data-wait-seconds="{{ $retryWaitSeconds }}" data-current-stamina="{{ (int) ($stamina['current'] ?? 0) }}" data-required-stamina="{{ $staminaCost }}" data-stamina-warning="探索力が足りません。探索力の小瓶や薬で回復してから探索してください。">
-                                @csrf
+                                @csrf <x-exploration-request-token />
                                 <input type="hidden" name="continue_chain" value="1">
                                 <button type="submit" id="explore-btn" disabled class="bg-amber-600 hover:bg-amber-700 disabled:bg-slate-400 disabled:cursor-not-allowed text-white font-bold py-2.5 px-8 rounded-lg shadow-md transition duration-200 text-sm flex items-center gap-2">
                                     <img src="{{ asset('images/icon/icon_005.webp') }}" alt="" class="w-4 h-4 object-contain"> <span id="explore-btn-text">あと {{ $retryWaitSeconds }} 秒...</span>
@@ -2110,7 +2111,7 @@
                             </form>
                         @elseif(isset($result['error']) && !$isBoss && str_contains((string) $result['error'], '探索処理中'))
                             <form action="{{ $exploreAgainAction }}" method="POST" id="explore-form" data-async-explore-form data-ready-text="探索を続ける" data-ready-html="{!! e('探索を続ける ' . $staminaCostHtml) !!}" data-wait-seconds="2" data-current-stamina="{{ (int) ($stamina['current'] ?? 0) }}" data-required-stamina="{{ $staminaCost }}" data-stamina-warning="探索力が足りません。探索力の小瓶や薬で回復してから探索してください。">
-                                @csrf
+                                @csrf <x-exploration-request-token />
                                 <input type="hidden" name="continue_chain" value="1">
                                 <button type="submit" id="explore-btn" disabled class="bg-amber-600 hover:bg-amber-700 disabled:bg-slate-400 disabled:cursor-not-allowed text-white font-bold py-2.5 px-8 rounded-lg shadow-md transition duration-200 text-sm flex items-center gap-2">
                                     <img src="{{ asset('images/icon/icon_005.webp') }}" alt="" class="w-4 h-4 object-contain"> <span id="explore-btn-text">あと 2 秒...</span>
@@ -2135,7 +2136,7 @@
                                       data-hp-warning="連続探索を続けるにはHPを回復してください。"
                                       data-inline-warning-target="stamina-shortage-inline-warning"
                                       class="w-full max-w-md">
-                                    @csrf
+                                    @csrf <x-exploration-request-token />
                                     <input type="hidden" name="continue_chain" value="1">
                                     <input type="hidden" name="batch_count" value="{{ $selectedExploreCount }}">
                                     <button type="submit" id="explore-btn" @disabled($selectedHpBlocked) class="flex min-h-12 w-full items-center justify-center gap-2 rounded-lg bg-amber-600 px-5 py-2.5 text-sm font-bold text-white shadow-md transition duration-200 hover:bg-amber-700 active:scale-95 disabled:cursor-not-allowed disabled:bg-slate-400">
@@ -2970,6 +2971,11 @@
                 }
 
                 let completedResultUrl = null;
+                const requestId = form.elements.namedItem('exploration_request_id')?.value;
+                const recoveryUrl = new URL(@json(route('battle.result')), window.location.href);
+                if (requestId && /\/battle\/areas\/\d+\/explore$/.test(form.action)) {
+                    recoveryUrl.searchParams.set('result', requestId);
+                }
 
                 try {
                     const response = await fetch(form.action, {
@@ -3040,6 +3046,12 @@
                 } catch (error) {
                     if (completedResultUrl) {
                         window.location.assign(completedResultUrl);
+                        return;
+                    }
+
+                    if (recoveryUrl.searchParams.has('result')) {
+                        // POSTは再送せず、同じ操作IDの確定済み結果だけを確認する。
+                        window.location.assign(recoveryUrl.href);
                         return;
                     }
 

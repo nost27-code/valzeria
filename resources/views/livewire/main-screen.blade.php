@@ -1105,7 +1105,7 @@
                                                                       if (!ready) { $event.preventDefault(); return; }
                                                                       submitting = true
                                                                   ">
-                                                                @csrf
+                                                                @csrf <x-exploration-request-token />
                                                                 <input type="hidden" name="depth_target" value="{{ $depthEntry['key'] }}">
                                                                 <button type="submit"
                                                                         x-bind:disabled="submitting || !ready"
@@ -1201,7 +1201,7 @@
                                                               if (!ready) { $event.preventDefault(); return; }
                                                               submitting = true
                                                           ">
-                                                        @csrf
+                                                        @csrf <x-exploration-request-token />
                                                         <input type="hidden" name="batch_count" x-bind:value="effectiveCount" value="1">
 
                                                         <div class="mb-1 flex items-center justify-between gap-2 text-[10px] font-black text-slate-600">
@@ -1300,7 +1300,7 @@
                                                           }"
                                                           x-init="start()"
                                                           @submit="if (!ready) { $event.preventDefault(); return; } submitting = true">
-                                                        @csrf
+                                                        @csrf <x-exploration-request-token />
                                                         <button type="submit"
                                                                 x-bind:disabled="submitting || !ready"
                                                                 x-bind:class="ready ? 'bg-[#1e40af] text-white hover:bg-[#1e3a8a] border-[#1e3a8a] active:scale-95 cursor-pointer disabled:cursor-wait' : 'bg-gray-300 text-gray-600 border-gray-400 cursor-not-allowed'"
@@ -1337,7 +1337,7 @@
                                                       }"
                                                       x-init="start()"
                                                       @submit="if (!ready) { $event.preventDefault(); return; } submitting = true">
-                                                    @csrf
+                                                    @csrf <x-exploration-request-token />
                                                     <button type="submit"
                                                             x-bind:disabled="submitting || !ready"
                                                             x-bind:class="ready ? 'cursor-pointer active:scale-95' : 'cursor-not-allowed opacity-70'"

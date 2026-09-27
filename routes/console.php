@@ -16,6 +16,7 @@ Artisan::command('ranking:warm-weekly-win-cache', function (WeeklyWinRankingServ
 })->purpose('週間勝利数番付のホーム表示用キャッシュを先回り更新する');
 
 Schedule::command('market:expire-listings')->hourly();
+Schedule::command('exploration:prune-results')->hourly()->withoutOverlapping();
 Schedule::command('equipment-market:expire')->everyFiveMinutes()->withoutOverlapping();
 Schedule::command('shops:expire-eggs')->everyFiveMinutes()->withoutOverlapping();
 Schedule::command('market:generate-npc-listings --limit=6')->everySixHours()->withoutOverlapping();

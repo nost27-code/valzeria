@@ -24,9 +24,11 @@ class AuthController extends Controller
         $this->authService = $authService;
     }
 
-    public function redirectToGoogle()
+    public function redirectToGoogle(Request $request)
     {
-        return Socialite::driver('google')->stateless()->redirect();
+        $request->session()->forget('auth.google_link_user_id');
+        $request->session()->put('auth.google_started_at', now()->timestamp);
+        return Socialite::driver('google')->redirect();
     }
 
     /**
@@ -44,7 +46,8 @@ class AuthController extends Controller
 
         $request->session()->put('auth.google_link_user_id', $user->id);
 
-        return Socialite::driver('google')->stateless()->redirect();
+        $request->session()->put('auth.google_started_at', now()->timestamp);
+        return Socialite::driver('google')->redirect();
     }
 
     public function showEmailLoginForm()
@@ -122,9 +125,13 @@ class AuthController extends Controller
     public function handleGoogleCallback(Request $request)
     {
         try {
-            $googleUser = Socialite::driver('google')->stateless()->user();
-
+            $startedAt = (int) $request->session()->pull('auth.google_started_at', 0);
             $linkUserId = $request->session()->pull('auth.google_link_user_id');
+            if ($startedAt <= 0 || $startedAt > now()->timestamp || now()->timestamp - $startedAt > 600) {
+                $request->session()->forget('state');
+                return redirect()->route('top')->with('error', 'ログインの有効期限が切れました。もう一度お試しください。');
+            }
+            $googleUser = Socialite::driver('google')->user();
             if ($linkUserId !== null) {
                 $currentUser = Auth::user();
                 if (!$currentUser || (int) $currentUser->id !== (int) $linkUserId) {
@@ -165,11 +172,14 @@ class AuthController extends Controller
             );
 
             Auth::login($user);
+            $request->session()->regenerate();
             app(\App\Services\PlayerLifecycleEventService::class)->recordLogin($user);
 
             // ログイン成功後は必ずキャラ選択画面へ遷移する
             return redirect()->route('character.select');
 
+        } catch (\Laravel\Socialite\Two\InvalidStateException $e) {
+            return redirect()->route('top')->with('error', 'ログインの確認に失敗しました。もう一度お試しください。');
         } catch (\InvalidArgumentException | \LogicException $e) {
             return redirect()
                 ->route('home')
@@ -224,10 +234,13 @@ class AuthController extends Controller
         $character = Auth::user()?->currentCharacter();
         if ($character) {
             try {
-                $hasActiveSubArea = app(SubAreaExplorationStateService::class)->hasActiveExploration($character);
-                if (! $hasActiveSubArea) {
-                    app(\App\Services\ExplorationStateService::class)->reset($character);
-                }
+                \Illuminate\Support\Facades\DB::transaction(function () use ($character) {
+                    $character = \App\Models\Character::whereKey($character->id)->lockForUpdate()->firstOrFail();
+                    $hasActiveSubArea = app(SubAreaExplorationStateService::class)->hasActiveExploration($character);
+                    if (! $hasActiveSubArea) {
+                        app(\App\Services\ExplorationStateService::class)->reset($character);
+                    }
+                });
             } catch (\Throwable $e) {
                 // reset失敗してもログアウトは継続
             }

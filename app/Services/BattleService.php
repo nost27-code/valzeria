@@ -411,7 +411,7 @@ class BattleService
             $state->explorationSupportSnapshot = app(ExplorationSupportService::class)->beginBattle($character, $enemy);
         }
 
-        $state->addLog("【戦闘開始】{$playerActor->name} は {$enemyActor->name} と遭遇した！");
+        $state->addLog("【戦闘開始】{$playerActor->logName()} は {$enemyActor->logName()} と遭遇した！");
 
         $this->addRaidKillerOpeningLog($playerActor, $enemyActor, $state);
 
@@ -451,7 +451,7 @@ class BattleService
 
         // 戦闘終了処理
         if ($playerActor->isDead()) {
-            $state->addLog("<br><span class=\"text-black font-extrabold text-xl\">{$playerActor->name}は、倒れてしまった……。</span>");
+            $state->addLog("<br><span class=\"text-black font-extrabold text-xl\">{$playerActor->logName()}は、倒れてしまった……。</span>");
             $result->result = 'defeat';
 
             // 敗北時のペナルティとして、HPを最大値の30%、SPを10%にする
@@ -464,7 +464,7 @@ class BattleService
                     $state->addLog("<span class=\"text-amber-700 font-bold\">{$pending->name} は発動しなかった！</span>");
                 }
             }
-            $state->addLog("<br><span class=\"text-black font-extrabold text-xl\">{$playerActor->name}は、{$enemyActor->name}を倒した！</span>");
+            $state->addLog("<br><span class=\"text-black font-extrabold text-xl\">{$playerActor->logName()}は、{$enemyActor->logName()}を倒した！</span>");
             $result->result = 'victory';
 
             if ($rewardsEnabled) {
@@ -475,7 +475,7 @@ class BattleService
                 $result->exp = $exp;
                 $result->gold = $gold;
                 if ($gold > 0) {
-                    $state->addLog("<br><span class=\"text-amber-700 font-bold\">【Gold獲得】{$enemyActor->name} が持っていた <span class=\"text-amber-600 font-extrabold\">{$gold}G</span> を手に入れた！</span>");
+                    $state->addLog("<br><span class=\"text-amber-700 font-bold\">【Gold獲得】{$enemyActor->logName()} が持っていた <span class=\"text-amber-600 font-extrabold\">{$gold}G</span> を手に入れた！</span>");
                 }
 
                 // 職業経験値（J-EXP）の算出ロジック
@@ -1065,7 +1065,7 @@ class BattleService
         $this->jobArtV2RoleEffectService->markNonJobArtAction($attacker, $state);
 
         if (! $this->isPveAttackHit($attacker, $defender, $state)) {
-            $state->addLog("{$attacker->name} の攻撃！……しかし、{$defender->name} はかわした！");
+            $state->addLog("{$attacker->logName()} の攻撃！……しかし、{$defender->logName()} はかわした！");
             $this->jobArtV2ResourceService->recordNormalAttackResolution($attacker, $defender, $state, HitResult::MISS);
 
             return;
@@ -1095,7 +1095,7 @@ class BattleService
 
         $critText = $isCrit ? '<span class="text-orange-500 font-bold">【痛恨の一撃！】</span>' : '';
         $damageClass = $attacker->usesMagForNormalAttack() ? 'text-purple-600' : 'text-red-600';
-        $state->addDamageLog("{$attacker->name} の攻撃！ {$critText} {$defender->name} に <span class=\"{$damageClass} font-extrabold text-lg\">{$damage}</span> のダメージ！");
+        $state->addDamageLog("{$attacker->logName()} の攻撃！ {$critText} {$defender->logName()} に <span class=\"{$damageClass} font-extrabold text-lg\">{$damage}</span> のダメージ！");
         $this->jobArtV2ResourceService->recordNormalAttackResolution($attacker, $defender, $state, HitResult::HIT);
         $this->logGutsIfTriggered($defender, $state);
     }
@@ -1117,7 +1117,7 @@ class BattleService
         ?int $powerCenti = null,
     ): void {
         if (! $skipHitCheck && ! $this->isPveAttackHit($attacker, $defender, $state)) {
-            $state->addLog("{$attacker->name} の攻撃！……しかし、{$defender->name} はかわした！");
+            $state->addLog("{$attacker->logName()} の攻撃！……しかし、{$defender->logName()} はかわした！");
 
             return;
         }
@@ -1160,7 +1160,7 @@ class BattleService
         $this->tryExplorationSupportHerbal($defender, $state);
 
         $critText = $isCrit ? '<span class="text-orange-500 font-bold">【痛恨の一撃！】</span>' : '';
-        $state->addDamageLog("{$attacker->name} の攻撃！ {$critText} {$defender->name} に <span class=\"text-red-600 font-extrabold text-lg\">{$damage}</span> のダメージ！");
+        $state->addDamageLog("{$attacker->logName()} の攻撃！ {$critText} {$defender->logName()} に <span class=\"text-red-600 font-extrabold text-lg\">{$damage}</span> のダメージ！");
         $this->logGutsIfTriggered($defender, $state);
     }
 
@@ -1184,10 +1184,10 @@ class BattleService
         // 1. ボスの特別行動 (15%で大技)
         if ($isBoss && $rand <= 15) {
             if ($typeName === '魔法型') {
-                $state->addLog("<span class=\"text-purple-600 font-extrabold\">【大技】{$attacker->name} が魔力を解き放つ！！</span>");
+                $state->addLog("<span class=\"text-purple-600 font-extrabold\">【大技】{$attacker->logName()} が魔力を解き放つ！！</span>");
                 $this->executeMagicalAttack($attacker, $defender, $state, 180);
             } else {
-                $state->addLog("<span class=\"text-purple-600 font-extrabold\">【大技】{$attacker->name} の強烈な一撃が炸裂する！！</span>");
+                $state->addLog("<span class=\"text-purple-600 font-extrabold\">【大技】{$attacker->logName()} の強烈な一撃が炸裂する！！</span>");
                 $this->executePhysicalAttack($attacker, $defender, $state, 180);
             }
 
@@ -1212,7 +1212,7 @@ class BattleService
             case '耐久型':
             case '重装型':
                 if ($rand <= 25) {
-                    $state->addLog("<span class=\"text-blue-600 font-bold\">{$attacker->name} は防御の構えをとった！</span>");
+                    $state->addLog("<span class=\"text-blue-600 font-bold\">{$attacker->logName()} は防御の構えをとった！</span>");
                     $attacker->isDefending = true;
                 } else {
                     $this->executePhysicalAttack($attacker, $defender, $state);
@@ -1221,7 +1221,7 @@ class BattleService
 
             case '高速型':
                 if ($rand <= 20) {
-                    $state->addLog("<span class=\"text-blue-600 font-bold\">{$attacker->name} の連続攻撃！</span>");
+                    $state->addLog("<span class=\"text-blue-600 font-bold\">{$attacker->logName()} の連続攻撃！</span>");
                     $this->executePhysicalAttack($attacker, $defender, $state, 80);
                     if (! $defender->isDead()) {
                         $this->executePhysicalAttack($attacker, $defender, $state, 80);
@@ -1233,14 +1233,14 @@ class BattleService
 
             case 'アンデッド型':
                 if ($rand <= 30) {
-                    $state->addLog("<span class=\"text-purple-600 font-bold\">{$attacker->name} は生命力を吸収しようと襲いかかった！</span>");
+                    $state->addLog("<span class=\"text-purple-600 font-bold\">{$attacker->logName()} は生命力を吸収しようと襲いかかった！</span>");
                     $beforeHp = $defender->hp;
                     $this->executePhysicalAttack($attacker, $defender, $state, 100);
                     $damageDealt = $beforeHp - $defender->hp;
                     if ($damageDealt > 0) {
                         $healAmount = (int) ($damageDealt * 0.5);
                         $actualHeal = $this->jobArtV2FieldService->applyHpHeal($attacker, $state, $healAmount);
-                        $state->addLog("<span class=\"text-green-600 font-bold\">{$attacker->name} はHPを {$actualHeal} 回復した！</span>");
+                        $state->addLog("<span class=\"text-green-600 font-bold\">{$attacker->logName()} はHPを {$actualHeal} 回復した！</span>");
                     }
                 } else {
                     $this->executePhysicalAttack($attacker, $defender, $state);
@@ -1249,7 +1249,7 @@ class BattleService
 
             case '竜型':
                 if ($rand <= 30) {
-                    $state->addLog("<span class=\"text-red-600 font-extrabold\">{$attacker->name} のドラゴンブレス！！</span>");
+                    $state->addLog("<span class=\"text-red-600 font-extrabold\">{$attacker->logName()} のドラゴンブレス！！</span>");
                     // 魔法と物理の複合ダメージのような扱い(高倍率魔法)
                     $this->executeMagicalAttack($attacker, $defender, $state, 150);
                 } else {
@@ -1261,7 +1261,7 @@ class BattleService
             case '標準型':
             default:
                 if ($rand <= 20) {
-                    $state->addLog("<span class=\"text-orange-600 font-bold\">{$attacker->name} は渾身の力を込めて殴りかかった！</span>");
+                    $state->addLog("<span class=\"text-orange-600 font-bold\">{$attacker->logName()} は渾身の力を込めて殴りかかった！</span>");
                     $this->executePhysicalAttack($attacker, $defender, $state, 150);
                 } else {
                     $this->executePhysicalAttack($attacker, $defender, $state);
@@ -1278,7 +1278,7 @@ class BattleService
                 $state->pendingEnemyActionId = null;
             } elseif ($state->pendingEnemyActionTurns > 1) {
                 $state->pendingEnemyActionTurns--;
-                $state->addLog("<span class=\"battle-log-telegraph\">{$attacker->name} はまだ力を溜めている……。</span>");
+                $state->addLog("<span class=\"battle-log-telegraph\">{$attacker->logName()} はまだ力を溜めている……。</span>");
 
                 return;
             } else {
@@ -1317,7 +1317,7 @@ class BattleService
                 'eclipse_backlash' => false,
             ];
             $this->markEnemyActionUsed($action, $state);
-            $state->addLog("<span class=\"battle-log-telegraph\">⚠ {$attacker->name} は {$action->name} の気配を見せた！</span>");
+            $state->addLog("<span class=\"battle-log-telegraph\">⚠ {$attacker->logName()} は {$action->name} の気配を見せた！</span>");
 
             return;
         }
@@ -1393,7 +1393,7 @@ class BattleService
         if (! $alreadyMarked) {
             $this->markEnemyActionUsed($action, $state);
         }
-        $state->addLog("<span class=\"battle-log-enemy-action\">【敵技】{$attacker->name} の {$action->name}！</span>");
+        $state->addLog("<span class=\"battle-log-enemy-action\">【敵技】{$attacker->logName()} の {$action->name}！</span>");
         $beforeHp = $defender->hp;
         $suppressSecondary = (bool) ($state->enemyTelegraphContext['lineage_suppressed'] ?? false);
 
@@ -1450,7 +1450,7 @@ class BattleService
                 $rate = max(0, (int) $action->effect_percent) / 100;
                 $attacker->str += (int) floor($attacker->baseStr * $rate);
                 $attacker->mag += (int) floor($attacker->baseMag * $rate);
-                $state->addLog("<span class=\"text-indigo-700 font-bold\">{$attacker->name} の攻撃と魔力が高まった！</span>");
+                $state->addLog("<span class=\"text-indigo-700 font-bold\">{$attacker->logName()} の攻撃と魔力が高まった！</span>");
 
                 return;
             case 'self_speed_buff':
@@ -1464,7 +1464,7 @@ class BattleService
                     (int) floor($attacker->baseAgi * 1.5),
                     $attacker->agi + (int) floor($attacker->baseAgi * $rate),
                 );
-                $state->addLog("<span class=\"text-indigo-700 font-bold\">{$attacker->name} の敏捷が高まった！</span>");
+                $state->addLog("<span class=\"text-indigo-700 font-bold\">{$attacker->logName()} の敏捷が高まった！</span>");
 
                 return;
             default:
@@ -1508,13 +1508,13 @@ class BattleService
         }
         $this->applyResolvedDamage($attacker, $defender, $state, $damage, DamageSourceType::PURE);
         $this->tryExplorationSupportHerbal($defender, $state);
-        $state->addLog("<span class=\"battle-log-percent\">{$defender->name} の現在HPを削り、{$damage} ダメージ！</span>");
+        $state->addLog("<span class=\"battle-log-percent\">{$defender->logName()} の現在HPを削り、{$damage} ダメージ！</span>");
     }
 
     private function executeCappedPhysicalAttack(BattleActor $attacker, BattleActor $defender, BattleState $state, int $powerPercent, int $capPercent): void
     {
         if (! $this->isPveAttackHit($attacker, $defender, $state)) {
-            $state->addLog("{$attacker->name} の攻撃！……しかし、{$defender->name} はかわした！");
+            $state->addLog("{$attacker->logName()} の攻撃！……しかし、{$defender->logName()} はかわした！");
 
             return;
         }
@@ -1537,7 +1537,7 @@ class BattleService
         );
         $damage = $damageResult?->requestedDamage ?? $damage;
         $this->tryExplorationSupportHerbal($defender, $state);
-        $state->addDamageLog("{$defender->name} に <span class=\"text-red-600 font-extrabold text-lg\">{$damage}</span> のダメージ！");
+        $state->addDamageLog("{$defender->logName()} に <span class=\"text-red-600 font-extrabold text-lg\">{$damage}</span> のダメージ！");
         $this->logGutsIfTriggered($defender, $state);
     }
 
@@ -1554,7 +1554,7 @@ class BattleService
             : max(1, $turns);
         $defender->conditions[$key] = ['turns' => $turns, 'rate' => $rate];
         $labels = ['burn' => '火傷', 'bleed' => '出血', 'def_down' => '防御低下', 'spr_down' => '精神低下', 'slow' => '鈍足', 'recovery_block' => '回復阻害'];
-        $state->addLog("<span class=\"battle-log-condition battle-log-condition-{$key}\">{$defender->name} は {$labels[$key]} 状態になった！</span>");
+        $state->addLog("<span class=\"battle-log-condition battle-log-condition-{$key}\">{$defender->logName()} は {$labels[$key]} 状態になった！</span>");
     }
 
     private function applyPoisonCondition(BattleActor $defender, BattleState $state, int $turns): void
@@ -1565,7 +1565,7 @@ class BattleService
             ? app(ExplorationSupportService::class)->adjustedConditionDuration($turns, $state->explorationSupportSnapshot)
             : max(1, $turns);
         $defender->conditions['poison'] = ['turns' => $turns, 'stacks' => $stacks, 'rate' => $stacks * 0.01];
-        $state->addLog("<span class=\"battle-log-condition battle-log-condition-poison\">{$defender->name} は毒{$stacks}段階になった！</span>");
+        $state->addLog("<span class=\"battle-log-condition battle-log-condition-poison\">{$defender->logName()} は毒{$stacks}段階になった！</span>");
     }
 
     private function tickPlayerConditionsAfterAction(BattleActor $player, BattleState $state, bool $dealtDamage): void
@@ -1580,7 +1580,7 @@ class BattleService
             $this->applyResolvedDamage(null, $player, $state, $damage, DamageSourceType::DOT, $key);
             $this->tryExplorationSupportHerbal($player, $state);
             $labels = ['burn' => '火傷', 'poison' => '毒', 'bleed' => '出血'];
-            $state->addLog("<span class=\"battle-log-dot battle-log-dot-{$key}\">{$labels[$key]}により、{$player->name} は {$damage} ダメージを受けた！</span>");
+            $state->addLog("<span class=\"battle-log-dot battle-log-dot-{$key}\">{$labels[$key]}により、{$player->logName()} は {$damage} ダメージを受けた！</span>");
             $this->logGutsIfTriggered($player, $state);
         }
 
@@ -1617,7 +1617,7 @@ class BattleService
     ): void {
         // 魔法も回避される可能性がある前提（命中判定）
         if (! $skipHitCheck && ! $this->isPveAttackHit($attacker, $defender, $state)) {
-            $state->addLog("{$attacker->name} は魔法を唱えた！……しかし、{$defender->name} は抵抗した！");
+            $state->addLog("{$attacker->logName()} は魔法を唱えた！……しかし、{$defender->logName()} は抵抗した！");
 
             return;
         }
@@ -1654,7 +1654,7 @@ class BattleService
         );
         $damage = $damageResult?->requestedDamage ?? $damage;
         $this->tryExplorationSupportHerbal($defender, $state);
-        $state->addDamageLog("{$attacker->name} の魔法攻撃！ {$defender->name} に <span class=\"text-purple-600 font-extrabold text-lg\">{$damage}</span> のダメージ！");
+        $state->addDamageLog("{$attacker->logName()} の魔法攻撃！ {$defender->logName()} に <span class=\"text-purple-600 font-extrabold text-lg\">{$damage}</span> のダメージ！");
         $this->logGutsIfTriggered($defender, $state);
     }
 
@@ -1688,7 +1688,7 @@ class BattleService
      */
     protected function executeSkillAction(BattleActor $attacker, BattleActor $defender, BattleState $state, Skill $skill): void
     {
-        $state->addLog("<span class=\"text-blue-600 font-bold\">【必殺技】{$attacker->name} の必殺技、{$skill->name} が発動！</span>");
+        $state->addLog("<span class=\"text-blue-600 font-bold\">【必殺技】{$attacker->logName()} の必殺技、{$skill->name} が発動！</span>");
 
         $hitCount = max(1, (int) $skill->hit_count);
         // 回復やサポート特化で攻撃しない場合
@@ -1753,7 +1753,7 @@ class BattleService
                     $skill->damage_type === 'magical' ? 'magical' : 'physical',
                 );
                 $damage = $damageResult?->requestedDamage ?? $damage;
-                $state->addDamageLog("{$defender->name} に <span class=\"text-red-600 font-extrabold text-lg\">{$damage}</span> のダメージ！");
+                $state->addDamageLog("{$defender->logName()} に <span class=\"text-red-600 font-extrabold text-lg\">{$damage}</span> のダメージ！");
                 $this->logGutsIfTriggered($defender, $state);
             }
 
@@ -1776,13 +1776,13 @@ class BattleService
         if ((int) $skill->heal_percent > 0) {
             $healAmount = (int) floor($attacker->maxHp * ((int) $skill->heal_percent / 100));
             $actualHeal = $this->jobArtV2FieldService->applyHpHeal($attacker, $state, $healAmount);
-            $state->addLog("<span class=\"text-green-600 font-bold\">{$attacker->name} の傷が {$actualHeal} 回復した！</span>");
+            $state->addLog("<span class=\"text-green-600 font-bold\">{$attacker->logName()} の傷が {$actualHeal} 回復した！</span>");
         }
 
         if ((int) $skill->mp_recover_percent > 0 && $attacker->maxMp > 0) {
             $mpHealAmount = (int) floor($attacker->maxMp * ((int) $skill->mp_recover_percent / 100) * (1 - $attacker->conditionRate('recovery_block')));
             $attacker->mp = min($attacker->maxMp, $attacker->mp + $mpHealAmount);
-            $state->addLog("<span class=\"text-blue-500 font-bold\">{$attacker->name} はSPを {$mpHealAmount} 回復した！</span>");
+            $state->addLog("<span class=\"text-blue-500 font-bold\">{$attacker->logName()} はSPを {$mpHealAmount} 回復した！</span>");
         }
 
         if ((int) $skill->self_damage_percent > 0) {
@@ -1795,7 +1795,7 @@ class BattleService
                 DamageSourceType::RECOIL,
                 (int) $skill->id,
             );
-            $state->addLog("<span class=\"text-purple-600 font-bold\">反動により、{$attacker->name} は {$selfDamage} のダメージを受けた！</span>");
+            $state->addLog("<span class=\"text-purple-600 font-bold\">反動により、{$attacker->logName()} は {$selfDamage} のダメージを受けた！</span>");
             $this->jobArtV2ResourceService->recordSelfDamage($attacker, $state, $selfDamage);
             $this->logGutsIfTriggered($attacker, $state);
         }
@@ -1808,7 +1808,7 @@ class BattleService
 
         // バフの適用
         if ((int) $skill->damage_reduction_percent > 0) {
-            $state->addLog("{$attacker->name} は次の被ダメージを軽減する構えをとった！");
+            $state->addLog("{$attacker->logName()} は次の被ダメージを軽減する構えをとった！");
             $attacker->damageReductionRate = max($attacker->damageReductionRate, min(50, (int) $skill->damage_reduction_percent));
         }
 
@@ -2236,7 +2236,7 @@ class BattleService
 
         foreach ($hitPowers as $i => $hitPower) {
             if (! $skipHitCheck && ! $this->isPveAttackHit($attacker, $defender, $state)) {
-                $state->addLog("{$attacker->name} の奥義！……しかし、{$defender->name} はかわした！");
+                $state->addLog("{$attacker->logName()} の奥義！……しかし、{$defender->logName()} はかわした！");
 
                 continue;
             }
@@ -2271,7 +2271,7 @@ class BattleService
                 'physical',
             );
             $damage = $damageResult?->requestedDamage ?? $damage;
-            $state->addDamageLog("{$defender->name} に <span class=\"text-fuchsia-600 font-extrabold text-lg\">{$damage}</span> の複合ダメージ！");
+            $state->addDamageLog("{$defender->logName()} に <span class=\"text-fuchsia-600 font-extrabold text-lg\">{$damage}</span> の複合ダメージ！");
             $this->logGutsIfTriggered($defender, $state);
             if ($defender->isDead()) {
                 break;
@@ -2402,8 +2402,8 @@ class BattleService
         $reduction = $this->jobArtGuardReduction($skill, $rate);
         $attacker->damageReductionRate = max($attacker->damageReductionRate, $reduction);
         $message = $this->jobArtV2CrownBalanceCatalog->guardUntilNextOwnAction($skill)
-            ? "{$attacker->name} は次の自分の行動開始まで、受けるダメージを {$reduction}% 軽減する！"
-            : "{$attacker->name} は次の被ダメージを {$reduction}% 軽減する！";
+            ? "{$attacker->logName()} は次の自分の行動開始まで、受けるダメージを {$reduction}% 軽減する！"
+            : "{$attacker->logName()} は次の被ダメージを {$reduction}% 軽減する！";
         $state->addLog("<span class=\"text-blue-700 font-bold\">{$message}</span>");
     }
 
@@ -2459,7 +2459,7 @@ class BattleService
     private function applyGuts(BattleActor $attacker, BattleState $state): void
     {
         $attacker->gutsReady = true;
-        $state->addLog("<span class=\"text-orange-700 font-bold\">{$attacker->name} は一度だけ踏みとどまる覚悟を固めた！</span>");
+        $state->addLog("<span class=\"text-orange-700 font-bold\">{$attacker->logName()} は一度だけ踏みとどまる覚悟を固めた！</span>");
     }
 
     private function logGutsIfTriggered(BattleActor $actor, BattleState $state): void
@@ -2469,7 +2469,7 @@ class BattleService
         }
 
         $actor->gutsJustTriggered = false;
-        $state->addLog("<span class=\"text-orange-700 font-extrabold\">{$actor->name} は不屈の精神で致死ダメージを耐えた！（HP1）</span>");
+        $state->addLog("<span class=\"text-orange-700 font-extrabold\">{$actor->logName()} は不屈の精神で致死ダメージを耐えた！（HP1）</span>");
     }
 
     private function applyJobArtStructuredSideEffects(
@@ -2501,7 +2501,7 @@ class BattleService
                 DamageSourceType::RECOIL,
                 (int) $skill->id,
             );
-            $state->addLog("<span class=\"text-purple-600 font-bold\">反動により、{$attacker->name} は {$selfDamage} のダメージを受けた！</span>");
+            $state->addLog("<span class=\"text-purple-600 font-bold\">反動により、{$attacker->logName()} は {$selfDamage} のダメージを受けた！</span>");
             $this->jobArtV2ResourceService->recordSelfDamage($attacker, $state, $selfDamage);
             $this->logGutsIfTriggered($attacker, $state);
         }
@@ -2509,7 +2509,7 @@ class BattleService
         if ((int) $skill->damage_reduction_percent > 0 && ! in_array($template, ['GUARD_BARRIER', 'DAMAGE_GUARD_BARRIER'], true)) {
             $reduction = min(50, max(1, (int) floor((int) $skill->damage_reduction_percent * $rate)));
             $attacker->damageReductionRate = max($attacker->damageReductionRate, $reduction);
-            $state->addLog("<span class=\"text-blue-700 font-bold\">{$attacker->name} は次の被ダメージを {$reduction}% 軽減する！</span>");
+            $state->addLog("<span class=\"text-blue-700 font-bold\">{$attacker->logName()} は次の被ダメージを {$reduction}% 軽減する！</span>");
         }
 
         $appliedDebuff = false;
@@ -2733,7 +2733,7 @@ class BattleService
             $state->explorationSupportSnapshot,
         );
         if ($heal !== null) {
-            $state->addLog("<span class=\"text-emerald-700 font-bold\">【薬屋の特製漢方】{$actor->name} は {$heal} 回復した！</span>");
+            $state->addLog("<span class=\"text-emerald-700 font-bold\">【薬屋の特製漢方】{$actor->logName()} は {$heal} 回復した！</span>");
         }
     }
 }

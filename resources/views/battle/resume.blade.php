@@ -89,7 +89,7 @@
                 </div>
 
                 <form action="{{ route('battle.explore', ['area' => (int) $state->area_id]) }}" method="POST">
-                    @csrf
+                    @csrf <x-exploration-request-token />
                     <input type="hidden" name="continue_chain" value="1">
                     <button type="submit" class="w-full rounded-lg bg-slate-900 px-4 py-3 text-sm font-black text-white shadow-md transition hover:bg-slate-800 active:scale-95">
                         探索を続ける

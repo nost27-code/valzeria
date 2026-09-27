@@ -14,6 +14,13 @@ class BattleActor
     public string $name;
     public bool $isPlayer;
 
+    /** HTML装飾付きログへ埋め込む名前。比較・通知用のnameは元の文字列を保つ。 */
+    public function logName(): string
+    {
+        return e($this->name);
+    }
+
+
     public int $hp;
     public int $maxHp;
     public int $mp;

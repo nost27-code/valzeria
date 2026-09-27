@@ -239,3 +239,7 @@ Weekly ranking catch-up: the daily 09:05 finalizer runs in automatic mode, walks
 - dist
 - build
 - coverage
+
+## Exploration request safety (2026-09-27)
+
+`app/Http/Middleware/CommitExplorationRequest.php` commits normal exploration, boss and related depth/discovery POSTs with a per-character operation UUID. `BattleController` restores encrypted result data from `exploration_requests`; the Blade `exploration-request-token` component supplies IDs. `app/Console/Commands/PruneExplorationResults.php` expires only result display data after 24 hours, retaining replay prevention records.

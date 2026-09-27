@@ -17,8 +17,8 @@
             <section class="rounded-xl border border-orange-300 bg-orange-50 p-4 shadow-sm">
                 <div class="flex items-center justify-between gap-3"><h2 class="font-black text-slate-900">{{ $hasStartedExploring ? $definition['name'] . 'を探索中' : $definition['name'] . 'へ入場済み' }}</h2><span class="rounded bg-orange-600 px-2 py-1 text-xs font-black text-white">{{ $hasStartedExploring ? number_format($danger) . '% ' . $payload['danger_label'] : '出発前' }}</span></div>
                 <div class="mt-3 grid grid-cols-2 gap-2">
-                    <form method="POST" action="{{ route('battle.explore', ['area' => $area->id]) }}">@csrf<input type="hidden" name="continue_chain" value="1"><button class="w-full rounded-lg bg-slate-900 px-4 py-3 text-sm font-black text-white">探索する</button></form>
-                    <form method="POST" action="{{ route('battle.explore', ['area' => $area->id]) }}">@csrf<input type="hidden" name="continue_chain" value="1"><input type="hidden" name="batch_count" value="10"><button class="w-full rounded-lg bg-indigo-700 px-4 py-3 text-sm font-black text-white">×10探索</button></form>
+                    <form method="POST" action="{{ route('battle.explore', ['area' => $area->id]) }}">@csrf <x-exploration-request-token /><input type="hidden" name="continue_chain" value="1"><button class="w-full rounded-lg bg-slate-900 px-4 py-3 text-sm font-black text-white">探索する</button></form>
+                    <form method="POST" action="{{ route('battle.explore', ['area' => $area->id]) }}">@csrf <x-exploration-request-token /><input type="hidden" name="continue_chain" value="1"><input type="hidden" name="batch_count" value="10"><button class="w-full rounded-lg bg-indigo-700 px-4 py-3 text-sm font-black text-white">×10探索</button></form>
                 </div>
             </section>
         @else

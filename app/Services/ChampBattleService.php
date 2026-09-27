@@ -337,7 +337,7 @@ class ChampBattleService
                     ]);
 
                     $this->appointNewChamp($champ, $challenger);
-                    $battle['log'][] = "<span class=\"text-amber-700 font-bold\">【チャンプ交代】{$challenger->name}が新しいチャンプになった！</span>";
+                    $battle['log'][] = "<span class=\"text-amber-700 font-bold\">【チャンプ交代】".e($challenger->name)."が新しいチャンプになった！</span>";
                 }
             } else {
                 $champ->current_hp = $champHpAfter;
@@ -686,7 +686,7 @@ class ChampBattleService
                 $this->jobArtBattleSupport->finishAction($actor, $jobArtState);
                 if ($target->gutsJustTriggered) {
                     $target->gutsJustTriggered = false;
-                    $log[] = "<span class=\"text-orange-700 font-extrabold\">{$target->name} は不屈の精神で致死ダメージを耐えた！（HP1）</span>";
+                    $log[] = "<span class=\"text-orange-700 font-extrabold\">{$target->logName()} は不屈の精神で致死ダメージを耐えた！（HP1）</span>";
                 }
 
                 if ($actor->isPlayer) {
@@ -743,13 +743,13 @@ class ChampBattleService
         $champDefeated = $this->isChallengerVictory($defender->isDead(), $lastActionWasByChallenger);
 
         if ($champDefeated) {
-            $log[] = "<br><span class=\"text-black font-extrabold text-xl\">{$attacker->name}は、{$defender->name}を倒した！</span>";
+            $log[] = "<br><span class=\"text-black font-extrabold text-xl\">{$attacker->logName()}は、{$defender->logName()}を倒した！</span>";
         } elseif ($attacker->isDead() && $defender->isDead()) {
-            $log[] = "<br><span class=\"text-black font-extrabold text-xl\">{$attacker->name}は倒れ、{$defender->name}も反動で倒れかけたため、チャンプ交代にはならなかった。</span>";
+            $log[] = "<br><span class=\"text-black font-extrabold text-xl\">{$attacker->logName()}は倒れ、{$defender->logName()}も反動で倒れかけたため、チャンプ交代にはならなかった。</span>";
         } elseif ($attacker->isDead()) {
-            $log[] = "<br><span class=\"text-black font-extrabold text-xl\">{$attacker->name}は、倒れてしまった……。</span>";
+            $log[] = "<br><span class=\"text-black font-extrabold text-xl\">{$attacker->logName()}は、倒れてしまった……。</span>";
         } elseif ($defender->isDead()) {
-            $log[] = "<br><span class=\"text-black font-extrabold text-xl\">{$defender->name}は反動で倒れかけたが、挑戦者による撃破ではないためチャンプ交代にはならなかった。</span>";
+            $log[] = "<br><span class=\"text-black font-extrabold text-xl\">{$defender->logName()}は反動で倒れかけたが、挑戦者による撃破ではないためチャンプ交代にはならなかった。</span>";
         } else {
             $log[] = "<br><span class=\"text-black font-extrabold text-xl\">双方が疲弊し、戦闘は終了した。</span>";
         }
@@ -922,7 +922,7 @@ class ChampBattleService
             return [
                 'hit' => false,
                 'damage' => 0,
-                'log' => $openingLog ?: "<span class=\"text-blue-600 font-bold\">【必殺技】{$attacker->name} の必殺技、{$skill->name} が発動！</span>",
+                'log' => $openingLog ?: "<span class=\"text-blue-600 font-bold\">【必殺技】{$attacker->logName()} の必殺技、{$skill->name} が発動！</span>",
                 'source_type' => DamageSourceType::JOB_ART,
                 'source_id' => (int) $skill->id,
                 'hit_result' => null,
@@ -958,7 +958,7 @@ class ChampBattleService
             || JobArtEffectCatalog::dealsDamage((string) $skill->effect_template);
 
         $totalDamage = 0;
-        $logs = [$openingLog ?: "<span class=\"text-blue-600 font-bold\">【必殺技】{$attacker->name} の必殺技、{$skill->name} が発動！</span>"];
+        $logs = [$openingLog ?: "<span class=\"text-blue-600 font-bold\">【必殺技】{$attacker->logName()} の必殺技、{$skill->name} が発動！</span>"];
         if ($vitalHit && $applyTargetEffects) {
             $logs[] = '<span class="text-orange-600 font-extrabold">【急所命中！】狙い澄ました一撃が急所を捉えた！</span>';
         }
@@ -1033,20 +1033,20 @@ class ChampBattleService
                     $damage = $this->jobArtBattleSupport->modifyJobArtDamage($attacker, $state, $skill, $damage);
                 }
                 $totalDamage += $damage;
-                $logs[] = "{$defender->name} に <span class=\"{$damageClass} font-extrabold text-lg\">{$damage}</span> のダメージ！";
+                $logs[] = "{$defender->logName()} に <span class=\"{$damageClass} font-extrabold text-lg\">{$damage}</span> のダメージ！";
             }
         }
 
         if ((int) $skill->heal_percent > 0) {
             $healAmount = (int) floor($attacker->maxHp * ((int) $skill->heal_percent / 100));
             $actualHeal = $this->jobArtBattleSupport->applyFieldHpHeal($attacker, $state, $healAmount);
-            $logs[] = "<span class=\"text-green-600 font-bold\">{$attacker->name} の傷が {$actualHeal} 回復した！</span>";
+            $logs[] = "<span class=\"text-green-600 font-bold\">{$attacker->logName()} の傷が {$actualHeal} 回復した！</span>";
         }
 
         if ((int) $skill->mp_recover_percent > 0 && $attacker->maxMp > 0) {
             $mpHealAmount = (int) floor($attacker->maxMp * ((int) $skill->mp_recover_percent / 100));
             $attacker->mp = min($attacker->maxMp, $attacker->mp + $mpHealAmount);
-            $logs[] = "<span class=\"text-blue-500 font-bold\">{$attacker->name} はSPを {$mpHealAmount} 回復した！</span>";
+            $logs[] = "<span class=\"text-blue-500 font-bold\">{$attacker->logName()} はSPを {$mpHealAmount} 回復した！</span>";
         }
 
         if ((int) $skill->self_damage_percent > 0) {
@@ -1059,11 +1059,11 @@ class ChampBattleService
                 DamageSourceType::RECOIL,
                 (int) $skill->id,
             );
-            $logs[] = "<span class=\"text-purple-600 font-bold\">反動により、{$attacker->name} は {$selfDamage} のダメージを受けた！</span>";
+            $logs[] = "<span class=\"text-purple-600 font-bold\">反動により、{$attacker->logName()} は {$selfDamage} のダメージを受けた！</span>";
             $this->jobArtBattleSupport->recordSelfDamage($attacker, $state, $selfDamage);
             if ($attacker->gutsJustTriggered) {
                 $attacker->gutsJustTriggered = false;
-                $logs[] = "<span class=\"text-orange-700 font-extrabold\">{$attacker->name} は不屈の精神で致死ダメージを耐えた！（HP1）</span>";
+                $logs[] = "<span class=\"text-orange-700 font-extrabold\">{$attacker->logName()} は不屈の精神で致死ダメージを耐えた！（HP1）</span>";
             }
         }
 
@@ -1086,7 +1086,7 @@ class ChampBattleService
 
         if ((int) $skill->damage_reduction_percent > 0 && ! ($skill->isJobArt() && in_array((string) $skill->effect_template, ['GUARD_BARRIER', 'DAMAGE_GUARD_BARRIER'], true))) {
             $attacker->damageReductionRate = max($attacker->damageReductionRate, min(50, (int) $skill->damage_reduction_percent));
-            $logs[] = "{$attacker->name} は次の被ダメージを軽減する構えをとった！";
+            $logs[] = "{$attacker->logName()} は次の被ダメージを軽減する構えをとった！";
         }
 
         if (!$skill->isJobArt() && (int) $skill->self_buff_percent > 0) {
@@ -1139,14 +1139,14 @@ class ChampBattleService
 
         if ($template === 'GUTS') {
             $attacker->gutsReady = true;
-            $logs[] = "<span class=\"text-orange-700 font-bold\">{$attacker->name} は一度だけ踏みとどまる覚悟を固めた！</span>";
+            $logs[] = "<span class=\"text-orange-700 font-bold\">{$attacker->logName()} は一度だけ踏みとどまる覚悟を固めた！</span>";
         }
 
         if (in_array($template, ['GUARD_BARRIER', 'DAMAGE_GUARD_BARRIER'], true)) {
             $rate = (float) ($attacker->jobArtRates[(int) $skill->id] ?? 1.0);
             $reduction = $this->jobArtGuardReduction($skill, $rate);
             $attacker->damageReductionRate = max($attacker->damageReductionRate, min(50, $reduction));
-            $logs[] = "<span class=\"text-blue-700 font-bold\">{$attacker->name} は次の被ダメージを {$reduction}% 軽減する！</span>";
+            $logs[] = "<span class=\"text-blue-700 font-bold\">{$attacker->logName()} は次の被ダメージを {$reduction}% 軽減する！</span>";
         }
 
         if (in_array($template, ['SELF_BUFF', 'DAMAGE_BUFF', 'MAGICAL_DAMAGE_BUFF'], true)) {
@@ -1382,7 +1382,7 @@ class ChampBattleService
             return [
                 'hit' => false,
                 'damage' => 0,
-                'log' => "{$attacker->name} の攻撃！……しかし、{$defender->name} はかわした！",
+                'log' => "{$attacker->logName()} の攻撃！……しかし、{$defender->logName()} はかわした！",
                 'source_type' => DamageSourceType::NORMAL_ATTACK,
                 'source_id' => null,
                 'hit_result' => null,
@@ -1408,7 +1408,7 @@ class ChampBattleService
         return [
             'hit' => true,
             'damage' => $damage,
-            'log' => "{$attacker->name} の攻撃！ {$critText} {$defender->name} に <span class=\"{$damageClass} font-extrabold text-lg\">{$damage}</span> のダメージ！",
+            'log' => "{$attacker->logName()} の攻撃！ {$critText} {$defender->logName()} に <span class=\"{$damageClass} font-extrabold text-lg\">{$damage}</span> のダメージ！",
             'source_type' => DamageSourceType::NORMAL_ATTACK,
             'source_id' => null,
             'hit_result' => null,
@@ -1419,6 +1419,8 @@ class ChampBattleService
 
     private function affinityLog(string $attackerName, string $defenderName, float $multiplier): string
     {
+        $attackerName = e($attackerName);
+        $defenderName = e($defenderName);
         $label = BattleTypeAffinity::label($multiplier);
 
         if ($multiplier > 1.01) {

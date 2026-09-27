@@ -361,24 +361,22 @@ class ValmonService
 
     public function feedMaterial(Character $character, PlayerValmon $valmon, CharacterMaterial $characterMaterial, int $quantity): array
     {
-        if ((int) $valmon->character_id !== (int) $character->id || (int) $characterMaterial->character_id !== (int) $character->id) {
-            return ['success' => false, 'message' => '対象が見つかりません。'];
-        }
-
-        $quantity = max(1, min($quantity, (int) $characterMaterial->quantity));
-        $expPer = $this->materialFeedExp($characterMaterial->material);
-        if ($expPer <= 0) {
-            return ['success' => false, 'message' => 'この素材はヴァルモンの餌にできません。'];
-        }
-
-        return DB::transaction(function () use ($valmon, $characterMaterial, $quantity, $expPer) {
-            $characterMaterial->decrement('quantity', $quantity);
-            if ((int) $characterMaterial->fresh()?->quantity <= 0) {
-                $characterMaterial->delete();
+        return DB::transaction(function () use ($character, $valmon, $characterMaterial, $quantity) {
+            Character::whereKey($character->id)->lockForUpdate()->firstOrFail();
+            $valmon = PlayerValmon::where('character_id', $character->id)->whereKey($valmon->id)->lockForUpdate()->first();
+            $material = CharacterMaterial::with('material')->where('character_id', $character->id)
+                ->whereKey($characterMaterial->id)->lockForUpdate()->first();
+            if (! $valmon || ! $material || $quantity <= 0 || (int) $material->quantity < $quantity) {
+                return ['success' => false, 'message' => '対象の素材が見つからないか、数量が不足しています。'];
             }
-
-            return $this->grantFeedExp($valmon, 'material', (int) $characterMaterial->material_id, $quantity, $expPer * $quantity);
-        });
+            $expPer = $this->materialFeedExp($material->material);
+            if ($expPer <= 0) {
+                return ['success' => false, 'message' => 'この素材はヴァルモンの餌にできません。'];
+            }
+            $material->quantity -= $quantity;
+            $material->quantity > 0 ? $material->save() : $material->delete();
+            return $this->grantFeedExp($valmon, 'material', (int) $material->material_id, $quantity, $expPer * $quantity);
+        }, 3);
     }
 
     public function feedEquipment(Character $character, PlayerValmon $valmon, CharacterItem $characterItem): array
@@ -388,6 +386,12 @@ class ValmonService
         }
 
         return DB::transaction(function () use ($character, $valmon, $characterItem) {
+            Character::whereKey($character->id)->lockForUpdate()->firstOrFail();
+            $valmon = PlayerValmon::where('character_id', $character->id)->whereKey($valmon->id)->lockForUpdate()->first();
+            if (! $valmon) {
+                return ['success' => false, 'message' => '対象が見つかりません。'];
+            }
+
             $lockedItem = CharacterItem::with('item')
                 ->where('character_id', $character->id)
                 ->lockForUpdate()
@@ -426,6 +430,12 @@ class ValmonService
         }
 
         return DB::transaction(function () use ($character, $valmon, $ids) {
+            Character::whereKey($character->id)->lockForUpdate()->firstOrFail();
+            $valmon = PlayerValmon::where('character_id', $character->id)->whereKey($valmon->id)->lockForUpdate()->first();
+            if (! $valmon) {
+                return ['success' => false, 'message' => '対象が見つかりません。'];
+            }
+
             $items = CharacterItem::with('item')
                 ->where('character_id', $character->id)
                 ->whereIn('id', $ids->all())

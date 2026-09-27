@@ -23,6 +23,14 @@ Job Art replacement wave 2-C Phase 1: `2026_08_25_180000_replace_job_arts_wave2_
 
 Job Art Rank5 v6.1: `2026_08_26_120000_redefine_rank5_job_arts_v6.php`は`database/data/job_art_rank5_v6_1_migration.json`のold/new正本を使い、94件の自然キー `(job_id, learn_rank=5, skill_type=job_art)` をtransaction内で更新する。既存`skills.id`、戦技枠、preset参照、schemaは変更しない。`up()`/`down()`とも対象件数・一意性を検査し、fresh installの英雄職Rank5 bootstrap行だけは後続Seederへ委ねる。旧support行の`hit_count=0`を含めてdown値を生成元から復元する。47:5はGold 10・通常素材8・レア素材5・SP回復8の列を明示し、84:5は`MAGICAL_DAMAGE_REWARD`・reward分類・Gold/通常素材各2を維持する。old/newは全94件で同じfield集合を持つ。`2026_08_28_120000_rebalance_rank5_v6_guard_effects.php`は、既に旧v6.1を適用済みの環境向けに7/10/11/15/29/36:5の`memo`と`description`だけを20%裁定へ補正し、6自然キーの件数・一意性とID維持を保証する可逆migrationで、戦闘数値列とschemaは変更しない。ステージングMariaDB 10.5.13で`up/down/up`、94行読戻し、ID維持を確認済み。本番は未適用で、既存masterがある環境の初回適用は`maintenance_required`を必須とする。flag OFFはmigration済みmasterを戻さないため、完全rollbackはflag OFFと`down()`を組み合わせる。flag ON時はrelease readinessが依存flagとnew 94行を照合し、MariaDBのDECIMAL列が文字列で返る場合も数値として一致判定する。
 
+## Exploration request safety (2026-09-27)
+
+- `exploration_requests`: `(character_id, token)` unique、要求内容のSHA-256、遷移先、暗号化した結果表示データ、作成日時。通常探索/ボス/通常探索へ繋がる深度・発見先操作はCharacterをロックし、操作全体と結果記録を同一transactionで確定する。同一IDの再送は再戦せず保存先へ戻し、内容を変えた再送は409。操作IDのない旧画面は再表示を案内する。
+- 結果表示データは `exploration:prune-results` の毎時処理で24時間後に破棄する。再送防止のID・要求hash・遷移先は保持し、削除後も同じ操作を再実行しない。表示期限後は現在の探索状況を案内する。暗号化データの復元には既存の `APP_KEY` が必要。
+- `character_exploration_states.dungeon_lord_token`: 遭遇時だけ発行するnullable UUID。現在のキャラクター・エリアの保留中の遭遇と照合し、挑戦/見送り/探索リセットで消費。例外時は戦闘・消費と共にrollbackする。
+- 追加migrationは `2026_09_27_120000_add_exploration_request_safety.php`。既存データの初期化やマスタ変更なし。適用後にコードを有効化する。実行記録がある場合はdownを拒否する。公開時は後方互換migrationとして適用する。MariaDB同時実行検証は未確認。
+
+
 | Entity/Table | Purpose | Key fields | Used by | Notes |
 |---|---|---|---|---|
 | characters (経験の護符状態) | 通常探索EXP支援の残り対象勝利数 | `experience_talisman_wins_remaining` unsigned integer, default 0 | `ExperienceTalismanService`, `ExplorationService`, `AdventureSupportService`, `InventoryController` | 加算migrationで既存冒険者は0。護符1個につき50回を加算する。対象勝利では`ExperienceTalismanService`が最新Character行を`lockForUpdate`し、探索報酬確定と同じtransaction内で別モデルから残数だけを1減らす。探索報酬を持つ古いCharacterはこの列をdirtyにせず、後続保存でも更新しない。報酬保存が失敗した場合は減算もrollbackする。Lv255と対象外戦闘では減らさない。通常の入手経路と国家戦報酬への接続は持たない。 |

@@ -125,6 +125,7 @@ class ExperienceTalismanTest extends TestCase
             'experience_talisman_wins_remaining' => 50,
         ]);
         $this->mockBattleResult('victory', 100, 40, 2);
+        $moneyBefore = (int) $character->fresh()->money;
 
         $result = app(NoSpecialEventExperienceTalismanExplorationService::class)
             ->explore($character, $area->id, false, null, true);
@@ -134,7 +135,7 @@ class ExperienceTalismanTest extends TestCase
         $this->assertSame(40, $result['gold_gained']);
         $this->assertSame(2, $result['job_exp_gained']);
         $this->assertSame(125, (int) $character->fresh()->exp);
-        $this->assertSame(40, (int) $character->fresh()->money);
+        $this->assertSame($moneyBefore + 40, (int) $character->fresh()->money);
         $this->assertSame(49, (int) $character->fresh()->experience_talisman_wins_remaining);
         $this->assertSame(25, (int) data_get($result, 'experience_talisman.bonus_exp'));
         $this->assertStringContainsString('【経験の護符】', $result['log']);

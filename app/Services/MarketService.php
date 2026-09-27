@@ -27,10 +27,11 @@ class MarketService
         $quantity = max(1, $quantity);
 
         return DB::transaction(function () use ($seller, $material, $quantity, $unitPrice) {
+            $seller = Character::whereKey($seller->id)->lockForUpdate()->firstOrFail();
             $shop = $this->shopService->isEnabled()
                 ? $this->shopService->assertCanList($seller)
                 : null;
-            $material = Material::whereKey($material->id)->lockForUpdate()->firstOrFail();
+            $material = Material::findOrFail($material->id);
             $this->assertMarketable($material);
             $this->assertPriceInRange($material, $unitPrice);
 
@@ -69,7 +70,7 @@ class MarketService
             ]);
             $shop?->update(['last_stocked_at' => now()]);
             return $listing;
-        });
+        }, 3);
     }
 
     public function buyMaterial(
@@ -83,20 +84,25 @@ class MarketService
         $quantity = max(1, $quantity);
 
         return DB::transaction(function () use ($buyer, $material, $quantity, $bankConfirmed, $expectedTotalPrice) {
-            $buyer = Character::whereKey($buyer->id)->lockForUpdate()->firstOrFail();
-            $material = Material::whereKey($material->id)->lockForUpdate()->firstOrFail();
+            $material = Material::findOrFail($material->id);
             $this->assertMarketable($material);
-
-            $listings = MarketListing::query()
-                ->active()
-                ->marketSellerEligible()
-                ->where('listing_type', 'material')
-                ->where('material_id', $material->id)
-                ->where('seller_character_id', '!=', $buyer->id)
-                ->orderBy('unit_price')
-                ->orderBy('created_at')
-                ->lockForUpdate()
-                ->get();
+            // 候補を固定してから全当事者をID順、出品をID順でロックする。
+            // 待機中に追加された出品は次の購入で扱い、ロック後の現在値で在庫/価格を再検証する。
+            $candidates = MarketListing::query()->active()->marketSellerEligible()
+                ->where('listing_type', 'material')->where('material_id', $material->id)
+                ->where('seller_character_id', '!=', $buyer->id)->get(['id', 'seller_character_id', 'seller_type']);
+            $characterIds = $candidates->where('seller_type', '!=', 'npc')->pluck('seller_character_id')
+                ->push($buyer->id)->unique()->sort()->values();
+            $characters = Character::whereIn('id', $characterIds)->orderBy('id')->lockForUpdate()->get()->keyBy('id');
+            $buyer = $characters->get($buyer->id);
+            if (! $buyer) {
+                throw ValidationException::withMessages(['quantity' => '購入者が見つかりません。']);
+            }
+            $listings = MarketListing::query()->active()->marketSellerEligible()
+                ->whereIn('id', $candidates->pluck('id'))->where('listing_type', 'material')
+                ->where('material_id', $material->id)->where('seller_character_id', '!=', $buyer->id)
+                ->orderBy('id')->lockForUpdate()->get()
+                ->sortBy([['unit_price', 'asc'], ['created_at', 'asc'], ['id', 'asc']]);
 
             $remainingToBuy = $quantity;
             $fills = [];
@@ -146,7 +152,10 @@ class MarketService
                 $seller = null;
 
                 if (! $isNpcListing) {
-                    $seller = Character::whereKey($listing->seller_character_id)->lockForUpdate()->firstOrFail();
+                    $seller = $characters->get($listing->seller_character_id);
+                    if (! $seller) {
+                        throw ValidationException::withMessages(['quantity' => '出品状況が変わりました。もう一度購入してください。']);
+                    }
                     $seller->money = (int) $seller->money + $sellerReceived;
                     $seller->save();
                 }
@@ -216,12 +225,13 @@ class MarketService
                 'lines' => $lines,
                 'payment' => $payment,
             ];
-        });
+        }, 3);
     }
 
     public function cancelListing(Character $seller, MarketListing $listing): array
     {
         return DB::transaction(function () use ($seller, $listing) {
+            $seller = Character::whereKey($seller->id)->lockForUpdate()->firstOrFail();
             $listing = MarketListing::whereKey($listing->id)->lockForUpdate()->firstOrFail();
             if ((int) $listing->seller_character_id !== (int) $seller->id) {
                 throw ValidationException::withMessages([
@@ -235,7 +245,7 @@ class MarketService
                 ]);
             }
 
-            $material = Material::whereKey($listing->material_id)->lockForUpdate()->firstOrFail();
+            $material = Material::findOrFail($listing->material_id);
             $returnQuantity = (int) $listing->remaining_quantity;
 
             $listing->status = 'cancelled';
@@ -248,7 +258,7 @@ class MarketService
                 'material_name' => $material->displayName(),
                 'quantity' => $returnQuantity,
             ];
-        });
+        }, 3);
     }
 
     public function expireListings(): int
@@ -263,18 +273,19 @@ class MarketService
             ->orderBy('id')
             ->chunkById(100, function ($listings) use (&$expiredCount) {
                 foreach ($listings as $listing) {
-                    DB::transaction(function () use ($listing, &$expiredCount) {
+                    $expired = DB::transaction(function () use ($listing) {
+                        $seller = $listing->isNpcListing() ? null
+                            : Character::whereKey($listing->seller_character_id)->lockForUpdate()->first();
                         $locked = MarketListing::whereKey($listing->id)->lockForUpdate()->first();
                         if (! $locked || $locked->status !== 'active' || (int) $locked->remaining_quantity <= 0 || $locked->expires_at > now()) {
                             return;
                         }
 
-                        $material = Material::whereKey($locked->material_id)->lockForUpdate()->first();
+                        $material = Material::find($locked->material_id);
                         if ($material) {
                             if ($locked->isNpcListing()) {
                                 $this->addNpcMaterialQuantity((int) $locked->seller_npc_id, $material, (int) $locked->remaining_quantity);
                             } else {
-                                $seller = Character::whereKey($locked->seller_character_id)->lockForUpdate()->first();
                                 if ($seller) {
                                     $this->addMaterialQuantity($seller, $material, (int) $locked->remaining_quantity);
                                 }
@@ -284,8 +295,9 @@ class MarketService
                         $locked->status = 'expired';
                         $locked->remaining_quantity = 0;
                         $locked->save();
-                        $expiredCount++;
-                    });
+                        return true;
+                    }, 3);
+                    $expiredCount += $expired ? 1 : 0;
                 }
             });
 

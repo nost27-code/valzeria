@@ -15,6 +15,7 @@ use App\Services\Battle\BattleResult;
 use App\Services\Nation\Raid\NationRaidExplorationContributionService;
 use App\Support\CharacterIconCatalog;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class ExplorationService
 {
@@ -92,6 +93,38 @@ class ExplorationService
      */
     public function explore(Character $character, int $areaId, bool $isBossBattle = false, ?string $forcedEvent = null, bool $skipBattleCooldown = false): array
     {
+        try {
+            return DB::transaction(function () use ($character, $areaId, $isBossBattle, $forcedEvent, $skipBattleCooldown) {
+                $locked = Character::whereKey($character->id)->lockForUpdate()->firstOrFail();
+                $character->setRawAttributes($locked->getAttributes(), true);
+                $character->unsetRelations();
+                CharacterStatusService::clearRequestCache();
+                return $this->exploreLocked($character, $areaId, $isBossBattle, $forcedEvent, $skipBattleCooldown);
+            });
+        } finally {
+            $character->refresh();
+            CharacterStatusService::clearRequestCache();
+        }
+    }
+
+    public function challengeDungeonLord(Character $character, int $areaId, string $token): array
+    {
+        return DB::transaction(function () use ($character, $areaId, $token) {
+            Character::whereKey($character->id)->lockForUpdate()->firstOrFail();
+            $state = app(ExplorationStateService::class)->currentFor($character);
+            if (! $state || (int) $state->area_id !== $areaId || ! $state->dungeon_lord_token
+                || ! hash_equals($state->dungeon_lord_token, $token)) {
+                return ['error' => 'ダンジョン主への挑戦は終了しています。現在の探索状況をご確認ください。'];
+            }
+            return $this->explore($character, $areaId, false, 'dungeon_lord');
+        });
+    }
+
+    private function exploreLocked(Character $character, int $areaId, bool $isBossBattle, ?string $forcedEvent, bool $skipBattleCooldown): array
+    {
+        if ($character->is_frozen) {
+            return ['error' => 'このアカウントは凍結されています。お問い合わせください。'];
+        }
         $staminaService = app(ExplorationStaminaService::class);
         $consumesStamina = $staminaService->enabled();
         $staminaSummary = $consumesStamina ? $staminaService->summary($character) : null;
@@ -123,19 +156,11 @@ class ExplorationService
             return ['error' => '追加ダンジョンを探索中です。別の場所を探索する場合は、先に帰還してください。'];
         }
         $explorationStateService = app(ExplorationStateService::class);
-        $regionDepthDungeonService = app(RegionDepthDungeonService::class);
-        $activeRegionRun = $regionDepthDungeonService->activeRun($character);
-        $isRegionDepthDungeon = !$isBossBattle && $regionDepthDungeonService->isRegionDepthArea($area);
-        $regionDungeonKey = $isRegionDepthDungeon
-            ? (string) ($activeRegionRun?->dungeon_key ?? $regionDepthDungeonService->keyForArea($area) ?? '')
-            : '';
-        if ($isRegionDepthDungeon && !$regionDepthDungeonService->canExplore($character, $area)) {
-            return ['error' => '追加ダンジョンへ入場してから探索してください。'];
-        }
-        if (!$isRegionDepthDungeon && $activeRegionRun) {
-            return ['error' => '追加ダンジョンを探索中です。別の場所を探索する場合は、先に帰還してください。'];
-        }
         $currentState = !$isBossBattle ? $explorationStateService->currentFor($character) : null;
+        if ($forcedEvent === 'dungeon_lord' && (! $currentState || (int) $currentState->area_id !== $areaId
+            || ! $currentState->dungeon_lord_token || $isBossBattle || $isRegionDepthDungeon)) {
+            return ['error' => '挑戦できるダンジョン主がいません。'];
+        }
         $currentDanger = $currentState && (int) $currentState->area_id === $areaId
             ? (int) ($currentState->danger_rate ?? 0)
             : 0;
@@ -225,6 +250,10 @@ class ExplorationService
         $character->save();
         $state = !$isBossBattle ? $explorationStateService->getOrStart($character, $areaId) : null;
 
+        // 挑戦・見送りのいずれでも案内を一度だけ消費する。失敗時は外側のtransactionで戻る。
+        if ($state && $state->dungeon_lord_token) {
+            $state->forceFill(['dungeon_lord_token' => null])->save();
+        }
         $specialEvent = null;
         if (!$isBossBattle && $state && !$isRegionDepthDungeon) {
             $specialEvent = $forcedEvent === 'dungeon_lord'
@@ -908,6 +937,7 @@ class ExplorationService
             'story_record' => app(FerdiaMapService::class)->storyRecordForArea($character, $area),
             'new_discoveries' => $newDiscoveries,
             'special_event' => $specialEvent['type'] ?? null,
+            'dungeon_lord_token' => $state?->dungeon_lord_token,
             'secret_realm_image' => $this->secretRealmImagePath($area),
             'secret_realm_name' => $specialEvent['secret_realm']['name'] ?? null,
             'gold_loss' => $goldLoss,
@@ -1615,7 +1645,7 @@ class ExplorationService
         }
 
         if ($point >= 300 && !$state->dungeon_lord_encountered && $this->rollPercent(2.0)) {
-            $state->forceFill(['dungeon_lord_encountered' => true])->save();
+            $state->forceFill(['dungeon_lord_encountered' => true, 'dungeon_lord_token' => (string) Str::uuid()])->save();
             return [
                 'type' => 'dungeon_lord_encounter',
                 'enemy' => $this->makeDungeonLordEnemy($area, $baseEnemy),

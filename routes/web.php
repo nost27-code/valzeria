@@ -216,13 +216,13 @@ Route::get('/dev/fix-accessory-stats', function () {
 Route::get('/auth/google', [AuthController::class, 'redirectToGoogle'])->name('auth.google');
 Route::get('/auth/google/callback', [AuthController::class, 'handleGoogleCallback'])->name('auth.google.callback');
 Route::get('/login', [AuthController::class, 'showEmailLoginForm'])->name('auth.email.login');
-Route::post('/login', [AuthController::class, 'emailLogin'])->name('auth.email.login.submit');
+Route::post('/login', [AuthController::class, 'emailLogin'])->middleware('throttle:auth-login')->name('auth.email.login.submit');
 Route::get('/register', [AuthController::class, 'showEmailRegisterForm'])->name('auth.email.register');
-Route::post('/register', [AuthController::class, 'emailRegister'])->name('auth.email.register.submit');
+Route::post('/register', [AuthController::class, 'emailRegister'])->middleware('throttle:auth-create')->name('auth.email.register.submit');
 if (app()->environment('local')) {
     Route::get('/auth/mock-login', [AuthController::class, 'mockLogin'])->name('auth.mock'); // モックログイン用
 }
-Route::post('/auth/guest-login', [AuthController::class, 'guestLogin'])->name('auth.guest'); // ゲストログイン用
+Route::post('/auth/guest-login', [AuthController::class, 'guestLogin'])->middleware('throttle:auth-create')->name('auth.guest'); // ゲストログイン用
 Route::post('/auth/logout', [AuthController::class, 'logout'])->name('auth.logout');
 Route::get('/auth/logout', fn () => redirect()->route('top'))->name('auth.logout.get');
 
@@ -302,13 +302,13 @@ Route::middleware('auth')->group(function () {
         Route::post('/region-depth-dungeons/{dungeonKey}/return', [\App\Http\Controllers\RegionDepthDungeonController::class, 'returnToTown'])->name('region-depth-dungeons.return');
         Route::post('/battle/resume/return', [BattleController::class, 'abandonInterruptedExploration'])->name('battle.resume.return');
         Route::get('/battle/areas/{area}/explore', [BattleController::class, 'exploreGetFallback'])->name('battle.explore.fallback');
-        Route::post('/battle/discovered-areas/{area}/travel', [BattleController::class, 'travelDiscoveredArea'])->name('battle.discovered_area.travel');
-        Route::post('/battle/areas/{area}/explore', [BattleController::class, 'explore'])->name('battle.explore');
-        Route::post('/battle/areas/{area}/depth-record', [BattleController::class, 'recordDepthEntrance'])->name('battle.depth.record');
-        Route::post('/battle/areas/{area}/depth-retreat', [BattleController::class, 'retreatDepthEntrance'])->name('battle.depth.retreat');
+        Route::post('/battle/discovered-areas/{area}/travel', [BattleController::class, 'travelDiscoveredArea'])->middleware(\App\Http\Middleware\CommitExplorationRequest::class)->name('battle.discovered_area.travel');
+        Route::post('/battle/areas/{area}/explore', [BattleController::class, 'explore'])->middleware(\App\Http\Middleware\CommitExplorationRequest::class)->name('battle.explore');
+        Route::post('/battle/areas/{area}/depth-record', [BattleController::class, 'recordDepthEntrance'])->middleware(\App\Http\Middleware\CommitExplorationRequest::class)->name('battle.depth.record');
+        Route::post('/battle/areas/{area}/depth-retreat', [BattleController::class, 'retreatDepthEntrance'])->middleware(\App\Http\Middleware\CommitExplorationRequest::class)->name('battle.depth.retreat');
         Route::get('/battle/sub-area-entries/{discovery}/confirm', [BattleController::class, 'confirmSubArea'])->name('battle.sub_area.confirm');
         Route::post('/battle/sub-area-entries/{discovery}/explore', [BattleController::class, 'exploreSubArea'])->name('battle.sub_area.explore');
-        Route::post('/battle/areas/{area}/boss', [BattleController::class, 'boss'])->name('battle.boss');
+        Route::post('/battle/areas/{area}/boss', [BattleController::class, 'boss'])->middleware(\App\Http\Middleware\CommitExplorationRequest::class)->name('battle.boss');
         Route::post('/battle/return', [BattleController::class, 'returnToTown'])->name('battle.return');
         Route::post('/exploration/items/{item}/use', [\App\Http\Controllers\ExplorationItemController::class, 'use'])->name('exploration.items.use');
         Route::post('/battle/pvp/{targetCharacter}', [BattleController::class, 'pvp'])->name('battle.pvp');
@@ -553,7 +553,7 @@ Route::middleware('auth')->group(function () {
 use App\Http\Controllers\AdminAuthController;
 
 Route::get('/admin/login', [AdminAuthController::class, 'showLoginForm'])->name('admin.login');
-Route::post('/admin/login', [AdminAuthController::class, 'login']);
+Route::post('/admin/login', [AdminAuthController::class, 'login'])->middleware('throttle:auth-admin');
 Route::post('/admin/logout', [AdminAuthController::class, 'logout'])->name('admin.logout');
 Route::get('/admin/tools/{asset}', function (string $asset) {
     abort_unless(in_array($asset, ['style.css', 'script.js'], true), 404);

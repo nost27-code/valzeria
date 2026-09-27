@@ -327,7 +327,7 @@ class PvPBattleService
             $context->roomRule ?? ($this->nullRoomRule ??= new NullPvPRoomRule()),
         );
         
-        $state->addLog("【{$context->displayLabel}】{$attackerActor->name} が {$defenderActor->name} に勝負を挑んだ！");
+        $state->addLog("【{$context->displayLabel}】{$attackerActor->logName()} が {$defenderActor->logName()} に勝負を挑んだ！");
         $state->addLog($this->affinityLog($attackerActor, $defenderActor));
         $state->addLog($this->affinityLog($defenderActor, $attackerActor));
         $this->roomRuleFor($state)->onBattleStart($attackerActor, $defenderActor, $state);
@@ -387,17 +387,17 @@ class PvPBattleService
         $isTurnLimit = $state->turnCount >= $state->maxTurns;
         if ($defenderActor->isDead()) {
             // アタッカー勝利
-            $state->addLog("<br><span class=\"text-black font-extrabold text-xl\">決着！{$attackerActor->name}は、{$defenderActor->name}を倒した！</span>");
+            $state->addLog("<br><span class=\"text-black font-extrabold text-xl\">決着！{$attackerActor->logName()}は、{$defenderActor->logName()}を倒した！</span>");
             $result->result = 'victory';
             $isAttackerWin = true;
         } elseif (!$attackerActor->isDead() && $isTurnLimit && $attackerActor->hasHigherRemainingHpRatioThan($defenderActor)) {
             // ターン上限時は残り体力の割合が高い挑戦者の判定勝利
-            $state->addLog("<br><span class=\"text-black font-extrabold text-xl\">判定勝利！{$attackerActor->name}が優勢のまま押し切った！</span>");
+            $state->addLog("<br><span class=\"text-black font-extrabold text-xl\">判定勝利！{$attackerActor->logName()}が優勢のまま押し切った！</span>");
             $result->result = 'victory';
             $isAttackerWin = true;
         } else {
             // ディフェンダー勝利（または引き分けで防衛成功）
-            $state->addLog("<br><span class=\"text-black font-extrabold text-xl\">決着！{$defenderActor->name}が防衛に成功した！</span>");
+            $state->addLog("<br><span class=\"text-black font-extrabold text-xl\">決着！{$defenderActor->logName()}が防衛に成功した！</span>");
             $result->result = 'defeat';
             $isAttackerWin = false;
         }
@@ -729,7 +729,7 @@ class PvPBattleService
             $hitRules['normal_max_rate'],
             $this->jobArtBattleSupport->fieldAccuracyDelta($attacker, $state),
         )) {
-            $state->addLog("{$attacker->name} の攻撃！……しかし、{$defender->name} はかわした！");
+            $state->addLog("{$attacker->logName()} の攻撃！……しかし、{$defender->logName()} はかわした！");
             $this->jobArtBattleSupport->recordNormalAttackResolution($attacker, $defender, $state, HitResult::MISS, false);
             return;
         }
@@ -779,7 +779,7 @@ class PvPBattleService
         $damage = $damageResult?->requestedDamage ?? $damage;
         $critText = $isCrit ? "<span class=\"text-orange-500 font-bold\">【痛恨の一撃！】</span>" : "";
         $damageClass = $attackType === 'magical' ? 'text-purple-600' : 'text-red-600';
-        $state->addDamageLog("{$attacker->name} の攻撃！ {$critText} {$defender->name} に <span class=\"{$damageClass} font-extrabold text-lg\">{$damage}</span> のダメージ！");
+        $state->addDamageLog("{$attacker->logName()} の攻撃！ {$critText} {$defender->logName()} に <span class=\"{$damageClass} font-extrabold text-lg\">{$damage}</span> のダメージ！");
         $this->jobArtBattleSupport->recordNormalAttackResolution($attacker, $defender, $state, HitResult::HIT, false);
         $this->logGutsIfTriggered($defender, $state);
     }
@@ -797,7 +797,7 @@ class PvPBattleService
             $hitRules['normal_max_rate'],
             $this->jobArtBattleSupport->fieldAccuracyDelta($attacker, $state),
         )) {
-            $state->addLog("{$attacker->name} の攻撃！……しかし、{$defender->name} はかわした！");
+            $state->addLog("{$attacker->logName()} の攻撃！……しかし、{$defender->logName()} はかわした！");
             return;
         }
 
@@ -844,7 +844,7 @@ class PvPBattleService
         );
         $damage = $damageResult?->requestedDamage ?? $damage;
         $critText = $isCrit ? "<span class=\"text-orange-500 font-bold\">【痛恨の一撃！】</span>" : "";
-        $state->addDamageLog("{$attacker->name} の攻撃！ {$critText} {$defender->name} に <span class=\"text-red-600 font-extrabold text-lg\">{$damage}</span> のダメージ！");
+        $state->addDamageLog("{$attacker->logName()} の攻撃！ {$critText} {$defender->logName()} に <span class=\"text-red-600 font-extrabold text-lg\">{$damage}</span> のダメージ！");
         $this->logGutsIfTriggered($defender, $state);
     }
 
@@ -870,7 +870,7 @@ class PvPBattleService
         $damageType = $this->resolveSkillDamageType($attacker, $skill);
         $damageClass = $damageType === 'magical' ? 'text-purple-600' : 'text-red-600';
         if ($addOpeningLog) {
-            $state->addLog("<span class=\"text-blue-600 font-bold\">【必殺技】{$attacker->name} の必殺技、{$skill->name} が発動！</span>");
+            $state->addLog("<span class=\"text-blue-600 font-bold\">【必殺技】{$attacker->logName()} の必殺技、{$skill->name} が発動！</span>");
         }
         if ($this->jobArtBattleSupport->isFieldOnlyArt($attacker, $state, $skill)) {
             return;
@@ -1050,7 +1050,7 @@ class PvPBattleService
                 );
                 $damage = $damageResult?->requestedDamage ?? $damage;
                 $totalDamage += $damage;
-                $state->addDamageLog("{$defender->name} に <span class=\"{$damageClass} font-extrabold text-lg\">{$damage}</span> のダメージ！");
+                $state->addDamageLog("{$defender->logName()} に <span class=\"{$damageClass} font-extrabold text-lg\">{$damage}</span> のダメージ！");
                 $this->logGutsIfTriggered($defender, $state);
             }
 
@@ -1078,13 +1078,13 @@ class PvPBattleService
                 $healAmount,
                 (int) $skill->id,
             );
-            $state->addLog("<span class=\"text-green-600 font-bold\">{$attacker->name} の傷が {$actualHeal} 回復した！</span>");
+            $state->addLog("<span class=\"text-green-600 font-bold\">{$attacker->logName()} の傷が {$actualHeal} 回復した！</span>");
         }
 
         if ($skill->mp_recover_percent > 0 && $attacker->maxMp > 0) {
             $mpHealAmount = (int)($attacker->maxMp * ($skill->mp_recover_percent / 100));
             $attacker->mp = min($attacker->maxMp, $attacker->mp + $mpHealAmount);
-            $state->addLog("<span class=\"text-blue-500 font-bold\">{$attacker->name} はSPを {$mpHealAmount} 回復した！</span>");
+            $state->addLog("<span class=\"text-blue-500 font-bold\">{$attacker->logName()} はSPを {$mpHealAmount} 回復した！</span>");
         }
 
         if ($skill->self_damage_percent > 0) {
@@ -1097,7 +1097,7 @@ class PvPBattleService
                 DamageSourceType::RECOIL,
                 (int) $skill->id,
             );
-            $state->addLog("<span class=\"text-purple-600 font-bold\">反動により、{$attacker->name} は {$selfDamage} のダメージを受けた！</span>");
+            $state->addLog("<span class=\"text-purple-600 font-bold\">反動により、{$attacker->logName()} は {$selfDamage} のダメージを受けた！</span>");
             $this->jobArtBattleSupport->recordSelfDamage($attacker, $state, $selfDamage);
             $this->logGutsIfTriggered($attacker, $state);
         }
@@ -1107,7 +1107,7 @@ class PvPBattleService
         }
 
         if ((int) $skill->damage_reduction_percent > 0 && ! ($skill->isJobArt() && in_array((string) $skill->effect_template, ['GUARD_BARRIER', 'DAMAGE_GUARD_BARRIER'], true))) {
-            $state->addLog("{$attacker->name} は次の被ダメージを軽減する構えをとった！");
+            $state->addLog("{$attacker->logName()} は次の被ダメージを軽減する構えをとった！");
             $attacker->damageReductionRate = max($attacker->damageReductionRate, min(50, (int) $skill->damage_reduction_percent));
         }
         
@@ -1171,7 +1171,7 @@ class PvPBattleService
 
         if ($template === 'GUTS') {
             $attacker->gutsReady = true;
-            $state->addLog("<span class=\"text-orange-700 font-bold\">{$attacker->name} は一度だけ踏みとどまる覚悟を固めた！</span>");
+            $state->addLog("<span class=\"text-orange-700 font-bold\">{$attacker->logName()} は一度だけ踏みとどまる覚悟を固めた！</span>");
         }
 
 
@@ -1179,7 +1179,7 @@ class PvPBattleService
             $rate = (float) ($attacker->jobArtRates[(int) $skill->id] ?? 1.0);
             $reduction = $this->jobArtGuardReduction($skill, $rate);
             $attacker->damageReductionRate = max($attacker->damageReductionRate, min(50, $reduction));
-            $state->addLog("<span class=\"text-blue-700 font-bold\">{$attacker->name} は次の被ダメージを {$reduction}% 軽減する！</span>");
+            $state->addLog("<span class=\"text-blue-700 font-bold\">{$attacker->logName()} は次の被ダメージを {$reduction}% 軽減する！</span>");
         }
 
         if (in_array($template, ['SELF_BUFF', 'DAMAGE_BUFF', 'MAGICAL_DAMAGE_BUFF'], true)) {
@@ -1372,7 +1372,7 @@ class PvPBattleService
         }
 
         $actor->gutsJustTriggered = false;
-        $state->addLog("<span class=\"text-orange-700 font-extrabold\">{$actor->name} は不屈の精神で致死ダメージを耐えた！（HP1）</span>");
+        $state->addLog("<span class=\"text-orange-700 font-extrabold\">{$actor->logName()} は不屈の精神で致死ダメージを耐えた！（HP1）</span>");
     }
 
     /**
@@ -1440,14 +1440,14 @@ class PvPBattleService
 
         if ($multiplier > 1.01) {
             $bonusPercent = (int) round(($multiplier - 1.0) * 100);
-            return "<span class=\"text-emerald-700 font-bold\">【戦型相性】{$attacker->name} → {$defender->name}: {$label}！ 与ダメージ +{$bonusPercent}%</span>";
+            return "<span class=\"text-emerald-700 font-bold\">【戦型相性】{$attacker->logName()} → {$defender->logName()}: {$label}！ 与ダメージ +{$bonusPercent}%</span>";
         }
 
         if ($multiplier < 0.99) {
             $penaltyPercent = (int) round((1.0 - $multiplier) * 100);
-            return "<span class=\"text-rose-700 font-bold\">【戦型相性】{$attacker->name} → {$defender->name}: {$label}…… 与ダメージ -{$penaltyPercent}%</span>";
+            return "<span class=\"text-rose-700 font-bold\">【戦型相性】{$attacker->logName()} → {$defender->logName()}: {$label}…… 与ダメージ -{$penaltyPercent}%</span>";
         }
 
-        return "<span class=\"text-slate-500 font-bold\">【戦型相性】{$attacker->name} → {$defender->name}: 互角</span>";
+        return "<span class=\"text-slate-500 font-bold\">【戦型相性】{$attacker->logName()} → {$defender->logName()}: 互角</span>";
     }
 }

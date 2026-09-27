@@ -593,10 +593,11 @@ class ExplorationMapLifecycleTest extends TestCase
         $this->actingAs($character->user)
             ->withSession(['current_character_id' => $character->id])
             ->post(route('battle.explore', $area), [
+                'exploration_request_id' => (string) \Illuminate\Support\Str::uuid(),
                 'continue_chain' => true,
                 'batch_count' => 1,
             ])
-            ->assertRedirect(route('battle.result'));
+            ->assertRedirectContains(route('battle.result').'?result=');
 
         $this->assertTrue(app(MapExplorationItemService::class)->hasEntry($character, $registration->id));
     }
@@ -651,6 +652,7 @@ class ExplorationMapLifecycleTest extends TestCase
                 ],
             ])
             ->post(route('battle.explore', $area), [
+                'exploration_request_id' => (string) \Illuminate\Support\Str::uuid(),
                 'continue_chain' => true,
                 'batch_count' => 10,
             ])
