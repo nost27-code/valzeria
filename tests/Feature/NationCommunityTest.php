@@ -7,8 +7,11 @@ use App\Http\Middleware\CheckCharacterSelected;
 use App\Livewire\CityHeader;
 use App\Livewire\MainScreenShell;
 use App\Livewire\NationScreen;
+use App\Models\Area;
+use App\Models\BattleLog;
 use App\Models\Character;
 use App\Models\CharacterNotification;
+use App\Models\Enemy;
 use App\Models\Nation;
 use App\Models\NationActivityLog;
 use App\Models\NationFacility;
@@ -1186,6 +1189,71 @@ SQL);
             ->assertDontSeeHtml('data-nation-member-list-modal');
 
         $this->assertSame(9, substr_count($nineMemberScreen->html(), 'data-nation-member-card='));
+    }
+
+    public function test_ruler_can_compare_last_access_and_exploration_without_exposing_activity_to_other_nations(): void
+    {
+        config()->set('features.nation_community_enabled', true);
+        $ruler = $this->character('活動確認国王');
+        $nation = app(NationService::class)->create($ruler, '活動確認');
+        $stale = $this->character('探索が古い国民');
+        $recent = $this->character('探索が新しい国民');
+        $unrecorded = $this->character('探索記録のない国民');
+        foreach ([$stale, $recent, $unrecorded] as $member) {
+            NationMembership::create([
+                'nation_id' => $nation->id,
+                'character_id' => $member->id,
+                'role' => 'citizen',
+                'joined_at' => now(),
+            ]);
+        }
+
+        $stale->update(['last_seen_at' => '2026-09-25 12:30:00']);
+        $area = Area::create(['name' => '活動確認の探索地', 'slug' => 'member-activity-test']);
+        $enemy = Enemy::create(['area_id' => $area->id, 'name' => '活動確認の敵']);
+        foreach ([
+            [$stale, 'normal', 'win', '2026-09-16 09:00:00', 1],
+            [$stale, 'pvp', 'win', '2026-09-26 09:00:00', 1],
+            [$recent, 'exploration_map', 'lose', '2026-09-20 09:00:00', null],
+            [$recent, 'normal', 'event', '2026-09-22 09:15:00', 0],
+            [$ruler, 'boss', 'win', '2026-09-23 09:00:00', 1],
+        ] as [$fighter, $type, $result, $at, $turns]) {
+            BattleLog::create([
+                'character_id' => $fighter->id,
+                'area_id' => $area->id,
+                'enemy_id' => $enemy->id,
+                'battle_type' => $type,
+                'result' => $result,
+                'turn_count' => $turns,
+                'log_text' => '活動確認',
+                'created_at' => $at,
+                'updated_at' => $at,
+            ]);
+        }
+
+        $this->actingAs($ruler->user);
+        $screen = Livewire::test(NationScreen::class)
+            ->call('showMemberManagement')
+            ->assertSee('最終アクセス：2026/09/25 12:30')
+            ->assertSee('最終探索記録：2026/09/16 09:00')
+            ->assertSee('最終探索記録：2026/09/22 09:15')
+            ->assertSee('最終探索記録：記録なし')
+            ->set('memberManagementSort', 'exploration_asc');
+        preg_match_all('/data-nation-member-management-row="(\d+)"/', $screen->html(), $rows);
+        $this->assertSame(
+            [$unrecorded->id, $stale->id, $recent->id, $ruler->id],
+            array_map('intval', $rows[1]),
+        );
+        $screen->set('memberManagementSort', 'invalid')->assertSet('memberManagementSort', 'joined');
+
+        $outsider = $this->character('他国の冒険者');
+        $this->actingAs($outsider->user);
+        Livewire::test(NationScreen::class)
+            ->call('showNationDetail', $nation->id)
+            ->assertDontSee('最終探索記録')
+            ->assertDontSee('2026/09/16 09:00')
+            ->call('showMemberManagement')
+            ->assertDontSeeHtml('data-nation-member-management');
     }
 
     public function test_nation_member_list_can_be_sorted_by_level_and_name(): void

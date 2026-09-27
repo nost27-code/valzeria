@@ -663,10 +663,23 @@
                         現在、役職による権限変更は未実装です。この画面で実際に利用できる管理操作は追放です。
                     @endif
                 </p>
+                <p class="mt-3 text-xs font-bold leading-relaxed text-stone-600">最終アクセスはゲーム画面へのアクセス日時です。最終探索記録は通常探索・ボス・亜域・探索地図の戦闘ログに残った日時で、宝箱などのイベントも含む場合があります。連絡する相手を探す目安としてご利用ください。</p>
+                <label class="mt-3 flex items-center justify-between gap-2 text-xs font-bold text-stone-700" for="nation-member-management-sort">
+                    並び順
+                    <select id="nation-member-management-sort" wire:model.live="memberManagementSort" class="min-h-10 max-w-[13rem] rounded-lg border-stone-300 bg-white px-2 text-xs font-bold text-stone-800" data-nation-member-management-sort>
+                        @foreach($memberManagementSortOptions as $sortKey => $sortLabel)
+                            <option value="{{ $sortKey }}">{{ $sortLabel }}</option>
+                        @endforeach
+                    </select>
+                </label>
                 <div class="mt-3 divide-y divide-stone-100">
-                    @foreach($nation->memberships as $nationMember)
-                        <article class="py-3">
+                    @foreach($memberManagementMemberships as $nationMember)
+                        <article class="py-3" data-nation-member-management-row="{{ $nationMember->character_id }}">
                             <div class="flex items-center justify-between gap-3"><div class="min-w-0"><p class="truncate font-black text-stone-900">{{ $nationMember->character?->name ?? '不明' }}</p><p class="text-xs font-bold text-stone-500">Lv{{ $nationMember->character?->level ?? 1 }} / {{ $nationMember->joined_at?->format('Y/m/d') }}加入</p></div><span class="shrink-0 rounded-full bg-stone-100 px-2 py-1 text-xs font-black text-stone-700">{{ $nationMember->roleLabel($nation) }}</span></div>
+                            <div class="mt-1 grid gap-0.5 text-[11px] font-bold text-stone-600 sm:grid-cols-2">
+                                <p>最終アクセス：{{ $nationMember->character?->last_seen_at?->format('Y/m/d H:i') ?? '記録なし' }}</p>
+                                <p>最終探索記録：{{ $lastExplorationAtByCharacter->get($nationMember->character_id)?->format('Y/m/d H:i') ?? '記録なし' }}</p>
+                            </div>
                             @unless($nationMember->isRuler())
                                 <div class="mt-2 grid grid-cols-[1fr_auto] gap-2"><select wire:change="changeMemberRole({{ $nationMember->id }}, $event.target.value)" class="min-h-10 rounded-lg border border-stone-300 px-2 text-sm font-bold"><option value="citizen" @selected($nationMember->role === 'citizen')>国民</option><option value="chancellor" @selected($nationMember->role === 'chancellor')>宰相</option><option value="marshal" @selected($nationMember->role === 'marshal')>元帥</option><option value="logistics_officer" @selected($nationMember->role === 'logistics_officer')>兵站官</option></select><button type="button" wire:click="openExpelConfirmation({{ $nationMember->id }})" class="min-h-10 rounded-lg border border-rose-300 bg-white px-3 text-xs font-black text-rose-700">追放</button></div>
                             @endunless

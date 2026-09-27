@@ -3,6 +3,7 @@
 namespace App\Livewire;
 
 use App\Enums\NationType;
+use App\Models\BattleLog;
 use App\Models\Character;
 use App\Models\Nation;
 use App\Models\NationAchievement;
@@ -42,7 +43,9 @@ use App\Services\Nation\NationWantedMaterialService;
 use App\Services\Nation\NationWarPreparationPresetService;
 use App\Services\Nation\NationWarSettingsService;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
@@ -64,6 +67,11 @@ final class NationScreen extends Component
         'level_desc' => 'Lvが高い順',
         'level_asc' => 'Lvが低い順',
         'name_asc' => '名前順',
+    ];
+
+    private const MEMBER_MANAGEMENT_SORT_OPTIONS = [
+        'joined' => '加入順',
+        'exploration_asc' => '最終探索が古い順',
     ];
 
     private const DONATION_MATERIAL_SORT_DEFAULT = 'quantity_desc';
@@ -135,6 +143,8 @@ final class NationScreen extends Component
     public bool $showNationMenuModal = false;
 
     public string $memberSort = self::MEMBER_SORT_DEFAULT;
+
+    public string $memberManagementSort = 'joined';
 
     public string $donationMaterialSort = self::DONATION_MATERIAL_SORT_DEFAULT;
 
@@ -319,6 +329,13 @@ final class NationScreen extends Component
     {
         if (! array_key_exists($memberSort, self::MEMBER_SORT_OPTIONS)) {
             $this->memberSort = self::MEMBER_SORT_DEFAULT;
+        }
+    }
+
+    public function updatedMemberManagementSort(string $sort): void
+    {
+        if (! array_key_exists($sort, self::MEMBER_MANAGEMENT_SORT_OPTIONS)) {
+            $this->memberManagementSort = 'joined';
         }
     }
 
@@ -1539,6 +1556,32 @@ final class NationScreen extends Component
             }
         }
 
+        $memberManagementMemberships = collect();
+        $lastExplorationAtByCharacter = collect();
+        if ($this->page === 'members' && $membership?->isRuler()) {
+            $memberManagementMemberships = $membership->nation->memberships;
+            $characterIds = $memberManagementMemberships->pluck('character_id');
+            $lastExplorationAtByCharacter = DB::table('battle_logs')
+                ->whereIn('character_id', $characterIds)
+                ->whereIn('battle_type', ['normal', 'boss', 'sub_area', 'exploration_map'])
+                ->whereIn('result', [...BattleLog::BATTLE_RESULTS, BattleLog::RESULT_EVENT])
+                ->selectRaw('character_id, MAX(created_at) as last_exploration_at')
+                ->groupBy('character_id')
+                ->pluck('last_exploration_at', 'character_id')
+                ->map(fn (string $at): Carbon => Carbon::parse($at));
+
+            if ($this->memberManagementSort === 'exploration_asc') {
+                $memberManagementMemberships = $memberManagementMemberships
+                    ->sort(function (NationMembership $left, NationMembership $right) use ($lastExplorationAtByCharacter): int {
+                        $leftAt = $lastExplorationAtByCharacter->get($left->character_id)?->getTimestamp() ?? PHP_INT_MIN;
+                        $rightAt = $lastExplorationAtByCharacter->get($right->character_id)?->getTimestamp() ?? PHP_INT_MIN;
+
+                        return ($leftAt <=> $rightAt) ?: ($left->id <=> $right->id);
+                    })
+                    ->values();
+            }
+        }
+
         $confirmationTarget = $this->confirmationAction !== 'approve-application' && $this->confirmationTargetId
             ? NationMembership::with(['character', 'nation'])->find($this->confirmationTargetId)
             : null;
@@ -1587,6 +1630,9 @@ final class NationScreen extends Component
         return view('livewire.nation-screen', [
             'character' => $character,
             'membership' => $membership,
+            'memberManagementMemberships' => $memberManagementMemberships,
+            'lastExplorationAtByCharacter' => $lastExplorationAtByCharacter,
+            'memberManagementSortOptions' => self::MEMBER_MANAGEMENT_SORT_OPTIONS,
             'nations' => $nations,
             'selectedNation' => $selectedNation,
             'joinEligibility' => $joinEligibility,
