@@ -491,7 +491,7 @@ h2 { font-size: 0.85rem; font-weight: 700; color: #c4b5fd; text-transform: upper
 #tool-modes { display: flex; gap: 8px; padding: 4px 10px; height: 48px; background: #16213e; }
 #tool-modes .btn { min-height: 40px; }
 #webp-converter { height: calc(100dvh - 92px); overflow-y: auto; padding: 16px; transition: background-color 0.15s ease; }
-.converter-layout { display: grid; grid-template-columns: minmax(0, 300px) minmax(0, 1fr); gap: 16px; max-width: 1200px; margin: auto; }
+.converter-layout { display: grid; grid-template-columns: minmax(0, 340px) minmax(0, 1fr); gap: 16px; max-width: 1200px; margin: auto; }
 #webp-converter .section { margin: 0; }
 #webp-converter p { line-height: 1.7; margin-bottom: 12px; }
 #webp-converter input { min-height: 40px; max-width: 100%; }
@@ -500,6 +500,17 @@ h2 { font-size: 0.85rem; font-weight: 700; color: #c4b5fd; text-transform: upper
 #convert-drop .drop-icon { display: block; margin-bottom: 6px; font-size: 1.8rem; }
 #webp-converter.is-dragging { background: rgba(124, 58, 237, 0.08); }
 #webp-converter.is-dragging #convert-drop { border-color: #a78bfa; background: rgba(124, 58, 237, 0.18); box-shadow: 0 0 0 2px rgba(167, 139, 250, 0.35); }
+#converter-queue-header { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin: 8px 0 6px; }
+#converter-queue { display: flex; flex-direction: column; gap: 5px; max-height: 210px; overflow-y: auto; margin-bottom: 12px; }
+.converter-item { display: grid; grid-template-columns: 44px minmax(0, 1fr) 32px; gap: 8px; align-items: center; width: 100%; padding: 5px; border: 1px solid #2d2d5e; border-radius: 5px; background: #171735; color: inherit; text-align: left; cursor: pointer; }
+.converter-item.active { border-color: #8b5cf6; background: #26204a; }
+.converter-item img { width: 44px; height: 44px; object-fit: contain; border-radius: 3px; background: repeating-conic-gradient(#2a2a4a 0% 25%,#222244 0% 50%) 0 0/8px 8px; }
+.converter-item-info { min-width: 0; }
+.converter-item-name { display: block; overflow: hidden; color: #ddd6fe; font-size: 0.72rem; text-overflow: ellipsis; white-space: nowrap; }
+.converter-item-meta { display: block; margin-top: 2px; color: #7777a0; font-size: 0.65rem; }
+.converter-item-delete { width: 30px; height: 30px; border: 0; border-radius: 50%; background: #7f1d1d; color: #fff; cursor: pointer; }
+.converter-save-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+#converter-dir-status { color: #7777a0; font-size: 0.7rem; overflow-wrap: anywhere; }
 #convert-preview { display: block; max-width: 100%; max-height: 60vh; width: auto; height: auto; margin: auto; background: repeating-conic-gradient(#2a2a4a 0% 25%,#222244 0% 50%) 0 0/16px 16px; }
 #convert-info, #convert-result { overflow-wrap: anywhere; color: #c0c0e0; }
 @media (max-width: 768px) {
@@ -531,25 +542,50 @@ h2 { font-size: 0.85rem; font-weight: 700; color: #c4b5fd; text-transform: upper
       <p>横長・縦長のまま変換できます。切り抜き・余白追加・背景除去は行いません。元の透明部分も保持します。</p>
       <div id="convert-drop">
         <div class="field">
-          <label for="convert-file">画像を選択（PNG / JPEG / WebP）</label>
-          <input type="file" id="convert-file" accept="image/png,image/jpeg,image/webp" onchange="loadConverterFile(this.files[0])">
+          <label for="convert-file">画像を選択（PNG / JPEG / WebP・最大20枚）</label>
+          <input type="file" id="convert-file" accept="image/png,image/jpeg,image/webp" multiple onchange="loadConverterFiles(this.files); this.value=''">
         </div>
         <span class="drop-icon" aria-hidden="true">⬇</span>
         <span id="convert-drop-message">この画面のどこへでもドロップ、または Ctrl+V で貼り付け</span>
       </div>
-      <p id="convert-info" aria-live="polite">画像を選択してください。画像はサーバーへ送信されません。</p>
+      <p id="convert-info" aria-live="polite">画像を選択してください。最大20枚をブラウザ内に保持し、サーバーへは送信しません。</p>
+      <div id="converter-queue-header">
+        <strong id="converter-count">変換待ち 0 / 20</strong>
+        <button type="button" class="btn btn-ghost" id="converter-clear" onclick="clearConverterItems()" hidden>全削除</button>
+      </div>
+      <div id="converter-queue"><span style="color:#6060a0;font-size:0.7rem">読み込んだ画像がここに並びます</span></div>
       <div class="field">
         <label for="convert-scale">縦横のサイズ（元画像に対する割合・%）</label>
-        <input type="number" id="convert-scale" min="1" max="100" step="1" value="100" oninput="invalidateConversion()">
+        <input type="number" id="convert-scale" min="1" max="100" step="1" value="100" oninput="invalidateConversion(); persistConverterSettings()">
         <span>100%で元サイズ、50%で縦横とも半分。縦横比は固定です。</span>
       </div>
       <div class="field">
         <label for="convert-quality">WebP画質：<output id="convert-quality-value">90</output></label>
-        <input type="range" id="convert-quality" min="1" max="100" value="90" oninput="invalidateConversion()">
+        <input type="range" id="convert-quality" min="1" max="100" value="90" oninput="invalidateConversion(); persistConverterSettings()">
         <span>低いほど容量を抑え、高いほど画質を優先します。100でも可逆圧縮にはなりません。</span>
       </div>
-      <button class="btn btn-primary" id="convert-run" onclick="convertWholeImage()" disabled>変換・プレビュー</button>
-      <a class="btn btn-success" id="convert-save" hidden>WebPを保存</a>
+      <div class="field">
+        <label for="converter-prefix">ファイル名（プレフィックス）</label>
+        <input type="text" id="converter-prefix" value="image" maxlength="40" oninput="updateConverterNames(); persistConverterSettings()">
+      </div>
+      <div class="field">
+        <label for="converter-startnum">ファイル名開始番号</label>
+        <input type="number" id="converter-startnum" min="0" max="9999" value="1" oninput="updateConverterNames(); persistConverterSettings()">
+        <span><b id="converter-name-preview">image_001.webp</b> から連番</span>
+      </div>
+      <div class="field">
+        <label>保存先フォルダ（重複時は番号を自動でずらして連番保存）</label>
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+          <button type="button" class="btn btn-ghost" onclick="pickConverterSaveDirectory()">📂 フォルダを選択</button>
+          <span id="converter-dir-status">未選択</span>
+        </div>
+        <span>※ Chrome/Edge対応。フォルダ内の既存ファイル名を確認し、重複しない番号で保存します</span>
+      </div>
+      <div class="converter-save-actions">
+        <button class="btn btn-primary" id="convert-run" onclick="convertWholeImage()" disabled>選択中をプレビュー</button>
+        <a class="btn btn-info" id="convert-save" hidden>この1枚を保存</a>
+        <button type="button" class="btn btn-success" id="converter-save-all" onclick="saveConverterBatchToDirectory()" disabled>まとめて連番保存</button>
+      </div>
       <p id="convert-result" role="status"></p>
     </div>
     <div class="section">
@@ -2890,12 +2926,19 @@ async function downloadSheet() {
 }
 
 /* Whole-image conversion never uses the sprite working canvas or its settings. */
+const CONVERTER_MAX_FILES = 20;
+const CONVERTER_HANDLE_KEY = 'converterSaveDir';
+const CONVERTER_SETTINGS_KEY = 'valzeria-webp-converter-settings';
+let converterItems = [];
+let converterActiveIndex = -1;
 let converterSource = null;
 let converterSourceUrl = null;
 let converterOutputUrl = null;
-let converterLoadId = 0;
 let converterRevision = 0;
 let converterDragDepth = 0;
+let converterPendingCount = 0;
+let converterSaveDirHandle = null;
+let converterSaving = false;
 
 function setToolMode(mode) {
   const converting = mode === 'convert';
@@ -2908,6 +2951,7 @@ function setToolMode(mode) {
     button.setAttribute('aria-pressed', String(active));
     button.className = 'btn ' + (active ? 'btn-primary' : 'btn-ghost');
   }
+  if (converting) renderConverterQueue();
 }
 
 function wholeImageDimensions(width, height, percent) {
@@ -2915,6 +2959,143 @@ function wholeImageDimensions(width, height, percent) {
     throw new Error('サイズは1〜100%で指定してください。');
   }
   return { width: Math.max(1, Math.round(width * percent / 100)), height: Math.max(1, Math.round(height * percent / 100)) };
+}
+
+function converterSettings() {
+  return {
+    scale: Number(document.getElementById('convert-scale').value),
+    quality: Number(document.getElementById('convert-quality').value),
+    prefix: document.getElementById('converter-prefix').value.trim() || 'image',
+    startNum: Math.max(0, Number(document.getElementById('converter-startnum').value) || 0),
+  };
+}
+
+function converterOutputName(index, config = converterSettings()) {
+  return `${config.prefix}_${String(config.startNum + index).padStart(3, '0')}.webp`;
+}
+
+function persistConverterSettings() {
+  try {
+    localStorage.setItem(CONVERTER_SETTINGS_KEY, JSON.stringify(converterSettings()));
+  } catch (error) { /* ignore quota errors */ }
+}
+
+function loadConverterSettings() {
+  let saved;
+  try { saved = JSON.parse(localStorage.getItem(CONVERTER_SETTINGS_KEY) || 'null'); } catch (error) { saved = null; }
+  if (!saved) return;
+  if (saved.scale >= 1 && saved.scale <= 100) document.getElementById('convert-scale').value = saved.scale;
+  if (saved.quality >= 1 && saved.quality <= 100) document.getElementById('convert-quality').value = saved.quality;
+  if (saved.prefix) document.getElementById('converter-prefix').value = saved.prefix;
+  if (saved.startNum >= 0) document.getElementById('converter-startnum').value = saved.startNum;
+  document.getElementById('convert-quality-value').textContent = document.getElementById('convert-quality').value;
+}
+
+function updateConverterControls() {
+  let validSettings = true;
+  try {
+    if (converterSource) wholeImageDimensions(converterSource.img.naturalWidth, converterSource.img.naturalHeight, converterSettings().scale);
+  } catch (error) {
+    validSettings = false;
+  }
+  document.getElementById('convert-run').disabled = converterSaving || !converterSource || !validSettings;
+  document.getElementById('converter-save-all').disabled = converterSaving || !converterItems.length || !validSettings;
+  document.getElementById('converter-clear').hidden = !converterItems.length;
+  document.getElementById('converter-count').textContent = `変換待ち ${converterItems.length} / ${CONVERTER_MAX_FILES}`;
+}
+
+function updateConverterNames() {
+  const config = converterSettings();
+  document.getElementById('converter-name-preview').textContent = converterOutputName(0, config);
+  renderConverterQueue();
+}
+
+function renderConverterQueue() {
+  const queue = document.getElementById('converter-queue');
+  queue.innerHTML = '';
+  if (!converterItems.length) {
+    queue.innerHTML = '<span style="color:#6060a0;font-size:0.7rem">読み込んだ画像がここに並びます</span>';
+    updateConverterControls();
+    return;
+  }
+
+  const config = converterSettings();
+  converterItems.forEach((item, index) => {
+    const row = document.createElement('div');
+    row.className = `converter-item${index === converterActiveIndex ? ' active' : ''}`;
+    row.tabIndex = 0;
+    row.setAttribute('role', 'button');
+    row.setAttribute('aria-label', `${item.file.name}をプレビュー`);
+    row.onclick = () => setConverterActive(index);
+    row.onkeydown = event => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        setConverterActive(index);
+      }
+    };
+
+    const thumb = document.createElement('img');
+    thumb.src = item.sourceUrl;
+    thumb.alt = '';
+    const info = document.createElement('span');
+    info.className = 'converter-item-info';
+    const name = document.createElement('span');
+    name.className = 'converter-item-name';
+    name.textContent = item.file.name;
+    const meta = document.createElement('span');
+    meta.className = 'converter-item-meta';
+    meta.textContent = `${item.img.naturalWidth}×${item.img.naturalHeight} → ${converterOutputName(index, config)}`;
+    info.append(name, meta);
+    const remove = document.createElement('button');
+    remove.type = 'button';
+    remove.className = 'converter-item-delete';
+    remove.setAttribute('aria-label', `${item.file.name}を削除`);
+    remove.textContent = '×';
+    remove.onclick = event => {
+      event.stopPropagation();
+      removeConverterItem(index);
+    };
+    row.append(thumb, info, remove);
+    queue.appendChild(row);
+  });
+  updateConverterControls();
+}
+
+function syncConverterSource() {
+  converterSource = converterItems[converterActiveIndex] || null;
+  converterSourceUrl = converterSource?.sourceUrl || null;
+}
+
+function setConverterActive(index) {
+  if (index < 0 || index >= converterItems.length) return;
+  converterActiveIndex = index;
+  syncConverterSource();
+  invalidateConversion();
+  renderConverterQueue();
+}
+
+function removeConverterItem(index) {
+  if (index < 0 || index >= converterItems.length || converterSaving) return;
+  URL.revokeObjectURL(converterItems[index].sourceUrl);
+  converterItems.splice(index, 1);
+  if (!converterItems.length) converterActiveIndex = -1;
+  else if (index < converterActiveIndex) converterActiveIndex--;
+  else if (index === converterActiveIndex) converterActiveIndex = Math.min(index, converterItems.length - 1);
+  syncConverterSource();
+  invalidateConversion();
+  renderConverterQueue();
+  document.getElementById('convert-info').textContent = `${converterItems.length}枚を保持中（最大${CONVERTER_MAX_FILES}枚）`;
+}
+
+function clearConverterItems() {
+  if (converterSaving) return;
+  converterItems.forEach(item => URL.revokeObjectURL(item.sourceUrl));
+  converterItems = [];
+  converterActiveIndex = -1;
+  syncConverterSource();
+  invalidateConversion();
+  renderConverterQueue();
+  document.getElementById('convert-info').textContent = '画像を選択してください。最大20枚をブラウザ内に保持し、サーバーへは送信しません。';
 }
 
 function invalidateConversion() {
@@ -2929,17 +3110,19 @@ function invalidateConversion() {
   preview.hidden = !converterSource;
   if (converterSource) preview.src = converterSourceUrl;
   else preview.removeAttribute('src');
-  document.getElementById('convert-preview-title').textContent = '元画像';
+  document.getElementById('convert-preview-title').textContent = converterSource
+    ? `元画像：${converterSource.file.name}`
+    : '元画像';
   const result = document.getElementById('convert-result');
   result.textContent = '';
-  document.getElementById('convert-run').disabled = !converterSource;
+  updateConverterControls();
   if (!converterSource) return;
   try {
     const size = wholeImageDimensions(converterSource.img.naturalWidth, converterSource.img.naturalHeight, Number(document.getElementById('convert-scale').value));
     result.textContent = `出力予定：${size.width} × ${size.height} px`;
   } catch (error) {
     result.textContent = error.message;
-    document.getElementById('convert-run').disabled = true;
+    updateConverterControls();
   }
 }
 
@@ -2950,7 +3133,7 @@ function converterDragHasFiles(event) {
 function setConverterDragActive(active) {
   document.getElementById('webp-converter').classList.toggle('is-dragging', active);
   document.getElementById('convert-drop-message').textContent = active
-    ? 'ここに画像をドロップして読み込み'
+    ? 'ここに画像をドロップして追加（最大20枚）'
     : 'この画面のどこへでもドロップ、または Ctrl+V で貼り付け';
 }
 
@@ -2977,42 +3160,161 @@ function onConverterDrop(event) {
   event.preventDefault();
   converterDragDepth = 0;
   setConverterDragActive(false);
-  const file = [...(event.dataTransfer?.files || [])]
-    .find(item => ['image/png', 'image/jpeg', 'image/webp'].includes(item.type));
-  if (!file) {
+  const files = [...(event.dataTransfer?.files || [])]
+    .filter(item => ['image/png', 'image/jpeg', 'image/webp'].includes(item.type));
+  if (!files.length) {
     document.getElementById('convert-info').textContent = 'PNG・JPEG・WebP画像をドロップしてください。';
     return;
   }
-  loadConverterFile(file);
+  loadConverterFiles(files);
 }
 
 function loadConverterFile(file) {
-  if (!file) return;
-  const loadId = ++converterLoadId;
-  converterSource = null;
-  invalidateConversion();
-  if (converterSourceUrl) URL.revokeObjectURL(converterSourceUrl);
-  converterSourceUrl = null;
-  const info = document.getElementById('convert-info');
-  if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
-    info.textContent = 'PNG・JPEG・WebP画像を選択してください。';
+  return loadConverterFiles(file ? [file] : []);
+}
+
+function decodeConverterFile(file) {
+  return new Promise((resolve, reject) => {
+    const sourceUrl = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => resolve({ img, file, sourceUrl });
+    img.onerror = () => {
+      URL.revokeObjectURL(sourceUrl);
+      reject(new Error(`読み込み失敗: ${file.name}`));
+    };
+    img.src = sourceUrl;
+  });
+}
+
+async function loadConverterFiles(fileList) {
+  if (converterSaving) {
+    toast('保存中は画像を追加できません');
     return;
   }
-  info.textContent = '画像を読み込み中…';
-  const url = URL.createObjectURL(file);
-  const img = new Image();
-  img.onload = () => {
-    if (loadId !== converterLoadId) { URL.revokeObjectURL(url); return; }
-    converterSource = { img, file };
-    converterSourceUrl = url;
-    info.textContent = `${file.name} — ${img.naturalWidth} × ${img.naturalHeight} px / ${(file.size / 1024).toFixed(1)} KB`;
-    invalidateConversion();
-  };
-  img.onerror = () => {
-    URL.revokeObjectURL(url);
-    if (loadId === converterLoadId) info.textContent = '画像を読み込めませんでした。別の画像を選択してください。';
-  };
-  img.src = url;
+
+  const candidates = [...(fileList || [])]
+    .filter(file => ['image/png', 'image/jpeg', 'image/webp'].includes(file.type));
+  if (!candidates.length) {
+    document.getElementById('convert-info').textContent = 'PNG・JPEG・WebP画像を選択してください。';
+    return;
+  }
+
+  const available = Math.max(0, CONVERTER_MAX_FILES - converterItems.length - converterPendingCount);
+  const accepted = candidates.slice(0, available);
+  const skipped = candidates.length - accepted.length;
+  if (!accepted.length) {
+    document.getElementById('convert-info').textContent = `保持できる画像は最大${CONVERTER_MAX_FILES}枚です。不要な画像を削除してから追加してください。`;
+    toast(`最大${CONVERTER_MAX_FILES}枚までです`);
+    return;
+  }
+
+  converterPendingCount += accepted.length;
+  document.getElementById('convert-info').textContent = `${accepted.length}枚を読み込み中…`;
+  const results = await Promise.allSettled(accepted.map(decodeConverterFile));
+  converterPendingCount -= accepted.length;
+  const loaded = results.filter(result => result.status === 'fulfilled').map(result => result.value);
+  const failed = results.length - loaded.length;
+  const firstNewIndex = converterItems.length;
+  converterItems.push(...loaded);
+  if (converterActiveIndex < 0 && loaded.length) converterActiveIndex = firstNewIndex;
+  syncConverterSource();
+  invalidateConversion();
+  renderConverterQueue();
+
+  const notes = [];
+  if (skipped) notes.push(`${skipped}枚は上限超過のため未追加`);
+  if (failed) notes.push(`${failed}枚は読込失敗`);
+  document.getElementById('convert-info').textContent = `${converterItems.length}枚を保持中（最大${CONVERTER_MAX_FILES}枚）${notes.length ? `。${notes.join('、')}` : ''}`;
+  toast(`${loaded.length}枚を追加しました（${converterItems.length}/${CONVERTER_MAX_FILES}）`);
+}
+
+function setConverterDirectoryStatus(message) {
+  document.getElementById('converter-dir-status').textContent = message;
+}
+
+async function pickConverterSaveDirectory() {
+  if (!window.showDirectoryPicker) {
+    toast('このブラウザはフォルダ保存に対応していません（Chrome/Edge推奨）');
+    return null;
+  }
+  try {
+    const handle = await window.showDirectoryPicker({ id: 'webp-converter-batch', mode: 'readwrite' });
+    converterSaveDirHandle = handle;
+    await idbSetHandle(handle, CONVERTER_HANDLE_KEY);
+    setConverterDirectoryStatus(`選択中: ${handle.name}`);
+    updateConverterControls();
+    toast('WebPの保存先フォルダを設定しました');
+    return handle;
+  } catch (error) {
+    if (error.name !== 'AbortError') toast('フォルダ選択に失敗しました');
+    return null;
+  }
+}
+
+async function tryRestoreConverterSaveDirectory() {
+  if (!window.showDirectoryPicker) return;
+  try {
+    const handle = await idbGetHandle(CONVERTER_HANDLE_KEY);
+    if (!handle) return;
+    const permission = await handle.queryPermission({ mode: 'readwrite' });
+    if (permission === 'granted') {
+      converterSaveDirHandle = handle;
+      setConverterDirectoryStatus(`選択中: ${handle.name}`);
+    } else {
+      setConverterDirectoryStatus(`前回: ${handle.name}（要再許可 → フォルダを選択）`);
+    }
+  } catch (error) { /* ignore */ }
+}
+
+async function saveConverterBatchToDirectory() {
+  if (!converterItems.length || converterSaving) return;
+  const config = converterSettings();
+  try {
+    wholeImageDimensions(converterItems[0].img.naturalWidth, converterItems[0].img.naturalHeight, config.scale);
+  } catch (error) {
+    document.getElementById('convert-result').textContent = error.message;
+    return;
+  }
+  if (!converterSaveDirHandle && !await pickConverterSaveDirectory()) return;
+  if (!await ensureDirectoryPermission(converterSaveDirHandle)) {
+    toast('フォルダへの書き込み許可がありません');
+    return;
+  }
+
+  const items = [...converterItems];
+  const button = document.getElementById('converter-save-all');
+  const result = document.getElementById('convert-result');
+  let cursor = config.startNum;
+  let saved = 0;
+  converterSaving = true;
+  updateConverterControls();
+  button.textContent = `保存中 0/${items.length}`;
+  result.textContent = `${items.length}枚を変換して保存中…`;
+
+  try {
+    for (const item of items) {
+      const { name, num } = await findNextFreeName(converterSaveDirHandle, config.prefix, cursor);
+      cursor = num + 1;
+      const output = await encodeWholeImage(item.img, config.scale, config.quality);
+      const fileHandle = await converterSaveDirHandle.getFileHandle(name, { create: true });
+      const writable = await fileHandle.createWritable();
+      await writable.write(output.blob);
+      await writable.close();
+      saved++;
+      button.textContent = `保存中 ${saved}/${items.length}`;
+      result.textContent = `${saved}/${items.length}枚を保存しました：${name}`;
+    }
+    result.textContent = `${saved}枚を「${converterSaveDirHandle.name}」へ連番保存しました。`;
+    toast(`${saved}枚のWebPを連番保存しました`);
+  } catch (error) {
+    console.error(error);
+    result.textContent = `${saved}枚を保存後に失敗しました。フォルダ権限とファイル名を確認してください。`;
+    toast('一括保存を完了できませんでした', 5000);
+  } finally {
+    converterSaving = false;
+    button.textContent = 'まとめて連番保存';
+    updateConverterControls();
+  }
 }
 
 function encodeWholeImage(img, percent, quality) {
@@ -3049,16 +3351,16 @@ async function convertWholeImage() {
     converterOutputUrl = URL.createObjectURL(output.blob);
     const save = document.getElementById('convert-save');
     save.href = converterOutputUrl;
-    save.download = source.file.name.replace(/\.[^.]+$/, '') + '.webp';
+    save.download = converterOutputName(Math.max(0, converterActiveIndex));
     save.hidden = false;
     document.getElementById('convert-preview').src = converterOutputUrl;
-    document.getElementById('convert-preview-title').textContent = '変換後のWebP';
+    document.getElementById('convert-preview-title').textContent = `変換後：${save.download}`;
     const ratio = source.file.size ? `（元の${(output.blob.size / source.file.size * 100).toFixed(1)}%）` : '';
     result.textContent = `${output.width} × ${output.height} px / ${(output.blob.size / 1024).toFixed(1)} KB ${ratio}`;
   } catch (error) {
     if (revision === converterRevision) result.textContent = error.message;
   } finally {
-    if (revision === converterRevision) button.disabled = false;
+    if (revision === converterRevision) updateConverterControls();
   }
 }
 
@@ -3193,7 +3495,7 @@ document.addEventListener('paste', (e) => {
   if (!imageFiles.length) return;
   e.preventDefault();
   if (!document.getElementById('webp-converter').hidden) {
-    loadConverterFile(imageFiles[0]);
+    loadConverterFiles(imageFiles);
     return;
   }
   loadFilesArray(imageFiles);
@@ -3201,12 +3503,16 @@ document.addEventListener('paste', (e) => {
 });
 
 loadPersistedSettings();
+loadConverterSettings();
 updateCharacterMode(false);
 document.querySelectorAll('.bg-swatch').forEach(el=>el.classList.remove('active'));
 document.getElementById('bg-'+bgMode)?.classList.add('active');
 applyZoom();
 tryRestoreSaveDirectory();
+tryRestoreConverterSaveDirectory();
 renderSlotStrip();
+renderConverterQueue();
+updateConverterNames();
 updateSeparatorControls();
 updateLassoControls();
 setMobileView(mobileView);

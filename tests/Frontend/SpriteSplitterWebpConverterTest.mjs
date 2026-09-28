@@ -22,7 +22,12 @@ function harness(blob = { type: 'image/webp', size: 20 }) {
         createElement: () => canvas,
         getElementById(id) {
             if (!elements.has(id)) elements.set(id, {
-                value: id === 'convert-scale' ? '100' : '90',
+                value: ({
+                    'convert-scale': '100',
+                    'convert-quality': '90',
+                    'converter-prefix': 'image',
+                    'converter-startnum': '1',
+                })[id] || '',
                 classList: { toggle(name, active) { active ? classNames.add(name) : classNames.delete(name); } },
                 removeAttribute(name) { delete this[name]; },
                 setAttribute(name, value) { this[name] = value; },
@@ -30,7 +35,7 @@ function harness(blob = { type: 'image/webp', size: 20 }) {
             return elements.get(id);
         },
     };
-    const api = runInNewContext(`${source}; ({ wholeImageDimensions, encodeWholeImage, invalidateConversion, convertWholeImage,
+    const api = runInNewContext(`${source}; ({ wholeImageDimensions, converterOutputName, encodeWholeImage, invalidateConversion, convertWholeImage,
         onConverterDragEnter, onConverterDragOver, onConverterDragLeave, onConverterDrop,
         setSource(value) { converterSource = value; converterSourceUrl = 'blob:source'; }
     })`, { document, URL: { createObjectURL: () => 'blob:output', revokeObjectURL: url => revoked.push(url) } });
@@ -49,7 +54,7 @@ test('the full converter screen accepts dropped image files with visible drag fe
 
     api.onConverterDragEnter(event);
     assert.equal(classNames.has('is-dragging'), true);
-    assert.equal(document.getElementById('convert-drop-message').textContent, 'ここに画像をドロップして読み込み');
+    assert.equal(document.getElementById('convert-drop-message').textContent, 'ここに画像をドロップして追加（最大20枚）');
 
     api.onConverterDragOver(event);
     assert.equal(dataTransfer.dropEffect, 'copy');
@@ -58,6 +63,20 @@ test('the full converter screen accepts dropped image files with visible drag fe
     assert.equal(classNames.has('is-dragging'), false);
     assert.equal(document.getElementById('convert-info').textContent, 'PNG・JPEG・WebP画像をドロップしてください。');
     assert.equal(prevented, 3);
+});
+
+test('batch conversion accepts up to 20 files and names them from the requested number', () => {
+    assert.match(html, /const CONVERTER_MAX_FILES = 20/);
+    assert.match(html, /id="convert-file"[^>]*multiple/);
+    assert.match(html, /id="converter-prefix"/);
+    assert.match(html, /id="converter-startnum"/);
+    assert.match(html, /function saveConverterBatchToDirectory\(/);
+    assert.match(html, /findNextFreeName\(converterSaveDirHandle, config\.prefix, cursor\)/);
+
+    const { api } = harness();
+    const config = { prefix: 'enemy', startNum: 491 };
+    assert.equal(api.converterOutputName(0, config), 'enemy_491.webp');
+    assert.equal(api.converterOutputName(19, config), 'enemy_510.webp');
 });
 
 test('wide and tall images keep their full dimensions with proportional resizing', () => {
@@ -98,7 +117,7 @@ test('changing a setting removes the previous download and invalid sizes disable
     api.setSource({ img: { naturalWidth: 80, naturalHeight: 40 }, file: { name: 'forest.scene.png', size: 100 } });
     await api.convertWholeImage();
     const save = document.getElementById('convert-save');
-    assert.equal(save.download, 'forest.scene.webp');
+    assert.equal(save.download, 'image_001.webp');
     assert.equal(save.hidden, false);
     document.getElementById('convert-scale').value = '';
     api.invalidateConversion();
