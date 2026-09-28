@@ -490,13 +490,16 @@ h2 { font-size: 0.85rem; font-weight: 700; color: #c4b5fd; text-transform: upper
 [hidden] { display: none !important; }
 #tool-modes { display: flex; gap: 8px; padding: 4px 10px; height: 48px; background: #16213e; }
 #tool-modes .btn { min-height: 40px; }
-#webp-converter { height: calc(100dvh - 92px); overflow-y: auto; padding: 16px; }
+#webp-converter { height: calc(100dvh - 92px); overflow-y: auto; padding: 16px; transition: background-color 0.15s ease; }
 .converter-layout { display: grid; grid-template-columns: minmax(0, 300px) minmax(0, 1fr); gap: 16px; max-width: 1200px; margin: auto; }
 #webp-converter .section { margin: 0; }
 #webp-converter p { line-height: 1.7; margin-bottom: 12px; }
 #webp-converter input { min-height: 40px; max-width: 100%; }
 #webp-converter .btn { display: inline-flex; align-items: center; min-height: 44px; text-decoration: none; }
-#convert-drop { border: 1px dashed #7c7c9e; border-radius: 6px; padding: 12px; margin-bottom: 12px; }
+#convert-drop { border: 1px dashed #7c7c9e; border-radius: 6px; padding: 16px 12px; margin-bottom: 12px; text-align: center; transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease; }
+#convert-drop .drop-icon { display: block; margin-bottom: 6px; font-size: 1.8rem; }
+#webp-converter.is-dragging { background: rgba(124, 58, 237, 0.08); }
+#webp-converter.is-dragging #convert-drop { border-color: #a78bfa; background: rgba(124, 58, 237, 0.18); box-shadow: 0 0 0 2px rgba(167, 139, 250, 0.35); }
 #convert-preview { display: block; max-width: 100%; max-height: 60vh; width: auto; height: auto; margin: auto; background: repeating-conic-gradient(#2a2a4a 0% 25%,#222244 0% 50%) 0 0/16px 16px; }
 #convert-info, #convert-result { overflow-wrap: anywhere; color: #c0c0e0; }
 @media (max-width: 768px) {
@@ -526,12 +529,13 @@ h2 { font-size: 0.85rem; font-weight: 700; color: #c4b5fd; text-transform: upper
     <div class="section">
       <h2>画像全体をWebPに変換</h2>
       <p>横長・縦長のまま変換できます。切り抜き・余白追加・背景除去は行いません。元の透明部分も保持します。</p>
-      <div id="convert-drop" ondragover="event.preventDefault()" ondrop="onConverterDrop(event)">
+      <div id="convert-drop">
         <div class="field">
           <label for="convert-file">画像を選択（PNG / JPEG / WebP）</label>
           <input type="file" id="convert-file" accept="image/png,image/jpeg,image/webp" onchange="loadConverterFile(this.files[0])">
         </div>
-        <span>ここへドロップ、または Ctrl+V で貼り付け</span>
+        <span class="drop-icon" aria-hidden="true">⬇</span>
+        <span id="convert-drop-message">この画面のどこへでもドロップ、または Ctrl+V で貼り付け</span>
       </div>
       <p id="convert-info" aria-live="polite">画像を選択してください。画像はサーバーへ送信されません。</p>
       <div class="field">
@@ -2891,6 +2895,7 @@ let converterSourceUrl = null;
 let converterOutputUrl = null;
 let converterLoadId = 0;
 let converterRevision = 0;
+let converterDragDepth = 0;
 
 function setToolMode(mode) {
   const converting = mode === 'convert';
@@ -2938,9 +2943,47 @@ function invalidateConversion() {
   }
 }
 
+function converterDragHasFiles(event) {
+  return [...(event.dataTransfer?.types || [])].includes('Files');
+}
+
+function setConverterDragActive(active) {
+  document.getElementById('webp-converter').classList.toggle('is-dragging', active);
+  document.getElementById('convert-drop-message').textContent = active
+    ? 'ここに画像をドロップして読み込み'
+    : 'この画面のどこへでもドロップ、または Ctrl+V で貼り付け';
+}
+
+function onConverterDragEnter(event) {
+  if (!converterDragHasFiles(event)) return;
+  event.preventDefault();
+  converterDragDepth++;
+  setConverterDragActive(true);
+}
+
+function onConverterDragOver(event) {
+  if (!converterDragHasFiles(event)) return;
+  event.preventDefault();
+  event.dataTransfer.dropEffect = 'copy';
+}
+
+function onConverterDragLeave(event) {
+  if (!converterDragHasFiles(event)) return;
+  converterDragDepth = Math.max(0, converterDragDepth - 1);
+  if (converterDragDepth === 0) setConverterDragActive(false);
+}
+
 function onConverterDrop(event) {
   event.preventDefault();
-  loadConverterFile(event.dataTransfer.files[0]);
+  converterDragDepth = 0;
+  setConverterDragActive(false);
+  const file = [...(event.dataTransfer?.files || [])]
+    .find(item => ['image/png', 'image/jpeg', 'image/webp'].includes(item.type));
+  if (!file) {
+    document.getElementById('convert-info').textContent = 'PNG・JPEG・WebP画像をドロップしてください。';
+    return;
+  }
+  loadConverterFile(file);
 }
 
 function loadConverterFile(file) {
@@ -3125,6 +3168,11 @@ document.getElementById('canvas-wrapper').addEventListener('pointerdown', onLass
 document.getElementById('canvas-wrapper').addEventListener('pointermove', onLassoPointerMove);
 document.getElementById('canvas-wrapper').addEventListener('pointerup', event => finishLassoPointer(event));
 document.getElementById('canvas-wrapper').addEventListener('pointercancel', event => finishLassoPointer(event, true));
+const converterDropSurface = document.getElementById('webp-converter');
+converterDropSurface.addEventListener('dragenter', onConverterDragEnter);
+converterDropSurface.addEventListener('dragover', onConverterDragOver);
+converterDropSurface.addEventListener('dragleave', onConverterDragLeave);
+converterDropSurface.addEventListener('drop', onConverterDrop);
 document.getElementById('canvas-wrapper').addEventListener('lostpointercapture', event => finishLassoPointer(event, true));
 
 // 設定変更を自動記憶（次回アクセス時に直前の設定を復元）

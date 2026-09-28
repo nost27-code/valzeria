@@ -13,6 +13,7 @@ function harness(blob = { type: 'image/webp', size: 20 }) {
     const drawCalls = [];
     const encodes = [];
     const context = { drawImage: (...args) => drawCalls.push(args) };
+    const classNames = new Set();
     const canvas = {
         getContext: () => context,
         toBlob: (callback, mime, quality) => { encodes.push({ mime, quality }); callback(blob); },
@@ -22,6 +23,7 @@ function harness(blob = { type: 'image/webp', size: 20 }) {
         getElementById(id) {
             if (!elements.has(id)) elements.set(id, {
                 value: id === 'convert-scale' ? '100' : '90',
+                classList: { toggle(name, active) { active ? classNames.add(name) : classNames.delete(name); } },
                 removeAttribute(name) { delete this[name]; },
                 setAttribute(name, value) { this[name] = value; },
             });
@@ -29,10 +31,34 @@ function harness(blob = { type: 'image/webp', size: 20 }) {
         },
     };
     const api = runInNewContext(`${source}; ({ wholeImageDimensions, encodeWholeImage, invalidateConversion, convertWholeImage,
+        onConverterDragEnter, onConverterDragOver, onConverterDragLeave, onConverterDrop,
         setSource(value) { converterSource = value; converterSourceUrl = 'blob:source'; }
     })`, { document, URL: { createObjectURL: () => 'blob:output', revokeObjectURL: url => revoked.push(url) } });
-    return { api, document, canvas, encodes, drawCalls, revoked };
+    return { api, document, canvas, encodes, drawCalls, revoked, classNames };
 }
+
+test('the full converter screen accepts dropped image files with visible drag feedback', () => {
+    assert.match(html, /converterDropSurface\.addEventListener\('dragenter', onConverterDragEnter\)/);
+    assert.match(html, /converterDropSurface\.addEventListener\('drop', onConverterDrop\)/);
+    assert.match(html, /この画面のどこへでもドロップ/);
+
+    const { api, document, classNames } = harness();
+    let prevented = 0;
+    const dataTransfer = { types: ['Files'], files: [], dropEffect: 'none' };
+    const event = { dataTransfer, preventDefault: () => prevented++ };
+
+    api.onConverterDragEnter(event);
+    assert.equal(classNames.has('is-dragging'), true);
+    assert.equal(document.getElementById('convert-drop-message').textContent, 'ここに画像をドロップして読み込み');
+
+    api.onConverterDragOver(event);
+    assert.equal(dataTransfer.dropEffect, 'copy');
+
+    api.onConverterDrop(event);
+    assert.equal(classNames.has('is-dragging'), false);
+    assert.equal(document.getElementById('convert-info').textContent, 'PNG・JPEG・WebP画像をドロップしてください。');
+    assert.equal(prevented, 3);
+});
 
 test('wide and tall images keep their full dimensions with proportional resizing', () => {
     const { api } = harness();
