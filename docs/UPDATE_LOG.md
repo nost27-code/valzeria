@@ -6,6 +6,10 @@ Do not record tiny refactors, formatting-only changes, or AI docs-only edits.
 
 ## Unreleased
 
+### Fixed: 転職後のHP・SP全回復（2026-09-29）
+
+- 転職時、装備の自動解除後に最大HP・SPを再計算して全回復するよう修正しました。印錬成による永続能力も維持され、回復上限に含まれます。DB変更はありません。
+
 ### Added: 余剰モンスター印を能力へ錬成（2026-09-29）
 
 - 同じ魔物の印は最初の15個と印図鑑の効果を保護し、16個目以降を印錬成所で永続能力へ変換できるようにしました。

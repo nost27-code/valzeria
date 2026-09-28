@@ -220,14 +220,17 @@ class CharacterJobChangeService
                 $character->spirit_fraction = 0.0;
                 $character->luck_fraction = 0.0;
                 
-                // HP, SP全回復
-                $character->current_hp = $calculated['hp_base'];
-                $character->current_mp = $calculated['mp_base'];
-                
                 $character->save();
                 $character->refresh();
 
                 $this->lastUnequipMessages = app(EquipmentAutoUnequipService::class)->unequipInvalidItems($character);
+
+                // 転職・装備解除後の補正と永続能力を含む最大HP/SPまで全回復する。
+                CharacterStatusService::clearRequestCache((int) $character->id);
+                $finalStats = app(CharacterStatusService::class)->getFinalStats($character);
+                $character->current_hp = $finalStats['max_hp'];
+                $character->current_mp = $finalStats['max_mp'];
+                $character->save();
 
                 // 公開ログの作成
                 $fromJobName = $fromJobId ? JobClass::find($fromJobId)->name : '無職';
@@ -241,6 +244,8 @@ class CharacterJobChangeService
             Log::error('転職処理に失敗しました: ' . $e->getMessage());
             $this->lastFailureMessage = '転職処理に失敗しました。条件を満たしているか確認してください。';
             return false;
+        } finally {
+            CharacterStatusService::clearRequestCache((int) $character->id);
         }
     }
 

@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-09-29-job-change-full-recovery',
+        'date' => '2026-09-29',
+        'category' => 'fixed',
+        'title' => '転職後のHP・SPが全回復しない問題を修正',
+        'detail' => '転職と装備の自動解除後に最大HP・SPを再計算し、印錬成などの永続能力を含む最大値まで全回復するよう修正しました。',
+    ],
+    [
         'id' => '2026-09-29-monster-mark-alchemy',
         'date' => '2026-09-29',
         'category' => 'added',
