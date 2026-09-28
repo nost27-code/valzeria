@@ -19,7 +19,7 @@ class ToolCollection extends Component
                 ],
                 [
                     'name' => 'スプライト分割ツール',
-                    'description' => 'キャラクターや素材画像を分割し、高品質補間・ロスレスWebPで複数キャラの4差分を保存できます。',
+                    'description' => 'スプライト分割・ロスレス保存に加え、画像全体のWebP変換や縦横比を保った縮小ができます。',
                     'href' => asset('tools/sprite-splitter.html'),
                     'badge' => 'PUBLIC',
                     'openLabel' => '開く',

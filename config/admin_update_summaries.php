@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-09-28-sprite-splitter-webp-converter',
+        'date' => '2026-09-28',
+        'category' => 'internal',
+        'title' => '画像全体のWebP変換と縮小機能を追加',
+        'detail' => 'スプライト分割ツールで、横長・縦長画像をそのままWebPに変換できるようにしました。縦横比を保つ縮小率と画質を調整し、変換結果や容量を確認して保存できます。DB変更はありません。',
+    ],
+    [
         'id' => '2026-09-28-lock-contention-account-retirement',
         'date' => '2026-09-28',
         'category' => 'fixed',
