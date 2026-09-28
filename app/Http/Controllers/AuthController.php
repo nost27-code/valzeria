@@ -8,6 +8,7 @@ use App\Services\AuthService;
 use App\Services\GameSettingService;
 use App\Services\SubAreaExplorationStateService;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rules\Password;
@@ -225,12 +226,22 @@ class AuthController extends Controller
         string $message,
         ?\Throwable $exception = null
     ): \Illuminate\Http\RedirectResponse {
-        Log::warning('Google login callback rejected.', array_filter([
+        $fingerprint = $this->googleLoginRejectionFingerprint($request, $reason);
+        $context = array_filter([
             'reason' => $reason,
             'has_code' => $request->filled('code'),
             'has_state' => $request->filled('state'),
             'exception' => $exception !== null ? $exception::class : null,
-        ], static fn ($value): bool => $value !== null));
+            'fingerprint' => $fingerprint !== null ? substr($fingerprint, 0, 16) : null,
+        ], static fn ($value): bool => $value !== null);
+
+        if ($this->shouldLogGoogleLoginRejection($fingerprint)) {
+            if ($reason === 'provider_or_application_error') {
+                Log::warning('Google login callback rejected.', $context);
+            } else {
+                Log::info('Google login callback rejected.', $context);
+            }
+        }
 
         $request->session()->forget([
             'state',
@@ -239,6 +250,40 @@ class AuthController extends Controller
         ]);
 
         return redirect()->route('top')->with('error', $message);
+    }
+
+    private function googleLoginRejectionFingerprint(Request $request, string $reason): ?string
+    {
+        $callbackValues = collect(['state', 'code', 'error'])
+            ->map(function (string $key) use ($request): string {
+                $value = $request->query($key);
+
+                return is_scalar($value) ? (string) $value : '';
+            })
+            ->all();
+
+        if (! collect($callbackValues)->contains(static fn (string $value): bool => $value !== '')) {
+            return null;
+        }
+
+        return hash_hmac(
+            'sha256',
+            implode("\0", [$reason, ...$callbackValues]),
+            (string) config('app.key'),
+        );
+    }
+
+    private function shouldLogGoogleLoginRejection(?string $fingerprint): bool
+    {
+        if ($fingerprint === null) {
+            return true;
+        }
+
+        try {
+            return Cache::add("auth:google:callback-rejection:{$fingerprint}", true, now()->addDay());
+        } catch (\Throwable) {
+            return true;
+        }
     }
 
     public function mockLogin()

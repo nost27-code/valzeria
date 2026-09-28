@@ -54,13 +54,15 @@ class MonsterMarkService
             return null;
         }
 
-        $equivalentMarkIds = $this->equivalentMarkIds($mark);
-        $currentQuantity = $this->ownedQuantity($character, $equivalentMarkIds);
-        if (! $this->rollPercent($this->effectiveDropRate($mark, $currentQuantity))) {
-            return null;
-        }
+        return DB::transaction(function () use ($character, $mark) {
+            Character::query()->whereKey($character->id)->lockForUpdate()->firstOrFail();
 
-        return DB::transaction(function () use ($character, $mark, $equivalentMarkIds) {
+            $equivalentMarkIds = $this->equivalentMarkIds($mark);
+            $currentQuantity = $this->ownedQuantity($character, $equivalentMarkIds);
+            if (! $this->rollPercent($this->effectiveDropRate($mark, $currentQuantity))) {
+                return null;
+            }
+
             $rows = CharacterMonsterMark::where('character_id', $character->id)
                 ->whereIn('monster_mark_id', $equivalentMarkIds->all())
                 ->orderBy('monster_mark_id')

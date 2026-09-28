@@ -158,6 +158,35 @@ class MonsterMarkServiceTest extends TestCase
         $this->assertSame(9, $result['total_bonus']);
     }
 
+    public function test_grant_locks_character_before_reading_owned_mark_rows(): void
+    {
+        $fixture = $this->duplicateMarkFixture(6);
+        $queries = [];
+        DB::listen(static function ($query) use (&$queries): void {
+            $queries[] = $query->sql;
+        });
+
+        $result = (new MonsterMarkService)->rollAndGrant(
+            $fixture['character'],
+            $fixture['canonical_enemy'],
+        );
+
+        $this->assertNotNull($result);
+
+        $characterLockPosition = collect($queries)->search(
+            static fn (string $sql): bool => str_contains($sql, 'from "characters"')
+                || str_contains($sql, 'from `characters`'),
+        );
+        $ownedMarkReadPosition = collect($queries)->search(
+            static fn (string $sql): bool => str_contains($sql, 'from "character_monster_marks"')
+                || str_contains($sql, 'from `character_monster_marks`'),
+        );
+
+        $this->assertNotFalse($characterLockPosition);
+        $this->assertNotFalse($ownedMarkReadPosition);
+        $this->assertLessThan($ownedMarkReadPosition, $characterLockPosition);
+    }
+
     public function test_runtime_renamed_enemy_uses_persisted_enemy_mark(): void
     {
         $fixture = $this->duplicateMarkFixture(8);

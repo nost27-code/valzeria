@@ -38,7 +38,7 @@ class GoogleLoginFailureFeedbackTest extends TestCase
     public function test_callback_without_code_returns_visible_error_before_contacting_google(): void
     {
         Socialite::shouldReceive('driver')->never();
-        Log::shouldReceive('warning')
+        Log::shouldReceive('info')
             ->once()
             ->with('Google login callback rejected.', \Mockery::on(
                 fn (array $context): bool => $context['reason'] === 'missing_code'
@@ -66,7 +66,7 @@ class GoogleLoginFailureFeedbackTest extends TestCase
     public function test_provider_cancellation_returns_specific_error(): void
     {
         Socialite::shouldReceive('driver')->never();
-        Log::shouldReceive('warning')
+        Log::shouldReceive('info')
             ->once()
             ->with('Google login callback rejected.', \Mockery::on(
                 fn (array $context): bool => $context['reason'] === 'provider_error'
@@ -83,5 +83,57 @@ class GoogleLoginFailureFeedbackTest extends TestCase
         ]))
             ->assertRedirect(route('top'))
             ->assertSessionHas('error', 'Googleログインがキャンセルされました。ログインする場合は、もう一度「Googleでログイン」を押してください。');
+    }
+
+    public function test_replayed_callback_is_logged_only_once_without_logging_raw_callback_values(): void
+    {
+        Socialite::shouldReceive('driver')->never();
+        Log::shouldReceive('info')
+            ->once()
+            ->with('Google login callback rejected.', \Mockery::on(
+                fn (array $context): bool => $context['reason'] === 'expired_or_missing_start'
+                    && $context['has_code'] === true
+                    && $context['has_state'] === true
+                    && preg_match('/^[a-f0-9]{16}$/', $context['fingerprint']) === 1
+            ));
+
+        $callback = route('auth.google.callback', [
+            'code' => 'sensitive-one-time-code',
+            'state' => 'sensitive-state',
+        ]);
+
+        $this->get($callback)
+            ->assertRedirect(route('top'))
+            ->assertSessionHas('error', 'ログインの有効期限が切れました。トップページからもう一度お試しください。');
+
+        $this->get($callback)
+            ->assertRedirect(route('top'))
+            ->assertSessionHas('error', 'ログインの有効期限が切れました。トップページからもう一度お試しください。');
+    }
+
+    public function test_unexpected_provider_failure_remains_a_warning(): void
+    {
+        $driver = \Mockery::mock();
+        Socialite::shouldReceive('driver')->once()->with('google')->andReturn($driver);
+        $driver->shouldReceive('user')->once()->andThrow(new \RuntimeException('provider detail'));
+        Log::shouldReceive('warning')
+            ->once()
+            ->with('Google login callback rejected.', \Mockery::on(
+                fn (array $context): bool => $context['reason'] === 'provider_or_application_error'
+                    && $context['has_code'] === true
+                    && $context['has_state'] === true
+                    && $context['exception'] === \RuntimeException::class
+                    && preg_match('/^[a-f0-9]{16}$/', $context['fingerprint']) === 1
+            ));
+
+        $this->withSession([
+            'state' => 'valid-state',
+            'auth.google_started_at' => now()->timestamp,
+        ])->get(route('auth.google.callback', [
+            'code' => 'one-time-code',
+            'state' => 'valid-state',
+        ]))
+            ->assertRedirect(route('top'))
+            ->assertSessionHas('error', 'Googleログインを完了できませんでした。トップページからもう一度お試しください。');
     }
 }

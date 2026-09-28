@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-09-29-monster-mark-google-callback-stability',
+        'date' => '2026-09-29',
+        'category' => 'fixed',
+        'title' => '印獲得の同時処理とGoogleログイン記録を改善',
+        'detail' => '複数の探索操作が重なった際の印付与順を揃えました。期限切れのGoogleコールバックが繰り返された場合は、秘密値を含まない匿名指紋で識別し、同じ記録を1日1件へまとめます。',
+    ],
+    [
         'id' => '2026-09-29-job-change-full-recovery',
         'date' => '2026-09-29',
         'category' => 'fixed',
