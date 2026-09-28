@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-09-29-monster-mark-alchemy',
+        'date' => '2026-09-29',
+        'category' => 'added',
+        'title' => '余剰モンスター印を永続能力へ錬成',
+        'detail' => '各印の最初の15個を保護し、16個目以降を印錬成所で永続能力へ変換できます。総20ptまで、Gold消費なし・振り直し不可です。',
+    ],
+    [
         'id' => '2026-09-28-nation-raid-reward-claim-lock',
         'date' => '2026-09-28',
         'category' => 'fixed',

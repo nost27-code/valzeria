@@ -2,8 +2,10 @@
 
 Purpose: compressed current-state snapshot for ChatGPT and Codex.
 Source of truth: current behavior = code / intended spec = DOMAIN_RULES.md + human rulings (see AGENTS.md "Source of truth"). On conflict, report 要裁定 — do not pick a side.
-Last updated: 2026-09-26
+Last updated: 2026-09-29
 Branch: main
+
+- 印錬成所（2026-09-29公開）: 同一エリア・同名・非ボス敵の印を合算し、各グループの最初の15個を保護、16個目以降を共通余剰として錬成する。累計1〜10回目は20個、11〜20回目は30個で既存BP相当の1pt。総20pt・1能力20pt上限、Gold不要、振り直し不可。累計発見数は維持し、消費済み数とUUID付き錬成台帳を行ロック下で保存して最終能力へ加算する。
 
 - シルバーウィーク探索力（2026-09-19 00:00〜09-24 00:00 JST）: `config/exploration_stamina_campaign.php` の期間中は自然回復を45秒ごとに1、勝利数別の通常上限へ+500。通常パス+250は別途加算する。2026-09-24 00:00以降は独立したシルバーウィーク仕様延長パスで同じ45秒/+500を30日間継続できるが、キャンペーンと延長パスの+500は重複しない。期間前の自然回復は旧上限・旧速度で計算し、終了/期限切れ後の上限超過分は切り捨てずに保持する。
 

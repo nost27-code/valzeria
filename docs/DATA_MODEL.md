@@ -1,5 +1,11 @@
 # DATA_MODEL.md
 
+## Monster mark refinements (2026-09-29)
+
+- `character_monster_marks.spent_quantity` is an unsigned cumulative counter. `quantity` remains lifetime discoveries for collection stages and reduced post-15 drop rates. For each eligible same-area/same-name/non-boss group, spendable surplus is `max(0, SUM(quantity) - SUM(spent_quantity) - 15)`; boss, inactive and dungeon-lord marks are excluded.
+- `monster_mark_refinements` is an append-only per-conversion ledger with character FK, request UUID, selected stat, point count, mark cost and JSON consumption breakdown. `(character_id, request_token)` is unique so retries converge. A character row lock serializes conversions; mark rows are then locked in ID order before counters and the ledger are committed together.
+- Stat bonuses are derived from ledger totals, not written into base-stat columns. The initial cap is 20 total points and 20 per stat. Migration `2026_09_29_010000_create_monster_mark_refinements` preserves all existing quantities with `spent_quantity=0`; rollback drops the refinement ledger and all spent counters and must not be used after player conversions begin.
+
 2026-09-28: 地図関連5参照（`exploration_maps.owner_character_id`、`map_exploration_batches.character_id`、`map_exploration_results.character_id`、`map_income_logs.payer_character_id/owner_character_id`）はnullable / ON DELETE SET NULL。退会時は所有地図をwithdrawnとし、既存の地図・探索・収益行を保持する。公開登録は公開中だけwithdrawn、未公開はdiscardedとし、終了済み登録の終了日時は維持する。精算待ちがある場合は退会transaction全体を中止する。NULL履歴が存在する場合のmigration巻戻しは拒否し、履歴を削除・架空所有者で埋めない。
 
 2026-09-28: 最終アクセス更新と所持品監視は`CharacterBackgroundOperation`でCharacterをNOWAITロックし、使用中なら変更せず次回へ回す。所持品監視は一人ずつ再集計し、検知と基準値更新を同じtransactionで確定する。全員分のupsertを行わず、保留時は従来の基準値を保持する。レイド受付でもCharacter待ちの間に全体coordinatorを保持し続けず、NOWAIT競合時は受付をrollbackする。結果復元はDB読取だけを最大3試行とし、戦闘は再実行しない。

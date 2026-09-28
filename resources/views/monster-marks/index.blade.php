@@ -1,4 +1,9 @@
 <x-layouts.facility title="印図鑑" headerIconImage="images/icon/icon_240.webp" bgImage="images/bg-castle.webp">
+    <div class="mb-3 flex justify-end">
+        <a href="{{ route('monster-mark-alchemy.index') }}" class="inline-flex min-h-10 items-center justify-center rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-black text-amber-800 shadow-sm transition hover:bg-amber-100">
+            余剰印を錬成する
+        </a>
+    </div>
 
     {{-- サマリーバー --}}
     <div class="mb-3 grid grid-cols-4 divide-x divide-amber-100 overflow-hidden rounded-xl border border-[#d4af37]/40 bg-amber-50/60">
@@ -10,7 +15,7 @@
             </div>
         </div>
         <div class="px-3 py-2.5">
-            <div class="text-[10px] font-black tracking-wide text-amber-600 uppercase">印合計</div>
+            <div class="text-[10px] font-black tracking-wide text-amber-600 uppercase">累計発見</div>
             <div class="mt-0.5 leading-none">
                 <span class="text-base font-black tabular-nums text-slate-900">{{ number_format($summary['total_marks']) }}</span>
                 <span class="text-xs font-bold text-slate-400">個</span>
@@ -49,7 +54,7 @@
     <details class="mb-4 rounded-lg border border-slate-100 bg-slate-50 text-[11px] font-bold text-slate-500">
         <summary class="cursor-pointer select-none px-3 py-2 font-black text-slate-500">印の解放ルールを見る</summary>
         <p class="px-3 pb-2.5 leading-relaxed">
-            1個・3個・7個・15個で永続効果が解放されます。攻撃などはステージ1〜3が+1、4〜6が+2、7〜10が+3/段階。HP/SPはそれぞれ+5、+10、+15/段階です。
+            1個・3個・7個・15個で永続効果が解放されます。攻撃などはステージ1〜3が+1、4〜6が+2、7〜10が+3/段階。HP/SPはそれぞれ+5、+10、+15/段階です。16個目以降は印錬成所で使用できます。
         </p>
     </details>
 
@@ -92,7 +97,7 @@
                         <div class="mt-0.5 text-[10px] font-bold text-white/80 drop-shadow">
                             印発見 {{ number_format($cityGroup['discovered_count']) }}/{{ number_format($cityGroup['total_count']) }}
                             @if((int) $cityGroup['total_quantity'] > 0)
-                                ・印所持 {{ number_format($cityGroup['total_quantity']) }}個
+                                ・累計発見 {{ number_format($cityGroup['total_quantity']) }}個
                             @endif
                         </div>
                         </div>
@@ -113,7 +118,7 @@
                                         <div class="mt-0.5 text-[10px] font-bold text-slate-400">
                                             印発見 {{ number_format($areaGroup['discovered_count']) }}/{{ number_format($areaGroup['total_count']) }}
                                             @if((int) $areaGroup['total_quantity'] > 0)
-                                                ・印所持 {{ number_format($areaGroup['total_quantity']) }}個
+                                                ・累計発見 {{ number_format($areaGroup['total_quantity']) }}個
                                             @endif
                                         </div>
                                     </div>
@@ -156,7 +161,7 @@
 
                                             <div class="mt-2">
                                                 <div class="mb-1 flex items-center justify-between text-[10px] font-bold text-slate-400">
-                                                    <span>印所持 {{ number_format($quantity) }} 個</span>
+                                                    <span>累計発見 {{ number_format($quantity) }} 個</span>
                                                     <span>{{ $isMaxed ? '最大解放' : '次まで ' . number_format($nextRequired) . ' 個' }}</span>
                                                 </div>
                                                 <div class="h-1.5 overflow-hidden rounded-full bg-amber-100">

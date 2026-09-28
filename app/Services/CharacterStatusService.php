@@ -62,18 +62,19 @@ class CharacterStatusService
         // 現在職のレート（倍率補正）は仕様変更により廃止
 
         $markBonuses = app(MonsterMarkService::class)->permanentBonuses($character);
+        $markRefinementBonuses = app(MonsterMarkAlchemyService::class)->bonusesFor($character);
 
         // ---- パス1: 装備を一切含まない能力 ----
         // 武器を外した基礎能力との差分表示にも使うため、モンスターマークを含めてここで確定する。
         $preEquip = [
-            'hp' => (int) $jobStats['hp'] + $job_hp_bonus + (int) ($markBonuses['hp'] ?? 0),
-            'mp' => (int) ($jobStats['mp'] ?? 0) + $job_mp_bonus + (int) ($markBonuses['mp'] ?? 0),
-            'str' => (int) $jobStats['atk'] + $job_str_bonus + (int) ($markBonuses['str'] ?? 0),
-            'def' => (int) $jobStats['def'] + $job_def_bonus + (int) ($markBonuses['def'] ?? 0),
-            'agi' => (int) $jobStats['spd'] + $job_spd_bonus + (int) ($markBonuses['agi'] ?? 0),
-            'mag' => (int) $jobStats['mag'] + $job_mag_bonus + (int) ($markBonuses['mag'] ?? 0),
-            'spr' => (int) $jobStats['spr'] + $job_spr_bonus + (int) ($markBonuses['spr'] ?? 0),
-            'luk' => (int) $jobStats['luck'] + $job_luk_bonus + (int) ($markBonuses['luk'] ?? 0),
+            'hp' => (int) $jobStats['hp'] + $job_hp_bonus + (int) ($markBonuses['hp'] ?? 0) + (int) ($markRefinementBonuses['hp'] ?? 0),
+            'mp' => (int) ($jobStats['mp'] ?? 0) + $job_mp_bonus + (int) ($markBonuses['mp'] ?? 0) + (int) ($markRefinementBonuses['mp'] ?? 0),
+            'str' => (int) $jobStats['atk'] + $job_str_bonus + (int) ($markBonuses['str'] ?? 0) + (int) ($markRefinementBonuses['str'] ?? 0),
+            'def' => (int) $jobStats['def'] + $job_def_bonus + (int) ($markBonuses['def'] ?? 0) + (int) ($markRefinementBonuses['def'] ?? 0),
+            'agi' => (int) $jobStats['spd'] + $job_spd_bonus + (int) ($markBonuses['agi'] ?? 0) + (int) ($markRefinementBonuses['agi'] ?? 0),
+            'mag' => (int) $jobStats['mag'] + $job_mag_bonus + (int) ($markBonuses['mag'] ?? 0) + (int) ($markRefinementBonuses['mag'] ?? 0),
+            'spr' => (int) $jobStats['spr'] + $job_spr_bonus + (int) ($markBonuses['spr'] ?? 0) + (int) ($markRefinementBonuses['spr'] ?? 0),
+            'luk' => (int) $jobStats['luck'] + $job_luk_bonus + (int) ($markBonuses['luk'] ?? 0) + (int) ($markRefinementBonuses['luk'] ?? 0),
         ];
 
         // ---- パス2: 武器・防具由来の主能力を分離して集計 ----
@@ -162,6 +163,7 @@ class CharacterStatusService
                 'luk' => $luk_equip,
             ],
             'monster_mark_bonuses' => $markBonuses,
+            'monster_mark_refinement_bonuses' => $markRefinementBonuses,
             'pre_equipment' => $preEquip,
             'weapon_base' => ['str' => $weaponBaseStr, 'mag' => $weaponBaseMag],
             'weapon_offense' => ['str' => $weaponStr, 'mag' => $weaponMag],

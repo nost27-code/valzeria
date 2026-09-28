@@ -20,6 +20,29 @@ class MonsterMarkService
 
     private const COMPLETED_DROP_RATE_DIVISOR = 3.0;
 
+    public function protectedQuantity(): int
+    {
+        return self::DROP_RATE_REDUCTION_QUANTITY;
+    }
+
+    public function isEligibleMark(?MonsterMark $mark): bool
+    {
+        if (! $mark || ! $mark->is_active) {
+            return false;
+        }
+
+        $mark->loadMissing('enemy');
+
+        return $this->isEligibleEnemy($mark->enemy);
+    }
+
+    public function equivalenceKey(MonsterMark $mark): string
+    {
+        $mark->loadMissing('enemy');
+
+        return $this->markSignature($mark);
+    }
+
     public function rollAndGrant(Character $character, Enemy $enemy): ?array
     {
         if (! $this->isEligibleEnemy($enemy)) {
