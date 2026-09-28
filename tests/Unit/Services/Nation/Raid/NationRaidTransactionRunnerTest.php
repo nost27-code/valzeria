@@ -3,12 +3,58 @@
 namespace Tests\Unit\Services\Nation\Raid;
 
 use App\Services\Nation\Raid\NationRaidTransactionRunner;
+use Illuminate\Database\Connection;
 use Illuminate\Support\Facades\DB;
 use Mockery;
 use Tests\TestCase;
 
 class NationRaidTransactionRunnerTest extends TestCase
 {
+    public function test_busy_message_translates_only_nowait_lock_errors(): void
+    {
+        foreach ([1205, 3572] as $nativeCode) {
+            $runner = new class($nativeCode) extends NationRaidTransactionRunner
+            {
+                public function __construct(private readonly int $nativeCode) {}
+
+                public function run(callable $callback): mixed
+                {
+                    $error = new \PDOException('injected');
+                    $error->errorInfo = ['HY000', $this->nativeCode, 'injected'];
+
+                    throw $error;
+                }
+            };
+
+            try {
+                $runner->runWithBusyMessage(fn () => null, 'retry later');
+                $this->fail('Expected a busy response.');
+            } catch (\DomainException $exception) {
+                $this->assertSame('retry later', $exception->getMessage());
+                $this->assertInstanceOf(\PDOException::class, $exception->getPrevious());
+            }
+        }
+
+        $duplicate = new \PDOException('duplicate');
+        $duplicate->errorInfo = ['23000', 1062, 'duplicate'];
+        $runner = new class($duplicate) extends NationRaidTransactionRunner
+        {
+            public function __construct(private readonly \PDOException $exception) {}
+
+            public function run(callable $callback): mixed
+            {
+                throw $this->exception;
+            }
+        };
+
+        try {
+            $runner->runWithBusyMessage(fn () => null, 'retry later');
+            $this->fail('Expected the original database error.');
+        } catch (\PDOException $exception) {
+            $this->assertSame($duplicate, $exception);
+        }
+    }
+
     public function test_only_deadlock_serialization_and_lock_timeout_are_retryable(): void
     {
         $runner = new NationRaidTransactionRunner;
@@ -25,7 +71,7 @@ class NationRaidTransactionRunnerTest extends TestCase
         $original = DB::getFacadeRoot();
         try {
             foreach ([['mysql', false], ['mysql', true], ['mariadb', false], ['mariadb', true]] as [$driver, $fail]) {
-                $connection = Mockery::mock(\Illuminate\Database\Connection::class);
+                $connection = Mockery::mock(Connection::class);
                 $connection->shouldReceive('getDriverName')->once()->andReturn($driver);
                 $connection->shouldReceive('selectOne')->with('SELECT @@SESSION.innodb_lock_wait_timeout AS value')->once()->andReturn((object) ['value' => 50]);
                 $connection->shouldReceive('statement')->with('SET SESSION innodb_lock_wait_timeout = 3')->once()->ordered()->andReturnTrue();
@@ -41,6 +87,7 @@ class NationRaidTransactionRunnerTest extends TestCase
                         if ($fail) {
                             throw new \DomainException('expected');
                         }
+
                         return 42;
                     });
                     $this->assertSame(42, $result);

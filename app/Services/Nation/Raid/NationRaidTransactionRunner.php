@@ -9,6 +9,19 @@ use Throwable;
 /** V2-R5: 3 attemptのみ。戦闘計算をcallbackへ入れず、rollback後にだけ待つ。 */
 class NationRaidTransactionRunner
 {
+    public function runWithBusyMessage(callable $callback, string $message): mixed
+    {
+        try {
+            return $this->run($callback);
+        } catch (QueryException|\PDOException $exception) {
+            if (in_array((int) ($exception->errorInfo[1] ?? 0), [1205, 3572], true)) {
+                throw new \DomainException($message, previous: $exception);
+            }
+
+            throw $exception;
+        }
+    }
+
     public function run(callable $callback): mixed
     {
         $connection = DB::connection();

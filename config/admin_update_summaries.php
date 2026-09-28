@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-09-28-nation-raid-reward-claim-lock',
+        'date' => '2026-09-28',
+        'category' => 'fixed',
+        'title' => 'レイド報酬受取時の待ち時間を改善',
+        'detail' => 'ほかの操作中に報酬を受け取った場合、報酬を未受取のまま保管し、処理完了後の再試行をご案内するようにしました。',
+    ],
+    [
         'id' => '2026-09-28-nation-member-management-loading',
         'date' => '2026-09-28',
         'category' => 'fixed',

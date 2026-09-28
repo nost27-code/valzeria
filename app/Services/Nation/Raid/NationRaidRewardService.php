@@ -199,10 +199,14 @@ final readonly class NationRaidRewardService
     {
         throw_unless(config('features.nation_competitive_raid_enabled', false), \DomainException::class, '国家対抗レイドは現在準備中です。');
 
-        return $this->transactions->run(function () use ($reference, $actor, $rewardId, $selection): NationRaidPersonalReward {
+        return $this->transactions->runWithBusyMessage(function () use ($reference, $actor, $rewardId, $selection): NationRaidPersonalReward {
             // RRのconsistent readを作る前に所有者をlockする。先行claimのcommitを待ってから
             // event/在庫を読むことで、容量判定と受取後残高が古いread viewに固定されるのを防ぐ。
-            $character = Character::whereKey($actor->id)->lockForUpdate()->firstOrFail();
+            // 探索などがCharacterを使用中なら長く待たず、短い自動再試行後に未受取のまま案内する。
+            $characterQuery = Character::whereKey($actor->id);
+            $character = in_array(DB::getDriverName(), ['mysql', 'mariadb'], true)
+                ? $characterQuery->lock('for update nowait')->firstOrFail()
+                : $characterQuery->lockForUpdate()->firstOrFail();
             // completedとpolicyは不変。eventの排他lockで別人の受取を直列化しない。
             // 所有者の在庫はCharacter → entitlementの順で保護する。
             $event = NationRaidEvent::whereKey($reference->id)
@@ -278,7 +282,7 @@ final readonly class NationRaidRewardService
             throw_unless($notification, \RuntimeException::class, '報酬通知を保存できません。');
 
             return $reward->fresh();
-        });
+        }, 'ほかの操作を処理中です。完了してから、もう一度報酬を受け取ってください。');
     }
 
     private function grantNationLocked(NationRaidEvent $event, Nation $nation, NationRaidNationReward $reward): void

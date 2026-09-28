@@ -27,6 +27,7 @@ use App\Services\Nation\Raid\NationRaidRewardPolicy;
 use App\Services\Nation\Raid\NationRaidRewardScreenService;
 use App\Services\Nation\Raid\NationRaidRewardService;
 use App\Services\Nation\Raid\NationRaidRules;
+use App\Services\Nation\Raid\NationRaidTransactionRunner;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
@@ -385,6 +386,49 @@ final class NationRaidRewardTest extends TestCase
         $this->post($url)->assertRedirect(route('nation-raid.rewards', $event));
         $this->assertSame(1, KisekiTransaction::count());
         $this->actingAs($this->character()->user)->get(route('nation-raid.rewards', $event))->assertOk()->assertDontSee('戦利品を選ぶ');
+    }
+
+    #[DataProvider('claimBusyErrors')]
+    public function test_busy_character_keeps_reward_pending_and_returns_a_retry_message(string $sqlState, int $nativeCode): void
+    {
+        config()->set('features.nation_competitive_raid_enabled', true);
+        [$event, $character] = $this->scenario();
+        app(NationRaidEventService::class)->completeFinalization($event);
+        $reward = $this->reward($event, 'completion');
+        $this->app->instance(NationRaidTransactionRunner::class, new class($sqlState, $nativeCode) extends NationRaidTransactionRunner
+        {
+            public function __construct(private readonly string $sqlState, private readonly int $nativeCode) {}
+
+            public function run(callable $callback): mixed
+            {
+                $previous = new \PDOException('injected character lock contention');
+                $previous->errorInfo = [$this->sqlState, $this->nativeCode, 'injected'];
+
+                throw new QueryException('mysql', 'select character for update nowait', [], $previous);
+            }
+        });
+
+        $this->reject(
+            fn () => app(NationRaidRewardService::class)->claim($event, $character, $reward->id),
+            'もう一度報酬を受け取ってください',
+        );
+
+        $this->assertSame(NationRaidPersonalReward::STATUS_PENDING, $reward->fresh()->status);
+        $this->assertNull($reward->selection_key);
+        $this->assertNull($reward->balance_after_snapshot);
+        $this->assertNull($reward->claimed_at);
+        $this->assertSame(0, $character->fresh()->free_kiseki);
+        $this->assertSame(7, $character->fresh()->paid_kiseki);
+        $this->assertDatabaseCount('kiseki_transactions', 0);
+        $this->assertSame(0, $character->notifications()->where('type', 'nation_raid_reward_claimed')->count());
+    }
+
+    public static function claimBusyErrors(): array
+    {
+        return [
+            'MariaDB NOWAIT' => ['HY000', 1205],
+            'MySQL NOWAIT' => ['HY000', 3572],
+        ];
     }
 
     public function test_active_reward_table_shows_all_targets_and_frozen_policy_without_creating_rights(): void
