@@ -1561,14 +1561,19 @@ final class NationScreen extends Component
         if ($this->page === 'members' && $membership?->isRuler()) {
             $memberManagementMemberships = $membership->nation->memberships;
             $characterIds = $memberManagementMemberships->pluck('character_id');
-            $lastExplorationAtByCharacter = DB::table('battle_logs')
-                ->whereIn('character_id', $characterIds)
-                ->whereIn('battle_type', ['normal', 'boss', 'sub_area', 'exploration_map'])
-                ->whereIn('result', [...BattleLog::BATTLE_RESULTS, BattleLog::RESULT_EVENT])
-                ->selectRaw('character_id, MAX(created_at) as last_exploration_at')
-                ->groupBy('character_id')
-                ->pluck('last_exploration_at', 'character_id')
-                ->map(fn (string $at): Carbon => Carbon::parse($at));
+            // 全国民の履歴をGROUP BYすると本番では大量走査になるため、
+            // character_id + created_atの索引で各国民の最新1件だけを取得する。
+            $lastExplorationAtByCharacter = $characterIds->mapWithKeys(function ($characterId): array {
+                $at = DB::table('battle_logs')
+                    ->where('character_id', $characterId)
+                    ->whereIn('battle_type', ['normal', 'boss', 'sub_area', 'exploration_map'])
+                    ->whereIn('result', [...BattleLog::BATTLE_RESULTS, BattleLog::RESULT_EVENT])
+                    ->whereNotNull('created_at')
+                    ->orderByDesc('created_at')
+                    ->value('created_at');
+
+                return [$characterId => $at !== null ? Carbon::parse($at) : null];
+            });
 
             if ($this->memberManagementSort === 'exploration_asc') {
                 $memberManagementMemberships = $memberManagementMemberships

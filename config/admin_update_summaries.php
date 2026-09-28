@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-09-28-nation-member-management-loading',
+        'date' => '2026-09-28',
+        'category' => 'fixed',
+        'title' => '国民管理画面の読み込み速度を改善',
+        'detail' => '国民の最終探索記録の取得方法を見直し、国民管理画面の読み込みが遅くなる問題を修正しました。画面を開く操作には読み込み中の表示を追加しました。',
+    ],
+    [
         'id' => '2026-09-28-sprite-splitter-webp-converter',
         'date' => '2026-09-28',
         'category' => 'internal',

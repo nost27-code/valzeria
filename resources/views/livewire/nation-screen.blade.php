@@ -793,7 +793,7 @@
                     @endif
                     <button type="button" wire:click="showResourceManagement" class="min-h-12 rounded-xl border border-amber-200 bg-white px-2 py-2 text-xs font-black text-stone-800 shadow-sm" data-nation-shortcut="resources"><span aria-hidden="true">📦</span> 国家資材</button>
                     @if($membership->isRuler())
-                        <button type="button" wire:click="showMemberManagement" class="min-h-12 rounded-xl border border-amber-200 bg-white px-2 py-2 text-xs font-black text-stone-800 shadow-sm" data-nation-shortcut="members"><span aria-hidden="true">👥</span> 国民管理</button>
+                        <button type="button" wire:click="showMemberManagement" wire:loading.attr="disabled" wire:target="showMemberManagement" class="min-h-12 rounded-xl border border-amber-200 bg-white px-2 py-2 text-xs font-black text-stone-800 shadow-sm disabled:opacity-50" data-nation-shortcut="members"><span aria-hidden="true">👥</span> <span wire:loading.remove wire:target="showMemberManagement">国民管理</span><span wire:loading wire:target="showMemberManagement" role="status">読み込み中…</span></button>
                     @elseif($developmentEnabled && $levelBenefitsEnabled)
                         <button type="button" wire:click="showWantedMaterials" class="min-h-12 rounded-xl border border-amber-200 bg-white px-2 py-2 text-xs font-black text-stone-800 shadow-sm" data-nation-shortcut="wanted-materials"><span aria-hidden="true">🧱</span> 募集素材</button>
                     @endif

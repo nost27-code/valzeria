@@ -9,12 +9,23 @@
                         type="button"
                         wire:key="nation-menu-{{ $group['key'] }}-{{ $item['key'] }}"
                         wire:click="{{ $item['action'] }}"
+                        @if($item['key'] === 'members')
+                            wire:loading.attr="disabled"
+                            wire:target="showMemberManagement"
+                        @endif
                         data-nation-menu-item="{{ $item['key'] }}"
                         class="flex min-h-16 w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-slate-50 focus-visible:bg-slate-50"
                     >
                         <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-xl {{ $isDanger ? 'bg-rose-50' : 'bg-amber-50' }}" aria-hidden="true">{{ $item['icon'] }}</span>
                         <span class="min-w-0 flex-1">
-                            <span class="block text-base font-black {{ $isDanger ? 'text-rose-800' : 'text-slate-950' }}">{{ $item['title'] }}</span>
+                            <span class="block text-base font-black {{ $isDanger ? 'text-rose-800' : 'text-slate-950' }}">
+                                @if($item['key'] === 'members')
+                                    <span wire:loading.remove wire:target="showMemberManagement">{{ $item['title'] }}</span>
+                                    <span wire:loading wire:target="showMemberManagement" role="status">読み込み中…</span>
+                                @else
+                                    {{ $item['title'] }}
+                                @endif
+                            </span>
                             <span class="block truncate text-xs font-bold text-slate-500 sm:text-sm">{{ $item['description'] }}</span>
                         </span>
                         @if(!empty($item['badge']))

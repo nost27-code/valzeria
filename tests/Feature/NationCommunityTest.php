@@ -1217,6 +1217,9 @@ SQL);
             [$recent, 'exploration_map', 'lose', '2026-09-20 09:00:00', null],
             [$recent, 'normal', 'event', '2026-09-22 09:15:00', 0],
             [$ruler, 'boss', 'win', '2026-09-23 09:00:00', 1],
+            // 後から保存された古い記録や、より新しいPvPで最終探索を上書きしない。
+            [$recent, 'sub_area', 'win', '2026-09-19 10:00:00', 1],
+            [$recent, 'pvp', 'win', '2026-09-26 11:00:00', 1],
         ] as [$fighter, $type, $result, $at, $turns]) {
             BattleLog::create([
                 'character_id' => $fighter->id,
@@ -1253,6 +1256,50 @@ SQL);
             ->assertDontSee('最終探索記録')
             ->assertDontSee('2026/09/16 09:00')
             ->call('showMemberManagement')
+            ->assertDontSeeHtml('data-nation-member-management');
+    }
+
+    public function test_member_management_handles_undated_logs_and_hides_activity_from_citizens(): void
+    {
+        config()->set('features.nation_community_enabled', true);
+        $ruler = $this->character('日時欠損確認国王');
+        $nation = app(NationService::class)->create($ruler, '日時欠損確認');
+        $citizen = $this->character('日時欠損確認国民');
+        NationMembership::create([
+            'nation_id' => $nation->id,
+            'character_id' => $citizen->id,
+            'role' => 'citizen',
+            'joined_at' => now(),
+        ]);
+        $area = Area::create(['name' => '日時欠損確認の探索地', 'slug' => 'member-undated-test']);
+        $enemy = Enemy::create(['area_id' => $area->id, 'name' => '日時欠損確認の敵']);
+        DB::table('battle_logs')->insert([
+            'character_id' => $citizen->id,
+            'area_id' => $area->id,
+            'enemy_id' => $enemy->id,
+            'battle_type' => 'normal',
+            'result' => 'win',
+            'log_text' => '日時のない旧記録',
+            'created_at' => null,
+            'updated_at' => null,
+        ]);
+
+        $this->actingAs($ruler->user);
+        $screen = Livewire::test(NationScreen::class)
+            ->call('showMemberManagement')
+            ->assertSee('国民・役職管理')
+            ->assertSee('最終探索記録：記録なし')
+            ->set('memberManagementSort', 'exploration_asc')
+            ->assertSee('日時欠損確認国民');
+        preg_match_all('/data-nation-member-management-row="(\d+)"/', $screen->html(), $rows);
+        $this->assertSame([$ruler->id, $citizen->id], array_map('intval', $rows[1]));
+
+        $this->actingAs($citizen->user);
+        Livewire::test(NationScreen::class)
+            ->call('showMemberManagement')
+            ->assertHasErrors(['nationAction'])
+            ->assertDontSee('最終探索記録')
+            ->set('page', 'members')
             ->assertDontSeeHtml('data-nation-member-management');
     }
 
