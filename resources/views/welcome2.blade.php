@@ -116,6 +116,12 @@
         }
         .hero-copy { font-size: clamp(14px, 2.2vw, 16px); color: var(--ink-sub); font-weight: 700; }
         .hero-copy strong { color: var(--ink); }
+        .auth-error {
+            width: min(520px, 100%); margin: 28px auto -12px; padding: 12px 16px;
+            border: 1px solid rgba(248,113,113,.62); border-radius: 10px;
+            background: rgba(127,29,29,.48); color: #fee2e2;
+            font-size: 13px; font-weight: 800; line-height: 1.7; text-align: left;
+        }
         .hero-cta { display: flex; flex-direction: column; align-items: center; gap: 12px; margin-top: 34px; }
         .hero-register-note { font-size: 12.5px; color: var(--ink-sub); margin: -2px 0 2px; }
         .hero-register-note a { color: var(--gold-soft); font-weight: 800; border-bottom: 1px solid rgba(212,175,55,.5); }
@@ -428,6 +434,11 @@
             <strong>王都アークレアから始まる冒険。</strong><br>
             探索で素材を集め、職業を極め、装備を鍛え、まだ見ぬ深層へ進め。
         </p>
+        @if(session('error'))
+            <div class="auth-error" role="alert">
+                {{ session('error') }}
+            </div>
+        @endif
         <div class="hero-cta">
             <a class="btn btn-primary" href="{{ route('auth.google') }}"
                data-top-event="{{ $registrationOpen ? 'google_start_click' : 'google_login_click' }}"

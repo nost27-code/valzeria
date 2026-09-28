@@ -125,11 +125,32 @@ class AuthController extends Controller
     public function handleGoogleCallback(Request $request)
     {
         try {
+            if ($request->filled('error')) {
+                $message = $request->string('error')->toString() === 'access_denied'
+                    ? 'Googleログインがキャンセルされました。ログインする場合は、もう一度「Googleでログイン」を押してください。'
+                    : 'Google側でログインを完了できませんでした。トップページからもう一度お試しください。';
+
+                return $this->rejectGoogleLogin($request, 'provider_error', $message);
+            }
+
+            if (!$request->filled('code')) {
+                return $this->rejectGoogleLogin(
+                    $request,
+                    'missing_code',
+                    'Googleからログイン情報を受け取れませんでした。トップページからもう一度お試しください。'
+                );
+            }
+
             $startedAt = (int) $request->session()->pull('auth.google_started_at', 0);
             $linkUserId = $request->session()->pull('auth.google_link_user_id');
             if ($startedAt <= 0 || $startedAt > now()->timestamp || now()->timestamp - $startedAt > 600) {
                 $request->session()->forget('state');
-                return redirect()->route('top')->with('error', 'ログインの有効期限が切れました。もう一度お試しください。');
+
+                return $this->rejectGoogleLogin(
+                    $request,
+                    'expired_or_missing_start',
+                    'ログインの有効期限が切れました。トップページからもう一度お試しください。'
+                );
             }
             $googleUser = Socialite::driver('google')->user();
             if ($linkUserId !== null) {
@@ -177,22 +198,47 @@ class AuthController extends Controller
 
             // ログイン成功後は必ずキャラ選択画面へ遷移する
             return redirect()->route('character.select');
-
         } catch (\Laravel\Socialite\Two\InvalidStateException $e) {
-            return redirect()->route('top')->with('error', 'ログインの確認に失敗しました。もう一度お試しください。');
+            return $this->rejectGoogleLogin(
+                $request,
+                'invalid_state',
+                'ログインの確認に失敗しました。ブラウザの戻る・再読み込みは使わず、トップページからもう一度お試しください。',
+                $e
+            );
         } catch (\InvalidArgumentException | \LogicException $e) {
             return redirect()
                 ->route('home')
                 ->with('error', $e->getMessage());
         } catch (Exception $e) {
-            Log::warning('Google login failed.', [
-                'message' => $e->getMessage(),
-                'exception' => $e::class,
-            ]);
-
-            // キャンセルされたりエラーになった場合はトップへ戻す
-            return redirect()->route('top')->with('error', 'ログインに失敗しました。');
+            return $this->rejectGoogleLogin(
+                $request,
+                'provider_or_application_error',
+                'Googleログインを完了できませんでした。トップページからもう一度お試しください。',
+                $e
+            );
         }
+    }
+
+    private function rejectGoogleLogin(
+        Request $request,
+        string $reason,
+        string $message,
+        ?\Throwable $exception = null
+    ): \Illuminate\Http\RedirectResponse {
+        Log::warning('Google login callback rejected.', array_filter([
+            'reason' => $reason,
+            'has_code' => $request->filled('code'),
+            'has_state' => $request->filled('state'),
+            'exception' => $exception !== null ? $exception::class : null,
+        ], static fn ($value): bool => $value !== null));
+
+        $request->session()->forget([
+            'state',
+            'auth.google_started_at',
+            'auth.google_link_user_id',
+        ]);
+
+        return redirect()->route('top')->with('error', $message);
     }
 
     public function mockLogin()
