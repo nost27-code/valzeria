@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Character;
 use App\Models\CharacterMonsterMark;
 use App\Models\MonsterMarkRefinement;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -31,6 +32,11 @@ class MonsterMarkAlchemyService
         private MonsterMarkService $monsterMarkService,
         private BonusPointService $bonusPointService,
     ) {}
+
+    public function isOpen(): bool
+    {
+        return CarbonImmutable::now()->gte(CarbonImmutable::parse(config('monster_mark_alchemy.opens_at')));
+    }
 
     public function statOptions(): array
     {
@@ -118,6 +124,10 @@ class MonsterMarkAlchemyService
 
     public function refine(Character $character, string $stat, string $requestToken): array
     {
+        if (! $this->isOpen()) {
+            throw new RuntimeException('印錬成所はまだ開業していません。');
+        }
+
         if (! $this->schemaReady()) {
             throw new RuntimeException('印錬成の準備が完了していません。');
         }

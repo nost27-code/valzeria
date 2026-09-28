@@ -90,6 +90,7 @@ class JobChangeRecoveryTest extends TestCase
 
     private function refinedCharacter(): array
     {
+        $this->travelTo(\Carbon\CarbonImmutable::parse('2026-09-29T09:00:00+09:00'));
         $target = JobClass::create(['key' => 'recovery-test', 'name' => '回復確認職', 'rank' => 'normal',
             'bonus_hp' => 40, 'bonus_mp' => 20, 'is_hidden' => false, 'is_active' => true]);
         $character = Character::create([

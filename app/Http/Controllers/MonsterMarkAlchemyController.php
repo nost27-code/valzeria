@@ -16,6 +16,8 @@ class MonsterMarkAlchemyController extends Controller
         MonsterMarkAlchemyService $alchemyService,
         CharacterStatusService $statusService,
     ) {
+        abort_unless($alchemyService->isOpen(), 404);
+
         $character = Auth::user()->currentCharacter();
         if (! $character) {
             return redirect()->route('home')->with('error', 'キャラクターが見つかりません。');
@@ -37,6 +39,8 @@ class MonsterMarkAlchemyController extends Controller
 
     public function refine(Request $request, MonsterMarkAlchemyService $alchemyService)
     {
+        abort_unless($alchemyService->isOpen(), 404);
+
         $character = Auth::user()->currentCharacter();
         if (! $character) {
             return redirect()->route('home')->with('error', 'キャラクターが見つかりません。');

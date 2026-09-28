@@ -1,9 +1,12 @@
 <x-layouts.facility title="印図鑑" headerIconImage="images/icon/icon_240.webp" bgImage="images/bg-castle.webp">
+    @php $alchemyOpen = app(\App\Services\MonsterMarkAlchemyService::class)->isOpen(); @endphp
+    @if($alchemyOpen)
     <div class="mb-3 flex justify-end">
         <a href="{{ route('monster-mark-alchemy.index') }}" class="inline-flex min-h-10 items-center justify-center rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-black text-amber-800 shadow-sm transition hover:bg-amber-100">
             余剰印を錬成する
         </a>
     </div>
+    @endif
 
     {{-- サマリーバー --}}
     <div class="mb-3 grid grid-cols-4 divide-x divide-amber-100 overflow-hidden rounded-xl border border-[#d4af37]/40 bg-amber-50/60">
@@ -54,7 +57,7 @@
     <details class="mb-4 rounded-lg border border-slate-100 bg-slate-50 text-[11px] font-bold text-slate-500">
         <summary class="cursor-pointer select-none px-3 py-2 font-black text-slate-500">印の解放ルールを見る</summary>
         <p class="px-3 pb-2.5 leading-relaxed">
-            1個・3個・7個・15個で永続効果が解放されます。攻撃などはステージ1〜3が+1、4〜6が+2、7〜10が+3/段階。HP/SPはそれぞれ+5、+10、+15/段階です。16個目以降は印錬成所で使用できます。
+            1個・3個・7個・15個で永続効果が解放されます。攻撃などはステージ1〜3が+1、4〜6が+2、7〜10が+3/段階。HP/SPはそれぞれ+5、+10、+15/段階です。@if($alchemyOpen)16個目以降は印錬成所で使用できます。@endif
         </p>
     </details>
 

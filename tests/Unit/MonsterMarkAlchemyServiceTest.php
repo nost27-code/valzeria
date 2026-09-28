@@ -19,6 +19,7 @@ class MonsterMarkAlchemyServiceTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        $this->travelTo(\Carbon\CarbonImmutable::parse('2026-09-29T09:00:00+09:00'));
 
         $this->dropTestTables();
 
