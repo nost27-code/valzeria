@@ -156,7 +156,7 @@ class MonsterMarkAlchemyServiceTest extends TestCase
         $this->assertSame(0, $this->service()->summary($character)['surplus_total']);
     }
 
-    public function test_cost_increases_after_ten_refinements_and_stops_at_twenty(): void
+    public function test_cost_increases_after_ten_and_twenty_refinements_without_a_total_cap(): void
     {
         $service = $this->service();
 
@@ -164,7 +164,38 @@ class MonsterMarkAlchemyServiceTest extends TestCase
         $this->assertSame(20, $service->nextCost(9));
         $this->assertSame(30, $service->nextCost(10));
         $this->assertSame(30, $service->nextCost(19));
-        $this->assertNull($service->nextCost(20));
+        $this->assertSame(40, $service->nextCost(20));
+        $this->assertSame(40, $service->nextCost(100));
+    }
+
+    public function test_refinement_can_continue_after_twenty_total_points(): void
+    {
+        $character = $this->character();
+        $owned = $this->ownMark($character, '石牙狼', 55);
+        foreach (range(1, 20) as $index) {
+            DB::table('monster_mark_refinements')->insert([
+                'character_id' => $character->id,
+                'request_token' => sprintf('aaaaaaaa-aaaa-4aaa-8aaa-%012d', $index),
+                'stat' => 'str',
+                'points' => 1,
+                'mark_cost' => $index <= 10 ? 20 : 30,
+                'consumed_marks' => '[]',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+
+        $result = $this->service()->refine(
+            $character,
+            'def',
+            'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+        );
+
+        $this->assertSame(40, $result['spent_marks']);
+        $this->assertSame(40, $owned->fresh()->spent_quantity);
+        $this->assertSame(21, DB::table('monster_mark_refinements')->sum('points'));
+        $this->assertSame(1, $this->service()->bonusPointsFor($character)['def']);
+        $this->assertSame(40, $this->service()->summary($character)['next_cost']);
     }
 
     public function test_battle_result_progress_reports_global_surplus_and_remaining_cost(): void

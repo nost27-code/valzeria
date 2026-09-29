@@ -29,22 +29,18 @@
                 </div>
                 <div class="rounded-lg border border-slate-200 bg-slate-50 px-2 py-2">
                     <div class="text-[10px] font-bold text-slate-500">錬成回数</div>
-                    <div class="mt-0.5 text-lg font-black text-slate-900">{{ number_format($summary['total_points']) }}<span class="text-[10px]">/{{ $summary['max_total_points'] }}</span></div>
+                    <div class="mt-0.5 text-lg font-black text-slate-900">{{ number_format($summary['total_points']) }}<span class="ml-0.5 text-[10px]">回</span></div>
                 </div>
                 <div class="rounded-lg border border-slate-200 bg-slate-50 px-2 py-2">
                     <div class="text-[10px] font-bold text-slate-500">次に必要</div>
                     <div class="mt-0.5 text-lg font-black text-slate-900">
-                        @if($summary['next_cost'] !== null)
-                            {{ number_format($summary['next_cost']) }}<span class="ml-0.5 text-[10px]">個</span>
-                        @else
-                            <span class="text-sm text-amber-700">上限</span>
-                        @endif
+                        {{ number_format($summary['next_cost']) }}<span class="ml-0.5 text-[10px]">個</span>
                     </div>
                 </div>
             </div>
 
             <div class="mt-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] font-bold leading-relaxed text-slate-600">
-                1〜10回目は20個、11〜20回目は30個で1ptを錬成します。公開初期の総上限は20pt、1能力の上限も20ptです。割り振り後の変更はできません。
+                1〜10回目は20個、11〜20回目は30個、21回目以降は40個で1ptを錬成します。合計回数の上限はありません。1能力の上限は20ptで、割り振り後の変更はできません。
             </div>
         </section>
 
@@ -86,8 +82,8 @@
                 @endforeach
             </div>
 
-            @if($summary['next_cost'] === null)
-                <div class="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-center text-xs font-black text-amber-800">現在の総錬成上限に到達しています。</div>
+            @if($summary['all_stats_maxed'])
+                <div class="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-center text-xs font-black text-amber-800">すべての能力が個別の錬成上限20ptに到達しています。</div>
             @elseif(!$summary['can_refine'])
                 <div class="mt-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-center text-xs font-bold text-slate-500">次の錬成には余剰印があと{{ number_format(max(0, $summary['next_cost'] - $summary['surplus_total'])) }}個必要です。</div>
             @endif
@@ -120,7 +116,7 @@
             <div class="w-full max-w-sm rounded-2xl border border-amber-200 bg-white p-4 shadow-2xl" @click.outside="selectedStat = null">
                 <h2 class="text-base font-black text-slate-900">印錬成を確定しますか？</h2>
                 <div class="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-3 text-sm font-bold text-slate-700">
-                    余剰印 <span class="font-black text-amber-800">{{ number_format((int) ($summary['next_cost'] ?? 0)) }}個</span>を消費し、
+                    余剰印 <span class="font-black text-amber-800">{{ number_format((int) $summary['next_cost']) }}個</span>を消費し、
                     <span class="font-black text-slate-900" x-text="selectedLabel"></span>を
                     <span class="font-black text-amber-800">+<span x-text="selectedGain"></span></span>します。
                 </div>

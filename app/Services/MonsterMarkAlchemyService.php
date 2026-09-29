@@ -14,8 +14,6 @@ use RuntimeException;
 
 class MonsterMarkAlchemyService
 {
-    public const MAX_TOTAL_POINTS = 20;
-
     public const MAX_POINTS_PER_STAT = 20;
 
     private const FIRST_TIER_END = 10;
@@ -89,6 +87,8 @@ class MonsterMarkAlchemyService
             : collect();
         $surplusTotal = (int) $groups->sum('surplus_quantity');
         $nextCost = $this->nextCost($totalPoints);
+        $allStatsMaxed = collect($points)
+            ->every(fn (int $points): bool => $points >= self::MAX_POINTS_PER_STAT);
         $displayGroups = $groups
             ->where('surplus_quantity', '>', 0)
             ->sortBy([
@@ -101,10 +101,9 @@ class MonsterMarkAlchemyService
             'protected_quantity' => $this->monsterMarkService->protectedQuantity(),
             'surplus_total' => $surplusTotal,
             'total_points' => $totalPoints,
-            'max_total_points' => self::MAX_TOTAL_POINTS,
-            'remaining_points' => max(0, self::MAX_TOTAL_POINTS - $totalPoints),
             'next_cost' => $nextCost,
-            'can_refine' => $nextCost !== null && $surplusTotal >= $nextCost,
+            'all_stats_maxed' => $allStatsMaxed,
+            'can_refine' => ! $allStatsMaxed && $surplusTotal >= $nextCost,
             'points_by_stat' => $points,
             'bonuses' => $this->bonusesFor($character),
             'surplus_groups' => $displayGroups->take(20)->map(fn (array $group): array => [
@@ -131,9 +130,10 @@ class MonsterMarkAlchemyService
             return null;
         }
 
-        $totalPoints = (int) MonsterMarkRefinement::query()
-            ->where('character_id', $character->id)
-            ->sum('points');
+        $points = $this->bonusPointsFor($character);
+        $totalPoints = array_sum($points);
+        $allStatsMaxed = collect($points)
+            ->every(fn (int $points): bool => $points >= self::MAX_POINTS_PER_STAT);
         $surplusTotal = (int) $this->surplusGroups($this->ownedRows($character))
             ->sum('surplus_quantity');
         $nextCost = $this->nextCost($totalPoints);
@@ -142,8 +142,8 @@ class MonsterMarkAlchemyService
             'surplus_total' => $surplusTotal,
             'total_points' => $totalPoints,
             'next_cost' => $nextCost,
-            'remaining_to_next' => $nextCost === null ? null : max(0, $nextCost - $surplusTotal),
-            'at_cap' => $nextCost === null,
+            'remaining_to_next' => max(0, $nextCost - $surplusTotal),
+            'at_cap' => $allStatsMaxed,
         ];
     }
 
@@ -182,9 +182,6 @@ class MonsterMarkAlchemyService
             $statPoints = (int) ($pointsByStat[$stat] ?? 0);
             $cost = $this->nextCost($totalPoints);
 
-            if ($cost === null) {
-                throw new RuntimeException('現在の印錬成上限に到達しています。');
-            }
             if ($statPoints >= self::MAX_POINTS_PER_STAT) {
                 throw new RuntimeException($options[$stat]['label'].'は現在の錬成上限に到達しています。');
             }
@@ -269,11 +266,8 @@ class MonsterMarkAlchemyService
         return $result;
     }
 
-    public function nextCost(int $totalPoints): ?int
+    public function nextCost(int $totalPoints): int
     {
-        if ($totalPoints >= self::MAX_TOTAL_POINTS) {
-            return null;
-        }
         if ($totalPoints < self::FIRST_TIER_END) {
             return self::FIRST_TIER_COST;
         }

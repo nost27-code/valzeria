@@ -32,7 +32,7 @@
             </div>
             <div class="text-[9px] font-bold text-slate-500">
                 @if(($alchemy['at_cap'] ?? false) === true)
-                    現在の錬成上限に到達
+                    全能力が個別上限に到達
                 @elseif($alchemy !== null)
                     次の錬成まであと{{ number_format((int) ($alchemy['remaining_to_next'] ?? 0)) }}個
                 @else
