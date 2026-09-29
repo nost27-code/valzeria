@@ -942,6 +942,20 @@ class MainScreen extends Component
         $innFeePerLevel = max(1, (int) config('inn.fee_per_level', 10));
 
         $townFacilities = [
+            ...(! $isFerdiaSimpleBase ? [
+                [
+                    'category' => '冒険',
+                    'name' => '大陸フィールド',
+                    'symbol_image' => 'icon/icon_003.webp',
+                    'desc' => 'ヴァルゼリア大陸を歩いて旅する。魔物・宝箱・街の人々に出会える',
+                    'details' => ['見下ろし型', '魔物・宝箱'],
+                    'bg_image' => 'map/map.webp',
+                    'status' => 'active',
+                    'action' => '準備中',
+                    'notice_title' => '大陸フィールド',
+                    'notice_message' => '大陸フィールドは現在準備中です。今後のアップデートで公開予定です。',
+                ],
+            ] : []),
             ['category' => '休息・補給', 'name' => '宿屋', 'symbol_image' => 'facilities/facility_inn_300.webp', 'desc' => 'HPとSPを全回復して次の冒険に備える', 'details' => ["Lv{$innBeginnerLevelMax}まで: {$innBeginnerFee}G", "冒険開始から{$innBeginnerPeriodDays}日間も{$innBeginnerFee}G", "通常料金: Lv × {$innFeePerLevel}G"], 'badge' => ($this->character && $resolveTownState ? $innService->fee($this->character) . 'G' : null), 'bg_image' => 'facilities/inn.webp', 'status' => 'active', 'action' => '休む', 'route' => 'inn.rest', 'is_post' => true, 'rest_blocked' => $innRestBlocked, 'rest_block_message' => $innRestBlockMessage],
             ['category' => '休息・補給', 'name' => '補給所', 'symbol_image' => 'facilities/facility_supply_300.webp', 'desc' => '毎日の回復アイテム補給と残りストックを受け取る', 'details' => ['薬草・回復薬・魔力水', '各10個/日'], 'bg_image' => 'facilities/item.webp', 'status' => 'active', 'action' => '受け取る', 'route' => 'shop.items', 'is_post' => false],
             ...($hasEquipmentShop && !$isFerdiaSimpleBase ? [

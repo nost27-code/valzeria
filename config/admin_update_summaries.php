@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-09-29-field-coming-soon-entry',
+        'date' => '2026-09-29',
+        'category' => 'added',
+        'title' => '大陸フィールドの準備中導線を公開',
+        'detail' => '街の施設に大陸フィールドを追加しました。現在はタップすると準備中の案内を表示し、実際のフィールドへは移動しません。',
+    ],
+    [
         'id' => '2026-09-29-monster-mark-alchemy-total-cap',
         'date' => '2026-09-29',
         'category' => 'changed',

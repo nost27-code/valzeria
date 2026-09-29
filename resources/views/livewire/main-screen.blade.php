@@ -941,6 +941,14 @@
                                         <div class="flex-1 min-w-0"><div class="text-sm font-bold text-slate-800 leading-tight">{{ $facility['name'] }}</div>@if($facSubText)<div class="text-[11px] text-slate-500 truncate mt-0.5">{{ $facSubText }}</div>@endif</div>
                                         <svg class="w-4 h-4 text-slate-300 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clip-rule="evenodd"/></svg>
                                     </button>
+                                    @elseif(!$facIsInactive && !empty($facility['notice_message']))
+                                    <button type="button"
+                                            @click="openModal(@js((string) ($facility['notice_title'] ?? $facility['name'])), @js((string) $facility['notice_message']))"
+                                            class="flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors {{ $facHoverClass }} {{ $facBorder }}">
+                                        <div class="w-9 h-9 shrink-0 rounded-lg flex items-center justify-center overflow-hidden {{ $facIconBgClass }}">{!! $facIconHtml !!}</div>
+                                        <div class="flex-1 min-w-0"><div class="text-sm font-bold text-slate-800 leading-tight">{{ $facility['name'] }}</div>@if($facSubText)<div class="text-[11px] text-slate-500 truncate mt-0.5">{{ $facSubText }}</div>@endif</div>
+                                        <div class="shrink-0 flex items-center gap-1.5"><span class="text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded">準備中</span><svg class="w-4 h-4 text-slate-300" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clip-rule="evenodd"/></svg></div>
+                                    </button>
                                     @else
                                     <div class="flex items-center gap-3 px-4 py-2.5 opacity-40 {{ $facBorder }}">
                                         <div class="w-9 h-9 shrink-0 rounded-lg bg-slate-100 flex items-center justify-center overflow-hidden">{!! $facIconHtml !!}</div>
@@ -1370,7 +1378,7 @@
                                             </button>
                                         @else
                                             <button class="inline-flex w-full cursor-pointer items-center justify-center bg-[#1e40af] text-white hover:bg-[#1e3a8a] border-2 border-[#1e3a8a] px-4 py-1.5 rounded text-sm font-bold shadow transition-all duration-150 active:scale-95 text-center" 
-                                                    @click="openModal('{{ $facility['icon'] ?? '' }} {{ $facility['name'] }}', 'この施設へ入場しますか？（未実装モック）')">
+                                                    @click="openModal(@js((string) ($facility['notice_title'] ?? $facility['name'])), @js((string) ($facility['notice_message'] ?? 'この施設へ入場しますか？（未実装モック）')))">
                                                 {{ $facility['action'] }}
                                             </button>
                                         @endif

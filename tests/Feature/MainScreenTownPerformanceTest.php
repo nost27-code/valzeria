@@ -26,6 +26,9 @@ class MainScreenTownPerformanceTest extends TestCase
         $this->actingAs(User::factory()->create());
 
         Livewire::test(MainScreen::class, ['fixedLocation' => 'town'])
-            ->assertStatus(200);
+            ->assertStatus(200)
+            ->assertSee('大陸フィールド')
+            ->assertSee('大陸フィールドは現在準備中です。今後のアップデートで公開予定です。')
+            ->assertDontSee('href="/field"', false);
     }
 }
