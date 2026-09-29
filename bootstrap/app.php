@@ -16,6 +16,9 @@ return Application::configure(basePath: dirname(__DIR__))
     ])
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->redirectGuestsTo('/');
+        $middleware->web(replace: [
+            \Illuminate\Session\Middleware\StartSession::class => \App\Http\Middleware\StartSession::class,
+        ]);
         $middleware->alias([
             'admin' => \App\Http\Middleware\IsAdmin::class,
         ]);
