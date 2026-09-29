@@ -402,7 +402,7 @@
                                                         </button>
                                                     </form>
                                                 @else
-                                                    <a href="{{ route($facility['route'], $facility['params'] ?? []) }}" wire:navigate class="flex min-h-[58px] w-full items-center justify-center gap-2 px-2.5 py-2 text-center transition active:scale-[0.98]">
+                                                    <a href="{{ route($facility['route'], $facility['params'] ?? []) }}" @if(empty($facility['full_page'])) wire:navigate @endif class="flex min-h-[58px] w-full items-center justify-center gap-2 px-2.5 py-2 text-center transition active:scale-[0.98]">
                                                         @if($iconImage)
                                                             <img src="{{ asset('images/' . $iconImage) }}" alt="" class="h-7 w-7 object-contain">
                                                         @else
@@ -774,7 +774,7 @@
                                         ? 'bg-rose-50 border-rose-200 text-rose-600'
                                         : 'bg-amber-50 border-amber-200 text-amber-700';
                                 @endphp
-                                <a href="{{ route($facility['route'], $facility['params'] ?? []) }}" wire:navigate class="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-slate-50 active:bg-slate-100 {{ $sBorder }}">
+                                <a href="{{ route($facility['route'], $facility['params'] ?? []) }}" @if(empty($facility['full_page'])) wire:navigate @endif class="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-slate-50 active:bg-slate-100 {{ $sBorder }}">
                                     <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl {{ $sIconBg }}">{!! $sIconHtml !!}</div>
                                     <div class="min-w-0 flex-1">
                                         <div class="text-sm font-bold leading-tight {{ $sNameClass }}">{{ $facility['name'] }}</div>
@@ -923,7 +923,7 @@
                                         </button>
                                     </form>
                                     @elseif(!$facIsInactive && isset($facility['route']))
-                                    <a href="{{ route($facility['route'], $facility['params'] ?? []) }}" wire:navigate class="flex items-center gap-3 px-4 py-2.5 transition-colors {{ $facHoverClass }} {{ $facBorder }}">
+                                    <a href="{{ route($facility['route'], $facility['params'] ?? []) }}" @if(empty($facility['full_page'])) wire:navigate @endif class="flex items-center gap-3 px-4 py-2.5 transition-colors {{ $facHoverClass }} {{ $facBorder }}">
                                         <div class="w-9 h-9 shrink-0 rounded-lg flex items-center justify-center overflow-hidden {{ $facIconBgClass }}">{!! $facIconHtml !!}</div>
                                         <div class="flex-1 min-w-0"><div class="text-sm font-bold text-slate-800 leading-tight">{{ $facility['name'] }}</div>@if($facSubText)<div class="text-[11px] text-slate-500 truncate mt-0.5">{{ $facSubText }}</div>@endif</div>
                                         <div class="shrink-0 flex items-center gap-1.5">

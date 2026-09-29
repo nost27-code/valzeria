@@ -58,9 +58,9 @@ class CheckCharacterSelected
         // オンライン状態を更新（1分以上経過していれば更新してDBへの書き込み頻度を抑える）
         app(\App\Services\CharacterPresenceService::class)->touch($character);
 
-        // Livewireのタブ切り替えやpollingはログインそのものではないため、
+        // Livewireのタブ切り替えやフィールド位置同期はログインそのものではないため、
         // IP観測・日次ログイン記録のDB書き込み対象から外す。
-        if (!$request->hasHeader('X-Livewire')) {
+        if (!$request->hasHeader('X-Livewire') && $routeName !== 'field.sync') {
             app(\App\Services\PlayerLifecycleEventService::class)->recordLogin($user, $character);
         }
 

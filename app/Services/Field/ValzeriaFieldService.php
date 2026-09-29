@@ -77,10 +77,18 @@ class ValzeriaFieldService
     /**
      * @return array<string, mixed>
      */
-    public function worldDefinition(bool $includeEncounterLooks = true): array
+    public function worldDefinition(bool $includeGameplay = true): array
     {
         $areaIds = collect(config('valzeria_field.entrances'))->pluck('area_id')->all();
         $areas = Area::query()->whereIn('id', $areaIds)->get(['id', 'name', 'city_id', 'recommended_level_min', 'recommended_level_max'])->keyBy('id');
+        $encounters = config('valzeria_field.encounters');
+        $gathering = collect(config('valzeria_field.gathering'))->only(['cell_tiles', 'gather_chance', 'chest_chance'])->all();
+        if (! $includeGameplay) {
+            $encounters['spawn_chance'] = 0;
+            $encounters['second_chance'] = 0;
+            $gathering['gather_chance'] = 0;
+            $gathering['chest_chance'] = 0;
+        }
 
         return [
             'seed' => (int) config('valzeria_field.seed'),
@@ -123,9 +131,9 @@ class ValzeriaFieldService
                 return ['key' => $b['key'], 'name' => $b['name'], 'road' => $b['road'], 'tx' => $tx, 'ty' => $ty, 'unlock_city_id' => (int) $b['unlock_city_id']];
             })->values()->all(),
             'teleporters' => $this->teleporterDefinitions()->values()->all(),
-            'encounters' => config('valzeria_field.encounters'),
-            'gathering' => collect(config('valzeria_field.gathering'))->only(['cell_tiles', 'gather_chance', 'chest_chance'])->all(),
-            'monster_looks' => $includeEncounterLooks ? app(FieldEncounterService::class)->monsterLooks($areaIds) : [],
+            'encounters' => $encounters,
+            'gathering' => $gathering,
+            'monster_looks' => $includeGameplay ? app(FieldEncounterService::class)->monsterLooks($areaIds) : [],
             'regions' => collect(config('valzeria_field.regions'))->map(function (array $r): array {
                 $plane = $r['plane'] ?? self::PLANE_LAND;
                 [$tx, $ty] = $this->toTile($plane, $r['at']);
@@ -258,7 +266,7 @@ class ValzeriaFieldService
     /**
      * @return array<string, mixed>
      */
-    public function characterState(Character $character): array
+    public function characterState(Character $character, bool $includeGameplay = true): array
     {
         $position = $this->positionFor($character);
         $unlockedCityIds = $this->unlockedCityIds($character);
@@ -277,8 +285,8 @@ class ValzeriaFieldService
                 'y' => $position->y,
                 'facing' => $position->facing,
             ],
-            'vitals' => app(FieldEncounterService::class)->vitals($character),
-            'claimed_spots' => app(FieldEncounterService::class)->claimedSpotKeys($character),
+            'vitals' => $includeGameplay ? app(FieldEncounterService::class)->vitals($character) : null,
+            'claimed_spots' => $includeGameplay ? app(FieldEncounterService::class)->claimedSpotKeys($character) : [],
         ];
     }
 

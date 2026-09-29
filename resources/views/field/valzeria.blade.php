@@ -22,7 +22,9 @@
         }
     }
     $spectator = (bool) ($spectator ?? false);
-    $fieldFlash = array_values(array_filter([session('error'), session('success'), session('message')], fn ($m) => is_string($m) && $m !== ''));
+    $walkingOnly = (bool) ($walkingOnly ?? false);
+    $interactive = ! $spectator && ! $walkingOnly;
+    $fieldFlash = array_values(array_filter([$fieldNotice ?? null, session('error'), session('success'), session('message')], fn ($m) => is_string($m) && $m !== ''));
     $fieldBoot = [
         'world' => $world,
         'player' => $player,
@@ -31,20 +33,21 @@
         'assetVersions' => $fieldAssetVersions,
         'terrainAtlases' => $terrainAtlases,
         'spectator' => $spectator,
-        'nationBuilding' => ! $spectator && (bool) config('features.nation_community_enabled'),
+        'walkingOnly' => $walkingOnly,
+        'nationBuilding' => $interactive && (bool) config('features.nation_community_enabled'),
         'flash' => array_map(fn (string $m): string => strip_tags(str_replace(['<br>', '<br/>', '<br />'], ' ', $m)), $fieldFlash),
         'urls' => [
             'sync' => $spectator ? route('admin.field.presence') : route('field.sync'),
-            'nations' => $spectator ? '' : route('field.nations'),
-            'nationEditor' => $spectator ? '' : route('field.nation.editor'),
-            'nationSite' => $spectator ? '' : route('field.nation.site'),
-            'nationPreview' => $spectator ? '' : route('field.nation.preview'),
-            'nationSave' => $spectator ? '' : route('field.nation.save'),
-            'facility' => $spectator ? '' : url('/field/cities'),
-            'area' => $spectator ? '' : url('/field/areas'),
-            'teleport' => $spectator ? '' : url('/field/teleporters'),
-            'spot' => $spectator ? '' : url('/field/spots'),
-            'chat' => $spectator ? '' : route('field.chat'),
+            'nations' => $interactive ? route('field.nations') : '',
+            'nationEditor' => $interactive ? route('field.nation.editor') : '',
+            'nationSite' => $interactive ? route('field.nation.site') : '',
+            'nationPreview' => $interactive ? route('field.nation.preview') : '',
+            'nationSave' => $interactive ? route('field.nation.save') : '',
+            'facility' => $interactive ? url('/field/cities') : '',
+            'area' => $interactive ? url('/field/areas') : '',
+            'teleport' => $interactive ? url('/field/teleporters') : '',
+            'spot' => $interactive ? url('/field/spots') : '',
+            'chat' => $interactive ? route('field.chat') : '',
             'home' => $spectator ? route('admin.dashboard') : route('home'),
             'assets' => asset('images/field'),
             'worldMap' => asset('images/field/valzeria-worldmap.webp').'?v='.(is_file(public_path('images/field/valzeria-worldmap.webp')) ? filemtime(public_path('images/field/valzeria-worldmap.webp')) : 0),
@@ -190,11 +193,12 @@
         .spectator-player strong, .spectator-player small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .spectator-player small { margin-top: 2px; color: #bbc3d2; }
         .spectator-player time { font-size: 11px; color: #d7c58e; white-space: nowrap; }
-        body.is-spectator #hud-hp-bar, body.is-spectator .hud-vitals-text, body.is-spectator #btn-chat, body.is-spectator #btn-dash, body.is-spectator #pad-buttons, body.is-spectator #chat-log, body.is-spectator #chat-bar, body.is-spectator #prompt { display: none !important; }
+        body.is-spectator #hud-hp-bar, body.is-spectator .hud-vitals-text, body.is-spectator #btn-chat, body.is-spectator #btn-dash, body.is-spectator #pad-buttons, body.is-spectator #chat-log, body.is-spectator #chat-bar, body.is-spectator #prompt,
+        body.is-walking-only .hud-vitals, body.is-walking-only #btn-chat, body.is-walking-only #btn-action, body.is-walking-only #chat-log, body.is-walking-only #chat-bar { display: none !important; }
         body.is-spectator #help { bottom: max(10px, env(safe-area-inset-bottom)); }
     </style>
 </head>
-<body @class(['is-spectator' => $spectator])>
+<body @class(['is-spectator' => $spectator, 'is-walking-only' => $walkingOnly])>
     <canvas id="field-canvas"></canvas>
 
     <div id="hud" class="panel">
@@ -219,7 +223,9 @@
             <button type="button" id="btn-spectator-roster" class="btn">滞在者 <span id="spectator-count">0</span></button>
             <a href="{{ route('admin.dashboard') }}" class="btn">管理画面へ</a>
         @else
-            <button type="button" id="btn-chat" class="btn">話す (T)</button>
+            @unless($walkingOnly)
+                <button type="button" id="btn-chat" class="btn">話す (T)</button>
+            @endunless
             <button type="button" id="btn-dash" class="btn">走る</button>
             @if($nationCanBuild ?? false)
                 <button type="button"
@@ -261,7 +267,9 @@
 
     <div id="help">{{ $spectator
         ? '観察移動: タップ / 矢印 / WASD（障害物を通過）　地図: M　視点: ホイール / + -'
-        : '移動: タップ / 矢印 / WASD　走る: Shift　調べる: Space・Enter　地図: M　視点: ホイール / + -' }}</div>
+        : ($walkingOnly
+            ? '移動: タップ / 矢印 / WASD　走る: Shift　地図: M　宝箱・戦闘などは未実装です'
+            : '移動: タップ / 矢印 / WASD　走る: Shift　調べる: Space・Enter　地図: M　視点: ホイール / + -') }}</div>
 
     <div id="dialog" hidden>
         <div class="panel">

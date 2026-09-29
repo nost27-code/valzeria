@@ -27,7 +27,7 @@ class AdminFieldSpectatorTest extends TestCase
             ->assertSee('フィールド滞在者');
 
         $this->assertDatabaseCount('character_field_positions', 0);
-        $this->get('/field')->assertNotFound();
+        $this->get('/field')->assertRedirect(route('character.select'));
     }
 
     public function test_non_admin_cannot_open_or_poll_spectator(): void

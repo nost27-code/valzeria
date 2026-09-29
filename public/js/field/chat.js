@@ -19,7 +19,7 @@ export class FieldChat {
         this.scopeChosen = null; // 街ごとに、自分で選んだ宛先を覚えておく
 
         // 管理者観察モードは閲覧専用。チャットUIもショートカットも結び付けない。
-        if (game.spectator) return;
+        if (game.spectator || game.walkingOnly) return;
 
         $('chat-scope').addEventListener('click', () => {
             if (!this.zone) return;
@@ -49,7 +49,7 @@ export class FieldChat {
     }
 
     toggle(open) {
-        if (this.game.spectator) return;
+        if (this.game.spectator || this.game.walkingOnly) return;
         this.open = open;
         $('chat-bar').hidden = !open;
         $('btn-chat').classList.toggle('is-on', open);
@@ -63,7 +63,7 @@ export class FieldChat {
     }
 
     async send() {
-        if (this.game.spectator) return;
+        if (this.game.spectator || this.game.walkingOnly) return;
         const body = $('chat-input').value.trim();
         if (!body || this.sending) return;
         this.sending = true;

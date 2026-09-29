@@ -12,10 +12,7 @@
 */
 
 return [
-    'enabled' => filter_var(
-        env('VALZERIA_FIELD_ENABLED', in_array(env('APP_ENV', 'production'), ['local', 'testing'], true)),
-        FILTER_VALIDATE_BOOL,
-    ),
+    'enabled' => filter_var(env('VALZERIA_FIELD_ENABLED', true), FILTER_VALIDATE_BOOL),
 
     'seed' => 20260928,
     'tile' => 32,              // 1マスの px

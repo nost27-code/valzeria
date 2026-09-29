@@ -28,7 +28,10 @@ class MainScreenTownPerformanceTest extends TestCase
         Livewire::test(MainScreen::class, ['fixedLocation' => 'town'])
             ->assertStatus(200)
             ->assertSee('大陸フィールド')
-            ->assertSee('大陸フィールドは現在準備中です。今後のアップデートで公開予定です。')
-            ->assertDontSee('href="/field"', false);
+            ->assertSee('宝箱などは一切ありません。開発中のため、急遽メンテナンスに入る場合があります。')
+            ->assertSee('試験公開中')
+            ->assertSee('href="'.route('field.show').'"', false)
+            ->assertDontSee('href="'.route('field.show').'" wire:navigate', false)
+            ->assertDontSee('大陸フィールドは現在準備中です。今後のアップデートで公開予定です。');
     }
 }

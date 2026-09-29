@@ -1,5 +1,10 @@
 # DATA_MODEL.md
 
+## Adventurer field position (2026-09-29)
+
+- `character_field_positions` has one row per character (`character_id` unique) and stores `plane`, pixel `x/y`, `facing`, and the last presence heartbeat in `moved_at`. The walking preview creates a spawn row on first entry and updates it only through authenticated `/field/sync`; nearby-player reads use the configured time/radius limits.
+- The player preview does not write battle, reward, item, gathering, chat, facility, nation, HP/SP or progression data. The admin spectator reads active rows without creating or updating a position. This release reuses the existing table and adds no migration.
+
 ## Monster mark refinements (2026-09-29)
 
 - `character_monster_marks.spent_quantity` is an unsigned cumulative counter. `quantity` remains lifetime discoveries for collection stages and reduced post-15 drop rates. For each eligible same-area/same-name/non-boss group, spendable surplus is `max(0, SUM(quantity) - SUM(spent_quantity) - 15)`; boss, inactive and dungeon-lord marks are excluded.

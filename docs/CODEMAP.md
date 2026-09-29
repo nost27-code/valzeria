@@ -6,6 +6,13 @@
 
 Purpose: find relevant files quickly. Do not duplicate implementation details.
 
+## Adventurer field walking preview
+
+- `app/Http/Controllers/ValzeriaFieldController.php`, `routes/web.php`, `CheckCharacterSelected`: authenticated field screen and throttled position/presence sync. Polling still refreshes online presence but does not repeat daily login/IP observation. `VALZERIA_FIELD_ENABLED` can close both player endpoints during maintenance.
+- `app/Services/Field/ValzeriaFieldService.php`, `CharacterFieldPosition`: deterministic world payload, spawn/position persistence and nearby-player projection. Walking-preview payloads zero encounter/gather/chest rates and omit gameplay state.
+- `resources/views/field/valzeria.blade.php`, `public/js/field/`, `app/Livewire/MainScreen.php`: full-page mobile entry, tap/pathfinding movement, collision avoidance, map and presence. Walking-only mode does not expose combat, treasure, gathering, facility, chat or nation actions. Admin spectator remains read-only and independent.
+- `tests/Feature/PlayerFieldPreviewTest.php`, `AdminFieldSpectatorTest.php`, `MainScreenTownPerformanceTest.php`: access, emergency closure, non-gameplay payload, position sync, admin isolation and town entry coverage.
+
 ## Exploration map publication visibility
 
 - `TownMapRegistration` stores `visibility_scope` and the publication-time `nation_id_snapshot`.

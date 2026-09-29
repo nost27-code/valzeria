@@ -310,6 +310,10 @@ Route::middleware('auth')->group(function () {
         Route::post('/battle/sub-area-entries/{discovery}/explore', [BattleController::class, 'exploreSubArea'])->name('battle.sub_area.explore');
         Route::post('/battle/areas/{area}/boss', [BattleController::class, 'boss'])->middleware(\App\Http\Middleware\CommitExplorationRequest::class)->name('battle.boss');
         Route::post('/battle/return', [BattleController::class, 'returnToTown'])->name('battle.return');
+        Route::get('/field', [\App\Http\Controllers\ValzeriaFieldController::class, 'show'])->name('field.show');
+        Route::post('/field/sync', [\App\Http\Controllers\ValzeriaFieldController::class, 'sync'])
+            ->middleware('throttle:90,1,field-sync')
+            ->name('field.sync');
         Route::post('/exploration/items/{item}/use', [\App\Http\Controllers\ExplorationItemController::class, 'use'])->name('exploration.items.use');
         Route::post('/battle/pvp/{targetCharacter}', [BattleController::class, 'pvp'])->name('battle.pvp');
         Route::get('/champ/confirm', [ChampBattleController::class, 'confirm'])->name('champ.confirm');
