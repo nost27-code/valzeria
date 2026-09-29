@@ -91,7 +91,7 @@ class GoogleLoginFailureFeedbackTest extends TestCase
         Log::shouldReceive('info')
             ->once()
             ->with('Google login callback rejected.', \Mockery::on(
-                fn (array $context): bool => $context['reason'] === 'expired_or_missing_start'
+                fn (array $context): bool => $context['reason'] === 'invalid_state'
                     && $context['has_code'] === true
                     && $context['has_state'] === true
                     && preg_match('/^[a-f0-9]{16}$/', $context['fingerprint']) === 1
@@ -104,11 +104,11 @@ class GoogleLoginFailureFeedbackTest extends TestCase
 
         $this->get($callback)
             ->assertRedirect(route('top'))
-            ->assertSessionHas('error', 'ログインの有効期限が切れました。トップページからもう一度お試しください。');
+            ->assertSessionHas('error', 'ログインの確認に失敗しました。ブラウザの戻る・再読み込みは使わず、トップページからもう一度お試しください。');
 
         $this->get($callback)
             ->assertRedirect(route('top'))
-            ->assertSessionHas('error', 'ログインの有効期限が切れました。トップページからもう一度お試しください。');
+            ->assertSessionHas('error', 'ログインの確認に失敗しました。ブラウザの戻る・再読み込みは使わず、トップページからもう一度お試しください。');
     }
 
     public function test_unexpected_provider_failure_remains_a_warning(): void

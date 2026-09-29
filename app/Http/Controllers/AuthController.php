@@ -126,6 +126,19 @@ class AuthController extends Controller
     public function handleGoogleCallback(Request $request)
     {
         try {
+            // 古いタブの応答やキャンセルで、新しく開始した認証情報を消費しない。
+            $expectedState = $request->session()->get('state');
+            $callbackState = $request->input('state');
+            if (!is_string($expectedState) || $expectedState === ''
+                || !is_string($callbackState) || !hash_equals($expectedState, $callbackState)) {
+                return $this->rejectGoogleLogin(
+                    $request,
+                    'invalid_state',
+                    'ログインの確認に失敗しました。ブラウザの戻る・再読み込みは使わず、トップページからもう一度お試しください。',
+                    clearAttempt: false
+                );
+            }
+
             if ($request->filled('error')) {
                 $message = $request->string('error')->toString() === 'access_denied'
                     ? 'Googleログインがキャンセルされました。ログインする場合は、もう一度「Googleでログイン」を押してください。'
@@ -224,7 +237,8 @@ class AuthController extends Controller
         Request $request,
         string $reason,
         string $message,
-        ?\Throwable $exception = null
+        ?\Throwable $exception = null,
+        bool $clearAttempt = true
     ): \Illuminate\Http\RedirectResponse {
         $fingerprint = $this->googleLoginRejectionFingerprint($request, $reason);
         $context = array_filter([
@@ -243,11 +257,13 @@ class AuthController extends Controller
             }
         }
 
-        $request->session()->forget([
-            'state',
-            'auth.google_started_at',
-            'auth.google_link_user_id',
-        ]);
+        if ($clearAttempt) {
+            $request->session()->forget([
+                'state',
+                'auth.google_started_at',
+                'auth.google_link_user_id',
+            ]);
+        }
 
         return redirect()->route('top')->with('error', $message);
     }

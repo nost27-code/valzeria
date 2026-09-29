@@ -70,6 +70,78 @@ class PublicReadinessAuthTest extends TestCase
             new Response(200, [], json_encode(['sub' => 'google-test', 'email' => 'google@example.com', 'name' => '試験者', 'email_verified' => true]))];
     }
 
+    public function test_unrelated_callbacks_preserve_the_latest_login_until_it_succeeds(): void
+    {
+        $handler = $this->google(array_merge(...array_fill(0, 5, $this->googleResponses())));
+
+        foreach (['old_code', 'old_cancel', 'old_missing_code', 'missing_state', 'array_state'] as $scenario) {
+            $this->get(route('auth.google'))->assertRedirect();
+            $oldState = session('state');
+            $this->get(route('auth.google'))->assertRedirect();
+            $state = session('state');
+            $startedAt = session('auth.google_started_at');
+            $this->assertNotSame($oldState, $state);
+            $remainingResponses = $handler->count();
+            $query = match ($scenario) {
+                'old_code' => ['code' => 'old', 'state' => $oldState],
+                'old_cancel' => ['error' => 'access_denied', 'state' => $oldState],
+                'old_missing_code' => ['state' => $oldState],
+                'missing_state' => ['code' => 'old'],
+                'array_state' => ['code' => 'old', 'state' => ['invalid']],
+            };
+
+            $this->get(route('auth.google.callback', $query))
+                ->assertRedirect(route('top'))
+                ->assertSessionHas('error')
+                ->assertSessionHas('state', $state)
+                ->assertSessionHas('auth.google_started_at', $startedAt);
+            $this->assertSame($remainingResponses, $handler->count());
+
+            $this->get(route('auth.google.callback', ['code' => 'new', 'state' => $state]))
+                ->assertRedirect(route('character.select'))
+                ->assertSessionMissing('state')
+                ->assertSessionMissing('auth.google_started_at');
+            $this->assertAuthenticated();
+            auth()->logout();
+        }
+    }
+
+    public function test_old_cancellation_preserves_the_latest_guest_link(): void
+    {
+        $guest = User::create(['name' => 'ゲスト', 'email' => 'guest_'.Str::uuid().'@example.com']);
+        $this->google($this->googleResponses());
+        $this->actingAs($guest)->get(route('account.link.google'))->assertRedirect();
+        $oldState = session('state');
+        $this->get(route('account.link.google'))->assertRedirect();
+        $state = session('state');
+
+        $this->get(route('auth.google.callback', ['error' => 'access_denied', 'state' => $oldState]))
+            ->assertRedirect(route('top'))
+            ->assertSessionHas('state', $state)
+            ->assertSessionHas('auth.google_link_user_id', $guest->id);
+
+        $this->get(route('auth.google.callback', ['code' => 'new', 'state' => $state]))
+            ->assertRedirect(route('home'))
+            ->assertSessionMissing('auth.google_link_user_id');
+        $this->assertAuthenticatedAs($guest);
+        $this->assertSame('google-test', $guest->fresh()->google_id);
+    }
+
+    public function test_matching_state_still_rejects_invalid_start_times_without_network(): void
+    {
+        $handler = $this->google();
+        foreach ([0, now()->addMinute()->timestamp, now()->subSeconds(601)->timestamp] as $startedAt) {
+            $this->withSession(['state' => 'valid', 'auth.google_started_at' => $startedAt])
+                ->get(route('auth.google.callback', ['code' => 'code', 'state' => 'valid']))
+                ->assertRedirect(route('top'))
+                ->assertSessionHas('error', 'ログインの有効期限が切れました。トップページからもう一度お試しください。')
+                ->assertSessionMissing('state')
+                ->assertSessionMissing('auth.google_started_at');
+            $this->assertGuest();
+        }
+        $this->assertNull($handler->getLastRequest());
+    }
+
     public function test_valid_google_callback_logs_in_once_and_replay_is_rejected(): void
     {
         $before = User::count();
