@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-09-29-shop-armor-proficiency-labels',
+        'date' => '2026-09-29',
+        'category' => 'changed',
+        'title' => '装備屋の防具適性を分かりやすく表示',
+        'detail' => '防具カードに「ローブ・法衣適正」「鎧・重鎧適性外 65%」など、現在の職業に対する防具系統ごとの適性を表示します。',
+    ],
+    [
         'id' => '2026-09-29-admin-field-spectator',
         'date' => '2026-09-29',
         'category' => 'internal',

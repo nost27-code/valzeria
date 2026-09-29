@@ -196,13 +196,18 @@ class EquipmentPermissionService
 
     public function proficiencyGroupLabel(Item $item): ?string
     {
-        if ($item->type !== 'weapon' || !$item->weapon_category) {
+        $category = $this->categoryKey($item);
+        if (!$category) {
             return null;
         }
 
-        return self::WEAPON_PROFICIENCY_GROUP_LABELS[$item->weapon_category]
-            ?? self::WEAPON_LABELS[$item->weapon_category]
-            ?? $item->weapon_category;
+        return match ($item->type) {
+            'weapon' => self::WEAPON_PROFICIENCY_GROUP_LABELS[$category]
+                ?? self::WEAPON_LABELS[$category]
+                ?? $category,
+            'armor' => self::ARMOR_LABELS[$category] ?? $category,
+            default => null,
+        };
     }
 
     public function weaponRoleLabel(Item $item): ?string

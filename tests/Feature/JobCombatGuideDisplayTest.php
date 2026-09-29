@@ -162,7 +162,9 @@ class JobCombatGuideDisplayTest extends TestCase
             ->withSession(['current_character_id' => $character->id])
             ->get(route('shop.equipment', ['type' => 'armor']))
             ->assertOk()
-            ->assertSeeInOrder(['おすすめ順のローブ', 'おすすめ順の重鎧']);
+            ->assertSeeInOrder(['おすすめ順のローブ', 'おすすめ順の重鎧'])
+            ->assertSee('ローブ・法衣適正')
+            ->assertSee('鎧・重鎧適性外 65%');
     }
 
     public function test_job_detail_hides_retired_special_skill_and_shows_job_art_damage_references(): void

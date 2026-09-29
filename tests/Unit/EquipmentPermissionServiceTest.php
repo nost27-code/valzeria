@@ -44,4 +44,24 @@ class EquipmentPermissionServiceTest extends TestCase
             $this->assertSame($roleLabel, $service->weaponRoleLabel($item));
         }
     }
+
+    public function test_armor_categories_have_proficiency_group_labels(): void
+    {
+        $service = new EquipmentPermissionService();
+
+        $cases = [
+            'clothes' => '服・旅装',
+            'robe' => 'ローブ・法衣',
+            'cloak' => '外套・マント',
+            'light_armor' => '革鎧・軽鎧',
+            'heavy_armor' => '鎧・重鎧',
+        ];
+
+        foreach ($cases as $category => $label) {
+            $this->assertSame($label, $service->proficiencyGroupLabel(new Item([
+                'type' => 'armor',
+                'armor_category' => $category,
+            ])));
+        }
+    }
 }
