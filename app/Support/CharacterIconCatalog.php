@@ -82,6 +82,52 @@ class CharacterIconCatalog
         return asset($normalized) . '?v=' . $version;
     }
 
+    public static function versionedFieldAsset(?string $path): string
+    {
+        $requestedPath = '/'.ltrim(trim((string) $path), '/');
+        $normalized = self::normalize($requestedPath);
+
+        if (preg_match('/\A\/images\/chara\/chara_(\d{3})\.webp\z/', $normalized, $matches) === 1) {
+            $iconKey = 'chara_'.$matches[1];
+            $fieldPath = "/images/chara/poses/{$iconKey}/05_field.webp";
+            $absolutePath = public_path(ltrim($fieldPath, '/'));
+
+            if (is_file($absolutePath)) {
+                return asset($fieldPath).'?v='.filemtime($absolutePath);
+            }
+        }
+
+        $setKey = self::setKeyForPath($requestedPath);
+
+        if (
+            $setKey === null
+            && preg_match(
+                '/\A\/images\/chara\/exclusive\/(exclusive_\d{3})\/01_normal\.webp\z/',
+                $requestedPath,
+                $matches,
+            ) === 1
+            && is_file(public_path(ltrim($requestedPath, '/')))
+        ) {
+            $setKey = $matches[1];
+        }
+
+        if ($setKey !== null) {
+            $fieldPath = "/images/chara/exclusive/{$setKey}/05_field.webp";
+            $absolutePath = public_path(ltrim($fieldPath, '/'));
+
+            if (is_file($absolutePath)) {
+                return asset($fieldPath).'?v='.filemtime($absolutePath);
+            }
+
+            $requestedAbsolutePath = public_path(ltrim($requestedPath, '/'));
+            if (is_file($requestedAbsolutePath)) {
+                return asset($requestedPath).'?v='.filemtime($requestedAbsolutePath);
+            }
+        }
+
+        return self::versionedAsset($requestedPath);
+    }
+
     public static function adminIconAsset(): string
     {
         $absolutePath = public_path(ltrim(self::ADMIN_ICON, '/'));

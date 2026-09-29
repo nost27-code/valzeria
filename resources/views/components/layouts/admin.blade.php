@@ -139,6 +139,7 @@
                 'key' => 'other',
                 'label' => 'その他',
                 'items' => [
+                    ['route' => 'admin.field.show', 'label' => 'フィールド観察', 'abbr' => 'FIELD'],
                     ['route' => 'admin.inn-analytics', 'label' => '宿屋売上分析', 'abbr' => 'IN'],
                     ['route' => 'admin.world-activity-map', 'label' => '冒険者分布マップ', 'abbr' => 'MAP'],
                     ['route' => 'admin.growth-analytics', 'label' => '運営分析', 'abbr' => 'G'],

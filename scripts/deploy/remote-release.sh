@@ -186,6 +186,11 @@ link_public_directory() {
     local destination="$PUBLIC_DIR/$directory"
 
     [[ -d "$source" ]] || return 0
+    if [[ "$directory" == "js" && -d "$destination" && ! -L "$destination" ]]; then
+        if [[ -z "$(find "$destination" -mindepth 1 -maxdepth 1 -print -quit)" ]]; then
+            rmdir "$destination"
+        fi
+    fi
     if [[ -e "$destination" && ! -L "$destination" ]]; then
         echo "Refusing to replace non-link public directory: $destination" >&2
         return 74
@@ -196,7 +201,7 @@ link_public_directory() {
     mv -Tf "$destination.next" "$destination"
 }
 
-for directory in images tools contact_images; do
+for directory in images js tools contact_images; do
     link_public_directory "$directory"
 done
 

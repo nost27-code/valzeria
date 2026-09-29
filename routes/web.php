@@ -570,6 +570,10 @@ Route::get('/admin/tools/{asset}', function (string $asset) {
 
 Route::middleware(['auth', 'admin'])->group(function () {
     Route::get('/admin', \App\Livewire\Admin\AdminDashboard::class)->name('admin.dashboard');
+    Route::get('/admin/field', [\App\Http\Controllers\Admin\FieldSpectatorController::class, 'show'])->name('admin.field.show');
+    Route::post('/admin/field/presence', [\App\Http\Controllers\Admin\FieldSpectatorController::class, 'presence'])
+        ->middleware('throttle:60,1,admin-field-presence')
+        ->name('admin.field.presence');
     Route::get('/admin/contact-messages/badge-count', function () {
         $imported = null;
         $importError = null;

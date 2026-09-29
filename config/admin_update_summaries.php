@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-09-29-admin-field-spectator',
+        'date' => '2026-09-29',
+        'category' => 'internal',
+        'title' => '管理者向けフィールド観察モードを追加',
+        'detail' => '管理画面から大陸フィールドを透明な観察者として巡回できます。地上・天空の切替、直近の滞在者一覧、キャラクター位置への移動に対応し、観察者の位置保存やゲーム操作は行いません。',
+    ],
+    [
         'id' => '2026-09-29-apothecary-deadlock-handling',
         'date' => '2026-09-29',
         'category' => 'fixed',
