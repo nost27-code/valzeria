@@ -512,6 +512,8 @@ class BattleService
         $result->logs = $state->logs;
         $result->playerHpAfter = $playerActor->hp;
         $result->playerMpAfter = $playerActor->mp;
+        $result->enemyHpAfter = $enemyActor->hp;
+        $result->enemyMaxHp = $enemyActor->maxHp;
         $result->dropBonusPercent = $state->dropBonusPercent;
         $result->rareBonusPercent = $state->rareBonusPercent;
         $result->explorationSupportSnapshot = $state->explorationSupportSnapshot;

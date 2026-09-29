@@ -1,8 +1,37 @@
 <x-layouts.facility :title="(($result['result'] ?? null) === 'timeout' && (bool) ($result['timeout_defeat_display'] ?? false)) ? '時間切れ敗北' : ((($result['special_event'] ?? null) === 'depth_gate') ? (($result['depth_gate']['label'] ?? '深層') . 'への入口発見') : ((($result['special_event'] ?? null) === 'depth_retreat') ? '探索を継続' : '戦闘開始！'))" :subtitle="$areaName ?? null" :headerIconImage="$battleHeaderIconImage ?? 'images/icon/icon_005.webp'" :pageBackgroundStyle="$battleCityBackgroundStyle ?? null" :headerOverlayClass="$battleHeaderOverlayClass ?? 'bg-white/75'" :headerTitleClass="$battleHeaderTitleClass ?? null" :headerShellStyle="$battleHeaderShellStyle ?? null" :headerBorderClass="$battleHeaderBorderClass ?? null" bgImage="images/bg-battle.webp" :battleResultLayout="true" :showBattleChatLog="true" :exitUrl="isset($mapExploration) ? route('exploration-maps.leave') : null" :exitLabel="!empty($hasActiveValmonEgg) ? '卵を連れて街へ戻る' : ((isset($result['error']) && !empty($result['batch_explore']) && (int) data_get($result, 'batch_explore.completed', 0) === 0) ? '街に戻る' : null)">
-    <div class="py-1 flex flex-col items-center" data-battle-result-page>
+    <style>
+        [data-battle-compact-only] { display: none; }
+        [data-battle-result-page][data-compact="1"] [data-battle-compact-only] { display: block; }
+        [data-battle-compact-title] { display: none; }
+        [data-battle-result-page][data-compact="1"] [data-battle-compact-title] { display: inline-flex; }
+        [data-battle-result-page][data-compact="1"] [data-battle-full-only] { display: none !important; }
+        [data-battle-result-page][data-compact="1"] [data-compact-accordion] > summary { display: flex; }
+        [data-battle-result-page][data-compact="0"] [data-compact-accordion] > summary { display: none; }
+        body.battle-result-compact [data-facility-header-wrapper] { display: none; }
+        body.battle-result-compact [data-battle-result-content] { padding: .625rem; }
+        body.battle-result-compact [data-battle-result-page] { padding-top: 0; }
+        body.battle-result-compact [data-battle-compact-frame],
+        body.battle-result-compact [data-battle-action-area] { width: calc(100% - .75rem); max-width: 28rem; margin-left: auto; margin-right: auto; }
+        body.battle-result-compact [data-compact-accordion="result"] [class~="-mx-3"] { margin-left: 0; margin-right: 0; }
+        body.battle-result-compact [data-compact-accordion] { margin-bottom: .5rem; }
+        body.battle-result-compact [data-compact-accordion] > summary { list-style: none; }
+        body.battle-result-compact [data-compact-accordion] > summary::-webkit-details-marker { display: none; }
+        body.battle-result-compact [data-compact-accordion][open] > summary [data-accordion-chevron] { transform: rotate(180deg); }
+    </style>
+    <div class="py-1 flex flex-col items-center" data-battle-result-page data-character-id="{{ $character->id }}" data-compact="0">
         <div class="w-full mx-auto sm:px-6 lg:px-8">
             <div class="bg-white shadow-md sm:rounded-lg overflow-hidden border border-slate-200">
-                <div class="p-6 text-slate-800">
+                <div class="p-6 text-slate-800" data-battle-result-content>
+                    <div class="mb-3 flex min-h-9 items-center justify-between gap-3 px-1">
+                        <span data-battle-compact-title class="items-center gap-2 text-base font-black text-red-700">
+                            <img src="{{ asset($battleHeaderIconImage ?? 'images/icon/icon_005.webp') }}" alt="" class="h-6 w-6 object-contain">
+                            {{ (($result['special_event'] ?? null) === 'depth_gate') ? (($result['depth_gate']['label'] ?? '深層') . 'への入口発見') : ((($result['special_event'] ?? null) === 'depth_retreat') ? '探索を継続' : '戦闘開始！') }}
+                        </span>
+                        <button type="button" data-battle-compact-toggle aria-pressed="false" class="inline-flex min-h-9 items-center gap-2 rounded-full border border-sky-300 bg-sky-50 px-3 py-1.5 text-xs font-black text-sky-800 shadow-sm transition hover:bg-sky-100 active:scale-95">
+                            <span>簡易表示</span>
+                            <span data-battle-compact-state class="rounded-full bg-white px-2 py-0.5 text-[10px] text-slate-600">OFF</span>
+                        </button>
+                    </div>
                     @if(session('status'))
                         <div class="bg-amber-50 border border-amber-200 text-amber-700 px-4 py-3 rounded-lg mb-4 shadow-sm font-bold">
                             {{ session('status') }}
@@ -118,6 +147,35 @@
                             $enemyDef = $enemyStatDisplay['def'] ?? ['base' => (int) $result['enemy']->def, 'bonus' => 0, 'total' => (int) $result['enemy']->def];
                             $enemyDangerRate = (int) ($enemyStatDisplay['danger_rate'] ?? 0);
                             $equipmentDrops = $result['equipment_drops'] ?? [];
+                            $compactBatchExplore = is_array($result['batch_explore'] ?? null) ? $result['batch_explore'] : [];
+                            $compactCompleted = (int) ($compactBatchExplore['completed'] ?? 1);
+                            $compactRequested = (int) ($compactBatchExplore['requested'] ?? 1);
+                            $compactExp = (int) ($compactBatchExplore['total_exp'] ?? $result['exp_gained'] ?? 0);
+                            $compactJobExp = (int) ($compactBatchExplore['total_job_exp'] ?? $result['job_exp_gained'] ?? 0);
+                            $compactGold = (int) ($compactBatchExplore['total_gold'] ?? $result['gold_gained'] ?? 0);
+                            $compactMaterialQuantity = collect($result['material_drop'] ?? [])->sum(fn ($drop) => (int) ($drop['quantity'] ?? 1));
+                            $compactEquipmentCount = count($equipmentDrops);
+                            $compactMarkDrops = $compactBatchExplore['monster_mark_drops'] ?? (!empty($result['monster_mark_drop']) ? [$result['monster_mark_drop']] : []);
+                            $compactMarkCount = count($compactMarkDrops);
+                            $compactLevelUpCount = (int) ($result['level_up_count'] ?? 0);
+                            $compactResultLabel = $isVictoryResult
+                                ? '勝利'
+                                : ($isDefeatResult ? (($result['result'] ?? null) === 'timeout' ? '時間切れ' : '敗北') : 'イベント');
+                            $compactResultTone = $isVictoryResult
+                                ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+                                : ($isDefeatResult ? 'border-rose-200 bg-rose-50 text-rose-800' : 'border-violet-200 bg-violet-50 text-violet-800');
+                            $compactPlayerMaxHp = max(1, (int) ($finalStats['max_hp'] ?? 1));
+                            $compactPlayerHp = max(0, min($compactPlayerMaxHp, (int) $character->current_hp));
+                            $compactPlayerHpPercent = min(100, (int) floor(($compactPlayerHp / $compactPlayerMaxHp) * 100));
+                            $compactPlayerMaxSp = max(1, (int) ($finalStats['max_mp'] ?? 1));
+                            $compactPlayerSp = max(0, min($compactPlayerMaxSp, (int) $character->current_mp));
+                            $compactPlayerSpPercent = min(100, (int) floor(($compactPlayerSp / $compactPlayerMaxSp) * 100));
+                            $compactEnemyMaxHp = max(0, (int) ($result['enemy_max_hp'] ?? data_get($enemyStatDisplay, 'hp.total', 0)));
+                            $compactEnemyHp = max(0, min($compactEnemyMaxHp, (int) ($result['enemy_hp_after'] ?? ($isVictoryResult ? 0 : $compactEnemyMaxHp))));
+                            $compactEnemyHpPercent = $compactEnemyMaxHp > 0
+                                ? min(100, (int) floor(($compactEnemyHp / $compactEnemyMaxHp) * 100))
+                                : 0;
+                            $compactEnemyDangerPercent = min(100, max(0, $enemyDangerRate));
                             $secretRealmImage = $result['secret_realm_image'] ?? 'images/map/unexplored_region01.webp';
                             $secretRealmName = $result['secret_realm_name'] ?? '秘境';
                             $rankOrder = ['G' => 0, 'F' => 1, 'E' => 2, 'D' => 3, 'C' => 4, 'B' => 5, 'A' => 6, 'S' => 7, 'SS' => 8, 'SSS' => 9, 'EPIC' => 10];
@@ -303,7 +361,7 @@
                                     </div>
                                 </div>
                             @endif
-                            <div class="mb-8 md:hidden">
+                            <div class="mb-8 md:hidden" data-battle-full-only>
                                 @if($isTreasure)
                                     <div class="mx-auto max-w-xl overflow-hidden rounded-xl border-2 border-amber-300 bg-amber-50 shadow-lg shadow-amber-900/10">
                                         <div class="bg-gradient-to-b from-amber-100 to-yellow-50 px-4 py-5 text-center">
@@ -395,7 +453,7 @@
                                 @endif
                             </div>
 
-                            <div class="mb-8 hidden md:grid md:grid-cols-2 md:items-start md:gap-x-20 md:gap-y-5">
+                            <div class="mb-8 hidden md:grid md:grid-cols-2 md:items-start md:gap-x-20 md:gap-y-5" data-battle-full-only>
                                 @if(!$isTreasure)
                                     <div class="col-span-2 row-start-1 mx-auto grid w-full max-w-4xl grid-cols-[1fr_auto_1fr] items-end">
                                         <img src="{{ \App\Support\CharacterIconCatalog::versionedAsset($characterImagePath) }}" alt="{{ $character->name }}" class="{{ $characterBattleImageClass }} -translate-x-10 justify-self-center -scale-x-100 object-contain">
@@ -520,14 +578,65 @@
                             </div>
                         @endif
 
+                        <section data-battle-compact-only data-battle-compact-frame class="mb-2 rounded-xl border border-slate-200 bg-slate-50 p-2 shadow-sm" aria-label="簡易戦闘結果">
+                            @if($isTreasure)
+                                <div class="flex items-center justify-center gap-3 py-1">
+                                    <img src="{{ asset('images/icon/shining_treasure_chest.webp') }}" alt="輝く宝箱" class="h-14 w-14 object-contain">
+                                    <div>
+                                        <div class="text-sm font-black text-amber-900">輝く宝箱</div>
+                                        <div class="text-[11px] font-bold text-amber-700">戦利品を発見</div>
+                                    </div>
+                                </div>
+                            @else
+                                <div class="grid items-center gap-2" style="grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);">
+                                    <div class="min-w-0 text-center">
+                                        <div class="mb-1 text-[9px] font-black text-rose-700">
+                                            <div class="mb-0.5 flex items-center justify-between gap-1"><span>HP</span><span data-compact-player-hp-value>{{ number_format($compactPlayerHp) }}/{{ number_format($compactPlayerMaxHp) }}</span></div>
+                                            <div class="h-1.5 overflow-hidden rounded-full bg-rose-100"><div data-compact-player-hp-bar class="h-full rounded-full bg-rose-500 transition-all" style="width: {{ $compactPlayerHpPercent }}%;"></div></div>
+                                        </div>
+                                        <div class="mb-1 text-[9px] font-black text-sky-700">
+                                            <div class="mb-0.5 flex items-center justify-between gap-1"><span>SP</span><span data-compact-player-sp-value>{{ number_format($compactPlayerSp) }}/{{ number_format($compactPlayerMaxSp) }}</span></div>
+                                            <div class="h-1.5 overflow-hidden rounded-full bg-sky-100"><div data-compact-player-sp-bar class="h-full rounded-full bg-sky-500 transition-all" style="width: {{ $compactPlayerSpPercent }}%;"></div></div>
+                                        </div>
+                                        <img src="{{ \App\Support\CharacterIconCatalog::versionedAsset($characterImagePath) }}" alt="{{ $character->name }}" class="mx-auto h-14 w-14 -scale-x-100 object-contain">
+                                        <div class="truncate text-[11px] font-black text-amber-900">{{ $character->name }}</div>
+                                    </div>
+                                    <div class="text-lg font-black italic text-red-500">VS</div>
+                                    <div class="min-w-0 text-center">
+                                        <div class="mb-1 text-[9px] font-black text-rose-700">
+                                            <div class="mb-0.5 flex items-center justify-between gap-1"><span>HP</span><span>{{ number_format($compactEnemyHp) }}/{{ number_format($compactEnemyMaxHp) }}</span></div>
+                                            <div class="h-1.5 overflow-hidden rounded-full bg-rose-100"><div class="h-full rounded-full bg-rose-600" style="width: {{ $compactEnemyHpPercent }}%;"></div></div>
+                                        </div>
+                                        <div class="mb-1 text-[9px] font-black text-orange-700">
+                                            <div class="mb-0.5 flex items-center justify-between gap-1"><span>危険度</span><span>{{ number_format($enemyDangerRate) }}%</span></div>
+                                            <div class="h-1.5 overflow-hidden rounded-full bg-orange-100"><div class="h-full rounded-full bg-orange-500" style="width: {{ $compactEnemyDangerPercent }}%;"></div></div>
+                                        </div>
+                                        @if($enemyImagePath)
+                                            <img src="{{ asset($enemyImagePath) }}" alt="{{ $result['enemy']->name }}" class="mx-auto h-16 w-16 object-contain">
+                                        @endif
+                                        <div class="truncate text-[11px] font-black text-red-900">{{ $result['enemy']->name }}</div>
+                                    </div>
+                                </div>
+                            @endif
+                        </section>
+
                         {{-- 戦闘ログ --}}
                         @php
                             $shouldShowBattleLog = (!$isDepthGate && !$isDepthRetreat)
                                 || ($isDepthGate && !empty($result['batch_explore']));
                         @endphp
-                        @if($shouldShowBattleLog)
-                        @endif
                         @if($shouldShowBattleLog && !empty($result['log']))
+                            <details open data-compact-accordion="log" data-battle-compact-frame class="mb-2 rounded-lg border border-slate-200 bg-white">
+                                <summary class="hidden min-h-11 cursor-pointer items-center justify-between gap-3 px-3 py-2 text-sm font-black text-slate-800">
+                                    <span class="flex items-center gap-2">
+                                        <img src="{{ asset('images/icon/icon_005.webp') }}" alt="" class="h-4 w-4 object-contain">
+                                        戦闘ログ
+                                    </span>
+                                    <span class="flex items-center gap-2 text-[11px] font-bold text-slate-500">
+                                        タップで表示
+                                        <span data-accordion-chevron class="text-sm transition-transform">⌄</span>
+                                    </span>
+                                </summary>
                             <style>
                                 .battle-log-entry { letter-spacing: .01em; }
                                 .battle-log-entry .battle-log-enemy-action,
@@ -575,8 +684,33 @@
                             <div class="battle-log-entry px-2 mb-6 font-mono text-sm sm:text-base leading-loose text-slate-700">
                                 {!! nl2br($result['log']) !!}
                             </div>
+                            </details>
                         @endif
 
+                        <details open data-compact-accordion="result" data-battle-compact-frame class="mb-2 rounded-lg border border-slate-200 bg-white">
+                            <summary class="hidden min-h-11 cursor-pointer items-center justify-between gap-2 px-3 py-2">
+                                <span class="min-w-0">
+                                    <span class="flex flex-wrap items-center gap-1.5">
+                                        <span class="rounded-full border px-2 py-0.5 text-xs font-black {{ $compactResultTone }}">{{ $compactResultLabel }}</span>
+                                        @if($compactRequested > 1)
+                                            <span class="text-xs font-black text-slate-700">{{ number_format($compactCompleted) }}/{{ number_format($compactRequested) }}回</span>
+                                        @endif
+                                        <span class="text-[10px] font-black text-amber-700">EXP +{{ number_format($compactExp) }}</span>
+                                        <span class="text-[10px] font-black text-green-700">Job +{{ number_format($compactJobExp) }}</span>
+                                        <span class="text-[10px] font-black text-amber-700">{{ number_format($compactGold) }}G</span>
+                                    </span>
+                                    @if($compactEquipmentCount > 0 || $compactMaterialQuantity > 0 || $compactMarkCount > 0 || $compactLevelUpCount > 0 || !empty($compactBatchExplore['stop_text']))
+                                        <span class="mt-1 flex flex-wrap gap-1 text-[10px] font-black text-slate-600">
+                                            @if($compactEquipmentCount > 0)<span>装備×{{ number_format($compactEquipmentCount) }}</span>@endif
+                                            @if($compactMaterialQuantity > 0)<span>素材×{{ number_format($compactMaterialQuantity) }}</span>@endif
+                                            @if($compactMarkCount > 0)<span class="text-violet-700">印×{{ number_format($compactMarkCount) }}</span>@endif
+                                            @if($compactLevelUpCount > 0)<span class="text-rose-700">Lv UP×{{ number_format($compactLevelUpCount) }}</span>@endif
+                                            @if(!empty($compactBatchExplore['stop_text']))<span class="text-rose-700">{{ $compactBatchExplore['stop_text'] }}</span>@endif
+                                        </span>
+                                    @endif
+                                </span>
+                                <span data-accordion-chevron class="shrink-0 text-sm text-slate-500 transition-transform">⌄</span>
+                            </summary>
                         @if($showGrowthCta)
                             <div class="mb-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 shadow-sm">
                                 <div class="flex items-start gap-3">
@@ -1700,8 +1834,10 @@
                         </div>
                     @endif
 
+                        </details>
+
                     {{-- アクションボタン --}}
-                    <div class="flex flex-col justify-center items-center gap-3 mt-6 pb-6">
+                    <div class="flex flex-col justify-center items-center gap-3 mt-6 pb-6" data-battle-action-area>
 
                         @php
                             $battleWaitDepthKey = data_get($result, 'exploration_summary.depth.current.key', 'surface');
@@ -2280,6 +2416,7 @@
         (function() {
             if (window.__valzeriaBattleResultHandlersInstalled) {
                 window.__valzeriaInitBattleResultTimers && window.__valzeriaInitBattleResultTimers(document);
+                window.__valzeriaInitBattleCompactMode && window.__valzeriaInitBattleCompactMode(document);
                 return;
             }
             window.__valzeriaBattleResultHandlersInstalled = true;
@@ -2294,6 +2431,56 @@
             function currentResultPage() {
                 return document.querySelector('[data-battle-result-page]');
             }
+
+            function battleCompactStorageKey(page) {
+                const characterId = page?.dataset.characterId || 'guest';
+                return `valzeria:battle-result-compact:${characterId}`;
+            }
+
+            function setBattleCompactMode(page, enabled, persist = false) {
+                if (!page) return;
+
+                page.dataset.compact = enabled ? '1' : '0';
+                document.body.classList.toggle('battle-result-compact', enabled);
+
+                const toggle = page.querySelector('[data-battle-compact-toggle]');
+                const state = page.querySelector('[data-battle-compact-state]');
+                if (toggle) toggle.setAttribute('aria-pressed', enabled ? 'true' : 'false');
+                if (state) {
+                    state.textContent = enabled ? 'ON' : 'OFF';
+                    state.classList.toggle('bg-sky-700', enabled);
+                    state.classList.toggle('text-white', enabled);
+                    state.classList.toggle('bg-white', !enabled);
+                    state.classList.toggle('text-slate-600', !enabled);
+                }
+
+                page.querySelectorAll('[data-compact-accordion]').forEach((details) => {
+                    details.open = !enabled;
+                });
+
+                if (persist) {
+                    try {
+                        window.localStorage.setItem(battleCompactStorageKey(page), enabled ? '1' : '0');
+                    } catch (error) {
+                        // 保存できない環境でも、この画面内の切替は維持する。
+                    }
+                }
+            }
+
+            window.__valzeriaInitBattleCompactMode = function(root = document) {
+                const page = root.matches?.('[data-battle-result-page]')
+                    ? root
+                    : root.querySelector?.('[data-battle-result-page]');
+                if (!page) return;
+
+                let enabled = false;
+                try {
+                    enabled = window.localStorage.getItem(battleCompactStorageKey(page)) === '1';
+                } catch (error) {
+                    enabled = false;
+                }
+                setBattleCompactMode(page, enabled);
+            };
 
             let battleSupportPreviousBodyOverflow = '';
 
@@ -2846,12 +3033,20 @@
                 const hpText = document.getElementById('post-battle-hp-text');
                 const hpBar = document.getElementById('post-battle-hp-bar');
                 const hpPercentText = document.getElementById('post-battle-hp-percent');
-                if (!hp || !hpText || !hpBar || !hpPercentText) return;
+                if (!hp) return;
 
                 const current = Number(hp.current || 0);
                 const max = Math.max(1, Number(hp.max || 1));
                 const percent = Math.min(100, Math.floor((current / max) * 100));
                 const colors = hpBarColor(percent);
+
+                document.querySelectorAll('[data-compact-player-hp-value]').forEach((element) => {
+                    element.textContent = `${formatNumber.format(current)}/${formatNumber.format(max)}`;
+                });
+                document.querySelectorAll('[data-compact-player-hp-bar]').forEach((element) => {
+                    element.style.width = `${percent}%`;
+                });
+                if (!hpText || !hpBar || !hpPercentText) return;
 
                 hpText.innerHTML = `${formatNumber.format(current)} / ${formatNumber.format(max)}&ensp;<span style="opacity:0.7;">${percent}%</span>`;
                 hpText.style.color = colors.text;
@@ -2871,11 +3066,19 @@
                 const mpText = document.getElementById('post-battle-mp-text');
                 const mpBar = document.getElementById('post-battle-mp-bar');
                 const mpPercentText = document.getElementById('post-battle-mp-percent');
-                if (!mp || !mpText || !mpBar || !mpPercentText) return;
+                if (!mp) return;
 
                 const current = Number(mp.current || 0);
                 const max = Math.max(1, Number(mp.max || 1));
                 const percent = Math.min(100, Math.floor((current / max) * 100));
+
+                document.querySelectorAll('[data-compact-player-sp-value]').forEach((element) => {
+                    element.textContent = `${formatNumber.format(current)}/${formatNumber.format(max)}`;
+                });
+                document.querySelectorAll('[data-compact-player-sp-bar]').forEach((element) => {
+                    element.style.width = `${percent}%`;
+                });
+                if (!mpText || !mpBar || !mpPercentText) return;
 
                 mpText.innerHTML = `${formatNumber.format(current)} / ${formatNumber.format(max)}&ensp;<span style="opacity:0.7;">${percent}%</span>`;
                 mpBar.style.width = `${percent}%`;
@@ -3045,9 +3248,10 @@
                         window.history.replaceState({}, '', response.url);
                     }
 
-                    window.__valzeriaInitBattleResultTimers(document);
-                    syncBattleStaminaFromDom(document);
                     const replacedPage = currentResultPage();
+                    window.__valzeriaInitBattleResultTimers(document);
+                    window.__valzeriaInitBattleCompactMode(replacedPage || document);
+                    syncBattleStaminaFromDom(document);
                     if (replacedPage) {
                         replacedPage.scrollIntoView({ block: 'start' });
                     }
@@ -3149,6 +3353,14 @@
             });
 
             document.addEventListener('click', function(event) {
+                const compactToggle = event.target.closest('[data-battle-compact-toggle]');
+                if (compactToggle) {
+                    event.preventDefault();
+                    const page = compactToggle.closest('[data-battle-result-page]');
+                    setBattleCompactMode(page, page?.dataset.compact !== '1', true);
+                    return;
+                }
+
                 const supportOpenButton = event.target.closest('#battle-support-modal-open');
                 if (supportOpenButton) {
                     event.preventDefault();
@@ -3214,6 +3426,7 @@
 
             document.addEventListener('DOMContentLoaded', function() {
                 window.__valzeriaInitBattleResultTimers(document);
+                window.__valzeriaInitBattleCompactMode(document);
                 syncBattleStaminaFromDom(document);
             });
         })();

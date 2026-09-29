@@ -44,6 +44,9 @@ class EnemyDurabilityBattleIntegrationTest extends TestCase
         $this->assertSame((int) round(300 * 1.10), $result->enemyStatDisplay['def']['base']);
         $this->assertSame(0, $result->enemyStatDisplay['def']['bonus']);
         $this->assertSame((int) round(10000 * 1.08), $result->enemyStatDisplay['hp']['base']);
+        $this->assertSame($result->enemyStatDisplay['hp']['total'], $result->enemyMaxHp);
+        $this->assertGreaterThanOrEqual(0, $result->enemyHpAfter);
+        $this->assertLessThanOrEqual($result->enemyMaxHp, $result->enemyHpAfter);
     }
 
     public function test_city1_enemy_is_completely_unaffected_by_durability_config(): void

@@ -917,6 +917,8 @@ class ExplorationService
             ...($experienceTalisman ? ['experience_talisman' => $experienceTalisman] : []),
             'progression' => $progression,
             'enemy_stat_display' => $battleResult->enemyStatDisplay ?? [],
+            'enemy_hp_after' => $battleResult->enemyHpAfter,
+            'enemy_max_hp' => $battleResult->enemyMaxHp,
             'level_up_count' => $levelUpCount,
             'level_up_details' => $levelUpDetails,
             'unlocked_areas' => $unlockedAreas,

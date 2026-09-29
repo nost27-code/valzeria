@@ -131,7 +131,7 @@
                 >
             </div>
         @endif
-        <div class="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 {{ $showFacilityHeader ? ($isBattleResult ? 'pt-4' : 'pt-6') : '' }} w-full">
+        <div class="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 {{ $showFacilityHeader ? ($isBattleResult ? 'pt-4' : 'pt-6') : '' }} w-full" data-facility-header-wrapper>
             @if($showFacilityHeader)
             <!-- 施設ヘッダーブロック -->
             <div class="relative bg-white rounded-lg shadow-md border-t-4 {{ $headerBorderClass ?? ($isBattleResult ? 'border-red-600' : 'border-[#003366]') }} overflow-hidden {{ $isBattleResult ? 'mb-1' : 'mb-2' }}" @if($headerShellStyle) style="{{ $headerShellStyle }}" @endif>

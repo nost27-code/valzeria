@@ -25,6 +25,8 @@ class BattleResult
 
     public int $playerHpAfter = 0;
     public int $playerMpAfter = 0;
+    public int $enemyHpAfter = 0;
+    public int $enemyMaxHp = 0;
     public ?array $explorationSupportSnapshot = null;
 
     // 戦闘ログ観測用のテレメトリ（log_textの解析なしで集計できるようにする）。

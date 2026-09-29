@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-09-29-battle-result-compact-mode',
+        'date' => '2026-09-29',
+        'category' => 'added',
+        'title' => '戦闘結果にスマホ向け簡易表示を追加',
+        'detail' => '簡易表示では戦闘開始・HP/SP・敵HP・危険度を小さくまとめ、戦闘ログと戦闘結果を折りたためます。設定は冒険者ごとにブラウザへ保存され、続けて探索した結果にも引き継がれます。',
+    ],
+    [
         'id' => '2026-09-29-battle-monster-mark-status',
         'date' => '2026-09-29',
         'category' => 'added',
