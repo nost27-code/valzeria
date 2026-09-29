@@ -110,8 +110,7 @@ class ReleaseDeploymentScriptTest extends TestCase
         $remoteSource = file_get_contents(base_path('scripts/deploy/remote-release.sh'));
         $this->assertStringContainsString('restored the previous release', $remoteSource);
         $this->assertStringContainsString('link_public_directory', $remoteSource);
-        $this->assertStringContainsString('for directory in images js tools contact_images; do', $remoteSource);
-        $this->assertStringContainsString('[[ "$directory" == "js" && -d "$destination" && ! -L "$destination" ]]', $remoteSource);
+        $this->assertStringContainsString('for directory in images tools contact_images js/field; do', $remoteSource);
         $this->assertStringContainsString('Refusing to replace non-link public directory', $remoteSource);
         $this->assertStringContainsString('-ef "$PUBLIC_DIR/$file"', $remoteSource);
         $this->assertStringContainsString("realpath('\${escaped_current_link}')", $remoteSource);
