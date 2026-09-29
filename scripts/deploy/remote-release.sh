@@ -191,6 +191,7 @@ link_public_directory() {
         return 74
     fi
 
+    mkdir -p "$(dirname "$destination")"
     rm -f "$destination.next"
     ln -s "$source" "$destination.next"
     mv -Tf "$destination.next" "$destination"

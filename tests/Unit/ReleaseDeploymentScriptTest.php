@@ -111,6 +111,7 @@ class ReleaseDeploymentScriptTest extends TestCase
         $this->assertStringContainsString('restored the previous release', $remoteSource);
         $this->assertStringContainsString('link_public_directory', $remoteSource);
         $this->assertStringContainsString('for directory in images tools contact_images js/field; do', $remoteSource);
+        $this->assertStringContainsString('mkdir -p "$(dirname "$destination")"', $remoteSource);
         $this->assertStringContainsString('Refusing to replace non-link public directory', $remoteSource);
         $this->assertStringContainsString('-ef "$PUBLIC_DIR/$file"', $remoteSource);
         $this->assertStringContainsString("realpath('\${escaped_current_link}')", $remoteSource);
