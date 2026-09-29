@@ -23,7 +23,9 @@ class AdminFieldSpectatorTest extends TestCase
             ->assertSee('フィールド観察')
             ->assertSee('管理者観察モード')
             ->assertSee('"spectator":true', false)
+            ->assertSee('"spectator_multiplier":8', false)
             ->assertSee(route('admin.field.presence'), false)
+            ->assertSee('超高速')
             ->assertSee('フィールド滞在者');
 
         $this->assertDatabaseCount('character_field_positions', 0);

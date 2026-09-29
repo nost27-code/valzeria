@@ -22,6 +22,18 @@ export function moveVectorToTarget(current, target, stopDistance = 4) {
     return { x: dx / distance, y: dy / distance, distance, arrived: false };
 }
 
+export function movementSpeedMultiplier(movement, spectator, dashing) {
+    const spectatorMultiplier = Number(movement.spectator_multiplier ?? 4);
+    const dashMultiplier = Number(movement.dash_multiplier ?? 1);
+    const base = spectator && Number.isFinite(spectatorMultiplier) && spectatorMultiplier > 0
+        ? spectatorMultiplier
+        : 1;
+    const dash = dashing && Number.isFinite(dashMultiplier) && dashMultiplier > 0
+        ? dashMultiplier
+        : 1;
+    return base * dash;
+}
+
 export class FieldInput {
     constructor() {
         this.dirs = { up: false, down: false, left: false, right: false };

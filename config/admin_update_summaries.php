@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-09-29-admin-field-spectator-speed',
+        'date' => '2026-09-29',
+        'category' => 'internal',
+        'title' => 'フィールド観察の移動速度を強化',
+        'detail' => '管理者のフィールド観察モードを従来の2倍の速度で移動できるようにしました。Shiftキーまたは画面の「超高速」ボタンで、さらに加速できます。プレイヤーの速度は変わりません。',
+    ],
+    [
         'id' => '2026-09-29-shop-armor-proficiency-labels',
         'date' => '2026-09-29',
         'category' => 'changed',

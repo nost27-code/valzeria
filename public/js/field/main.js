@@ -6,7 +6,7 @@ import { FACING, TILE } from './constants.js';
 import { FieldBattle } from './battle.js';
 import { FieldChat } from './chat.js';
 import { FieldEncounters } from './encounters.js';
-import { FieldInput, fieldPointFromClient, moveVectorToTarget } from './input.js';
+import { FieldInput, fieldPointFromClient, movementSpeedMultiplier, moveVectorToTarget } from './input.js';
 import { MacroMap } from './macro.js';
 import { panMapCamera, pinchMapCamera, zoomMapCamera } from './map-camera.js';
 import { mapDestinations } from './map-destinations.js';
@@ -245,7 +245,7 @@ class FieldGame {
         p.moving = v.x !== 0 || v.y !== 0;
         if (p.moving) {
             const speed = def.movement.walk_tiles_per_second * TILE
-                * (this.spectator ? 4 : (this.input.dashing ? def.movement.dash_multiplier : 1));
+                * movementSpeedMultiplier(def.movement, this.spectator, this.input.dashing);
             const distance = Math.min(speed * dt, targetDistance ?? Number.POSITIVE_INFINITY);
             const dx = v.x * distance;
             const dy = v.y * distance;

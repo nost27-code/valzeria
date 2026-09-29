@@ -193,7 +193,7 @@
         .spectator-player strong, .spectator-player small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .spectator-player small { margin-top: 2px; color: #bbc3d2; }
         .spectator-player time { font-size: 11px; color: #d7c58e; white-space: nowrap; }
-        body.is-spectator #hud-hp-bar, body.is-spectator .hud-vitals-text, body.is-spectator #btn-chat, body.is-spectator #btn-dash, body.is-spectator #pad-buttons, body.is-spectator #chat-log, body.is-spectator #chat-bar, body.is-spectator #prompt,
+        body.is-spectator #hud-hp-bar, body.is-spectator .hud-vitals-text, body.is-spectator #btn-chat, body.is-spectator #pad-buttons, body.is-spectator #chat-log, body.is-spectator #chat-bar, body.is-spectator #prompt,
         body.is-walking-only .hud-vitals, body.is-walking-only #btn-chat, body.is-walking-only #btn-action, body.is-walking-only #chat-log, body.is-walking-only #chat-bar { display: none !important; }
         body.is-spectator #help { bottom: max(10px, env(safe-area-inset-bottom)); }
     </style>
@@ -221,6 +221,7 @@
         @if($spectator)
             <button type="button" id="btn-spectator-plane" class="btn">天空へ</button>
             <button type="button" id="btn-spectator-roster" class="btn">滞在者 <span id="spectator-count">0</span></button>
+            <button type="button" id="btn-dash" class="btn">超高速</button>
             <a href="{{ route('admin.dashboard') }}" class="btn">管理画面へ</a>
         @else
             @unless($walkingOnly)
@@ -266,7 +267,7 @@
     </div>
 
     <div id="help">{{ $spectator
-        ? '観察移動: タップ / 矢印 / WASD（障害物を通過）　地図: M　視点: ホイール / + -'
+        ? '観察移動: タップ / 矢印 / WASD（障害物を通過）　超高速: Shift / ボタン　地図: M　視点: ホイール / + -'
         : ($walkingOnly
             ? '移動: タップ / 矢印 / WASD　走る: Shift　地図: M　宝箱・戦闘などは未実装です'
             : '移動: タップ / 矢印 / WASD　走る: Shift　調べる: Space・Enter　地図: M　視点: ホイール / + -') }}</div>
