@@ -104,9 +104,14 @@ class ApothecaryService
                 ->whereKey($character->id)
                 ->lockForUpdate()
                 ->firstOrFail();
-            $materials = Material::whereIn('name', array_keys($definition['materials']))->lockForUpdate()->get()->keyBy('name');
+            $materials = Material::whereIn('name', array_keys($definition['materials']))->get()->keyBy('name');
             if ($materials->count() !== count($definition['materials'])) throw new RuntimeException('調合素材のマスタが不足しています。');
-            $rows = CharacterMaterial::where('character_id', $lockedCharacter->id)->whereIn('material_id', $materials->pluck('id'))->lockForUpdate()->get()->keyBy('material_id');
+            $rows = CharacterMaterial::where('character_id', $lockedCharacter->id)
+                ->whereIn('material_id', $materials->pluck('id'))
+                ->orderBy('material_id')
+                ->lockForUpdate()
+                ->get()
+                ->keyBy('material_id');
             $value = 0;
             foreach ($definition['materials'] as $name => $quantity) {
                 $material = $materials[$name]; $required = $quantity * $count; $row = $rows->get($material->id);
@@ -125,7 +130,7 @@ class ApothecaryService
             $craftedQuantity = $count * $outputQuantity;
             for ($i = 0; $i < $craftedQuantity; $i++) CharacterItem::create(['character_id' => $lockedCharacter->id, 'item_id' => $item->id, 'is_equipped' => false, 'is_locked' => false]);
             return ['name' => $item->name, 'quantity' => $craftedQuantity, 'fee' => $fee, 'payment' => $payment];
-        });
+        }, 3);
     }
 
     private function isUnlocked(Character $character, int $areaId): bool

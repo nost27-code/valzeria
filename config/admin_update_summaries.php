@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-09-29-apothecary-deadlock-handling',
+        'date' => '2026-09-29',
+        'category' => 'fixed',
+        'title' => '薬屋の調合競合とエラー表示を改善',
+        'detail' => '複数の処理が重なった際は調合を自動で再試行します。処理できない場合は内部情報を表示せず再操作をご案内し、エラーの二重表示も解消しました。',
+    ],
+    [
         'id' => '2026-09-29-field-coming-soon-entry',
         'date' => '2026-09-29',
         'category' => 'added',

@@ -16,6 +16,7 @@ use App\Models\User;
 use App\Services\ApothecaryService;
 use App\Services\ExplorationSupportService;
 use App\Services\ExtraContentControlService;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -287,6 +288,55 @@ class ExplorationSupportLureTest extends TestCase
             'character_id' => $character->id,
             'material_id' => $beastFang->id,
         ]);
+    }
+
+    public function test_apothecary_hides_database_details_when_crafting_fails(): void
+    {
+        $this->withoutMiddleware(\App\Http\Middleware\CheckCharacterSelected::class);
+        $character = $this->createCharacter();
+        $previous = new \PDOException('SQLSTATE[40001]: Serialization failure: 1213 Deadlock found when trying to get lock', 40001);
+        $previous->errorInfo = ['40001', 1213, 'Deadlock found when trying to get lock'];
+        $exception = new QueryException(
+            'mysql',
+            'select * from `materials` for update',
+            [],
+            $previous,
+            ['driver' => 'mysql', 'host' => '127.0.0.1', 'database' => 'secret_database'],
+        );
+        $apothecary = \Mockery::mock(ApothecaryService::class);
+        $apothecary->shouldReceive('craft')->once()->andThrow($exception);
+        $this->app->instance(ApothecaryService::class, $apothecary);
+
+        $response = $this->actingAs($character->user)
+            ->withSession(['current_character_id' => $character->id])
+            ->from(route('apothecary.index'))
+            ->post(route('apothecary.craft'), [
+                'recipe_code' => 'lure_flying',
+                'count' => 1,
+            ]);
+
+        $message = '調合処理が混み合っています。少し待ってから、もう一度お試しください。';
+        $response->assertRedirect(route('apothecary.index'))
+            ->assertSessionHas('error', $message);
+        $this->assertStringNotContainsString('secret_database', (string) session('error'));
+        $this->assertStringNotContainsString('select * from', (string) session('error'));
+    }
+
+    public function test_apothecary_renders_a_flash_error_only_once(): void
+    {
+        $this->withoutMiddleware(\App\Http\Middleware\CheckCharacterSelected::class);
+        $character = $this->createCharacter();
+        $message = '調合処理が混み合っています。少し待ってから、もう一度お試しください。';
+
+        $response = $this->actingAs($character->user)
+            ->withSession([
+                'current_character_id' => $character->id,
+                'error' => $message,
+            ])
+            ->get(route('apothecary.index'));
+
+        $response->assertOk();
+        $this->assertSame(1, substr_count($response->getContent(), $message));
     }
 
     public function test_lure_for_a_species_absent_from_the_current_exploration_cannot_be_equipped(): void

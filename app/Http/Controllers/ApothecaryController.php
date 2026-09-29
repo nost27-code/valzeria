@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Services\ApothecaryService;
 use App\Services\ExplorationSupportService;
+use Illuminate\Database\DeadlockException;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -23,6 +25,10 @@ class ApothecaryController extends Controller
         $character = Auth::user()->currentCharacter(); abort_unless($character, 404);
         $data = $request->validate(['recipe_code' => ['required', 'string'], 'count' => ['required', 'integer', 'min:1', 'max:99'], 'use_bank' => ['nullable', 'boolean']]);
         try { $result = $apothecary->craft($character, $data['recipe_code'], (int) $data['count'], $request->boolean('use_bank')); }
+        catch (DeadlockException|QueryException $e) {
+            report($e);
+            return back()->with('error', '調合処理が混み合っています。少し待ってから、もう一度お試しください。');
+        }
         catch (\RuntimeException $e) { return back()->with('error', $e->getMessage()); }
         $payment = $result['payment'] ?? [];
         $paymentText = ($payment['bank_gold_used'] ?? 0) > 0

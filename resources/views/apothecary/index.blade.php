@@ -81,12 +81,6 @@
                     {{ session('status') }}
                 </div>
             @endif
-            @if(session('error'))
-                <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4 font-bold">
-                    {{ session('error') }}
-                </div>
-            @endif
-
             {{-- 探索補助の現在状態 --}}
             <div class="mb-5 rounded-lg border {{ $activeSupport ? 'border-emerald-200 bg-emerald-50/50' : 'border-slate-200 bg-slate-50' }} p-3.5">
                 <div class="text-[10px] font-black uppercase tracking-wider text-slate-400">探索補助</div>
