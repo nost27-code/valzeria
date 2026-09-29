@@ -167,6 +167,21 @@ class MonsterMarkAlchemyServiceTest extends TestCase
         $this->assertNull($service->nextCost(20));
     }
 
+    public function test_battle_result_progress_reports_global_surplus_and_remaining_cost(): void
+    {
+        $character = $this->character();
+        $this->ownMark($character, '石牙狼', 25);
+
+        $progress = $this->service()->battleResultProgress($character);
+
+        $this->assertNotNull($progress);
+        $this->assertSame(10, $progress['surplus_total']);
+        $this->assertSame(0, $progress['total_points']);
+        $this->assertSame(20, $progress['next_cost']);
+        $this->assertSame(10, $progress['remaining_to_next']);
+        $this->assertFalse($progress['at_cap']);
+    }
+
     private function service(): MonsterMarkAlchemyService
     {
         return new MonsterMarkAlchemyService(new MonsterMarkService, new BonusPointService);

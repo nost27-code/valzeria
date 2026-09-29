@@ -52,6 +52,7 @@ class MonsterMarkServiceTest extends TestCase
             $table->unsignedBigInteger('character_id');
             $table->unsignedBigInteger('monster_mark_id');
             $table->unsignedInteger('quantity')->default(0);
+            $table->unsignedInteger('spent_quantity')->default(0);
             $table->unsignedTinyInteger('unlocked_level')->default(0);
             $table->timestamps();
             $table->unique(['character_id', 'monster_mark_id']);
@@ -221,6 +222,55 @@ class MonsterMarkServiceTest extends TestCase
             2.0,
             $this->invokePrivate($service, 'effectiveDropRate', [$fixture['canonical_mark'], $quantity]),
         );
+    }
+
+    public function test_battle_result_area_summary_uses_unspent_quantity_and_merges_duplicate_marks(): void
+    {
+        $fixture = $this->duplicateMarkFixture(8);
+        CharacterMonsterMark::query()->create([
+            'character_id' => $fixture['character']->id,
+            'monster_mark_id' => $fixture['canonical_mark']->id,
+            'quantity' => 10,
+            'spent_quantity' => 3,
+            'unlocked_level' => 4,
+        ]);
+
+        $otherEnemy = Enemy::query()->create([
+            'area_id' => 51,
+            'name' => '石牙狼',
+            'role' => '通常',
+            'is_boss' => false,
+        ]);
+        $otherMark = MonsterMark::query()->create([
+            'enemy_id' => $otherEnemy->id,
+            'mark_name' => '石牙狼の印',
+            'bonus_stat' => 'str',
+            'bonus_per_level' => 1,
+            'required_per_level' => 10,
+            'max_level' => 4,
+            'drop_rate' => 8,
+            'is_active' => true,
+        ]);
+        CharacterMonsterMark::query()->create([
+            'character_id' => $fixture['character']->id,
+            'monster_mark_id' => $otherMark->id,
+            'quantity' => 17,
+            'spent_quantity' => 0,
+            'unlocked_level' => 4,
+        ]);
+
+        $summary = (new MonsterMarkService)->battleResultAreaSummary($fixture['character'], 51);
+
+        $this->assertNotNull($summary);
+        $this->assertSame(2, $summary['total_types']);
+        $this->assertSame(35, $summary['lifetime_total']);
+        $this->assertSame(32, $summary['current_total']);
+        $this->assertSame(2, $summary['surplus_total']);
+        $curseKnight = collect($summary['entries'])->firstWhere('mark_name', '呪い騎士の印');
+        $this->assertSame(18, $curseKnight['lifetime_quantity']);
+        $this->assertSame(15, $curseKnight['current_quantity']);
+        $this->assertSame(0, $curseKnight['surplus_quantity']);
+        $this->assertTrue($curseKnight['is_complete']);
     }
 
     private function entry(MonsterMark $mark, Enemy $enemy, Area $area, int $quantity): array

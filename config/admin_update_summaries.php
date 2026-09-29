@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-09-29-battle-monster-mark-status',
+        'date' => '2026-09-29',
+        'category' => 'added',
+        'title' => '戦闘結果にモンスター印の所持状況を追加',
+        'detail' => '通常探索の戦闘結果から、現在エリアの印の現在数・発見種類数・解放進捗を確認できます。全エリアの錬成可能な余剰印と、次の錬成までの不足数も表示します。',
+    ],
+    [
         'id' => '2026-09-29-monster-mark-google-callback-stability',
         'date' => '2026-09-29',
         'category' => 'fixed',

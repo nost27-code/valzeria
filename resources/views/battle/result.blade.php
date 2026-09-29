@@ -729,7 +729,7 @@
                                                 <div class="flex flex-wrap items-center gap-x-2 gap-y-1 rounded border border-violet-100 bg-white px-3 py-2 text-xs font-bold text-slate-700">
                                                     <span class="text-violet-600">{{ number_format((int) ($markDrop['index'] ?? 0)) }}回目</span>
                                                     <span class="font-black text-violet-900">{{ $markDrop['name'] ?? '印' }}</span>
-                                                    <span class="text-slate-500">所持 {{ number_format((int) ($markDrop['total_quantity'] ?? 0)) }}個</span>
+                                                    <span class="text-slate-500">累計発見 {{ number_format((int) ($markDrop['total_quantity'] ?? 0)) }}個</span>
                                                     @if(!empty($markDrop['level_up']))
                                                         <span class="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-black text-amber-800">
                                                             Lv{{ number_format((int) ($markDrop['unlocked_level'] ?? 0)) }}解放
@@ -836,6 +836,14 @@
                                     @endif
                                 @endif
                             </div>
+                        @endif
+
+                        @if(!empty($monsterMarkBattleSummary))
+                            @include('battle.partials.monster-mark-status', [
+                                'summary' => $monsterMarkBattleSummary,
+                                'battleResult' => $result,
+                                'summaryAreaName' => $areaName ?? 'このエリア',
+                            ])
                         @endif
 
                         {{-- 報酬・レベルアップ情報 --}}
@@ -1066,7 +1074,7 @@
                                                 <div>
                                                     <div class="font-extrabold text-slate-800">{{ $markDrop['name'] }}</div>
                                                     <div class="text-xs font-bold text-slate-500">
-                                                        所持 {{ number_format($markDrop['total_quantity']) }} 個
+                                                        累計発見 {{ number_format($markDrop['total_quantity']) }} 個
                                                         @if($markDrop['next_required'] !== null)
                                                             / 次の解放まで {{ number_format($markDrop['next_required']) }} 個
                                                         @else

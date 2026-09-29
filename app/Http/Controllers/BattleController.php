@@ -17,6 +17,8 @@ use App\Services\CharacterPowerService;
 use App\Services\CharacterStatusService;
 use App\Services\ExplorationItemService;
 use App\Services\MapExplorationBatchService;
+use App\Services\MonsterMarkAlchemyService;
+use App\Services\MonsterMarkService;
 use App\Services\CityThemeService;
 use App\Services\StorageCapacityService;
 use App\Services\ExplorationDepthService;
@@ -1347,6 +1349,26 @@ class BattleController extends Controller
         $areaId = (int) ($battleData['areaId'] ?? 0);
         $battleDepthKey = $this->battleDepthKey($battleData['character'], $areaId);
         $battleData['areaName'] = data_get($battleData, 'mapExploration.map_name') ?: Area::find($areaId)?->name;
+        $resolvedBattle = in_array(
+            (string) ($battleData['result']['result'] ?? ''),
+            ['victory', 'win', 'defeat', 'lose', 'timeout'],
+            true,
+        );
+        $specialEvent = (string) ($battleData['result']['special_event'] ?? '');
+        $showsMonsterMarkSummary = $resolvedBattle
+            && ! ($battleData['isBoss'] ?? false)
+            && ! isset($battleData['mapExploration'])
+            && empty($battleData['result']['region_depth_dungeon'])
+            && ! in_array($specialEvent, ['dungeon_lord', 'dungeon_lord_encounter', 'secret_realm_lord'], true);
+        if ($showsMonsterMarkSummary) {
+            $markSummary = app(MonsterMarkService::class)
+                ->battleResultAreaSummary($battleData['character'], $areaId);
+            if ($markSummary !== null) {
+                $markSummary['alchemy'] = app(MonsterMarkAlchemyService::class)
+                    ->battleResultProgress($battleData['character']);
+                $battleData['monsterMarkBattleSummary'] = $markSummary;
+            }
+        }
         $battleData['battleHeaderIconImage'] = $this->battleHeaderIconImage($areaId);
         $battleData['battleCityBackgroundStyle'] = in_array($battleDepthKey, ['deep', 'deepest', 'otherworld'], true)
             ? $this->depthBattleBackgroundStyle($battleDepthKey)

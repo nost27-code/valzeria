@@ -345,6 +345,85 @@ class MonsterMarkService
             });
     }
 
+    /**
+     * 戦闘結果に表示する、現在エリアの印所持状況を返す。
+     *
+     * quantity は累計発見数として維持し、現在所持数は消費済み数を差し引く。
+     * 同一エリア・同名・非ボス敵の重複印は印図鑑と同じ単位で合算する。
+     */
+    public function battleResultAreaSummary(Character $character, int $areaId): ?array
+    {
+        if ($areaId <= 0) {
+            return null;
+        }
+
+        $marks = MonsterMark::query()
+            ->select('monster_marks.*')
+            ->with('enemy')
+            ->join('enemies', 'enemies.id', '=', 'monster_marks.enemy_id')
+            ->where('monster_marks.is_active', true)
+            ->where('enemies.area_id', $areaId)
+            ->where('enemies.is_boss', false)
+            ->where(function ($query): void {
+                $query->whereNull('enemies.role')
+                    ->orWhere('enemies.role', 'not like', '%ダンジョン主%');
+            })
+            ->orderBy('enemies.name')
+            ->orderBy('monster_marks.id')
+            ->get();
+
+        if ($marks->isEmpty()) {
+            return null;
+        }
+
+        $owned = CharacterMonsterMark::query()
+            ->where('character_id', $character->id)
+            ->whereIn('monster_mark_id', $marks->pluck('id')->all())
+            ->get(['monster_mark_id', 'quantity', 'spent_quantity'])
+            ->keyBy('monster_mark_id');
+
+        $entries = $marks
+            ->groupBy(fn (MonsterMark $mark): string => $this->markSignature($mark))
+            ->map(function (Collection $equivalentMarks) use ($owned): array {
+                /** @var MonsterMark $mark */
+                $mark = $equivalentMarks->sortBy('id')->first();
+                $lifetimeQuantity = (int) $equivalentMarks->sum(
+                    fn (MonsterMark $equivalentMark): int => (int) ($owned->get($equivalentMark->id)?->quantity ?? 0)
+                );
+                $spentQuantity = (int) $equivalentMarks->sum(function (MonsterMark $equivalentMark) use ($owned): int {
+                    $row = $owned->get($equivalentMark->id);
+                    $quantity = (int) ($row?->quantity ?? 0);
+
+                    return min($quantity, max(0, (int) ($row?->spent_quantity ?? 0)));
+                });
+                $currentQuantity = max(0, $lifetimeQuantity - $spentQuantity);
+                $unlockedLevel = $this->unlockedLevel($lifetimeQuantity, $mark);
+
+                return [
+                    'mark_name' => (string) $mark->mark_name,
+                    'lifetime_quantity' => $lifetimeQuantity,
+                    'spent_quantity' => $spentQuantity,
+                    'current_quantity' => $currentQuantity,
+                    'surplus_quantity' => max(0, $currentQuantity - self::DROP_RATE_REDUCTION_QUANTITY),
+                    'unlocked_level' => $unlockedLevel,
+                    'next_required' => $this->nextRequired($lifetimeQuantity, $mark),
+                    'is_complete' => $unlockedLevel >= $this->maxUnlockLevel($mark),
+                ];
+            })
+            ->sortBy('mark_name')
+            ->values();
+
+        return [
+            'area_id' => $areaId,
+            'total_types' => $entries->count(),
+            'discovered_types' => $entries->where('lifetime_quantity', '>', 0)->count(),
+            'lifetime_total' => (int) $entries->sum('lifetime_quantity'),
+            'current_total' => (int) $entries->sum('current_quantity'),
+            'surplus_total' => (int) $entries->sum('surplus_quantity'),
+            'entries' => $entries->all(),
+        ];
+    }
+
     private function discoveredAreaIds(Character $character): Collection
     {
         return CharacterAreaProgress::query()

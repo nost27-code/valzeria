@@ -122,6 +122,31 @@ class MonsterMarkAlchemyService
         ];
     }
 
+    /**
+     * 高頻度の戦闘結果画面向けに、錬成進捗だけを返す。
+     */
+    public function battleResultProgress(Character $character): ?array
+    {
+        if (! $this->isOpen() || ! $this->schemaReady()) {
+            return null;
+        }
+
+        $totalPoints = (int) MonsterMarkRefinement::query()
+            ->where('character_id', $character->id)
+            ->sum('points');
+        $surplusTotal = (int) $this->surplusGroups($this->ownedRows($character))
+            ->sum('surplus_quantity');
+        $nextCost = $this->nextCost($totalPoints);
+
+        return [
+            'surplus_total' => $surplusTotal,
+            'total_points' => $totalPoints,
+            'next_cost' => $nextCost,
+            'remaining_to_next' => $nextCost === null ? null : max(0, $nextCost - $surplusTotal),
+            'at_cap' => $nextCost === null,
+        ];
+    }
+
     public function refine(Character $character, string $stat, string $requestToken): array
     {
         if (! $this->isOpen()) {
