@@ -314,6 +314,15 @@ Route::middleware('auth')->group(function () {
         Route::post('/field/sync', [\App\Http\Controllers\ValzeriaFieldController::class, 'sync'])
             ->middleware('throttle:90,1,field-sync')
             ->name('field.sync');
+        Route::post('/field/cities/{city}/facilities/{slug}', [\App\Http\Controllers\ValzeriaFieldController::class, 'enterFacility'])
+            ->middleware('throttle:30,1')
+            ->name('field.facility');
+        Route::post('/field/areas/{area}/battle', [\App\Http\Controllers\ValzeriaFieldController::class, 'battle'])
+            ->middleware('throttle:40,1')
+            ->name('field.battle');
+        Route::post('/field/chat', [\App\Http\Controllers\ValzeriaFieldController::class, 'say'])
+            ->middleware('throttle:20,1')
+            ->name('field.chat');
         Route::post('/exploration/items/{item}/use', [\App\Http\Controllers\ExplorationItemController::class, 'use'])->name('exploration.items.use');
         Route::post('/battle/pvp/{targetCharacter}', [BattleController::class, 'pvp'])->name('battle.pvp');
         Route::get('/champ/confirm', [ChampBattleController::class, 'confirm'])->name('champ.confirm');

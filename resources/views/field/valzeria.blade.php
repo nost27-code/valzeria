@@ -23,7 +23,18 @@
     }
     $spectator = (bool) ($spectator ?? false);
     $walkingOnly = (bool) ($walkingOnly ?? false);
-    $interactive = ! $spectator && ! $walkingOnly;
+    $fieldFeatures = array_merge([
+        'combat' => false,
+        'facilities' => false,
+        'chat' => false,
+        'gathering' => false,
+        'areas' => false,
+        'teleport' => false,
+        'nations' => false,
+    ], $fieldFeatures ?? []);
+    if ($spectator) {
+        $fieldFeatures = array_fill_keys(array_keys($fieldFeatures), false);
+    }
     $fieldFlash = array_values(array_filter([$fieldNotice ?? null, session('error'), session('success'), session('message')], fn ($m) => is_string($m) && $m !== ''));
     $fieldBoot = [
         'world' => $world,
@@ -34,20 +45,22 @@
         'terrainAtlases' => $terrainAtlases,
         'spectator' => $spectator,
         'walkingOnly' => $walkingOnly,
-        'nationBuilding' => $interactive && (bool) config('features.nation_community_enabled'),
+        'features' => $fieldFeatures,
+        'nationBuilding' => $fieldFeatures['nations'] && (bool) config('features.nation_community_enabled'),
         'flash' => array_map(fn (string $m): string => strip_tags(str_replace(['<br>', '<br/>', '<br />'], ' ', $m)), $fieldFlash),
         'urls' => [
             'sync' => $spectator ? route('admin.field.presence') : route('field.sync'),
-            'nations' => $interactive ? route('field.nations') : '',
-            'nationEditor' => $interactive ? route('field.nation.editor') : '',
-            'nationSite' => $interactive ? route('field.nation.site') : '',
-            'nationPreview' => $interactive ? route('field.nation.preview') : '',
-            'nationSave' => $interactive ? route('field.nation.save') : '',
-            'facility' => $interactive ? url('/field/cities') : '',
-            'area' => $interactive ? url('/field/areas') : '',
-            'teleport' => $interactive ? url('/field/teleporters') : '',
-            'spot' => $interactive ? url('/field/spots') : '',
-            'chat' => $interactive ? route('field.chat') : '',
+            'nations' => '',
+            'nationEditor' => '',
+            'nationSite' => '',
+            'nationPreview' => '',
+            'nationSave' => '',
+            'facility' => $fieldFeatures['facilities'] ? url('/field/cities') : '',
+            'battle' => $fieldFeatures['combat'] ? url('/field/areas') : '',
+            'area' => '',
+            'teleport' => '',
+            'spot' => '',
+            'chat' => $fieldFeatures['chat'] ? route('field.chat') : '',
             'home' => $spectator ? route('admin.dashboard') : route('home'),
             'assets' => asset('images/field'),
             'worldMap' => asset('images/field/valzeria-worldmap.webp').'?v='.(is_file(public_path('images/field/valzeria-worldmap.webp')) ? filemtime(public_path('images/field/valzeria-worldmap.webp')) : 0),
@@ -224,9 +237,9 @@
             <button type="button" id="btn-dash" class="btn">超高速</button>
             <a href="{{ route('admin.dashboard') }}" class="btn">管理画面へ</a>
         @else
-            @unless($walkingOnly)
+            @if($fieldFeatures['chat'])
                 <button type="button" id="btn-chat" class="btn">話す (T)</button>
-            @endunless
+            @endif
             <button type="button" id="btn-dash" class="btn">走る</button>
             @if($nationCanBuild ?? false)
                 <button type="button"
@@ -270,7 +283,7 @@
         ? '観察移動: タップ / 矢印 / WASD（障害物を通過）　超高速: Shift / ボタン　地図: M　視点: ホイール / + -'
         : ($walkingOnly
             ? '移動: タップ / 矢印 / WASD　走る: Shift　地図: M　宝箱・戦闘などは未実装です'
-            : '移動: タップ / 矢印 / WASD　走る: Shift　調べる: Space・Enter　地図: M　視点: ホイール / + -') }}</div>
+            : '移動: タップ / 矢印 / WASD　走る: Shift　施設: Space・Enter　話す: T　地図: M　戦闘: 魔物に接触') }}</div>
 
     <div id="dialog" hidden>
         <div class="panel">

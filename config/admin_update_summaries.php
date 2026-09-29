@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-09-30-player-field-interactions',
+        'date' => '2026-09-30',
+        'category' => 'changed',
+        'title' => '冒険者フィールドで戦闘・施設・チャットに対応',
+        'detail' => 'フィールドの魔物に触れると通常探索1回分として戦え、街の施設と近くの冒険者へのチャットも利用できます。宝箱・採取・探索地入口・転移装置は引き続き利用できません。',
+    ],
+    [
         'id' => '2026-09-29-admin-field-spectator-speed',
         'date' => '2026-09-29',
         'category' => 'internal',

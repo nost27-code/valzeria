@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Area;
 use App\Models\Character;
 use App\Models\CharacterFieldPosition;
 use App\Models\PlayerValmon;
@@ -15,7 +16,7 @@ class PlayerFieldPreviewTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_player_can_open_walking_only_field_preview(): void
+    public function test_player_can_open_field_with_combat_facilities_and_chat_only(): void
     {
         config(['valzeria_field.enabled' => true]);
         [$user, $character] = $this->player('公開確認の冒険者');
@@ -24,17 +25,25 @@ class PlayerFieldPreviewTest extends TestCase
             ->withSession(['current_character_id' => $character->id])
             ->get(route('field.show'))
             ->assertOk()
-            ->assertSee('宝箱などは一切ありません。開発中のため、急遽メンテナンスに入る場合があります。')
-            ->assertSee('"walkingOnly":true', false)
-            ->assertSee('"spawn_chance":0', false)
+            ->assertSee('宝箱・採取はありません。魔物との戦闘・街の施設・チャットを利用できます。開発中のため、急遽メンテナンスに入る場合があります。')
+            ->assertSee('"walkingOnly":false', false)
+            ->assertSee('"combat":true', false)
+            ->assertSee('"facilities":true', false)
+            ->assertSee('"chat":true', false)
+            ->assertSee('"gathering":false', false)
+            ->assertSee('"spawn_chance":0.75', false)
             ->assertSee('"chest_chance":0', false)
+            ->assertSee('"gather_chance":0', false)
+            ->assertSee('"area":""', false)
+            ->assertSee('"teleport":""', false)
             ->assertSee('"spot":""', false)
+            ->assertSee(route('field.chat'), false)
             ->assertSee(route('field.sync'), false);
 
         $this->assertDatabaseHas('character_field_positions', ['character_id' => $character->id]);
     }
 
-    public function test_sync_saves_position_and_returns_only_presence_data(): void
+    public function test_sync_saves_position_and_returns_presence_chat_and_zone_data(): void
     {
         $this->freezeTime();
         config(['valzeria_field.enabled' => true]);
@@ -62,7 +71,7 @@ class PlayerFieldPreviewTest extends TestCase
             ->assertJsonPath('players.0.name', '近くの冒険者')
             ->assertJsonCount(0, 'messages')
             ->assertJsonCount(0, 'chat')
-            ->assertJsonPath('zone', null);
+            ->assertJsonPath('zone.name', '王都アークレア');
 
         $this->assertStringContainsString('no-store', (string) $response->headers->get('Cache-Control'));
         $this->assertDatabaseHas('character_field_positions', [
@@ -92,6 +101,15 @@ class PlayerFieldPreviewTest extends TestCase
             ->withSession(['current_character_id' => $character->id])
             ->postJson(route('field.sync'), ['plane' => 'land', 'x' => 1, 'y' => 1, 'facing' => 0])
             ->assertNotFound();
+
+        $area = Area::query()->firstOrCreate(
+            ['id' => 1],
+            ['name' => 'はじまりの草原', 'slug' => 'disabled-field-area', 'city_id' => 1],
+        );
+        $position = ['plane' => 'land', 'x' => 1, 'y' => 1, 'facing' => 0];
+        $this->postJson(route('field.battle', $area), $position)->assertNotFound();
+        $this->postJson(route('field.chat'), [...$position, 'body' => '停止確認'])->assertNotFound();
+        $this->post(route('field.facility', ['city' => 1, 'slug' => 'inn']), $position)->assertNotFound();
     }
 
     public function test_guest_cannot_open_player_field(): void

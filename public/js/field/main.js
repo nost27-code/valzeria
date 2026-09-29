@@ -55,6 +55,7 @@ class FieldGame {
         this.gen = gen;
         this.spectator = !!boot.spectator;
         this.walkingOnly = !!boot.walkingOnly;
+        this.features = boot.features ?? {};
         this.input = new FieldInput();
         const pos = boot.player.position;
         this.player = {
@@ -283,7 +284,7 @@ class FieldGame {
         this.presence.update(dt);
 
         this.ambient.update(dt, p, t);
-        if (!this.spectator && !this.walkingOnly && !this.paused && !this.positionActionPending) {
+        if (!this.spectator && this.features.combat && !this.paused && !this.positionActionPending) {
             const half = Math.max(this.renderer.viewW, this.renderer.viewH) / TILE / 2;
             const contact = this.encounters.update(dt, p, t, Number.isFinite(half) && half > 0 ? half : 20);
             if (contact) {
@@ -381,11 +382,19 @@ class FieldGame {
     // 宝箱・採取 > 話しかける > 建物・入口など
     findInteractable(p) {
         if (this.walkingOnly) return null;
-        const spot = this.encounters.spotNear(p);
-        if (spot) return { type: 'spot', spot };
+        if (this.features.gathering) {
+            const spot = this.encounters.spotNear(p);
+            if (spot) return { type: 'spot', spot };
+        }
         const person = this.ambient.talkable(p);
         if (person) return { type: 'npc', person };
-        return this.world.interactableNear(p.x, p.y);
+        const object = this.world.interactableNear(p.x, p.y);
+        if (!object) return null;
+        if (object.nationId !== undefined && !this.features.nations) return null;
+        if ((object.type === 'facility' || object.type === 'board') && !this.features.facilities) return null;
+        if (object.type === 'entrance' && !this.features.areas) return null;
+        if (object.type === 'teleporter' && !this.features.teleport) return null;
+        return object;
     }
 
     loadWaystones() {

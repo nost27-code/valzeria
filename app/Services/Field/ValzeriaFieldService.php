@@ -77,8 +77,9 @@ class ValzeriaFieldService
     /**
      * @return array<string, mixed>
      */
-    public function worldDefinition(bool $includeGameplay = true): array
+    public function worldDefinition(bool $includeGameplay = true, ?bool $includeGathering = null): array
     {
+        $includeGathering ??= $includeGameplay;
         $areaIds = collect(config('valzeria_field.entrances'))->pluck('area_id')->all();
         $areas = Area::query()->whereIn('id', $areaIds)->get(['id', 'name', 'city_id', 'recommended_level_min', 'recommended_level_max'])->keyBy('id');
         $encounters = config('valzeria_field.encounters');
@@ -86,6 +87,8 @@ class ValzeriaFieldService
         if (! $includeGameplay) {
             $encounters['spawn_chance'] = 0;
             $encounters['second_chance'] = 0;
+        }
+        if (! $includeGathering) {
             $gathering['gather_chance'] = 0;
             $gathering['chest_chance'] = 0;
         }
@@ -266,8 +269,9 @@ class ValzeriaFieldService
     /**
      * @return array<string, mixed>
      */
-    public function characterState(Character $character, bool $includeGameplay = true): array
+    public function characterState(Character $character, bool $includeGameplay = true, ?bool $includeGathering = null): array
     {
+        $includeGathering ??= $includeGameplay;
         $position = $this->positionFor($character);
         $unlockedCityIds = $this->unlockedCityIds($character);
 
@@ -286,7 +290,7 @@ class ValzeriaFieldService
                 'facing' => $position->facing,
             ],
             'vitals' => $includeGameplay ? app(FieldEncounterService::class)->vitals($character) : null,
-            'claimed_spots' => $includeGameplay ? app(FieldEncounterService::class)->claimedSpotKeys($character) : [],
+            'claimed_spots' => $includeGathering ? app(FieldEncounterService::class)->claimedSpotKeys($character) : [],
         ];
     }
 

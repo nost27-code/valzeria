@@ -1,9 +1,10 @@
 # DATA_MODEL.md
 
-## Adventurer field position (2026-09-29)
+## Adventurer field position and chat (2026-09-30)
 
-- `character_field_positions` has one row per character (`character_id` unique) and stores `plane`, pixel `x/y`, `facing`, and the last presence heartbeat in `moved_at`. The walking preview creates a spawn row on first entry and updates it only through authenticated `/field/sync`; nearby-player reads use the configured time/radius limits.
-- The player preview does not write battle, reward, item, gathering, chat, facility, nation, HP/SP or progression data. The admin spectator reads active rows without creating or updating a position. This release reuses the existing table and adds no migration.
+- `character_field_positions` has one row per character (`character_id` unique) and stores `plane`, pixel `x/y`, `facing`, and the last presence heartbeat in `moved_at`. The field creates a spawn row on first entry and updates it through authenticated sync, battle, facility, and chat requests; nearby-player reads use the configured time/radius limits. The admin spectator reads active rows without creating or updating a position.
+- `field_chat_messages` stores the sender character FK, plane, pixel `x/y`, sanitized single-line body, nullable city zone, and timestamps. Nearby chat reads are limited by plane, recent history, distance, and last received ID; town chat reads require the same `city:{id}` zone. Character deletion cascades messages. The migration is additive and does not backfill rows.
+- Field monster contact calls the existing `ExplorationService::explore` once, so HP, current exploration state, exploration stamina (currently 1), battle logs, rewards, drops, and defeat penalties use the normal exploration tables and transactions. Facility entry reuses existing facility routes and city progress. The field does not create treasure/gathering claims, area-entry, teleporter, or nation-building writes in this release.
 
 ## Monster mark refinements (2026-09-29)
 

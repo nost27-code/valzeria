@@ -2,10 +2,10 @@
 
 Purpose: compressed current-state snapshot for ChatGPT and Codex.
 Source of truth: current behavior = code / intended spec = DOMAIN_RULES.md + human rulings (see AGENTS.md "Source of truth"). On conflict, report 要裁定 — do not pick a side.
-Last updated: 2026-09-29
+Last updated: 2026-09-30
 Branch: main
 
-- 冒険者フィールド試験公開（2026-09-29）: 認証済み・キャラクター選択済みプレイヤーは街の「大陸フィールド」から入り、タップ経路探索・障害物回避・方向キー・地図・近隣プレイヤー表示を利用する。現在は歩行見学だけで、宝箱・採取・魔物・戦闘・施設利用・チャット・報酬・進行変更はない。既存`character_field_positions`へ位置とpresence heartbeatだけを保存し、新規DB変更なし。`VALZERIA_FIELD_ENABLED`をfalseにするとプレイヤー画面と同期を404へ戻せる。管理者の透明観察モードは別経路で位置を保存しない。
+- 冒険者フィールド試験公開（2026-09-30更新）: 認証済み・キャラクター選択済みプレイヤーは街の「大陸フィールド」から入り、タップ経路探索・障害物回避・方向キー・地図・近隣プレイヤー表示を利用する。魔物接触時は`ExplorationService::explore`による通常探索1回（現在の探索力コスト1）として戦い、到達済みの街の施設と近距離／同一都市チャットを利用できる。宝箱・採取・探索地入口・転移装置・国づくりは無効。位置は`character_field_positions`、チャット履歴は`field_chat_messages`へ保存する。`VALZERIA_FIELD_ENABLED=false`でプレイヤー画面と各フィールド操作を404へ戻せる。管理者の透明観察モードは別経路で位置を保存しない。
 
 - 印錬成所（2026-09-29公開）: 同一エリア・同名・非ボス敵の印を合算し、各グループの最初の15個を保護、16個目以降を共通余剰として錬成する。累計1〜10回目は20個、11〜20回目は30個、21回目以降は40個で既存BP相当の1pt。合計回数の上限は設けず、1能力20pt上限、Gold不要、振り直し不可。累計発見数は維持し、消費済み数とUUID付き錬成台帳を行ロック下で保存して最終能力へ加算する。
 

@@ -53,7 +53,7 @@ export class FieldBattle {
         void $('battle').offsetWidth;
         $('battle').classList.add('is-flash');
 
-        const data = await game.postJson(`${game.urls.area}/${monster.area}/battle`);
+        const data = await game.postJson(`${game.urls.battle}/${monster.area}/battle`);
         if (!data.ok) {
             this.hide();
             if (data.vitals) game.updateVitals(data.vitals);
