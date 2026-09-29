@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-09-29-sprite-splitter-auto-width',
+        'date' => '2026-09-29',
+        'category' => 'added',
+        'title' => 'スプライトを高さ基準で揃える出力を追加',
+        'detail' => '出力サイズへ「高さのみ指定（横幅不問）」を追加。指定高さへキャラクターを揃え、横幅は縦横比から自動算出します。個別画像とZIPは可変幅を維持し、シートは最大横幅のセルへ中央配置。DB変更はありません。',
+    ],
+    [
         'id' => '2026-09-29-battle-result-compact-mode',
         'date' => '2026-09-29',
         'category' => 'added',

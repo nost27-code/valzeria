@@ -732,7 +732,13 @@ h2 { font-size: 0.85rem; font-weight: 700; color: #c4b5fd; text-transform: upper
           <option value="160">160×160</option>
           <option value="300">300×300</option>
           <option value="500">500×500</option>
+          <option value="auto">高さのみ指定（横幅不問）</option>
         </select>
+      </div>
+      <div class="field" id="s-auto-height-field" hidden>
+        <label>出力高さ (px)</label>
+        <input type="number" id="s-auto-height" min="1" max="2000" step="1" value="96" onchange="updateSize()">
+        <span style="font-size:0.68rem;color:#5a5a8a">キャラクターの高さを揃え、横幅は縦横比から自動計算します。</span>
       </div>
       <div class="field">
         <label>ベースラインオフセット (px 下端から)</label>
@@ -988,14 +994,30 @@ function syncVal(sliderId, badgeId) {
   document.getElementById(badgeId).textContent = document.getElementById(sliderId).value;
 }
 
+function outputSizeSettings() {
+  const sizeMode = document.getElementById('s-size').value;
+  const autoWidth = sizeMode === 'auto';
+  const requestedHeight = Number(document.getElementById('s-auto-height').value);
+  const autoHeight = Number.isFinite(requestedHeight) && requestedHeight > 0
+    ? Math.max(1, Math.min(2000, Math.round(requestedHeight)))
+    : 96;
+
+  return {
+    sizeMode,
+    autoWidth,
+    autoHeight,
+    size: autoWidth ? autoHeight : Number(sizeMode),
+  };
+}
+
 function settings() {
   return {
+    ...outputSizeSettings(),
     white:    +document.getElementById('s-white').value,
     area:     +document.getElementById('s-area').value,
     merge:    +document.getElementById('s-merge').value,
     pad:      +document.getElementById('s-pad').value,
     separatorWidth: +document.getElementById('s-separator').value,
-    size:     +document.getElementById('s-size').value,
     baseline: +document.getElementById('s-baseline').value,
     alphaMode: document.querySelector('input[name="alpha-mode"]:checked').value,
     scaleUp:  document.querySelector('input[name="scale-up"]:checked').value === 'yes',
@@ -1034,7 +1056,9 @@ function loadPersistedSettings() {
   setRange('s-separator', 'v-separator', saved.separatorWidth);
   setRange('s-baseline', 'v-baseline', saved.baseline);
 
-  if (saved.size) document.getElementById('s-size').value = saved.size;
+  if (saved.autoHeight) document.getElementById('s-auto-height').value = saved.autoHeight;
+  if (saved.sizeMode === 'auto') document.getElementById('s-size').value = 'auto';
+  else if (saved.size) document.getElementById('s-size').value = saved.size;
   if (saved.alphaMode) {
     const r = document.querySelector(`input[name="alpha-mode"][value="${saved.alphaMode}"]`);
     if (r) r.checked = true;
@@ -1057,6 +1081,7 @@ function loadPersistedSettings() {
   if (saved.characterMode !== undefined) document.getElementById('s-character-mode').checked = saved.characterMode;
   if (saved.bgMode) { bgMode = saved.bgMode; }
 
+  updateOutputSizeControls();
   updateStartPreview();
 }
 
@@ -2317,24 +2342,28 @@ function normalizeSprite(srcCanvas, rect, cfg, mask = null) {
   const bounds = nonTransparentBounds(cut);
   if (!bounds) {
     const blank = document.createElement('canvas');
-    blank.width = outSize; blank.height = outSize;
+    blank.width = cfg.autoWidth ? 1 : outSize; blank.height = outSize;
     return blank;
   }
 
   const cW = bounds.maxX-bounds.minX+1, cH = bounds.maxY-bounds.minY+1;
-  let scale = Math.min(outSize/cW, (outSize-cfg.baseline)/cH);
-  if (!cfg.scaleUp && scale > 1) scale = 1;
+  const availableHeight = Math.max(1, outSize-cfg.baseline);
+  let scale = cfg.autoWidth
+    ? availableHeight/cH
+    : Math.min(outSize/cW, availableHeight/cH);
+  if (!cfg.autoWidth && !cfg.scaleUp && scale > 1) scale = 1;
 
   const dstW = Math.round(cW*scale), dstH = Math.round(cH*scale);
   const out = document.createElement('canvas');
-  out.width = outSize; out.height = outSize;
+  out.width = cfg.autoWidth ? Math.max(1, dstW) : outSize;
+  out.height = outSize;
   const octx = out.getContext('2d');
   const useHighQualityResize = cfg.resizeMode === 'high-quality' && (dstW !== cW || dstH !== cH);
   octx.imageSmoothingEnabled = useHighQualityResize;
   if (useHighQualityResize) octx.imageSmoothingQuality = 'high';
-  octx.clearRect(0, 0, outSize, outSize);
+  octx.clearRect(0, 0, out.width, out.height);
 
-  const dstX = Math.floor((outSize-dstW)/2);
+  const dstX = cfg.autoWidth ? 0 : Math.floor((outSize-dstW)/2);
   const dstY = Math.max(0, outSize-cfg.baseline-dstH);
   octx.drawImage(cut, bounds.minX, bounds.minY, cW, cH, dstX, dstY, dstW, dstH);
   return out;
@@ -2423,6 +2452,14 @@ function getBgStyle() {
   return null;
 }
 
+function previewDimensions(canvas, maxHeight = 96) {
+  const height = Math.min(canvas.height, maxHeight);
+  return {
+    width: Math.max(1, Math.round(canvas.width * height / canvas.height)),
+    height,
+  };
+}
+
 function renderAllSpritePreviews() {
   const container = document.getElementById('sprites-container');
   container.innerHTML = '';
@@ -2434,8 +2471,6 @@ function renderAllSpritePreviews() {
     return;
   }
 
-  const outSize = +document.getElementById('s-size').value;
-  const display = Math.min(outSize, 96);
   const bg = getBgStyle();
 
   // スロットごとに区切り線を入れて並べる
@@ -2449,22 +2484,23 @@ function renderAllSpritePreviews() {
     }
 
     slot.normalized.forEach((nc, localIdx) => {
+      const display = previewDimensions(nc);
       const card = document.createElement('div');
       card.className = 'sprite-card';
 
       const wrap = document.createElement('div');
       wrap.className = 'sprite-canvas-wrap';
-      wrap.style.width = display+'px'; wrap.style.height = display+'px';
+      wrap.style.width = display.width+'px'; wrap.style.height = display.height+'px';
       if (bg) { wrap.style.background=bg; wrap.style.backgroundImage='none'; }
       else { wrap.style.background=''; }
 
       const cv = document.createElement('canvas');
-      cv.width=display; cv.height=display;
+      cv.width=display.width; cv.height=display.height;
       const dctx=cv.getContext('2d');
       dctx.imageSmoothingEnabled=settings().resizeMode === 'high-quality';
       if (dctx.imageSmoothingEnabled) dctx.imageSmoothingQuality='high';
-      dctx.clearRect(0,0,display,display);
-      dctx.drawImage(nc,0,0,nc.width,nc.height,0,0,display,display);
+      dctx.clearRect(0,0,display.width,display.height);
+      dctx.drawImage(nc,0,0,nc.width,nc.height,0,0,display.width,display.height);
       cv.style.display='block';
       wrap.appendChild(cv);
 
@@ -2568,7 +2604,13 @@ function updateExportButtons() {
 }
 
 function updateSize() {
+  updateOutputSizeControls();
   refreshNormalizedOutput();
+}
+
+function updateOutputSizeControls() {
+  const autoWidth = document.getElementById('s-size').value === 'auto';
+  document.getElementById('s-auto-height-field').hidden = !autoWidth;
 }
 
 function refreshNormalizedOutput() {
@@ -2903,22 +2945,32 @@ async function downloadIndividual() {
 /* =============================================================
    Sprite sheet
 ============================================================= */
+function spriteSheetLayout(sprites, cfg) {
+  const count = sprites.length;
+  const cols = cfg.cols === 'auto' ? count : Math.min(+cfg.cols, count);
+  const rows = Math.ceil(count / cols);
+  const cellWidth = cfg.autoWidth ? Math.max(...sprites.map(sprite => sprite.width)) : cfg.size;
+
+  return { cols, rows, cellWidth, cellHeight: cfg.size };
+}
+
 async function downloadSheet() {
   const all = allNormalized();
   if (!all.length) return;
   const cfg = settings();
-  const outSize = cfg.size;
-  const n = all.length;
-  const cols = cfg.cols==='auto' ? n : Math.min(+cfg.cols, n);
-  const rows = Math.ceil(n/cols);
+  const layout = spriteSheetLayout(all, cfg);
 
   const sheet = document.createElement('canvas');
-  sheet.width = outSize*cols; sheet.height = outSize*rows;
+  sheet.width = layout.cellWidth*layout.cols;
+  sheet.height = layout.cellHeight*layout.rows;
   const sctx = sheet.getContext('2d');
   sctx.imageSmoothingEnabled = false;
   sctx.clearRect(0,0,sheet.width,sheet.height);
   all.forEach((nc,i)=>{
-    sctx.drawImage(nc, (i%cols)*outSize, Math.floor(i/cols)*outSize);
+    const cellX = (i%layout.cols)*layout.cellWidth;
+    const x = cellX + Math.floor((layout.cellWidth-nc.width)/2);
+    const y = Math.floor(i/layout.cols)*layout.cellHeight;
+    sctx.drawImage(nc, x, y);
   });
   const blob = await canvasToBlob(sheet,'image/webp');
   saveBlob(blob,'valzeria_sprite_sheet.webp');
@@ -3442,6 +3494,8 @@ function resetAll() {
     document.getElementById(bid).textContent=val;
   });
   document.getElementById('s-size').value=96;
+  document.getElementById('s-auto-height').value=96;
+  updateOutputSizeControls();
   document.getElementById('s-filename').value='chara';
   document.getElementById('s-startnum').value=1;
   document.getElementById('s-character-mode').checked=false;
@@ -3503,6 +3557,7 @@ document.addEventListener('paste', (e) => {
 });
 
 loadPersistedSettings();
+updateOutputSizeControls();
 loadConverterSettings();
 updateCharacterMode(false);
 document.querySelectorAll('.bg-swatch').forEach(el=>el.classList.remove('active'));
