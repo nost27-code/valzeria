@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-09-30-exploration-item-display-lock',
+        'date' => '2026-09-30',
+        'category' => 'fixed',
+        'title' => '探索回復アイテム表示のDB競合を改善',
+        'detail' => '持ち込み状況の表示を読み取り専用にし、回復アイテム使用時の更新順と再試行処理を整えました。持ち込み上限・回復量・消費数は変わりません。',
+    ],
+    [
         'id' => '2026-09-30-player-field-interactions',
         'date' => '2026-09-30',
         'category' => 'changed',

@@ -6,6 +6,8 @@ use App\Models\Character;
 use App\Models\CharacterItem;
 use App\Models\ExplorationItemCarry;
 use App\Models\Item;
+use Illuminate\Database\DeadlockException;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 
 class ExplorationItemService
@@ -15,41 +17,30 @@ class ExplorationItemService
     public function carriedItems(Character $character, ?int $areaId = null): array
     {
         $areaId = $this->resolveAreaId($character, $areaId);
-        if (!$areaId) {
+        if (! $areaId) {
             return $this->emptyItems($character);
         }
 
         return array_map(function (array $config) use ($character, $areaId) {
             $item = Item::where('type', 'consumable')->where('name', $config['name'])->first();
-            if (!$item) {
+            if (! $item) {
                 return $this->entryFromConfig($config, null, 0, 0, 0);
             }
 
             $ownedCount = $this->ownedCount($character, $item);
             $initialCarryCount = $this->initialCarryCount($ownedCount);
-            $carry = ExplorationItemCarry::firstOrCreate(
-                ['character_id' => $character->id, 'item_id' => $item->id],
-                [
-                    'area_id' => $areaId,
-                    'carried_count' => $initialCarryCount,
-                    'used_count' => 0,
-                ]
-            );
-
-            if ((int) $carry->area_id !== $areaId) {
-                $carry->forceFill([
-                    'area_id' => $areaId,
-                    'carried_count' => $initialCarryCount,
-                    'used_count' => 0,
-                ])->save();
-            }
+            $carry = ExplorationItemCarry::query()
+                ->where('character_id', $character->id)
+                ->where('item_id', $item->id)
+                ->where('area_id', $areaId)
+                ->first();
 
             return $this->entryFromConfig(
                 $config,
                 $item,
                 $ownedCount,
-                (int) $carry->carried_count,
-                (int) $carry->used_count
+                (int) ($carry?->carried_count ?? $initialCarryCount),
+                (int) ($carry?->used_count ?? 0)
             );
         }, $this->configs());
     }
@@ -57,61 +48,98 @@ class ExplorationItemService
     public function use(Character $character, Item $item, ?int $areaId = null): array
     {
         $config = $this->configFor($item);
-        if (!$config) {
+        if (! $config) {
             return ['success' => false, 'message' => 'このアイテムは探索中に使用できません。'];
         }
 
         $areaId = $this->resolveAreaId($character, $areaId);
-        if (!$areaId) {
+        if (! $areaId) {
             return ['success' => false, 'message' => '探索中のみ使用できます。'];
         }
 
-        $this->carriedItems($character, $areaId);
-        $carry = ExplorationItemCarry::where('character_id', $character->id)
-            ->where('item_id', $item->id)
-            ->first();
+        try {
+            return DB::transaction(function () use ($character, $item, $areaId, $config): array {
+                $lockedCharacter = Character::query()
+                    ->whereKey($character->id)
+                    ->lockForUpdate()
+                    ->firstOrFail();
+                $ownedItems = CharacterItem::query()
+                    ->where('character_id', $lockedCharacter->id)
+                    ->where('item_id', $item->id)
+                    ->where('is_equipped', false)
+                    ->oldest('id')
+                    ->lockForUpdate()
+                    ->get();
+                $owned = $ownedItems->first();
 
-        if (!$carry || ((int) $carry->carried_count - (int) $carry->used_count) <= 0) {
-            return ['success' => false, 'message' => "{$item->name}の持ち込み分を使い切っています。"];
+                $carry = ExplorationItemCarry::query()
+                    ->where('character_id', $lockedCharacter->id)
+                    ->where('item_id', $item->id)
+                    ->lockForUpdate()
+                    ->first();
+
+                if (! $carry) {
+                    $carry = ExplorationItemCarry::query()->create([
+                        'character_id' => $lockedCharacter->id,
+                        'item_id' => $item->id,
+                        'area_id' => $areaId,
+                        'carried_count' => $this->initialCarryCount($ownedItems->count()),
+                        'used_count' => 0,
+                    ]);
+                } elseif ((int) $carry->area_id !== $areaId) {
+                    $carry->forceFill([
+                        'area_id' => $areaId,
+                        'carried_count' => $this->initialCarryCount($ownedItems->count()),
+                        'used_count' => 0,
+                    ])->save();
+                }
+
+                if (((int) $carry->carried_count - (int) $carry->used_count) <= 0) {
+                    return ['success' => false, 'message' => "{$item->name}の持ち込み分を使い切っています。"];
+                }
+
+                if (! $owned) {
+                    return ['success' => false, 'message' => "{$item->name}を所持していません。"];
+                }
+
+                $stats = app(CharacterStatusService::class)->getFinalStats($lockedCharacter);
+                $target = $config['target'];
+                $max = $target === 'hp'
+                    ? (int) ($stats['max_hp'] ?? $lockedCharacter->hp_base)
+                    : (int) ($stats['max_mp'] ?? $lockedCharacter->mp_base);
+                $currentColumn = $target === 'hp' ? 'current_hp' : 'current_mp';
+                $current = (int) ($lockedCharacter->{$currentColumn} ?? 0);
+
+                if ($max <= 0 || $current >= $max) {
+                    return ['success' => false, 'message' => $target === 'hp' ? 'HPはすでに全快です。' : 'SPはすでに全快です。'];
+                }
+
+                $recover = max(1, (int) ceil($max * ($config['percent'] / 100)));
+                $after = min($max, $current + $recover);
+                $lockedCharacter->{$currentColumn} = $after;
+                $lockedCharacter->save();
+                $owned->delete();
+                $carry->increment('used_count');
+
+                $label = $target === 'hp' ? 'HP' : 'SP';
+
+                return [
+                    'success' => true,
+                    'message' => "{$item->name}を使用し、{$label}が{$after}/{$max}まで回復しました。",
+                ];
+            }, 3);
+        } catch (DeadlockException|QueryException $exception) {
+            if (! $this->isDatabaseContention($exception)) {
+                throw $exception;
+            }
+
+            report($exception);
+
+            return [
+                'success' => false,
+                'message' => '回復アイテムの処理が混み合っています。少し待ってから、もう一度お試しください。',
+            ];
         }
-
-        $owned = CharacterItem::where('character_id', $character->id)
-            ->where('item_id', $item->id)
-            ->where('is_equipped', false)
-            ->oldest()
-            ->first();
-
-        if (!$owned) {
-            return ['success' => false, 'message' => "{$item->name}を所持していません。"];
-        }
-
-        $stats = app(CharacterStatusService::class)->getFinalStats($character);
-        $target = $config['target'];
-        $max = $target === 'hp' ? (int) ($stats['max_hp'] ?? $character->hp_base) : (int) ($stats['max_mp'] ?? $character->mp_base);
-        $currentColumn = $target === 'hp' ? 'current_hp' : 'current_mp';
-        $current = (int) ($character->{$currentColumn} ?? 0);
-
-        if ($max <= 0 || $current >= $max) {
-            return ['success' => false, 'message' => $target === 'hp' ? 'HPはすでに全快です。' : 'SPはすでに全快です。'];
-        }
-
-        $recover = max(1, (int) ceil($max * ($config['percent'] / 100)));
-
-        DB::transaction(function () use ($character, $currentColumn, $current, $max, $recover, $owned, $carry) {
-            $character->{$currentColumn} = min($max, $current + $recover);
-            $character->save();
-
-            $owned->delete();
-            $carry->increment('used_count');
-        });
-
-        $label = $target === 'hp' ? 'HP' : 'SP';
-        $after = min($max, $current + $recover);
-
-        return [
-            'success' => true,
-            'message' => "{$item->name}を使用し、{$label}が{$after}/{$max}まで回復しました。",
-        ];
     }
 
     public function useInTown(Character $character, Item $item): array
@@ -169,12 +197,12 @@ class ExplorationItemService
 
     public function addBonusCarry(Character $character, Item $item, int $quantity = 1): void
     {
-        if ($quantity <= 0 || !$this->configFor($item)) {
+        if ($quantity <= 0 || ! $this->configFor($item)) {
             return;
         }
 
         $state = app(ExplorationStateService::class)->currentFor($character);
-        if (!$state || !$state->area_id) {
+        if (! $state || ! $state->area_id) {
             return;
         }
 
@@ -185,7 +213,7 @@ class ExplorationItemService
             ->where('item_id', $item->id)
             ->first();
 
-        if (!$carry || (int) $carry->area_id !== (int) $state->area_id) {
+        if (! $carry || (int) $carry->area_id !== (int) $state->area_id) {
             ExplorationItemCarry::updateOrCreate(
                 ['character_id' => $character->id, 'item_id' => $item->id],
                 [
@@ -241,6 +269,7 @@ class ExplorationItemService
     {
         return array_map(function (array $config) use ($character) {
             $item = Item::where('type', 'consumable')->where('name', $config['name'])->first();
+
             return $this->entryFromConfig($config, $item, $item ? $this->ownedCount($character, $item) : 0, 0, 0);
         }, $this->configs());
     }
@@ -273,6 +302,14 @@ class ExplorationItemService
     private function initialCarryCount(int $ownedCount): int
     {
         return min(self::CARRY_LIMIT, max(0, $ownedCount));
+    }
+
+    private function isDatabaseContention(DeadlockException|QueryException $exception): bool
+    {
+        $error = $exception->errorInfo ?? [];
+
+        return in_array((int) ($error[1] ?? 0), [1205, 1213, 3572], true)
+            || (string) ($error[0] ?? $exception->getCode()) === '40001';
     }
 
     private function resolveAreaId(Character $character, ?int $areaId): int

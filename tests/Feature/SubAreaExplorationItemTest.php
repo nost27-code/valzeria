@@ -12,7 +12,10 @@ use App\Models\Item;
 use App\Models\User;
 use App\Services\ExplorationItemService;
 use App\Services\ExplorationStateService;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
+use PDOException;
 use Tests\TestCase;
 
 class SubAreaExplorationItemTest extends TestCase
@@ -30,6 +33,10 @@ class SubAreaExplorationItemTest extends TestCase
 
         $this->assertSame(10, $herbCarry['carried_count']);
         $this->assertSame(10, $herbCarry['available_count']);
+        $this->assertDatabaseMissing('exploration_item_carries', [
+            'character_id' => $character->id,
+            'item_id' => $herb->id,
+        ]);
 
         $result = $service->use($character, $herb, $area->id);
 
@@ -44,6 +51,58 @@ class SubAreaExplorationItemTest extends TestCase
             'carried_count' => 10,
             'used_count' => 1,
         ]);
+    }
+
+    public function test_item_list_does_not_rewrite_carry_from_another_area(): void
+    {
+        $firstArea = $this->createArea();
+        $secondArea = Area::query()->create([
+            'name' => '次の亜域回復試験地',
+            'slug' => 'next-sub-area-recovery-test',
+            'city_id' => $firstArea->city_id,
+            'recommended_level_min' => 1,
+            'recommended_level_max' => 10,
+        ]);
+        $character = $this->createCharacterWithHerbs(12);
+        $herb = Item::query()->where('type', 'consumable')->where('name', '薬草')->firstOrFail();
+        $carry = ExplorationItemCarry::query()->create([
+            'character_id' => $character->id,
+            'area_id' => $firstArea->id,
+            'item_id' => $herb->id,
+            'carried_count' => 8,
+            'used_count' => 2,
+        ]);
+
+        $herbCarry = collect(app(ExplorationItemService::class)->carriedItems($character, $secondArea->id))
+            ->firstWhere('name', '薬草');
+
+        $this->assertSame(10, $herbCarry['carried_count']);
+        $this->assertSame(10, $herbCarry['available_count']);
+        $this->assertDatabaseHas('exploration_item_carries', [
+            'id' => $carry->id,
+            'area_id' => $firstArea->id,
+            'carried_count' => 8,
+            'used_count' => 2,
+        ]);
+    }
+
+    public function test_item_use_returns_a_retry_message_when_database_contention_persists(): void
+    {
+        $area = $this->createArea();
+        $character = $this->createCharacterWithHerbs(1);
+        $herb = Item::query()->where('type', 'consumable')->where('name', '薬草')->firstOrFail();
+        $driverException = new PDOException('deadlock');
+        $driverException->errorInfo = ['40001', 1213, 'deadlock'];
+        $exception = new QueryException('mysql', 'update', [], $driverException);
+        DB::shouldReceive('transaction')->once()->andThrow($exception);
+
+        $result = app(ExplorationItemService::class)->use($character, $herb, $area->id);
+
+        $this->assertFalse($result['success']);
+        $this->assertSame(
+            '回復アイテムの処理が混み合っています。少し待ってから、もう一度お試しください。',
+            $result['message'],
+        );
     }
 
     public function test_item_use_endpoint_uses_trusted_sub_area_result_context(): void
