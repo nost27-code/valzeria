@@ -4,6 +4,7 @@
 import { BIOME, BLOCK, TILE, TILES, isSolidTile } from './constants.js';
 import { mapFrame } from './map-camera.js';
 import { drawElevation, drawTerrainTile } from './tiles-draw.js';
+import { createTerrainOverlays } from './terrain-art.js';
 import { assetKeysFor, drawAdventurer, drawObject } from './sprites.js';
 import { inBuildingApproach } from './object-footprint.js';
 import { preparePlayerIcon } from './player-icon.js';
@@ -139,6 +140,9 @@ export class FieldRenderer {
             const image = new Image();
             image.onload = () => {
                 this.terrainAtlases.set(group, image);
+                for (const [tile, overlay] of createTerrainOverlays(group, image)) {
+                    this.terrainAtlases.set(`overlay:${tile}`, overlay);
+                }
                 this.blocks.clear(); // 読み込み前に描いた仮タイルを作り直す
             };
             image.src = url;

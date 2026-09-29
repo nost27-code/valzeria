@@ -3,7 +3,7 @@
 
 import { TILE, TILES, isWaterTile } from './constants.js';
 import { fbm, hash2i } from './noise.js';
-import { drawCliffArt, drawTerrainArt } from './terrain-art.js';
+import { drawCliffArt, drawTerrainArt, drawTerrainOverlay } from './terrain-art.js';
 
 const T = TILE;
 
@@ -24,6 +24,14 @@ function dots(ctx, tx, ty, px, py, color, count, seed, size = 2) {
 
 // 木の下の地面（まわりに合わせる）
 const UNDER = { T: 'G', U: 'F', I: 'N', J: 'N', P: 'D', C: 'D', Z: 'K', Y: 'V', R: 'H', M: 'H', Q: 'e', t: 'q' };
+
+export function terrainRockUnderlay(world, tx, ty) {
+    const gen = world?.gen;
+    const natural = gen?.naturalCell?.(tx, ty);
+    const plane = gen?.planeOfTile?.(tx) ?? 'land';
+    const localGround = natural ? gen?.groundFor?.(natural.biome, plane) : null;
+    return localGround && localGround !== 'R' ? localGround : UNDER.R;
+}
 
 function ground(ctx, tile, tx, ty, px, py) {
     const base = TILES[tile]?.color ?? '#ff00ff';
@@ -264,6 +272,18 @@ export function drawTerrainTile(ctx, world, tx, ty, px, py, atlases) {
         const horizontal = Number(world.tileAt(tx - 1, ty) === tile) + Number(world.tileAt(tx + 1, ty) === tile);
         const vertical = Number(world.tileAt(tx, ty - 1) === tile) + Number(world.tileAt(tx, ty + 1) === tile);
         rotate = vertical > horizontal;
+    }
+    if (tile === 'R') {
+        const underlay = terrainRockUnderlay(world, tx, ty);
+        if (drawTerrainArt(ctx, underlay, px, py, atlases)) {
+            ctx.fillStyle = 'rgba(0,0,0,0.22)';
+            ctx.beginPath();
+            ctx.ellipse(px + 17, py + 25, 13, 5, 0, 0, Math.PI * 2);
+            ctx.fill();
+            if (drawTerrainOverlay(ctx, tile, px, py, atlases)) return;
+            boulder(ctx, tx, ty, px, py, '#8d8476');
+            return;
+        }
     }
     if (drawTerrainArt(ctx, tile, px, py, atlases, rotate)) return;
     if (isWaterTile(tile) && tile !== 'u') {

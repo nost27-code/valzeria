@@ -8,6 +8,77 @@ export const TERRAIN_ATLAS_GROUPS = Object.freeze({
 const CELL = Object.fromEntries(Object.entries(TERRAIN_ATLAS_GROUPS).flatMap(([group, tiles]) =>
     tiles.map((tile, index) => [tile, { group, index }])));
 const EDGE_INSET = 24; // 生成原画のセル境界に混ざった隣の色を除く
+const OVERLAY_SIZE = 128;
+
+function cellRect(image, tile) {
+    const cell = CELL[tile];
+    if (!cell || !image?.width || !image?.height) return null;
+    const cellW = image.width / 4;
+    const cellH = image.height / 4;
+    return {
+        sx: (cell.index % 4) * cellW + EDGE_INSET,
+        sy: Math.floor(cell.index / 4) * cellH + EDGE_INSET,
+        sw: cellW - EDGE_INSET * 2,
+        sh: cellH - EDGE_INSET * 2,
+    };
+}
+
+// 草原込みで生成された岩セルから、岩だけを残すための透明度。
+// 色相で草を除き、セル外周も薄くして別バイオームへ自然に重ねられるようにする。
+export function rockOverlayAlpha(r, g, b, alpha, nx, ny) {
+    if (alpha <= 0) return 0;
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    const chroma = max - min;
+    let hue = 0;
+    if (chroma > 0) {
+        if (max === r) hue = 60 * (((g - b) / chroma) % 6);
+        else if (max === g) hue = 60 * ((b - r) / chroma + 2);
+        else hue = 60 * ((r - g) / chroma + 4);
+        if (hue < 0) hue += 360;
+    }
+    const saturation = max === 0 ? 0 : chroma / max;
+    const green = hue >= 42 && hue <= 175;
+    const chromaStrength = Math.max(0, Math.min(1, (chroma - 8) / 34));
+    const saturationStrength = Math.max(0, Math.min(1, (saturation - 0.08) / 0.25));
+    const grassRemoval = green ? chromaStrength * saturationStrength : 0;
+
+    const dx = (nx - 0.52) / 0.5;
+    const dy = (ny - 0.56) / 0.48;
+    const radius = Math.hypot(dx, dy);
+    const edge = Math.max(0, Math.min(1, (1 - radius) / 0.12));
+    return Math.round(alpha * (1 - grassRemoval) * edge);
+}
+
+export function createTerrainOverlays(group, image, makeCanvas = () => document.createElement('canvas')) {
+    const overlays = new Map();
+    if (group !== 'plains') return overlays;
+    const rect = cellRect(image, 'R');
+    if (!rect) return overlays;
+    try {
+        const canvas = makeCanvas();
+        canvas.width = OVERLAY_SIZE;
+        canvas.height = OVERLAY_SIZE;
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        ctx.imageSmoothingEnabled = true;
+        ctx.drawImage(image, rect.sx, rect.sy, rect.sw, rect.sh, 0, 0, OVERLAY_SIZE, OVERLAY_SIZE);
+        const pixels = ctx.getImageData(0, 0, OVERLAY_SIZE, OVERLAY_SIZE);
+        for (let y = 0; y < OVERLAY_SIZE; y++) {
+            for (let x = 0; x < OVERLAY_SIZE; x++) {
+                const i = (y * OVERLAY_SIZE + x) * 4;
+                pixels.data[i + 3] = rockOverlayAlpha(
+                    pixels.data[i], pixels.data[i + 1], pixels.data[i + 2], pixels.data[i + 3],
+                    (x + 0.5) / OVERLAY_SIZE, (y + 0.5) / OVERLAY_SIZE,
+                );
+            }
+        }
+        ctx.putImageData(pixels, 0, 0);
+        overlays.set('R', canvas);
+    } catch {
+        // 読み出せない画像環境では、tiles-draw.js の手描き岩へ安全にフォールバックする。
+    }
+    return overlays;
+}
 
 export function drawTerrainArt(ctx, tile, px, py, atlases, rotate = false) {
     // 池や噴水の下地は広い面積を埋める。丸い池・噴水の絵を各マスに繰り返さない。
@@ -29,6 +100,13 @@ export function drawTerrainArt(ctx, tile, px, py, atlases, rotate = false) {
     } else {
         ctx.drawImage(image, sx, sy, sw, sh, px, py, 32, 32);
     }
+    return true;
+}
+
+export function drawTerrainOverlay(ctx, tile, px, py, atlases) {
+    const image = atlases?.get(`overlay:${tile}`);
+    if (!image?.width || !image?.height) return false;
+    ctx.drawImage(image, px, py, 32, 32);
     return true;
 }
 
