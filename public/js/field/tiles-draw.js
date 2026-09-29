@@ -1,7 +1,7 @@
 // 地形のマスを描く（16x16 マスの塊ごとにキャンバスへ描いてキャッシュする）。
 // 画像素材が届いたら、ここでタイル画像を使うように差し替える。
 
-import { TILE, TILES, isWaterTile } from './constants.js';
+import { TILE, TILES, isSolidTile, isWaterTile } from './constants.js';
 import { fbm, hash2i } from './noise.js';
 import { drawCliffArt, drawTerrainArt, drawTerrainOverlay } from './terrain-art.js';
 
@@ -31,6 +31,28 @@ export function terrainRockUnderlay(world, tx, ty) {
     const plane = gen?.planeOfTile?.(tx) ?? 'land';
     const localGround = natural ? gen?.groundFor?.(natural.biome, plane) : null;
     return localGround && localGround !== 'R' ? localGround : UNDER.R;
+}
+
+export function terrainTreeUnderlay(world, tx, ty) {
+    const nearby = new Map();
+    const directions = [
+        [0, -1, 2], [-1, 0, 2], [1, 0, 2], [0, 1, 2],
+        [-1, -1, 1], [1, -1, 1], [-1, 1, 1], [1, 1, 1],
+    ];
+    for (const [dx, dy, weight] of directions) {
+        const candidate = world?.tileAt?.(tx + dx, ty + dy);
+        if (!candidate || candidate === 'T' || isSolidTile(candidate) || isWaterTile(candidate)) continue;
+        nearby.set(candidate, (nearby.get(candidate) ?? 0) + weight);
+    }
+    if (nearby.size > 0) {
+        return [...nearby].sort((a, b) => b[1] - a[1])[0][0];
+    }
+
+    const gen = world?.gen;
+    const natural = gen?.naturalCell?.(tx, ty);
+    const plane = gen?.planeOfTile?.(tx) ?? 'land';
+    const localGround = natural ? gen?.groundFor?.(natural.biome, plane) : null;
+    return localGround && localGround !== 'T' ? localGround : UNDER.T;
 }
 
 function ground(ctx, tile, tx, ty, px, py) {
@@ -273,6 +295,13 @@ export function drawTerrainTile(ctx, world, tx, ty, px, py, atlases) {
         const vertical = Number(world.tileAt(tx, ty - 1) === tile) + Number(world.tileAt(tx, ty + 1) === tile);
         rotate = vertical > horizontal;
     }
+    if (tile === 'T') {
+        const underlay = terrainTreeUnderlay(world, tx, ty);
+        if (!drawTerrainArt(ctx, underlay, px, py, atlases)) ground(ctx, underlay, tx, ty, px, py);
+        if (drawTerrainOverlay(ctx, tile, px, py, atlases)) return;
+        tree(ctx, tx, ty, px, py, '#4f9a3a', '#2f6a2a');
+        return;
+    }
     if (tile === 'R') {
         const underlay = terrainRockUnderlay(world, tx, ty);
         if (drawTerrainArt(ctx, underlay, px, py, atlases)) {
@@ -291,10 +320,6 @@ export function drawTerrainTile(ctx, world, tx, ty, px, py, atlases) {
         return;
     }
     switch (tile) {
-        case 'T':
-            ground(ctx, 'G', tx, ty, px, py);
-            tree(ctx, tx, ty, px, py, '#4f9a3a', '#2f6a2a');
-            return;
         case 'U':
             ground(ctx, 'F', tx, ty, px, py);
             tree(ctx, tx, ty, px, py, '#3f7f36', '#23552a', 15);
