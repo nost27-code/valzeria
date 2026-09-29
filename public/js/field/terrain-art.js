@@ -9,6 +9,7 @@ const CELL = Object.fromEntries(Object.entries(TERRAIN_ATLAS_GROUPS).flatMap(([g
     tiles.map((tile, index) => [tile, { group, index }])));
 const EDGE_INSET = 24; // 生成原画のセル境界に混ざった隣の色を除く
 const OVERLAY_SIZE = 128;
+export const TREE_OVERLAY_TILES = Object.freeze(['T', 't']);
 
 function cellRect(image, tile) {
     const cell = CELL[tile];
@@ -82,7 +83,8 @@ export function createTerrainOverlays(group, image, makeCanvas = () => document.
     const overlays = new Map();
     if (group !== 'plains') return overlays;
     try {
-        for (const [tile, alphaForPixel] of [['R', rockOverlayAlpha], ['T', treeOverlayAlpha]]) {
+        const overlayTiles = [['R', rockOverlayAlpha], ...TREE_OVERLAY_TILES.map((tile) => [tile, treeOverlayAlpha])];
+        for (const [tile, alphaForPixel] of overlayTiles) {
             const rect = cellRect(image, tile);
             if (!rect) continue;
             const canvas = makeCanvas();

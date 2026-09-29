@@ -3,7 +3,7 @@
 
 import { TILE, TILES, isSolidTile, isWaterTile } from './constants.js';
 import { fbm, hash2i } from './noise.js';
-import { drawCliffArt, drawTerrainArt, drawTerrainOverlay } from './terrain-art.js';
+import { drawCliffArt, drawTerrainArt, drawTerrainOverlay, TREE_OVERLAY_TILES } from './terrain-art.js';
 
 const T = TILE;
 
@@ -33,7 +33,7 @@ export function terrainRockUnderlay(world, tx, ty) {
     return localGround && localGround !== 'R' ? localGround : UNDER.R;
 }
 
-export function terrainTreeUnderlay(world, tx, ty) {
+export function terrainTreeUnderlay(world, tx, ty, treeTile = 'T') {
     const nearby = new Map();
     const directions = [
         [0, -1, 2], [-1, 0, 2], [1, 0, 2], [0, 1, 2],
@@ -41,7 +41,7 @@ export function terrainTreeUnderlay(world, tx, ty) {
     ];
     for (const [dx, dy, weight] of directions) {
         const candidate = world?.tileAt?.(tx + dx, ty + dy);
-        if (!candidate || candidate === 'T' || isSolidTile(candidate) || isWaterTile(candidate)) continue;
+        if (!candidate || TREE_OVERLAY_TILES.includes(candidate) || isSolidTile(candidate) || isWaterTile(candidate)) continue;
         nearby.set(candidate, (nearby.get(candidate) ?? 0) + weight);
     }
     if (nearby.size > 0) {
@@ -52,7 +52,7 @@ export function terrainTreeUnderlay(world, tx, ty) {
     const natural = gen?.naturalCell?.(tx, ty);
     const plane = gen?.planeOfTile?.(tx) ?? 'land';
     const localGround = natural ? gen?.groundFor?.(natural.biome, plane) : null;
-    return localGround && localGround !== 'T' ? localGround : UNDER.T;
+    return localGround && !TREE_OVERLAY_TILES.includes(localGround) ? localGround : (UNDER[treeTile] ?? UNDER.T);
 }
 
 function ground(ctx, tile, tx, ty, px, py) {
@@ -295,11 +295,12 @@ export function drawTerrainTile(ctx, world, tx, ty, px, py, atlases) {
         const vertical = Number(world.tileAt(tx, ty - 1) === tile) + Number(world.tileAt(tx, ty + 1) === tile);
         rotate = vertical > horizontal;
     }
-    if (tile === 'T') {
-        const underlay = terrainTreeUnderlay(world, tx, ty);
+    if (TREE_OVERLAY_TILES.includes(tile)) {
+        const underlay = terrainTreeUnderlay(world, tx, ty, tile);
         if (!drawTerrainArt(ctx, underlay, px, py, atlases)) ground(ctx, underlay, tx, ty, px, py);
         if (drawTerrainOverlay(ctx, tile, px, py, atlases)) return;
-        tree(ctx, tx, ty, px, py, '#4f9a3a', '#2f6a2a');
+        if (tile === 't') tree(ctx, tx, ty, px, py, '#5aa844', '#346a2a', 12);
+        else tree(ctx, tx, ty, px, py, '#4f9a3a', '#2f6a2a');
         return;
     }
     if (tile === 'R') {
@@ -323,10 +324,6 @@ export function drawTerrainTile(ctx, world, tx, ty, px, py, atlases) {
         case 'U':
             ground(ctx, 'F', tx, ty, px, py);
             tree(ctx, tx, ty, px, py, '#3f7f36', '#23552a', 15);
-            return;
-        case 't':
-            ground(ctx, 'q', tx, ty, px, py);
-            tree(ctx, tx, ty, px, py, '#5aa844', '#346a2a', 12);
             return;
         case 'I':
             ground(ctx, 'N', tx, ty, px, py);

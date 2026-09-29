@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { rockOverlayAlpha, treeOverlayAlpha } from '../../public/js/field/terrain-art.js';
+import { rockOverlayAlpha, treeOverlayAlpha, TREE_OVERLAY_TILES } from '../../public/js/field/terrain-art.js';
 import { terrainRockUnderlay, terrainTreeUnderlay } from '../../public/js/field/tiles-draw.js';
 
 test('rock tiles inherit the local biome ground instead of the grass atlas background', () => {
@@ -24,10 +24,12 @@ test('rock overlay removes saturated grass while retaining neutral rock and shad
 });
 
 test('tree tiles inherit nearby settlement ground before falling back to their natural biome', () => {
+    assert.deepEqual(TREE_OVERLAY_TILES, ['T', 't']);
+
     const settlementWorld = {
-        tileAt: (tx, ty) => tx === 12 && ty === 34 ? 'T' : 'e',
+        tileAt: (tx, ty) => tx === 12 && ty === 34 ? 't' : 'e',
     };
-    assert.equal(terrainTreeUnderlay(settlementWorld, 12, 34), 'e');
+    assert.equal(terrainTreeUnderlay(settlementWorld, 12, 34, 't'), 'e');
 
     const forestWorld = {
         tileAt: () => 'T',
@@ -38,6 +40,9 @@ test('tree tiles inherit nearby settlement ground before falling back to their n
         },
     };
     assert.equal(terrainTreeUnderlay(forestWorld, 12, 34), 'G');
+
+    const decoratedForestWorld = { tileAt: () => 't' };
+    assert.equal(terrainTreeUnderlay(decoratedForestWorld, 12, 34, 't'), 'q');
 });
 
 test('tree overlay removes square corners while retaining canopy and trunk details', () => {
