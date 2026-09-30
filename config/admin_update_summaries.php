@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-09-30-exclusive-character-icon-074',
+        'date' => '2026-09-30',
+        'category' => 'internal',
+        'title' => '彩羽🎼IROHA専用のキャラアイコンを追加',
+        'detail' => '彩羽🎼IROHA専用の通常・勝利・戦闘・敗北の4ポーズを追加しました。',
+    ],
+    [
         'id' => '2026-09-30-exploration-item-display-lock',
         'date' => '2026-09-30',
         'category' => 'fixed',
