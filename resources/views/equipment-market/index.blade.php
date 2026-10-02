@@ -10,7 +10,7 @@
 <x-layouts.facility title="装備市場" headerIconImage="images/icon/icon_032.webp" bgImage="images/facilities/item.webp">
     <div class="w-full mx-auto pb-10">
         <div class="mb-2 flex justify-end px-1 text-sm font-black text-slate-950">所持：{{ number_format((int) $character->money) }}G</div>
-        <div class="rounded-lg border border-violet-200 bg-white p-4 shadow-sm sm:p-6" x-data="{ tab: '{{ $tab }}', listingScope: '{{ $selectedRecipient ? 'character' : 'all' }}' }">
+        <div class="rounded-lg border border-violet-200 bg-white p-4 shadow-sm sm:p-6" x-data="{ tab: '{{ $tab }}', listingScope: '{{ $sellListingScope }}' }">
             <div class="mb-5 flex items-start justify-between gap-3">
                 <div>
                     <div class="text-xs font-black tracking-wide text-violet-700">EQUIPMENT MARKET</div>
@@ -101,6 +101,31 @@
             </section>
 
             <section x-show="tab === 'sell'" @if($tab !== 'sell') style="display:none" @endif class="space-y-3">
+                <form method="GET" action="{{ route('equipment-market.index') }}" class="space-y-3 rounded-lg bg-slate-50 p-3 text-xs">
+                    <input type="hidden" name="tab" value="sell">
+                    <input type="hidden" name="market_scope_choice" x-model="listingScope" value="{{ $sellListingScope }}">
+                    @if($selectedRecipient)<input type="hidden" name="recipient_character_id" value="{{ $selectedRecipient->id }}">@endif
+                    <input type="hidden" name="recipient_search" value="{{ $recipientSearch }}">
+                    <label class="block"><span class="mb-1 block font-black text-slate-500">装備名・銘・特攻／耐性</span>
+                        <input name="sell_name" value="{{ $sellFilters['sell_name'] ?? '' }}" maxlength="100" placeholder="名前の一部で検索" class="w-full rounded border-slate-300 text-sm font-bold focus:border-violet-400 focus:ring-violet-400">
+                    </label>
+                    <div class="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                        <label class="block"><span class="mb-1 block font-black text-slate-500">武器／防具</span>
+                            <select name="sell_type" class="w-full rounded border-slate-300 text-sm font-bold"><option value="">すべて</option>@foreach(['weapon' => '武器', 'armor' => '防具'] as $key => $label)<option value="{{ $key }}" @selected(($sellFilters['sell_type'] ?? '') === $key)>{{ $label }}</option>@endforeach</select>
+                        </label>
+                        <label class="block"><span class="mb-1 block font-black text-slate-500">種類</span>
+                            <select name="sell_category" class="w-full rounded border-slate-300 text-sm font-bold"><option value="">すべて</option>@foreach($sellCategoryOptions as $category)<option value="{{ $category }}" @selected(($sellFilters['sell_category'] ?? '') === $category)>{{ $categoryLabels[$category] ?? $category }}</option>@endforeach</select>
+                        </label>
+                        <label class="block"><span class="mb-1 block font-black text-slate-500">ランク</span>
+                            <select name="sell_rank" class="w-full rounded border-slate-300 text-sm font-bold"><option value="">全ランク</option>@foreach(['G','F','E','D','C','B','A','S','SS','SSS','EPIC'] as $rank)<option value="{{ $rank }}" @selected(($sellFilters['sell_rank'] ?? '') === $rank)>{{ $rank }}</option>@endforeach</select>
+                        </label>
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                        <button class="rounded bg-violet-600 px-4 py-2.5 font-black text-white hover:bg-violet-700">絞り込む</button>
+                        <a href="{{ route('equipment-market.index', array_merge($sellContext, ['tab' => 'sell'])) }}" class="rounded border border-slate-300 px-4 py-2.5 font-black text-slate-600 hover:bg-slate-100">条件をリセット</a>
+                    </div>
+                </form>
+                <div class="px-1 text-xs font-bold text-slate-500">{{ number_format($sellable->count()) }}件がヒット / 出品可能な装備 {{ number_format($sellableTotal) }}件</div>
                 <div class="rounded-lg border border-violet-100 bg-violet-50 px-3 py-2 text-xs font-bold leading-relaxed text-violet-800">販売価格は査定範囲内で変更できます。入力した価格で売れた場合のみ、10%の成立手数料がかかります。出品するだけでは費用はかかりません。</div>
                 <div class="rounded-lg border border-amber-200 bg-amber-50 p-3">
                     <h3 class="text-sm font-black text-amber-950">販売範囲</h3>
@@ -138,11 +163,13 @@
                                     <span class="mt-0.5 block text-[11px] font-bold text-amber-700">冒険者カードを見る</span>
                                 </span>
                             </button>
-                            <a href="{{ route('equipment-market.index', ['tab' => 'sell']) }}" class="inline-flex min-h-11 shrink-0 items-center rounded border border-stone-300 px-3 py-1.5 text-xs font-black text-stone-700">指定を外す</a>
+                            <a href="{{ route('equipment-market.index', array_merge($sellFilters, ['tab' => 'sell', 'market_scope_choice' => 'all'])) }}" class="inline-flex min-h-11 shrink-0 items-center rounded border border-stone-300 px-3 py-1.5 text-xs font-black text-stone-700">指定を外す</a>
                         </div>
                     @else
                         <form method="GET" action="{{ route('equipment-market.index') }}" class="mt-3">
                             <input type="hidden" name="tab" value="sell">
+                            <input type="hidden" name="market_scope_choice" value="character">
+                            @foreach($sellFilters as $filterKey => $filterValue)<input type="hidden" name="{{ $filterKey }}" value="{{ $filterValue }}">@endforeach
                             <label for="equipment-recipient-search" class="flex items-center gap-1 text-xs font-black text-amber-950">
                                 <svg class="h-4 w-4 text-amber-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
                                     <circle cx="11" cy="11" r="7"></circle>
@@ -203,7 +230,7 @@
                                             <span class="mt-0.5 block text-[11px] font-bold text-amber-700">冒険者カードを見る</span>
                                         </span>
                                     </button>
-                                    <a href="{{ route('equipment-market.index', ['tab' => 'sell', 'recipient_search' => $recipientSearch, 'recipient_character_id' => $candidate->id]) }}" class="inline-flex min-h-11 shrink-0 items-center rounded-lg bg-amber-600 px-3 text-xs font-black text-white transition hover:bg-amber-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2">宛先にする</a>
+                                    <a href="{{ route('equipment-market.index', array_merge($sellFilters, ['tab' => 'sell', 'recipient_search' => $recipientSearch, 'recipient_character_id' => $candidate->id, 'market_scope_choice' => 'character'])) }}" class="inline-flex min-h-11 shrink-0 items-center rounded-lg bg-amber-600 px-3 text-xs font-black text-white transition hover:bg-amber-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2">宛先にする</a>
                                 </div>
                             @empty
                                 <p class="px-3 py-4 text-center text-xs font-bold text-stone-500">{{ $recipientSearch !== '' ? '該当する冒険者はいません。' : '現在活動中の冒険者はいません。' }}</p>
@@ -244,7 +271,7 @@
                             <p class="mt-2 text-right text-[11px] font-bold text-slate-500">成立手数料 <span x-text="fee.toLocaleString()"></span>G / 受取予定 <span class="text-violet-700" x-text="proceeds.toLocaleString()"></span>G</p>
                         </form>
                     @endif
-                @empty <div class="rounded-lg border border-dashed border-slate-200 bg-slate-50 p-8 text-center text-sm font-bold text-slate-500">出品可能な銘・特攻・耐性付き装備はありません。</div>@endforelse
+                @empty <div class="rounded-lg border border-dashed border-slate-200 bg-slate-50 p-8 text-center text-sm font-bold text-slate-500">{{ $sellableTotal > 0 ? '条件に合う装備はありません。検索条件を変えるか、条件をリセットしてください。' : '出品可能な銘・特攻・耐性付き装備はありません。' }}</div>@endforelse
             </section>
 
             <section x-show="tab === 'listings'" @if($tab !== 'listings') style="display:none" @endif class="space-y-2">

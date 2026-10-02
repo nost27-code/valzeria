@@ -6,9 +6,11 @@ use App\Models\Character;
 use App\Models\CharacterItem;
 use App\Models\EquipmentMarketListing;
 use App\Models\EquipmentMarketTransaction;
+use App\Models\Item;
 use App\Models\NationMembership;
 use App\Services\EquipmentMarketAppraisalService;
 use App\Services\EquipmentMarketService;
+use App\Services\EquipmentMarketSellFilterService;
 use App\Services\RecentAdventurerService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -68,7 +70,13 @@ class EquipmentMarketController extends Controller
         $categoryOptions = EquipmentMarketListing::query()->active()->visibleTo($character)->whereNotNull('weapon_category')
             ->distinct()->orderBy('weapon_category')->pluck('weapon_category');
 
-        $sellable = CharacterItem::query()->with(['item', 'affixPrefix', 'affixSuffix'])
+        $sellFilters = $request->validate([
+            'sell_name' => ['nullable', 'string', 'max:100'],
+            'sell_type' => ['nullable', 'in:weapon,armor'],
+            'sell_category' => ['nullable', 'string', 'max:50'],
+            'sell_rank' => ['nullable', 'in:G,F,E,D,C,B,A,S,SS,SSS,EPIC'],
+        ]);
+        $sellableQuery = CharacterItem::query()->with(['item', 'affixPrefix', 'affixSuffix'])
             ->where('character_id', $character->id)->whereNull('market_listing_id')
             ->where('is_equipped', false)->where('is_locked', false)
             ->whereHas('item', fn ($q) => $q->whereIn('type', ['weapon', 'armor'])->where('is_tradeable', true))
@@ -79,7 +87,14 @@ class EquipmentMarketController extends Controller
                     ->whereNotNull('innate_killer_species_key')
                     ->where('innate_killer_damage_rate', '>', 0)))
             ->where('is_tradeable', true)
-            ->where(fn ($q) => $q->whereNull('market_relistable_at')->orWhere('market_relistable_at', '<=', now()))
+            ->where(fn ($q) => $q->whereNull('market_relistable_at')->orWhere('market_relistable_at', '<=', now()));
+        $sellableTotal = (clone $sellableQuery)->count();
+        $sellCategoryOptions = Item::query()
+            ->whereIn('id', (clone $sellableQuery)->select('item_id'))
+            ->get(['type', 'weapon_category', 'armor_category'])
+            ->map(fn ($item) => $item->type === 'armor' ? $item->armor_category : $item->weapon_category)
+            ->filter()->unique()->sort()->values();
+        $sellable = app(EquipmentMarketSellFilterService::class)->apply($sellableQuery, $sellFilters)
             ->orderByDesc('id')->get();
         $appraisalService = app(EquipmentMarketAppraisalService::class);
         $sellable = $sellable->map(function (CharacterItem $item) use ($appraisalService) {
@@ -122,10 +137,22 @@ class EquipmentMarketController extends Controller
             }
         }
 
+        $sellListingScope = $selectedRecipient ? 'character' : 'all';
+        $requestedScope = $request->query('market_scope_choice');
+        if (in_array($requestedScope, ['all', 'character', 'nation'], true)
+            && ($requestedScope !== 'nation' || $nationMembership)) {
+            $sellListingScope = $requestedScope;
+        }
+        $sellContext = array_filter([
+            'recipient_search' => $recipientSearch,
+            'recipient_character_id' => $selectedRecipient?->id,
+            'market_scope_choice' => $sellListingScope,
+        ]);
+
         return view('equipment-market.index', compact(
             'character', 'tab', 'listings', 'listingsCount', 'sellable', 'ownListings', 'history', 'sort',
-            'engravingOptions', 'slayerOptions', 'categoryOptions', 'recipientSearch', 'selectedRecipient',
-            'recipientCandidates', 'recentAdventurerWindowMinutes', 'nationMembership'
+            'engravingOptions', 'slayerOptions', 'categoryOptions', 'sellFilters', 'sellableTotal', 'sellCategoryOptions', 'recipientSearch', 'selectedRecipient',
+            'recipientCandidates', 'recentAdventurerWindowMinutes', 'nationMembership', 'sellListingScope', 'sellContext'
         ));
     }
 

@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-10-02-equipment-market-sell-filters',
+        'date' => '2026-10-02',
+        'category' => 'changed',
+        'title' => '装備市場の出品候補に検索と絞り込みを追加',
+        'detail' => '「売る」で装備名・銘・特攻／耐性の名前を検索し、武器／防具・種類・ランクで絞り込めます。該当件数・出品可能な総件数と条件リセットを追加しました。出品条件・価格・手数料は維持。DB変更なし。',
+    ],
+    [
         'id' => '2026-09-30-exclusive-character-icon-074',
         'date' => '2026-09-30',
         'category' => 'internal',
