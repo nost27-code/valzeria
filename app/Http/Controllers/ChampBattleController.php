@@ -5,10 +5,13 @@ namespace App\Http\Controllers;
 use App\Services\ChampBattleResultStore;
 use App\Services\ChampBattleService;
 use App\Services\StorageCapacityService;
+use Illuminate\Database\DeadlockException;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
 
 class ChampBattleController extends Controller
@@ -50,11 +53,26 @@ class ChampBattleController extends Controller
             return back()->with('message', '画面のチャンプ情報が古くなっています。最新の情報を確認して、もう一度挑戦してください。');
         }
 
-        $result = $champBattleService->executeChallenge(
-            $character,
-            $request->integer('expected_champ_character_id'),
-            $request->integer('expected_champ_appointed_at'),
-        );
+        try {
+            $result = $champBattleService->executeChallenge(
+                $character,
+                $request->integer('expected_champ_character_id'),
+                $request->integer('expected_champ_appointed_at'),
+            );
+        } catch (DeadlockException|QueryException $exception) {
+            if (! $this->isDatabaseContention($exception)) {
+                throw $exception;
+            }
+
+            Log::warning('Champ battle database contention handled.', [
+                'database_error_code' => (int) ($exception->errorInfo[1] ?? 0),
+            ]);
+
+            return back()->with(
+                'message',
+                'ほかの冒険者のチャンプ戦を処理中です。少し待ってから、もう一度挑戦してください。',
+            );
+        }
         if (empty($result['ok'])) {
             return back()
                 ->with('message', $result['message'] ?? '今はチャンプに挑戦できません。');
@@ -115,5 +133,13 @@ class ChampBattleController extends Controller
         return redirect()
             ->route('home')
             ->with('message', $storageCapacity->fullMessageHtml($character));
+    }
+
+    private function isDatabaseContention(DeadlockException|QueryException $exception): bool
+    {
+        $error = $exception->errorInfo ?? [];
+
+        return in_array((int) ($error[1] ?? 0), [1205, 1213, 3572], true)
+            || (string) ($error[0] ?? $exception->getCode()) === '40001';
     }
 }

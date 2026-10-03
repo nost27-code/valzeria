@@ -9,6 +9,7 @@ use App\Models\SixHeroBattleLog;
 use App\Models\SixHeroRanking;
 use App\Models\SixHeroSeason;
 use App\Models\User;
+use App\Services\AccountDeletionService;
 use App\Services\SixHeroRankingService;
 use DomainException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -81,6 +82,87 @@ final class SixHeroRankingServiceTest extends TestCase
         $this->assertTrue($first->registered_at->equalTo($firstRegisteredAt));
         $this->assertTrue($first->first_place_since->equalTo($firstRegisteredAt));
         $this->assertSame(2, SixHeroRanking::query()->count());
+    }
+
+    public function test_account_deletion_compacts_open_season_ranks(): void
+    {
+        $season = $this->season('2026-08');
+        $characters = $this->characters(4);
+        $rankings = $this->registerMany(
+            $season,
+            SixHeroRoomKey::DIVINE_SPEED,
+            $characters,
+        );
+        $firstPlaceSince = $rankings[0]->first_place_since->copy();
+
+        app(AccountDeletionService::class)->deleteUser($characters[1]->user);
+
+        $this->assertSame([1, 2, 3], $this->roomRanks($season, SixHeroRoomKey::DIVINE_SPEED));
+        $this->assertSame(
+            [$characters[0]->id, $characters[2]->id, $characters[3]->id],
+            $this->orderedCharacterIds($season, SixHeroRoomKey::DIVINE_SPEED),
+        );
+        $this->assertTrue(
+            SixHeroRanking::query()
+                ->where('season_id', $season->id)
+                ->where('rank', 1)
+                ->firstOrFail()
+                ->first_place_since
+                ->equalTo($firstPlaceSince),
+        );
+    }
+
+    public function test_account_deletion_resets_first_place_tenure_when_leader_retires(): void
+    {
+        $season = $this->season('2026-08');
+        $characters = $this->characters(3);
+        $this->registerMany(
+            $season,
+            SixHeroRoomKey::DIVINE_SPEED,
+            $characters,
+        );
+        Carbon::setTestNow('2026-08-03 09:30:00');
+
+        app(AccountDeletionService::class)->deleteUser($characters[0]->user);
+
+        $newLeader = SixHeroRanking::query()
+            ->where('season_id', $season->id)
+            ->where('room_key', SixHeroRoomKey::DIVINE_SPEED->value)
+            ->where('rank', 1)
+            ->firstOrFail();
+        $this->assertSame($characters[1]->id, $newLeader->character_id);
+        $this->assertTrue($newLeader->first_place_since->equalTo(now()));
+        $this->assertSame([1, 2], $this->roomRanks($season, SixHeroRoomKey::DIVINE_SPEED));
+    }
+
+    public function test_gap_repair_migration_only_compacts_open_seasons(): void
+    {
+        $openSeason = $this->season('2026-08');
+        $closedSeason = $this->season(
+            '2026-07',
+            '2026-07-01 00:00:00',
+            '2026-08-01 00:00:00',
+        );
+        $characters = $this->characters(6);
+        $openRankings = $this->registerMany(
+            $openSeason,
+            SixHeroRoomKey::DIVINE_SPEED,
+            array_slice($characters, 0, 3),
+        );
+        $closedRankings = $this->registerMany(
+            $closedSeason,
+            SixHeroRoomKey::DIVINE_SPEED,
+            array_slice($characters, 3, 3),
+        );
+        $closedSeason->update(['finalized_at' => '2026-08-01 00:05:00']);
+        SixHeroRanking::query()->whereKey($openRankings[1]->id)->delete();
+        SixHeroRanking::query()->whereKey($closedRankings[1]->id)->delete();
+
+        $migration = require database_path('migrations/2026_10_03_000000_repair_open_six_hero_ranking_gaps.php');
+        $migration->up();
+
+        $this->assertSame([1, 2], $this->roomRanks($openSeason, SixHeroRoomKey::DIVINE_SPEED));
+        $this->assertSame([1, 3], $this->roomRanks($closedSeason, SixHeroRoomKey::DIVINE_SPEED));
     }
 
     public function test_register_initializes_from_previous_month_before_appending_new_character(): void

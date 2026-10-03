@@ -257,7 +257,11 @@ class ChampBattleService
                 ->findOrFail($challenger->id);
             $isAdminTester = $challenger->isAdminTester();
 
-            $champ = ChampState::query()->lockForUpdate()->first() ?? $this->createInitialChamp();
+            $champQuery = ChampState::query();
+            $champ = in_array(DB::getDriverName(), ['mysql', 'mariadb'], true)
+                ? $champQuery->lock('for update nowait')->first()
+                : $champQuery->lockForUpdate()->first();
+            $champ ??= $this->createInitialChamp();
             $champ = $this->replaceAdminTesterChamp($champ);
             if (! $this->champIdentityMatches($champ, $expectedChampCharacterId, $expectedChampAppointedAt)) {
                 return [

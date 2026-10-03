@@ -1,5 +1,12 @@
 <?php
 
+$contactSmtpScheme = strtolower(trim((string) env('CONTACT_MAIL_SMTP_ENCRYPTION', 'smtps')));
+$contactSmtpScheme = match ($contactSmtpScheme) {
+    'ssl' => 'smtps',
+    'tls' => 'smtp',
+    default => $contactSmtpScheme,
+};
+
 return [
 
     /*
@@ -51,7 +58,7 @@ return [
 
         'contact_smtp' => [
             'transport' => 'smtp',
-            'scheme' => env('CONTACT_MAIL_SMTP_ENCRYPTION', 'ssl'),
+            'scheme' => $contactSmtpScheme,
             'host' => env('CONTACT_MAIL_SMTP_HOST', env('CONTACT_MAIL_HOST', '127.0.0.1')),
             'port' => env('CONTACT_MAIL_SMTP_PORT', 465),
             'username' => env('CONTACT_MAIL_USERNAME'),

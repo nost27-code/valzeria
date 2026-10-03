@@ -658,9 +658,19 @@ class WeeklyWinRankingService
             return collect();
         }
 
-        $rawRows = DB::table('battle_logs')
-            ->join('characters', 'characters.id', '=', 'battle_logs.character_id')
-            ->join('users as ranking_users', 'ranking_users.id', '=', 'characters.user_id')
+        $scoreQuery = DB::query();
+        if (in_array(DB::getDriverName(), ['mysql', 'mariadb'], true)) {
+            // The generic optimizer starts from the small users table, then scans
+            // each character's full battle history. Production has millions of
+            // battle logs, so force the existing period-oriented index instead.
+            $scoreQuery->fromRaw(
+                'battle_logs FORCE INDEX (battle_logs_result_created_character_idx)'
+            );
+        } else {
+            $scoreQuery->from('battle_logs');
+        }
+
+        $scoreQuery
             // 通常探索系は win、亜域の既存ログは victory を保存している。
             ->whereIn('battle_logs.result', BattleLog::WIN_RESULTS)
             // 探索イベントと時間切れも既存処理では win 保存されるため、EXPが発生した実戦だけを数える。
@@ -673,6 +683,16 @@ class WeeklyWinRankingService
             ])
             ->where('battle_logs.created_at', '>=', $period['start_at'])
             ->where('battle_logs.created_at', '<', $period['end_at'])
+            ->groupBy('battle_logs.character_id')
+            ->select([
+                'battle_logs.character_id',
+                DB::raw('COUNT(battle_logs.id) as score'),
+            ]);
+
+        $rawRows = DB::query()
+            ->fromSub($scoreQuery, 'weekly_scores')
+            ->join('characters', 'characters.id', '=', 'weekly_scores.character_id')
+            ->join('users as ranking_users', 'ranking_users.id', '=', 'characters.user_id')
             ->where(function ($query): void {
                 $query->whereNull('ranking_users.role')
                     ->orWhere('ranking_users.role', '!=', 'admin');
@@ -681,23 +701,16 @@ class WeeklyWinRankingService
                 $query->whereNull('ranking_users.email')
                     ->orWhere('ranking_users.email', 'not like', self::TESTER_EMAIL_PATTERN);
             })
-            ->groupBy([
-                'characters.id',
-                'characters.name',
-                'characters.icon_path',
-                'characters.level',
-                'characters.profile_comment',
-            ])
             ->select([
                 'characters.id',
                 'characters.name',
                 'characters.icon_path',
                 'characters.level',
                 'characters.profile_comment',
-                DB::raw('COUNT(battle_logs.id) as score'),
+                'weekly_scores.score',
                 DB::raw(
-                    "MAX(CASE WHEN COALESCE(ranking_users.google_id, '') <> ''"
-                    ." OR COALESCE(ranking_users.password, '') <> '' THEN 1 ELSE 0 END)"
+                    "CASE WHEN COALESCE(ranking_users.google_id, '') <> ''"
+                    ." OR COALESCE(ranking_users.password, '') <> '' THEN 1 ELSE 0 END"
                     .' as is_account_eligible'
                 ),
             ])

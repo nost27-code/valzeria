@@ -8,6 +8,10 @@ use Illuminate\Support\Facades\Schema;
 
 class AccountDeletionService
 {
+    public function __construct(
+        private readonly SixHeroRankingService $sixHeroRankingService,
+    ) {}
+
     /**
      * Delete the account, preserving anonymous shared map history.
      */
@@ -17,6 +21,10 @@ class AccountDeletionService
             $characterIds = $user->characters()->orderBy('id')->lockForUpdate()->pluck('id');
 
             if ($characterIds->isNotEmpty()) {
+                $this->sixHeroRankingService->removeCharactersFromOpenSeasons(
+                    $characterIds->map(static fn ($id): int => (int) $id)->all()
+                );
+
                 $mapIds = DB::table('exploration_maps')->whereIn('owner_character_id', $characterIds)->pluck('id');
                 // Serialize against new map admissions before closing publications.
                 DB::table('town_map_registrations')->whereIn('map_id', $mapIds)->orderBy('id')->lockForUpdate()->get(['id']);

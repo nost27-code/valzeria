@@ -8,10 +8,12 @@ use App\Models\ChampBattleLog;
 use App\Models\ChampState;
 use App\Models\User;
 use App\Services\ChampBattleService;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
+use PDOException;
 use ReflectionMethod;
 use Tests\TestCase;
 
@@ -76,6 +78,40 @@ class ChampBattleConsistencyTest extends TestCase
             session('message'),
         );
         $this->assertNull(session('lastChampBattleResult'));
+        $this->assertSame(0, ChampBattleLog::query()->count());
+    }
+
+    public function test_database_lock_contention_returns_retry_feedback(): void
+    {
+        $character = $this->character('競合確認者');
+        $champ = ChampState::query()->firstOrFail();
+        $this->actingAs($character->user);
+        $this->app['session']->start();
+        session(['current_character_id' => $character->id]);
+        $driverException = new PDOException(
+            'SQLSTATE[HY000]: General error: 1205 Lock wait timeout exceeded',
+        );
+        $driverException->errorInfo = ['HY000', 1205, 'Lock wait timeout exceeded'];
+        $queryException = new QueryException(
+            'mysql',
+            'select champ state for update nowait',
+            [],
+            $driverException,
+        );
+        $service = $this->mock(ChampBattleService::class);
+        $service->shouldReceive('executeChallenge')->once()->andThrow($queryException);
+        $request = Request::create('/champ/challenge', 'POST', [
+            'expected_champ_character_id' => 0,
+            'expected_champ_appointed_at' => $champ->appointed_at->getTimestamp(),
+        ]);
+
+        $response = app(ChampBattleController::class)->challenge($request, $service);
+
+        $this->assertInstanceOf(RedirectResponse::class, $response);
+        $this->assertSame(
+            'ほかの冒険者のチャンプ戦を処理中です。少し待ってから、もう一度挑戦してください。',
+            session('message'),
+        );
         $this->assertSame(0, ChampBattleLog::query()->count());
     }
 

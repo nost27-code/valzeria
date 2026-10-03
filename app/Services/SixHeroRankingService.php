@@ -75,6 +75,82 @@ final class SixHeroRankingService
             ->first();
     }
 
+    /**
+     * Remove retiring characters from open Seasons without leaving rank gaps.
+     *
+     * @param  array<int, int>  $characterIds
+     */
+    public function removeCharactersFromOpenSeasons(array $characterIds): void
+    {
+        $characterIds = collect($characterIds)
+            ->map(static fn (mixed $id): int => (int) $id)
+            ->filter(static fn (int $id): bool => $id > 0)
+            ->unique()
+            ->sort()
+            ->values();
+        if ($characterIds->isEmpty()) {
+            return;
+        }
+
+        $seasonIds = SixHeroRanking::query()
+            ->whereIn('character_id', $characterIds->all())
+            ->whereHas('season', fn ($query) => $query->whereNull('finalized_at'))
+            ->distinct()
+            ->orderBy('season_id')
+            ->pluck('season_id');
+
+        foreach ($seasonIds as $seasonId) {
+            DB::transaction(function () use ($seasonId, $characterIds): void {
+                $season = SixHeroSeason::query()
+                    ->whereKey((int) $seasonId)
+                    ->whereNull('finalized_at')
+                    ->lockForUpdate()
+                    ->first();
+                if ($season === null) {
+                    return;
+                }
+
+                $rooms = DB::table('six_hero_rankings')
+                    ->where('season_id', $season->id)
+                    ->whereIn('character_id', $characterIds->all())
+                    ->distinct()
+                    ->orderBy('room_key')
+                    ->pluck('room_key');
+
+                foreach ($rooms as $room) {
+                    $rankings = SixHeroRanking::query()
+                        ->where('season_id', $season->id)
+                        ->where('room_key', (string) $room)
+                        ->orderBy('rank')
+                        ->orderBy('id')
+                        ->lockForUpdate()
+                        ->get();
+                    $removedIds = $rankings
+                        ->whereIn('character_id', $characterIds->all())
+                        ->pluck('id');
+                    if ($removedIds->isEmpty()) {
+                        continue;
+                    }
+
+                    SixHeroRanking::query()->whereIn('id', $removedIds->all())->delete();
+                    $remaining = $rankings->whereNotIn('id', $removedIds->all())->values();
+                    foreach ($remaining as $index => $ranking) {
+                        $expectedRank = $index + 1;
+                        if ((int) $ranking->rank === $expectedRank) {
+                            continue;
+                        }
+
+                        $ranking->rank = $expectedRank;
+                        if ($expectedRank === 1) {
+                            $ranking->first_place_since = now();
+                        }
+                        $ranking->save();
+                    }
+                }
+            });
+        }
+    }
+
     public function topEntries(
         SixHeroSeason $season,
         SixHeroRoomKey $room,
