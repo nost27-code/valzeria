@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Exceptions\ChampBattleStateChangedException;
 use App\Models\Character;
 use App\Models\CharacterMaterial;
 use App\Models\ChampBattleLog;
@@ -250,19 +251,23 @@ class ChampBattleService
         ?int $expectedChampAppointedAt = null
     ): array
     {
-        $result = DB::transaction(function () use ($challenger, $expectedChampCharacterId, $expectedChampAppointedAt) {
+        $result = app(ChampBattleTransactionRunner::class)->run((int) $challenger->id, function (string &$phase) use ($challenger, $expectedChampCharacterId, $expectedChampAppointedAt) {
             $challenger = Character::query()
                 ->with(['jobClass', 'user'])
                 ->lockForUpdate()
                 ->findOrFail($challenger->id);
             $isAdminTester = $challenger->isAdminTester();
 
-            $champQuery = ChampState::query();
-            $champ = in_array(DB::getDriverName(), ['mysql', 'mariadb'], true)
-                ? $champQuery->lock('for update nowait')->first()
-                : $champQuery->lockForUpdate()->first();
-            $champ ??= $this->createInitialChamp();
-            $champ = $this->replaceAdminTesterChamp($champ);
+            // Calculate without owning the global champ lock. The challenger stays locked
+            // so their loadout, rewards and cooldown cannot be committed twice.
+            $phase = 'battle_calculation';
+            $champ = ChampState::query()->first();
+            if (! $champ) {
+                // Retain the original gap-lock protection for the exceptional empty table.
+                $phase = 'champ_initialization';
+                $champ = ChampState::query()->lockForUpdate()->first() ?? $this->createInitialChamp()->refresh();
+            }
+            $champ = $this->replaceAdminTesterChamp($champ, persist: false);
             if (! $this->champIdentityMatches($champ, $expectedChampCharacterId, $expectedChampAppointedAt)) {
                 return [
                     'ok' => false,
@@ -297,6 +302,22 @@ class ChampBattleService
             ];
             $challengerActor = $this->resultActorSnapshot($challenger);
             $battle = $this->runBattle($challenger, $champ);
+
+            // Logs/history reference the incumbent character. Acquire that FK lock before
+            // the shared champ row, so the incumbent's exploration cannot block everyone.
+            $phase = 'champ_character_lock';
+            if ($champ->character_id) {
+                Character::query()->whereKey($champ->character_id)->sharedLock()->first();
+            }
+            $phase = 'champ_state_lock';
+            $currentChamp = ChampState::query()->whereKey($champ->id)->lockForUpdate()->first();
+            // A locking read sees the latest committed row even under REPEATABLE READ.
+            // Compare HP/SP, defenses and stats too, not just appointment identity.
+            if (! $currentChamp || $currentChamp->getRawOriginal() !== $champ->getRawOriginal()) {
+                throw new ChampBattleStateChangedException;
+            }
+            $champ = $currentChamp->forceFill($champ->getDirty());
+            $phase = 'reward_save';
             $champDefeated = (bool) ($battle['champ_defeated'] ?? false);
             $champHpAfter = $champDefeated ? 0 : max(1, (int) ($battle['champ_hp_after_battle'] ?? $champHpBefore));
             $damage = min($champHpBefore, max(0, (int) ($battle['damage'] ?? 0)));
@@ -322,6 +343,7 @@ class ChampBattleService
             $materialName = $material->displayName();
             $battle['log'][] = "<br><span class=\"text-green-600 font-bold\">【素材獲得】{$materialName} x{$materialQuantity} を手に入れた！</span>";
 
+            $phase = 'champ_save';
             if ($champDefeated) {
                 if ($isAdminTester) {
                     $battle['log'][] = '<span class="text-slate-600 font-bold">【検証】テストキャラのため、チャンプ交代は本番表示へ反映しません。</span>';
@@ -347,9 +369,10 @@ class ChampBattleService
                 $champ->current_hp = $champHpAfter;
                 $champ->current_mp = max(0, (int) ($battle['champ_mp_after'] ?? $champ->current_mp ?? 0));
                 $champ->defense_count = (int) $champ->defense_count + 1;
-                $champ->save();
+                $this->saveWithoutChangingAppointment($champ);
             }
 
+            $phase = 'battle_log_save';
             $log = ChampBattleLog::create([
                 'champ_character_id' => $oldChamp['character_id'],
                 'champ_player_name' => $oldChamp['player_name'],
@@ -366,6 +389,7 @@ class ChampBattleService
                 'material_quantity' => $materialQuantity,
             ]);
 
+            $phase = 'cooldown_save';
             $challenger->last_champ_battle_at = now();
             $challenger->save();
 
@@ -455,7 +479,7 @@ class ChampBattleService
         return ChampState::create($this->initialChampPayload());
     }
 
-    private function replaceAdminTesterChamp(ChampState $champ): ChampState
+    private function replaceAdminTesterChamp(ChampState $champ, bool $persist = true): ChampState
     {
         if (! $champ->character_id) {
             return $champ;
@@ -469,7 +493,11 @@ class ChampBattleService
             return $champ;
         }
 
-        $champ->forceFill($this->initialChampPayload())->save();
+        $champ->forceFill($this->initialChampPayload());
+        if (! $persist) {
+            return $champ;
+        }
+        $champ->save();
 
         return $champ->refresh();
     }
@@ -527,6 +555,17 @@ class ChampBattleService
             'character_id' => (int) ($champ->character_id ?? 0),
             'appointed_at' => $champ->appointed_at?->getTimestamp() ?? 0,
         ];
+    }
+
+    private function saveWithoutChangingAppointment(ChampState $champ): void
+    {
+        // MariaDB's implicit first TIMESTAMP has ON UPDATE CURRENT_TIMESTAMP in
+        // existing installations. Eloquent save() omits an unchanged appointment.
+        // Include it explicitly so damage/stat refresh cannot look like succession.
+        ChampState::query()->whereKey($champ->id)->update(array_merge($champ->getDirty(), [
+            'appointed_at' => $champ->getAttributes()['appointed_at'],
+        ]));
+        $champ->refresh();
     }
 
     private function champIdentityMatches(
@@ -1554,7 +1593,8 @@ class ChampBattleService
             'max_mp' => $stats['max_mp'] ?? 0,
             'current_hp' => min((int) $champ->current_hp, (int) $stats['max_hp']),
             'current_mp' => min((int) ($champ->current_mp ?? 0), (int) ($stats['max_mp'] ?? 0)),
-        ])->save();
+        ]);
+        $this->saveWithoutChangingAppointment($champ);
 
         return $champ;
     }

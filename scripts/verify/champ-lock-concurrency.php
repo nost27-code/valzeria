@@ -1,0 +1,220 @@
+<?php
+
+// Only an already migrated, disposable local MariaDB on the dedicated test port.
+// APP_ENV=testing DB_DATABASE=valzeria_champcheck_<unique> php scripts/verify/champ-lock-concurrency.php
+declare(strict_types=1);
+
+use App\Models\ChampBattleLog;
+use App\Models\ChampState;
+use App\Models\Character;
+use App\Models\CharacterMaterial;
+use App\Models\User;
+use App\Services\ChampBattleService;
+use Illuminate\Contracts\Console\Kernel;
+use Illuminate\Support\Facades\DB;
+
+if (getenv('APP_ENV') !== 'testing' || ! preg_match('/\Avalzeria_champcheck_[a-z0-9_]+\z/', (string) getenv('DB_DATABASE'))) {
+    fwrite(STDERR, "Requires APP_ENV=testing and DB_DATABASE=valzeria_champcheck_<unique>.\n");
+    exit(2);
+}
+$database = getenv('DB_DATABASE');
+require dirname(__DIR__, 2).'/vendor/autoload.php';
+$app = require dirname(__DIR__, 2).'/bootstrap/app.php';
+$app->make(Kernel::class)->bootstrap();
+set_exception_handler(function (Throwable $exception): void {
+    fwrite(STDERR, 'FAIL: '.$exception->getMessage().PHP_EOL);
+    exit(1);
+});
+config([
+    'app.key' => 'base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=',
+    'database.default' => 'mysql',
+    'database.connections.mysql' => [
+        'driver' => 'mysql', 'host' => '127.0.0.1', 'port' => 13329,
+        'database' => $database, 'username' => 'root', 'password' => '',
+        'charset' => 'utf8mb4', 'collation' => 'utf8mb4_unicode_ci', 'prefix' => '',
+    ],
+    'cache.default' => 'array', 'session.driver' => 'array',
+    'queue.default' => 'sync', 'mail.default' => 'array',
+    'gameplay_metrics.enabled' => false,
+]);
+$db = DB::connection();
+$db->statement('SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ');
+$db->statement('SET SESSION innodb_lock_wait_timeout=7');
+if (! str_contains($db->selectOne('SELECT VERSION() AS v')->v, 'MariaDB')) {
+    throw new RuntimeException('MariaDB required.');
+}
+
+if (($argv[1] ?? '') === 'worker') {
+    $mode = $argv[2];
+    $character = Character::findOrFail((int) $argv[3]);
+    $champ = ChampState::firstOrFail();
+    $snapshots = 0;
+    ChampState::retrieved(function () use (&$snapshots, $mode, $db): void {
+        $snapshots++;
+        if ($mode === 'legacy' && $snapshots === 1) {
+            // Negative control: the previous implementation held this lock during calculation.
+            $db->table('champ_states')->lockForUpdate()->first();
+        }
+    });
+    $paused = false;
+    $db->listen(function ($query) use ($mode, &$paused): void {
+        if ($mode === 'plain' || $paused || ! str_contains($query->sql, '`character_job_art_slots`')) {
+            return;
+        }
+        $paused = true;
+        echo "READY\n";
+        fflush(STDOUT);
+        fgets(STDIN);
+    });
+    $started = microtime(true);
+    try {
+        $result = app(ChampBattleService::class)->executeChallenge($character, (int) $champ->character_id, $champ->appointed_at->getTimestamp());
+        echo json_encode([
+            'ok' => $result['ok'], 'message' => $result['message'] ?? null,
+            'before' => $result['champ_hp_before'] ?? null, 'after' => $result['champ_hp_after'] ?? null,
+            'snapshots' => $snapshots, 'seconds' => microtime(true) - $started,
+            'timeout_restored' => (int) $db->selectOne('SELECT @@SESSION.innodb_lock_wait_timeout AS v')->v === 7,
+            'transaction_level' => $db->transactionLevel(),
+        ], JSON_UNESCAPED_UNICODE).PHP_EOL;
+    } catch (Throwable $exception) {
+        echo json_encode(['exception' => $exception::class, 'message' => $exception->getMessage()]).PHP_EOL;
+    }
+    exit;
+}
+
+function check(bool $ok, string $label): void
+{
+    if (! $ok) {
+        throw new RuntimeException($label);
+    }
+    echo "PASS: $label\n";
+}
+function actor(): Character
+{
+    return Character::create([
+        'user_id' => User::factory()->create()->id, 'name' => 'champ-lock-'.bin2hex(random_bytes(4)),
+        'level' => 100, 'exp' => 0, 'hp_base' => 100, 'current_hp' => 100,
+        'mp_base' => 0, 'current_mp' => 0, 'attack_base' => 10, 'defense_base' => 8,
+        'speed_base' => 1000, 'magic_base' => 8, 'spirit_base' => 8, 'luck_base' => 5,
+    ]);
+}
+function worker(Character $actor, string $mode = 'plain'): array
+{
+    $process = proc_open([PHP_BINARY, __FILE__, 'worker', $mode, (string) $actor->id], [['pipe', 'r'], ['pipe', 'w'], ['pipe', 'w']], $pipes);
+    stream_set_timeout($pipes[1], 15);
+    if ($mode !== 'plain' && trim((string) fgets($pipes[1])) !== 'READY') {
+        throw new RuntimeException('Worker failed to reach battle-calculation barrier: '.stream_get_contents($pipes[2]));
+    }
+
+    return [$process, $pipes, $mode];
+}
+function finish(array $worker): array
+{
+    [$process, $pipes, $mode] = $worker;
+    if ($mode !== 'plain') {
+        fwrite($pipes[0], "GO\n");
+    }
+    fclose($pipes[0]);
+    $output = stream_get_contents($pipes[1]);
+    $error = stream_get_contents($pipes[2]);
+    fclose($pipes[1]);
+    fclose($pipes[2]);
+    $exit = proc_close($process);
+    $result = json_decode(trim($output), true);
+    if ($exit !== 0 || ! is_array($result) || isset($result['exception'])) {
+        throw new RuntimeException('Worker failed: '.$output.$error);
+    }
+    check($result['timeout_restored'] && $result['transaction_level'] === 0, 'worker restores timeout and ends transaction');
+
+    return $result;
+}
+function rewardsMatch(Character $actor): bool
+{
+    $logs = ChampBattleLog::where('challenger_character_id', $actor->id);
+
+    return (int) CharacterMaterial::where('character_id', $actor->id)->sum('quantity') === (int) (clone $logs)->sum('material_quantity')
+        && (int) $actor->fresh()->exp === (int) (clone $logs)->sum('exp_gained');
+}
+function unchanged(Character $actor): bool
+{
+    return $actor->fresh()->last_champ_battle_at === null
+        && ChampBattleLog::where('challenger_character_id', $actor->id)->count() === 0
+        && CharacterMaterial::where('character_id', $actor->id)->count() === 0
+        && (int) $actor->fresh()->exp === 0;
+}
+
+$champ = ChampState::firstOrFail();
+$champ->update([
+    'character_id' => null, 'player_name' => 'Concurrency fixture', 'level' => 1,
+    'current_hp' => 1000000, 'max_hp' => 1000000, 'atk' => 10000,
+    'def' => 10000, 'spd' => 1, 'defense_count' => 0,
+    'appointed_at' => now()->subDay(),
+]);
+$holder = new PDO('mysql:host=127.0.0.1;port=13329;dbname='.$database, 'root', '', [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
+$legacy = worker(actor(), 'legacy');
+try {
+    $holder->beginTransaction();
+    $holder->query('SELECT * FROM champ_states FOR UPDATE NOWAIT')->fetch();
+    throw new RuntimeException('Legacy control did not hold the champ lock');
+} catch (PDOException $exception) {
+    check((int) ($exception->errorInfo[1] ?? 0) === 1205, 'legacy calculation lock reproduces immediate contention');
+} finally {
+    $holder->rollBack();
+}
+check(finish($legacy)['ok'], 'legacy control finishes after barrier');
+
+$firstActor = actor();
+$secondActor = actor();
+$first = worker($firstActor, 'staged');
+$second = worker($secondActor, 'staged');
+$holder->beginTransaction();
+$holder->query('SELECT * FROM champ_states FOR UPDATE NOWAIT')->fetch();
+$holder->rollBack();
+check(true, 'two actual battle calculations leave the shared champ row unlocked');
+$beforeDefenses = (int) $champ->fresh()->defense_count;
+$appointmentBefore = $champ->fresh()->getRawOriginal('appointed_at');
+$firstResult = finish($first);
+$secondResult = finish($second);
+check($firstResult['ok'] && $secondResult['ok'], 'both overlapping challenges succeed');
+check($secondResult['snapshots'] >= 4 && $secondResult['before'] === $firstResult['after'], 'stale HP is discarded and recalculated from latest committed champ');
+check((int) $champ->fresh()->defense_count === $beforeDefenses + 2 && rewardsMatch($firstActor) && rewardsMatch($secondActor), 'damage defenses experience and materials commit once each');
+check($champ->fresh()->getRawOriginal('appointed_at') === $appointmentBefore, 'defense preserves appointment even with MariaDB automatic TIMESTAMP updates');
+
+$duplicateActor = actor();
+$duplicates = [worker($duplicateActor), worker($duplicateActor)];
+$duplicateResults = array_map('finish', $duplicates);
+check(count(array_filter($duplicateResults, fn ($r) => $r['ok'])) === 1
+    && ChampBattleLog::where('challenger_character_id', $duplicateActor->id)->count() === 1
+    && rewardsMatch($duplicateActor), 'same-character concurrent submission rewards only once');
+
+$changedActor = actor();
+$changed = worker($changedActor, 'staged');
+$champ->refresh()->update(['appointed_at' => $champ->appointed_at->addSecond()]);
+$changedResult = finish($changed);
+check(! $changedResult['ok'] && str_contains($changedResult['message'], '交代') && unchanged($changedActor), 'appointment change during battle returns stale-form feedback without rewards');
+
+$incumbent = actor();
+$champ->refresh()->update(['character_id' => $incumbent->id]);
+$blockedActor = actor();
+$blocked = worker($blockedActor, 'staged');
+$holder->beginTransaction();
+$holder->query('SELECT id FROM characters WHERE id='.(int) $incumbent->id.' FOR UPDATE')->fetch();
+$blockedResult = finish($blocked);
+$holder->rollBack();
+check(! $blockedResult['ok'] && $blockedResult['seconds'] < 5 && unchanged($blockedActor), 'busy incumbent returns bounded feedback without consuming rewards or cooldown: '.json_encode($blockedResult, JSON_UNESCAPED_UNICODE));
+
+$champ->refresh()->update(['character_id' => null]);
+foreach (['challenger', 'champ'] as $lockTarget) {
+    $blockedActor = actor();
+    $holder->beginTransaction();
+    $sql = $lockTarget === 'challenger' ? 'SELECT id FROM characters WHERE id='.(int) $blockedActor->id.' FOR UPDATE' : 'SELECT id FROM champ_states FOR UPDATE';
+    $holder->query($sql)->fetch();
+    $blockedResult = finish(worker($blockedActor));
+    $holder->rollBack();
+    check(! $blockedResult['ok'] && $blockedResult['seconds'] < 5 && unchanged($blockedActor), $lockTarget.' lock timeout is bounded and leaves no partial battle');
+}
+ChampState::query()->delete();
+$initialActor = actor();
+$initialResult = app(ChampBattleService::class)->executeChallenge($initialActor);
+check($initialResult['ok'] && ChampState::count() === 1 && ChampBattleLog::where('challenger_character_id', $initialActor->id)->count() === 1, 'missing initial champ is recreated and challenge commits once');
+echo "All champ concurrency checks passed.\n";

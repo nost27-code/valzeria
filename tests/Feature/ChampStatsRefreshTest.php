@@ -45,11 +45,12 @@ class ChampStatsRefreshTest extends TestCase
             'spd' => 1,
             'luk' => 1,
             'defense_count' => 0,
-            'appointed_at' => now(),
+            'appointed_at' => now()->subDay(),
         ])->save();
 
         CharacterStatusService::clearRequestCache($character->id);
         $expected = app(CharacterStatusService::class)->getFinalStats($character);
+        $appointedAt = $champ->getRawOriginal('appointed_at');
 
         $refreshed = app(ChampBattleService::class)->refreshCurrentChampStats();
 
@@ -62,6 +63,7 @@ class ChampStatsRefreshTest extends TestCase
         $this->assertSame($expected['str'], $champ->atk);
         // 装備更新前のcurrent_hp(1)は保持され、最大HPだけが更新される（回復はしない）
         $this->assertSame(1, $champ->current_hp);
+        $this->assertSame($appointedAt, $champ->getRawOriginal('appointed_at'));
     }
 
     public function test_refresh_returns_null_when_champ_has_no_owning_character(): void
