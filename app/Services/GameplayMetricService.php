@@ -7,8 +7,9 @@ use App\Models\CharacterExplorationState;
 use App\Models\CharacterSubAreaExplorationState;
 use App\Models\GameplayMetric;
 use App\Services\Battle\BattleResult;
+use Closure;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 use Throwable;
 
 class GameplayMetricService
@@ -108,7 +109,7 @@ class GameplayMetricService
             fn (array $row): int => max(0, (int) ($row['activation_count'] ?? 0)),
         );
 
-        $recorded = $this->record($character, [
+        $this->record($character, [
             'metric_type' => GameplayMetric::TYPE_JOB_ART_BATTLE,
             'context' => $context,
             'result' => $normalizedResult,
@@ -122,9 +123,7 @@ class GameplayMetricService
                 'loadout' => $loadout,
                 'skills' => array_values($usage),
             ],
-        ]);
-
-        if ($recorded) {
+        ], function (Carbon $recordedAt, string &$phase) use ($context, $normalizedResult, $turnCount, $activationCount, $characterLevelAtStart, $currentJobIdAtStart, $loadout, $usage, $activationAttempts): void {
             $this->recordJobArtRollups(
                 context: $context,
                 result: $normalizedResult,
@@ -135,8 +134,10 @@ class GameplayMetricService
                 loadout: $loadout,
                 usage: array_values($usage),
                 activationAttempts: $activationAttempts,
+                recordedAt: $recordedAt,
+                phase: $phase,
             );
-        }
+        });
     }
 
     /** @param array<string,mixed> $result */
@@ -269,30 +270,38 @@ class GameplayMetricService
     }
 
     /** @param array{metric_type:string,context:string,result:?string,payload:array<string,mixed>} $attributes */
-    private function record(Character $character, array $attributes): bool
+    private function record(Character $character, array $attributes, ?Closure $afterRecord = null): void
     {
         try {
             if (! app(SchemaStateService::class)->hasTable('gameplay_metrics')) {
-                return false;
+                return;
             }
 
             // 呼び出し元でuserが一部カラムだけload済みでも、除外判定を弱めない。
             $character->load('user:id,role,email');
             if ($character->isExcludedFromPublicLogs()) {
-                return false;
+                return;
             }
 
-            GameplayMetric::query()->create([
-                'character_id' => $character->id,
-                ...$attributes,
-                'created_at' => now(),
-            ]);
-
-            return true;
+            $characterId = (int) $character->id;
+            $recordedAt = now();
+            // Snapshot the payload and time now. Batch exploration may mutate the same
+            // Character/BattleResult before the outer request transaction commits.
+            DB::afterCommit(function () use ($characterId, $attributes, $recordedAt, $afterRecord): void {
+                app(GameplayMetricWriter::class)->write($attributes['metric_type'], $attributes['context'],
+                    function (string &$phase) use ($characterId, $attributes, $recordedAt, $afterRecord): void {
+                        GameplayMetric::query()->create([
+                            'character_id' => $characterId,
+                            ...$attributes,
+                            'created_at' => $recordedAt,
+                        ]);
+                        if ($afterRecord !== null) {
+                            $afterRecord($recordedAt, $phase);
+                        }
+                    });
+            });
         } catch (Throwable $e) {
             $this->logFailure($attributes['metric_type'], $attributes['context'], $e);
-
-            return false;
         }
     }
 
@@ -311,6 +320,8 @@ class GameplayMetricService
         array $loadout,
         array $usage,
         array $activationAttempts,
+        Carbon $recordedAt,
+        string &$phase,
     ): void {
         if (! app(SchemaStateService::class)->hasTable(self::JOB_ART_ROLLUP_TABLE)
             || ! app(SchemaStateService::class)->hasTable(self::JOB_ART_SKILL_ROLLUP_TABLE)
@@ -318,7 +329,7 @@ class GameplayMetricService
             return;
         }
 
-        $now = now();
+        $now = $recordedAt;
         $bucket = $now->copy()->startOfHour();
         $levelBand = $this->levelBandFor($characterLevelAtStart);
         $jobId = $currentJobIdAtStart ?? 0;
@@ -333,6 +344,7 @@ class GameplayMetricService
         $won = $result === 'victory' ? 1 : 0;
         $artBattle = $activationCount > 0 ? 1 : 0;
 
+        $phase = self::JOB_ART_ROLLUP_TABLE;
         $this->additiveUpsert(
             self::JOB_ART_ROLLUP_TABLE,
             [[
@@ -390,6 +402,7 @@ class GameplayMetricService
         }
 
         if ($skillRows !== []) {
+            $phase = self::JOB_ART_SKILL_ROLLUP_TABLE;
             $this->additiveUpsert(
                 self::JOB_ART_SKILL_ROLLUP_TABLE,
                 $skillRows,
@@ -399,6 +412,7 @@ class GameplayMetricService
             );
         }
 
+        $phase = self::JOB_ART_ACTIVATION_ROLLUP_TABLE;
         $this->recordJobArtActivationRollups(
             bucket: $bucket,
             context: $context,
@@ -496,11 +510,24 @@ class GameplayMetricService
         array $incrementColumns,
         array $replaceColumns,
     ): void {
+        // The battle's activation/loadout order remains in the raw payload. Only the
+        // database write order is canonical, so parallel battles take shared row locks
+        // in the same order even when their skills activated in opposite orders.
+        usort($rows, function (array $left, array $right) use ($uniqueBy): int {
+            foreach ($uniqueBy as $column) {
+                $comparison = $left[$column] <=> $right[$column];
+                if ($comparison !== 0) {
+                    return $comparison;
+                }
+            }
+
+            return 0;
+        });
         $driver = DB::connection()->getDriverName();
         $updates = $replaceColumns;
         foreach ($incrementColumns as $column) {
             $updates[$column] = match ($driver) {
-                'mysql' => DB::raw("`{$column}` + values(`{$column}`)"),
+                'mysql', 'mariadb' => DB::raw("`{$column}` + values(`{$column}`)"),
                 default => DB::raw("\"{$column}\" + excluded.\"{$column}\""),
             };
         }
@@ -583,15 +610,7 @@ class GameplayMetricService
 
     private function logFailure(string $metricType, string $context, Throwable $exception): void
     {
-        try {
-            Log::warning('[GameplayMetrics] 計測レコードを保存できませんでした。', [
-                'metric_type' => $metricType,
-                'context' => $context,
-                'exception' => $exception::class,
-            ]);
-        } catch (Throwable) {
-            // 計測とその警告は、ゲーム結果を失敗させない。
-        }
+        app(GameplayMetricWriter::class)->reportFailure($metricType, $context, $exception);
     }
 
     private function normalizeBattleResult(string $result): string

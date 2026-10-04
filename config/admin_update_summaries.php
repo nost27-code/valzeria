@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-10-04-gameplay-metrics-contention',
+        'date' => '2026-10-04',
+        'category' => 'internal',
+        'title' => '戦技の実績計測と集計表示の安定性を改善',
+        'detail' => '戦闘・報酬の保存完了後に計測を保存し、競合時は計測だけを再試行します。集計の部分保存・二重計上を防ぎ、計測画面の探索集計も修正しました。戦闘ルール・報酬量・DB構造は変わりません。',
+    ],
+    [
         'id' => '2026-10-02-equipment-market-sell-filters',
         'date' => '2026-10-02',
         'category' => 'changed',

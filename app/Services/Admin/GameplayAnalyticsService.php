@@ -327,7 +327,9 @@ class GameplayAnalyticsService
 
         $modeRows = (clone $base)
             ->selectRaw("{$mode} AS aggregate_key, {$aggregates}")
-            ->groupByRaw($mode)
+            // MariaDB ONLY_FULL_GROUP_BY must resolve the selected JSON expression
+            // through its alias rather than evaluating a second expression tree.
+            ->groupBy('aggregate_key')
             ->get()
             ->map(fn (object $row): array => $this->finishExplorationGroup(
                 $this->explorationGroupFromRow($row),
@@ -353,7 +355,7 @@ class GameplayAnalyticsService
         $stopRows = (clone $base)
             ->whereRaw("{$stopReason} IS NOT NULL AND TRIM({$stopReason}) <> ''")
             ->selectRaw("{$stopReason} AS reason, COUNT(*) AS aggregate_count")
-            ->groupByRaw($stopReason)
+            ->groupBy('reason')
             ->orderByDesc('aggregate_count')
             ->get()
             ->map(fn (object $row): array => [
