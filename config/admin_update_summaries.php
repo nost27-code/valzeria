@@ -2,6 +2,14 @@
 
 return [
     [
+        'id' => '2026-10-06-equipment-decomposition',
+        'date' => '2026-10-06',
+        'category' => 'internal',
+        'title' => '強化済み武具の分解を機能OFFで事前配備',
+        'detail' => '通常の強化済み武具を分解し、現行レシピの累計素材の75%を端数切り捨てで回収する機能を実装。費用無料。公開スイッチは本番・stagingで既定OFF、配備時もOFFを維持します。リンク・直URL・POST・Serviceを閉じ、プレイヤー資産を変更しません。DB変更・migrationなし。',
+    ],
+
+    [
         'id' => '2026-10-05-nameless-relic-bag-recovery',
         'date' => '2026-10-05',
         'category' => 'internal',

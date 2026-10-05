@@ -8,10 +8,12 @@ use App\Models\CharacterMaterial;
 use App\Models\Material;
 use App\Services\BankService;
 use App\Services\EquipmentEnhancementService;
+use App\Services\EquipmentDecompositionService;
 use App\Services\EquipmentEvolutionService;
 use App\Services\WeaponTraitWorkshopService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Validator;
 use RuntimeException;
 
 class SmithController extends Controller
@@ -295,29 +297,69 @@ class SmithController extends Controller
     /**
      * 武器・防具・装飾品の分解画面を表示する
      */
-    public function disassembleIndex()
+    public function disassembleIndex(Request $request, EquipmentDecompositionService $decomposition)
     {
-        return redirect()
-            ->route('equipment.index')
-            ->with('error', '装備分解は現在停止中です。不要な装備は売却してください。');
+        abort_unless($decomposition->enabled(), 404);
+        $validated = $request->validate(['type' => 'nullable|in:weapon,armor,accessory']);
+        $equipmentType = $validated['type'] ?? 'weapon';
+        $character = Auth::user()->currentCharacter();
+        $currentCity = $character->currentCity;
+        $decompositionCandidates = $decomposition->candidates($character, $equipmentType);
+
+        return view('smith.disassemble', compact('character', 'currentCity', 'equipmentType', 'decompositionCandidates'));
+    }
+
+    public function disassembleConfirm(CharacterItem $characterItem, EquipmentDecompositionService $decomposition)
+    {
+        abort_unless($decomposition->enabled(), 404);
+        $character = Auth::user()->currentCharacter();
+        abort_unless((int) $characterItem->character_id === (int) $character->id, 404);
+        try {
+            $candidate = $decomposition->preview($character, $characterItem);
+        } catch (RuntimeException $e) {
+            return redirect()->route('smith.disassemble.index')->with('error', $e->getMessage());
+        }
+        $currentCity = $character->currentCity;
+
+        return view('smith.disassemble-confirm', compact('character', 'currentCity', 'candidate'));
     }
 
     /**
      * 武器・防具・装飾品を素材へ分解する
      */
-    public function disassemble(Request $request, CharacterItem $characterItem)
+    public function disassemble(Request $request, CharacterItem $characterItem, EquipmentDecompositionService $decomposition)
     {
-        $message = '装備分解は現在停止中です。不要な装備は売却してください。';
+        abort_unless($decomposition->enabled(), 404);
+        $character = Auth::user()->currentCharacter();
+        abort_unless((int) $characterItem->character_id === (int) $character->id, 404);
+        $validator = Validator::make($request->all(), [
+            'confirmed' => ['required', 'accepted'],
+            'confirmation_hash' => ['required', 'string', 'size:64'],
+        ]);
+        if ($validator->fails()) {
+            if ($request->expectsJson()) {
+                return response()->json(['success' => false, 'message' => '分解内容を確認してください。', 'errors' => $validator->errors()], 422);
+            }
 
-        if ($request->expectsJson()) {
-            return response()->json([
-                'success' => false,
-                'message' => $message,
-            ], 422);
+            return redirect()->route('smith.disassemble.confirm', $characterItem)->withErrors($validator);
+        }
+        $validated = $validator->validated();
+        try {
+            $result = $decomposition->disassemble($character, $characterItem, $validated['confirmation_hash']);
+        } catch (RuntimeException $e) {
+            if ($request->expectsJson()) {
+                return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
+            }
+
+            return redirect()->route('smith.disassemble.index', ['type' => $characterItem->item->type])
+                ->with('error', $e->getMessage());
         }
 
-        return redirect()
-            ->route('equipment.index')
-            ->with('error', $message);
+        if ($request->expectsJson()) {
+            return response()->json(['success' => true] + $result);
+        }
+
+        return redirect()->route('smith.disassemble.index', ['type' => $characterItem->item->type])
+            ->with('status', $result['message']);
     }
 }

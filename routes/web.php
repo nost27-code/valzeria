@@ -453,6 +453,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/smith/source-area/{area}', [\App\Http\Controllers\SmithController::class, 'sourceArea'])->name('smith.source-area');
         Route::post('/smith/craft', [\App\Http\Controllers\SmithController::class, 'craft'])->name('smith.craft');
         Route::get('/smith/disassemble', [\App\Http\Controllers\SmithController::class, 'disassembleIndex'])->name('smith.disassemble.index');
+        Route::get('/smith/disassemble/{characterItem}', [\App\Http\Controllers\SmithController::class, 'disassembleConfirm'])->name('smith.disassemble.confirm');
         Route::post('/smith/disassemble/{characterItem}', [\App\Http\Controllers\SmithController::class, 'disassemble'])->name('smith.disassemble');
 
         // 素材交換所

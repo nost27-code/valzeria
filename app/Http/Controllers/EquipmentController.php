@@ -415,7 +415,10 @@ class EquipmentController extends Controller
         $character = Auth::user()->currentCharacter();
         $tab = $characterItem->item ? $equipmentService->getAccessoryTab($characterItem->item) : 'weapon';
         $mode = 'inventory';
-        $message = '装備分解は現在停止中です。不要な装備は売却してください。';
+        $decompositionEnabled = app(\App\Services\EquipmentDecompositionService::class)->enabled();
+        $message = $decompositionEnabled
+            ? '返却素材と失う武具を確認してから分解してください。'
+            : \App\Services\EquipmentDecompositionService::DISABLED_MESSAGE;
 
         if (!$character || $characterItem->character_id !== $character->id) {
             if ($request->expectsJson()) {
@@ -436,13 +439,16 @@ class EquipmentController extends Controller
                 'active_mode' => $mode,
                 'active_tab' => $tab,
                 'character_item_id' => $characterItem->id,
+                'confirmation_url' => $decompositionEnabled ? route('smith.disassemble.confirm', $characterItem) : null,
             ], 422);
         }
 
-        return redirect()->route('equipment.index')
-            ->with('error', $message)
-            ->with('activeMode', $mode)
-            ->with('activeTab', $tab);
+        if (!$decompositionEnabled) {
+            return redirect()->route('equipment.index')->with('error', $message)
+                ->with('activeMode', $mode)->with('activeTab', $tab);
+        }
+
+        return redirect()->route('smith.disassemble.confirm', $characterItem);
     }
 
     private function attachSortValues(CharacterItem $characterItem, EquipmentService $equipmentService): CharacterItem

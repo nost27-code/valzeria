@@ -547,6 +547,25 @@ class EquipmentEnhancementService
         }
     }
 
+    /** 現行レシピの累計。過去の実消費履歴ではなく、分解の回収基準として使う。 */
+    public function cumulativeMaterialRequirements(int $level, string $type): array
+    {
+        if (!in_array($type, ['weapon', 'armor', 'accessory'], true) || $level < 1 || $level > self::MAX_EQUIPMENT_ENHANCE) {
+            throw new RuntimeException('この装備の強化値は分解に対応していません。');
+        }
+
+        $totals = [];
+        for ($next = 1; $next <= $level; $next++) {
+            foreach ($this->recipeForLevel($next, $type)['materials'] as $requirement) {
+                $code = $requirement['material_id'];
+                $totals[$code] ??= $requirement + ['total_quantity' => 0];
+                $totals[$code]['total_quantity'] += (int) $requirement['quantity'];
+            }
+        }
+
+        return array_values($totals);
+    }
+
     private function recipeForLevel(int $level, string $type = 'weapon', ?Character $character = null, ?object $item = null): array
     {
         if (in_array($type, ['weapon', 'armor', 'accessory'], true)) {

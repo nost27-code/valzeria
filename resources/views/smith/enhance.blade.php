@@ -65,6 +65,9 @@
                 </div>
             </div>
 
+            @if(app(\App\Services\EquipmentDecompositionService::class)->enabled())
+                <a href="{{ route('smith.disassemble.index') }}" class="mb-4 block rounded-lg border border-slate-300 bg-slate-50 px-3 py-3 text-center text-sm font-bold text-slate-700 hover:bg-slate-100">使わなくなった強化武具を分解する</a>
+            @endif
             <div class="grid grid-cols-3 gap-2 mb-5">
                 <a href="{{ route('blacksmith.index') }}" class="text-center rounded-lg bg-slate-900 px-2 py-3 text-xs sm:text-sm font-bold text-white shadow-sm">
                     装備強化

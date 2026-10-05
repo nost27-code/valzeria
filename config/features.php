@@ -3,6 +3,12 @@
 $defaultsEnabled = in_array(env('APP_ENV', 'production'), ['local', 'testing'], true);
 
 return [
+    // 武具分解はローカルで確認し、本番/stagingは明示ONまで停止する。
+    'equipment_decomposition_enabled' => filter_var(
+        env('EQUIPMENT_DECOMPOSITION_ENABLED', $defaultsEnabled),
+        FILTER_VALIDATE_BOOL,
+    ),
+
     // Preview and official raid publication are independent; both default OFF.
     'nation_competitive_raid_preview_enabled' => filter_var(
         env('NATION_COMPETITIVE_RAID_PREVIEW_ENABLED', false),

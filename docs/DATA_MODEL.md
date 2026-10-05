@@ -1,5 +1,14 @@
 # DATA_MODEL.md
 
+## Equipment decomposition (2026-10-05, feature gated)
+
+- Reuses `equipment_decomposition_logs` without a migration. Each successful operation stores owner, deleted instance/master IDs, display name, rank, enhancement level and the `obtained_materials` JSON array (`material_id`, `material_code`, `name`, `quantity`). Existing admin action-log aggregation reads this array.
+- `character_items` deletion, `character_materials` grants and the log insert share one transaction. Lock order is character, equipment, then owned material rows in material-ID order. A deleted or foreign instance is rejected on retries; no second grant is possible. HTTP route binding may return 404 for an already deleted instance.
+- Confirmation hashes cover the individual equipment snapshot, item master, displayed name and returned materials. The execution recalculates the current recipe and ownership/protection checks; changed snapshots, insufficient storage and active exploration maps reject the entire operation. Current recipes determine recovery, not historical spending. MariaDB parallel-connection behavior remains unverified.
+
+- EQUIPMENT_DECOMPOSITION_ENABLED defaults OFF in production/staging. When OFF, controller entry points and service calls reject before accessing inventory or issuing grants. No production environment or database mutation is required to keep it closed.
+
+
 ## Adventurer field position and chat (2026-09-30)
 
 - `character_field_positions` has one row per character (`character_id` unique) and stores `plane`, pixel `x/y`, `facing`, and the last presence heartbeat in `moved_at`. The field creates a spawn row on first entry and updates it through authenticated sync, battle, facility, and chat requests; nearby-player reads use the configured time/radius limits. The admin spectator reads active rows without creating or updating a position.
