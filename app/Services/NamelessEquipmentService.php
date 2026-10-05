@@ -82,12 +82,12 @@ class NamelessEquipmentService
         return collect(self::STAT_KEYS[$kind] ?? [])->map(function (string $key, string $type) use ($kind): array {
             $label = PlayerStatLabel::for($key);
             $targets = config('nameless_relics.armor_stat_targets_at_max.'.$type);
-            if ($kind === 'armor' && app()->environment(['local', 'testing']) && config('nameless_relics.enabled') && is_array($targets)) {
+            if ($kind === 'armor' && app(NamelessWorkshopService::class)->enabled() && is_array($targets)) {
                 $focus = $targets['def'] === $targets['spr'] ? '均等' : ($targets['def'] > $targets['spr'] ? '防御重視' : '精神重視');
                 $label = '防御・精神／'.$focus;
             }
 
-            if ($kind === 'accessory' && app()->environment(['local', 'testing']) && config('nameless_relics.enabled')) {
+            if ($kind === 'accessory' && app(NamelessWorkshopService::class)->enabled()) {
                 $targets = config('nameless_relics.accessory_stat_targets_at_max.'.$type, []);
                 $label = implode('・', array_map(fn (string $stat) => PlayerStatLabel::for($stat), array_keys($targets)));
             }

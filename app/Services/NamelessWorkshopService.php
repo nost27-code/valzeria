@@ -22,19 +22,21 @@ class NamelessWorkshopService
 
     public function enabled(): bool
     {
-        return app()->environment(['local', 'testing']) && (bool) config('nameless_relics.enabled', false);
+        return (bool) config('nameless_relics.enabled', false);
     }
 
     public function ready(): bool
     {
         return $this->enabled() && Schema::hasTable('player_relics') && Schema::hasTable('nameless_workshop_operations')
-            && Schema::hasTable('nameless_equipment_discoveries');
+            && Schema::hasTable('nameless_equipment_discoveries') && Schema::hasTable('nameless_ruin_progress')
+            && Schema::hasColumns('player_relics', ['growth_progress', 'character_item_id'])
+            && Schema::hasColumns('player_nameless_equipments', ['growth_exp', 'revision', 'acquisition_source', 'is_locked']);
     }
 
     public function assertAvailable(): void
     {
         if (! $this->ready()) {
-            throw new RuntimeException('名もなき工房はローカル試作専用です。設定とmigrationを確認してください。');
+            throw new RuntimeException('名もなき工房は現在利用できません。設定とmigrationを確認してください。');
         }
     }
 
@@ -230,20 +232,31 @@ class NamelessWorkshopService
     }
 
     /** 強化上限後も収集を続けられるよう、余剰品だけを明示操作で整理する。 */
-    public function discard(Character $character, int $relicId, string $uuid): array
+    public function discard(Character $character, int $relicId, string $uuid, ?array $expectedState = null): array
     {
-        return $this->operation($character, $uuid, 'discard', compact('relicId'), function ($locked) use ($relicId) {
+        // 旧フォームの進捗0の要求は、保存済みUUIDのpayloadを維持する。
+        $payload = compact('relicId');
+        if ($expectedState !== null) {
+            $payload['expectedState'] = $expectedState;
+        }
+        return $this->operation($character, $uuid, 'discard', $payload, function ($locked) use ($relicId, $expectedState) {
             $relic = PlayerRelic::query()->where('character_id', $locked->id)->whereKey($relicId)->lockForUpdate()->first();
             if (! $relic || $relic->is_locked || $relic->isAttached()) {
                 throw new RuntimeException('未所持・保護中・装着中の遺物は破棄できません。');
             }
-            if ($relic->growth_progress) {
-                throw new RuntimeException('育成途中の遺物は破棄できません。進捗を残して育成を続けてください。');
+            if ($expectedState !== null && (
+                ($expectedState['rank'] ?? null) !== (int) $relic->rank
+                || ($expectedState['growth_progress'] ?? null) !== (int) $relic->growth_progress
+            )) {
+                throw new RuntimeException('遺物のランクまたは育成進捗が変わりました。画面を開き直して確認してください。');
+            }
+            if ($relic->growth_progress && $expectedState === null) {
+                throw new RuntimeException('育成途中の遺物を破棄するには、進捗を失うことを確認してください。');
             }
             if (in_array($relicId, $this->bestRelicIds($locked), true)) {
                 throw new RuntimeException('各効果の最高ランクは一つ残してください。');
             }
-            $result = ['message' => $relic->displayName().'を破棄しました。成長EXPは得られません。', 'discarded' => ['id' => $relic->id, 'name' => $relic->displayName(), 'effect_key' => $relic->effect_key, 'rank' => $relic->rank]];
+            $result = ['message' => $relic->displayName().'を破棄しました。成長EXPは得られません。', 'discarded' => ['id' => $relic->id, 'name' => $relic->displayName(), 'effect_key' => $relic->effect_key, 'rank' => $relic->rank, 'growth_progress' => (int) $relic->growth_progress]];
             $relic->delete();
 
             return $result;

@@ -188,7 +188,7 @@ class CharacterStatusService
             'armor_base' => ['def' => $armorBaseDef, 'spr' => $armorBaseSpr],
             'armor_defense' => ['def' => $armorDef, 'spr' => $armorSpr],
         ];
-        if (! $namelessWorkshop->enabled()) {
+        if (! $namelessWorkshop->ready()) {
             return $stats;
         }
         $baseline = array_intersect_key($stats, array_flip(['max_hp', 'max_mp', 'str', 'def', 'agi', 'mag', 'spr', 'luk']));

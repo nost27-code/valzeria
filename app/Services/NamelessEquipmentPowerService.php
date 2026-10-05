@@ -20,7 +20,7 @@ class NamelessEquipmentPowerService
     public function statsAt(PlayerNamelessEquipment $equipment, int $level): array
     {
         $primary = NamelessEquipmentService::statFor($equipment->kind, $equipment->equipment_type)['key'];
-        if (! app()->environment(['local', 'testing']) || ! config('nameless_relics.enabled')) {
+        if (! app(NamelessWorkshopService::class)->enabled()) {
             return [$primary => $this->curvePower($equipment, $level, null)];
         }
 

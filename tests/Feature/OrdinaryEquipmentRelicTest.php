@@ -464,7 +464,7 @@ class OrdinaryEquipmentRelicTest extends TestCase
         }
     }
 
-    public function test_nonlocal_environment_still_ignores_ordinary_relics_even_when_flag_is_on(): void
+    public function test_disabled_feature_ignores_ordinary_relics_in_all_environments(): void
     {
         $character = $this->character();
         $equipment = $this->ordinary($character);
@@ -473,7 +473,7 @@ class OrdinaryEquipmentRelicTest extends TestCase
         config(['nameless_relics.enabled' => false]);
         CharacterStatusService::clearRequestCache();
         $baseline = app(CharacterStatusService::class)->getFinalStats($character->fresh())['str'];
-        config(['nameless_relics.enabled' => true]);
+        config(['nameless_relics.enabled' => false]);
         foreach (['production', 'staging'] as $environment) {
             $this->app->instance('env', $environment);
             CharacterStatusService::clearRequestCache();

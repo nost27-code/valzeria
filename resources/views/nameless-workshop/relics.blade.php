@@ -10,8 +10,8 @@
 <div class="relic-grid">
     @forelse($relics->filter(fn ($relic) => !$filterEffect || $relic->effect_key === $filterEffect) as $relic)
         @php($growth = $relicGrowth->get($relic->id))
-        <details class="card stack relic-entry" id="relic-{{ $relic->id }}">
-            <summary><x-relic-icon :effect-key="$relic->effect_key" :size="64" /><span class="relic-copy"><strong>{{ $relic->displayName() }}</strong><small>{{ $relic->effectSummary() }}</small></span></summary><p class="muted">{{ $catalog->definition($relic->effect_key)['description'] }}</p>
+        <details class="card stack relic-entry" id="relic-{{ $relic->id }}" x-data="{ discarding: false }">
+            <summary @click="if (discarding) $event.preventDefault()"><x-relic-icon :effect-key="$relic->effect_key" :size="64" /><span class="relic-copy"><strong>{{ $relic->displayName() }}</strong><small>{{ $relic->effectSummary() }}</small></span></summary><p class="muted">{{ $catalog->definition($relic->effect_key)['description'] }}</p>
             <div class="row">@if($relic->isAttached())<span class="badge">{{ ($relic->equipment?->is_equipped || $relic->characterItem?->is_equipped) ? '装備中の武具に装着' : '控えの武具に装着' }}</span>@endif @if($relic->is_locked)<span class="badge gold">保護中</span>@endif @if(in_array($relic->id, $bestIds, true))<span class="badge">効果ごとの最高ランク</span>@endif</div>
             @if($growth)
                 @if($growth['can_grow'])
@@ -25,19 +25,22 @@
             @if($relic->characterItem && (int) $relic->characterItem->character_id === (int) $character->id)
                 <a class="link" href="{{ route('nameless-workshop.index', ['tab' => 'sets', 'character_item' => $relic->character_item_id]) }}">装着先：{{ $relic->characterItem->displayName() }} · 遺物枠{{ $relic->slot_number }}</a>
             @endif
-            @if($relic->growth_progress)<small>育成途中の遺物は、素材・吸収・破棄に使えません。</small>@else<small>吸収すると成長EXP {{ number_format($catalog->feedExp($relic->rank)) }}</small>@endif
+            @if($relic->growth_progress)<small>育成途中の遺物は素材・吸収に使えません。余剰品は確認のうえ進捗ごと破棄できます。</small>@else<small>吸収すると成長EXP {{ number_format($catalog->feedExp($relic->rank)) }}</small>@endif
             <form method="post" action="{{ route('nameless-workshop.act', 'protect') }}">
                 @include('nameless-workshop.token')<input type="hidden" name="relic_id" value="{{ $relic->id }}"><input type="hidden" name="protected" value="{{ $relic->is_locked ? 0 : 1 }}">
-                <button class="secondary full">{{ $relic->is_locked ? '保護を解除する' : '保護する' }}</button>
+                <button class="secondary full" :disabled="discarding">{{ $relic->is_locked ? '保護を解除する' : '保護する' }}</button>
             </form>
-            @if(!$relic->is_locked && !$relic->isAttached() && !$relic->growth_progress && !in_array($relic->id, $bestIds, true))
+            @if(!$relic->is_locked && !$relic->isAttached() && !in_array($relic->id, $bestIds, true))
                 <details>
-                    <summary>余剰品を破棄する</summary>
-                    <p class="muted">この遺物は消滅し、成長EXPも得られません。本体を育成中なら吸収に使えます。</p>
-                    <form method="post" action="{{ route('nameless-workshop.act', 'discard') }}" class="stack">
+                    <summary @click="if (discarding) $event.preventDefault()">{{ $relic->growth_progress ? '進捗ごと破棄する' : '余剰品を破棄する' }}</summary>
+                    @if($relic->growth_progress)
+                        <p class="muted" data-relic-discard-progress-warning>この遺物と育成進捗 {{ $growth['progress'] }}／{{ $growth['required'] }} は失われます。育成に使った遺物は戻りません。成長EXPも得られません。</p>
+                    @else<p class="muted">この遺物は消滅し、成長EXPも得られません。本体を育成中なら吸収に使えます。</p>@endif
+                    <form method="post" action="{{ route('nameless-workshop.act', 'discard') }}" class="stack" @submit="if (discarding) { $event.preventDefault(); return; } discarding = true">
                         @include('nameless-workshop.token')<input type="hidden" name="relic_id" value="{{ $relic->id }}">
-                        <label class="check"><input type="checkbox" name="confirmed" value="1" required>{{ $relic->displayName() }}を破棄することを確認しました</label>
-                        <button class="danger full">破棄を確定する</button>
+                        <input type="hidden" name="expected_rank" value="{{ $relic->rank }}"><input type="hidden" name="expected_growth_progress" value="{{ $relic->growth_progress }}">
+                        <label class="check"><input type="checkbox" name="confirmed" value="1" required>{{ $relic->displayName() }}{{ $relic->growth_progress ? 'と育成進捗を失う' : 'を破棄する' }}ことを確認しました</label>
+                        <button class="danger full" :disabled="discarding"><span x-show="!discarding">破棄を確定する</span><span x-show="discarding" x-cloak role="status">破棄しています…</span></button>
                     </form>
                 </details>
             @endif

@@ -80,14 +80,14 @@ class NamelessEquipmentBadgeTest extends TestCase
         $this->assertSame($armor->imagePath(), $summary[1]['icon']);
     }
 
-    public function test_disabled_and_nonlocal_features_do_not_expose_equipped_nameless_bodies(): void
+    public function test_disabled_feature_does_not_expose_equipped_nameless_bodies_in_all_environments(): void
     {
         $character = $this->character();
         $this->body($character, customName: '非公開の剣', equipped: true);
         $this->login($character);
         foreach (['testing', 'production', 'staging'] as $environment) {
             $this->app->instance('env', $environment);
-            config(['nameless_relics.enabled' => $environment !== 'testing']);
+            config(['nameless_relics.enabled' => false]);
             $this->assertTrue(app(NamelessWorkshopService::class)->ownedEquipmentForDisplay($character)->isEmpty());
             $this->assertSame([], app(BattleEquipmentSummaryService::class)->forEnemy($character, 'dragon'));
             Livewire::test(LeftSidebar::class)->assertDontSee('非公開の剣')->assertDontSee('data-equipment-rank="nameless"', false);

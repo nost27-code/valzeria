@@ -1,9 +1,11 @@
 <?php
 
 // 2026-10-03: 人間の許可を受けたローカル試作値。正式公開用のバランスではない。
-// 環境判定は Service にも置き、production/staging では env を変更しても起動しない。
+// 正式スイッチは全環境共通。OFF時も既存装着資産の保護・継承は維持する。
 return [
-    'enabled' => env('NAMELESS_RELICS_LOCAL_ENABLED', false),
+    // 正式スイッチ。旧キーの互換はlocal/testingに限定し、本番は既定OFF。
+    'enabled' => env('NAMELESS_RELICS_ENABLED', in_array(env('APP_ENV', 'production'), ['local', 'testing'], true)
+        ? env('NAMELESS_RELICS_LOCAL_ENABLED', false) : false),
     'slots_per_equipment' => 3,
     'ordinary_equipment_slots' => ['SSS' => 2, 'EPIC' => 3], // 2026-10-05人間裁定: 武器・防具・装飾品。
     'inventory_limit' => 300,

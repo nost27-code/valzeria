@@ -188,7 +188,7 @@ class NamelessRelicGrowthTest extends TestCase
         $this->assertDatabaseCount('nameless_workshop_operations', 0);
     }
 
-    public function test_partially_grown_relic_is_excluded_from_other_growth_forge_and_discard(): void
+    public function test_partially_grown_relic_is_excluded_from_materials_and_requires_discard_confirmation(): void
     {
         $character = $this->character();
         $body = $this->body($character);
@@ -248,7 +248,7 @@ class NamelessRelicGrowthTest extends TestCase
         $this->assertDatabaseCount('nameless_workshop_operations', 0);
     }
 
-    public function test_foreign_get_and_local_environment_gates_reject_growth(): void
+    public function test_foreign_get_and_disabled_feature_reject_growth(): void
     {
         $character = $this->character(); $this->body($character);
         $foreign = $this->relic($this->character());
@@ -256,11 +256,12 @@ class NamelessRelicGrowthTest extends TestCase
         $this->login($character);
         $this->get(route('nameless-workshop.index', ['tab' => 'sets', 'grow_relic' => $foreign->id]))->assertNotFound();
         $this->get(route('nameless-workshop.index', ['grow_relic' => ['bad']]))->assertNotFound();
+        config(['nameless_relics.enabled' => false]);
         foreach (['production', 'staging'] as $environment) {
             $this->app->instance('env', $environment);
             $this->assertFalse($this->growth()->ready());
             $this->get(route('nameless-workshop.index', ['grow_relic' => $target->id]))->assertNotFound();
-            $this->reject(fn () => $this->growth()->preview($character, $target->id, [$source->id]), 'ローカル試作');
+            $this->reject(fn () => $this->growth()->preview($character, $target->id, [$source->id]), '現在利用できません');
         }
         $this->app->instance('env', 'testing');
         config(['nameless_relics.enabled' => false]);

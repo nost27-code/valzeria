@@ -39,11 +39,12 @@ class NamelessRelicPrototypeTest extends TestCase
         app(GameSettingService::class)->flush();
     }
 
-    public function test_production_and_disabled_feature_fail_closed_even_with_existing_equipment(): void
+    public function test_disabled_feature_fails_closed_in_all_environments_with_existing_equipment(): void
     {
         $character = $this->character();
         $body = $this->body($character);
         $this->workshop()->changeEquipment($character, $body->id, true, $this->uuid());
+        config(['nameless_relics.enabled' => false]);
         foreach (['production', 'staging'] as $environment) {
             $this->app->instance('env', $environment);
             $this->assertFalse($this->workshop()->ready());
@@ -53,7 +54,7 @@ class NamelessRelicPrototypeTest extends TestCase
         $this->app->instance('env', 'testing');
         config(['nameless_relics.enabled' => false]);
         $this->assertFalse($this->workshop()->ready());
-        $this->reject(fn () => $this->workshop()->claim($character, 'armor', '鎧', $this->uuid()), 'ローカル試作');
+        $this->reject(fn () => $this->workshop()->claim($character, 'armor', '鎧', $this->uuid()), '現在利用できません');
     }
 
     public function test_claim_is_unique_and_request_replay_cannot_change_payload(): void
@@ -501,10 +502,11 @@ class NamelessRelicPrototypeTest extends TestCase
         $this->assertSame(0, (int) $town->sort_order);
         $this->assertFalse((bool) $town->is_initial);
         $this->assertSame(0, $town->areas()->count());
+        config(['nameless_relics.enabled' => false]);
         foreach (['production', 'staging'] as $environment) {
             $this->app->instance('env', $environment);
             $this->assertNull($service->availableTown());
-            $this->reject(fn () => $service->installLocalTown(), 'ローカル試作');
+            $this->reject(fn () => $service->installLocalTown(), '現在利用できません');
         }
     }
 
@@ -566,7 +568,7 @@ class NamelessRelicPrototypeTest extends TestCase
         $this->assertSame($capital->id, $character->fresh()->highest_city_id);
         foreach (['local', 'production', 'staging'] as $environment) {
             $this->app->instance('env', $environment);
-            config(['nameless_relics.enabled' => $environment !== 'local']);
+            config(['nameless_relics.enabled' => false]);
             $this->get(route('city.index'))->assertOk()->assertDontSee('data-nameless-town-entry', false);
             \Livewire\Livewire::test(\App\Livewire\MainScreen::class, ['fixedLocation' => 'move'])
                 ->assertDontSee('data-nameless-town-entry', false);
@@ -1833,7 +1835,7 @@ class NamelessRelicPrototypeTest extends TestCase
         }
     }
 
-    public function test_weapon_curve_grows_past_epic_without_rewriting_owned_data_and_is_local_only(): void
+    public function test_weapon_curve_grows_past_epic_without_rewriting_owned_data_and_stops_when_disabled(): void
     {
         $character = $this->character();
         $body = $this->body($character);
@@ -1850,6 +1852,7 @@ class NamelessRelicPrototypeTest extends TestCase
         $this->assertSame(8000, $this->body($character, 'armor')->powerAt(99));
         $this->actingAs($character->user)->withSession(['current_character_id' => $character->id])->withoutMiddleware(CheckCharacterSelected::class);
         $this->get(route('nameless-workshop.index', ['equipment' => $body->id]))->assertOk()->assertSee('武器性能 攻撃 +12500');
+        config(['nameless_relics.enabled' => false]);
         foreach (['production', 'staging'] as $environment) {
             $this->app->instance('env', $environment);
             $this->assertSame(500, $body->power());
@@ -1939,6 +1942,7 @@ class NamelessRelicPrototypeTest extends TestCase
         $this->assertSame($relicBefore, $body->relics->first()->fresh()->getAttributes());
         $this->actingAs($character->user)->withSession(['current_character_id' => $character->id])->withoutMiddleware(CheckCharacterSelected::class);
         $this->get(route('nameless-workshop.index', ['equipment' => $body->id]))->assertOk()->assertSee('防具性能 防御 +8000 / 精神 +4300');
+        config(['nameless_relics.enabled' => false]);
         foreach (['production', 'staging'] as $environment) {
             $this->app->instance('env', $environment);
             $this->assertSame(500, $body->power());
