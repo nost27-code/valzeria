@@ -101,10 +101,10 @@ return [
         'image' => 'images/nameless-ruins/relic-goblin.webp',
         'art' => '苔色の肌と大きな耳。黄土色の頭巾と革の前掛け。青く光る破片や青銅の小物がこぼれる大袋を抱え、いたずらっぽく笑う。',
     ],
-    // 同じ深度では高ランクほど低確率。深度1から全ランクに可能性を残す。
+    // 深度1から全ランクを抽選。2026-10-06人間裁定: 深度100まで毎階層で高ランクを優遇。
     'rank_weights' => [1 => 48000, 28000, 14000, 6000, 2500, 1000, 400, 90, 10],
     'depth_rank_bonus' => .01,
-    'depth_rank_bonus_cap' => 30,
+    'depth_rank_bonus_cap' => 99, // 深度1から数える補正段階数。深度100で上限。
     'stamina_cost' => 1,
     'boss_stamina_cost' => 3,
     'enemy_base' => ['max_hp' => 1800, 'str' => 180, 'def' => 100, 'mag' => 180, 'spr' => 100, 'agi' => 80, 'luk' => 40],

@@ -14,7 +14,7 @@ use Tests\TestCase;
 
 class NamelessRelicBattleTest extends TestCase
 {
-    public function test_every_effect_is_reachable_and_ranks_remain_ordered_at_all_depths(): void
+    public function test_every_effect_and_rank_is_reachable_with_valid_ticket_boundaries(): void
     {
         $catalog = app(NamelessRelicCatalog::class);
         $ruins = app(NamelessRuinService::class);
@@ -22,11 +22,14 @@ class NamelessRelicBattleTest extends TestCase
         $available = collect($ruins->zones())->flatMap(fn ($zone) => $zone['effects'])->all();
         $this->assertEqualsCanonicalizing(array_keys($catalog->all()), $available);
         $this->assertSame(30, collect($ruins->zones())->sum(fn ($zone) => count($zone['enemies'])));
-        foreach ([1, 31, 100] as $depth) {
+        foreach ([1, 31, 32, 50, 75, 100] as $depth) {
             $previous = PHP_INT_MAX;
             $boundary = 0;
             foreach ($ruins->rankWeights($depth) as $rank => $weight) {
-                $this->assertLessThan($previous, $weight);
+                $this->assertGreaterThan(0, $weight);
+                if ($depth <= 31) {
+                    $this->assertLessThan($previous, $weight);
+                }
                 $this->assertSame($rank, $ruins->rankForTicket($depth, $boundary + 1));
                 $boundary += $weight;
                 $this->assertSame($rank, $ruins->rankForTicket($depth, $boundary));
