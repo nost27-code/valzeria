@@ -31,7 +31,11 @@ class EquipmentController extends Controller
             $autoUnequipService->unequipInvalidItems($character);
         }
 
-        $characterItems = $character->characterItems()->with(['item', 'affixPrefix', 'affixSuffix'])->get()
+        $equipmentRelations = ['item', 'affixPrefix', 'affixSuffix'];
+        if (app(\App\Services\NamelessRelicEquipmentService::class)->storedRelicsSchemaReady()) {
+            $equipmentRelations[] = 'relics';
+        }
+        $characterItems = $character->characterItems()->with($equipmentRelations)->get()
             ->filter(fn($ci) => $ci->item)
             ->map(fn($ci) => $this->attachSortValues($ci, $equipmentService));
 
@@ -40,6 +44,10 @@ class EquipmentController extends Controller
         $accessories = $characterItems->filter(fn($ci) => $ci->item->type === 'accessory' && !$equipmentService->isMark($ci->item))->sortByDesc('sort_recommend')->values();
         $explorationSupportEnabled = $supportService->isEnabled();
         $belongings = $explorationSupportEnabled ? $supportService->belongingsFor($character) : [];
+        $namelessEquipment = app(\App\Services\NamelessWorkshopService::class)->ownedEquipmentForDisplay($character);
+        if ($namelessEquipment->isNotEmpty()) {
+            $namelessEquipment->loadMissing('relics');
+        }
 
         return view('equipment.index', compact(
             'character',
@@ -48,6 +56,7 @@ class EquipmentController extends Controller
             'armors',
             'accessories',
             'belongings',
+            'namelessEquipment',
             'explorationSupportEnabled'
         ));
     }

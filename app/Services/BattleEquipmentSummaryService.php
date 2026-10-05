@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Character;
+use App\Models\PlayerNamelessEquipment;
 use App\Services\Nation\Raid\NationRaidRules;
 
 /** 戦闘相手に対して実際に有効な装備効果を、表示用にまとめる。 */
@@ -22,7 +23,7 @@ final readonly class BattleEquipmentSummaryService
     ): array {
         $slotOrder = ['weapon' => 0, 'armor' => 1, 'accessory' => 2];
 
-        return $character->characterItems()
+        $ordinary = $character->characterItems()
             ->where('is_equipped', true)
             ->with(['item', 'affixPrefix', 'affixSuffix'])
             ->get()
@@ -77,6 +78,31 @@ final readonly class BattleEquipmentSummaryService
             })
             ->values()
             ->all();
+
+        $nameless = app(NamelessWorkshopService::class)->equippedEquipmentForDisplay($character);
+        if ($nameless->isEmpty()) {
+            return $ordinary;
+        }
+
+        // 名もなき武具は別テーブルのため、通常装備の明細とは表示時だけ合流する。
+        $namelessSlots = $nameless->map(fn ($body) => $this->slotLabel($body->kind))->all();
+        $summary = array_values(array_filter($ordinary, fn ($row) => ! in_array($row['slot'], $namelessSlots, true)));
+        foreach ($nameless as $body) {
+            $summary[] = [
+                'slot' => $this->slotLabel($body->kind),
+                'rank' => PlayerNamelessEquipment::DISPLAY_RANK,
+                'name' => $body->displayName().' +'.$body->forge_level,
+                'icon' => $body->imagePath(),
+                'is_renamed' => $body->isRenamed(),
+                'trait_label' => null,
+                'is_killer_active' => false, 'is_resist_active' => false,
+                'killer_rate' => 0.0, 'resist_rate' => 0.0,
+            ];
+        }
+        $slotLabels = ['武器' => 0, '防具' => 1, '装飾品' => 2];
+        usort($summary, fn ($left, $right) => ($slotLabels[$left['slot']] ?? 99) <=> ($slotLabels[$right['slot']] ?? 99));
+
+        return $summary;
     }
 
     private function raidKillerRate(Character $character, mixed $characterItem, string $enemySpeciesKey): float

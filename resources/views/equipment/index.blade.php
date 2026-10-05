@@ -46,6 +46,23 @@
         @endphp
 
         <div class="w-full space-y-6">
+            @if(($namelessEquipment ?? collect())->isNotEmpty())
+                <details class="rounded-lg border border-amber-300 bg-white p-3" data-nameless-equipment-list>
+                    <summary class="cursor-pointer text-sm font-bold text-slate-800">遺装（{{ $namelessEquipment->count() }}個）</summary>
+                    <div class="mt-3 grid gap-2 sm:grid-cols-2">
+                        @foreach($namelessEquipment as $body)
+                            <div class="min-w-0 space-y-1.5 rounded-lg border border-slate-200 p-2">
+                            <a href="{{ route('nameless-workshop.index', ['equipment' => $body->id]) }}" class="flex min-w-0 items-center gap-2 text-sm" data-nameless-owned-equipment="{{ $body->id }}">
+                                @if($body->imagePath())<img src="{{ asset($body->imagePath()) }}" alt="" width="48" height="48" class="h-12 w-12 shrink-0 object-contain" loading="lazy">@endif
+                                <span class="min-w-0 flex-1"><span class="block break-words font-bold" @if($body->isRenamed()) style="color:#1d4ed8" @endif>{{ $body->rankedDisplayName() }}</span><span class="text-xs text-slate-500">{{ $body->kindLabel() }} · {{ $body->is_equipped ? '装備中' : '控え' }}</span></span>
+                                <span class="shrink-0 text-xs font-bold text-amber-800">鍛冶屋へ</span>
+                            </a>
+                            @include('equipment.partials.attached-relics', ['equipment' => $body])
+                            </div>
+                        @endforeach
+                    </div>
+                </details>
+            @endif
             @php
                 $requestedTab = request()->query('tab', session('activeTab', 'weapon'));
                 $availableTabs = $explorationSupportEnabled ? ['weapon', 'armor', 'accessory', 'belongings'] : ['weapon', 'armor', 'accessory'];

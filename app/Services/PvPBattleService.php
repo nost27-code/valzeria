@@ -156,6 +156,11 @@ class PvPBattleService
             return null;
         }
 
+        if ($isDirect && $source !== null && ($source->namelessRelicsEnabled || $target->namelessRelicsEnabled)) {
+            $relicBattle = app(NamelessRelicBattleService::class);
+            $damage = $relicBattle->speciesDamage($damage, $source, $target, true);
+            $damage = $relicBattle->directDamage($damage, $source, $target);
+        }
         $damage = max(0, $this->roomRuleFor($state)->modifyFinalDamage(
             $source,
             $target,
@@ -170,7 +175,7 @@ class PvPBattleService
         $result = null;
 
         if ($damage <= 0 || !$this->jobArtBattleSupport->usesDamageApplication($source, $target)) {
-            $target->takeDamage($damage);
+            $target->takeDamage($damage, ! in_array($sourceType, [DamageSourceType::DOT, DamageSourceType::SELF_DAMAGE, DamageSourceType::RECOIL], true));
         } else {
             $result = $this->damageApplicationService->apply(new DamageApplicationRequest(
                 sourceActor: $source,
@@ -215,7 +220,7 @@ class PvPBattleService
             );
         }
 
-        return $result ?? new DamageApplicationResult(
+        $result ??= new DamageApplicationResult(
             requestedDamage: $damage,
             hpBefore: $hpBefore,
             hpAfter: $hpAfter,
@@ -228,6 +233,13 @@ class PvPBattleService
             hitIndex: $hitIndex,
             hitCount: $hitCount,
         );
+        if ($isDirect && $source !== null && ($source->namelessRelicsEnabled || $target->namelessRelicsEnabled)) {
+            app(NamelessRelicBattleService::class)->completeDirectHit($source, $target, $state, $result,
+                fn ($from, $to, $amount, $type) => $this->applyResolvedDamage($from, $to, $state, $amount, $type),
+                fn ($actor, $amount) => $this->applyResolvedHealing($actor, $actor, $state, $amount, 'nameless_drain'),
+                fn () => random_int(1, 10000));
+        }
+        return $result;
     }
 
     /**
@@ -315,7 +327,13 @@ class PvPBattleService
         $defenderActor->normalAttackType = $this->normalAttackType($defenderJob);
         $this->jobArtBattleSupport->attachBossSet($defenderActor, $defenderChar, 'champ', 'pvp', true);
 
+        $relicBattle = app(NamelessRelicBattleService::class);
+        $relicBattle->attach($attackerChar, $attackerActor);
+        $relicBattle->attach($defenderChar, $defenderActor);
+        $relicBattle->attachOrdinaryEquipment($attackerChar, $attackerActor);
+        $relicBattle->attachOrdinaryEquipment($defenderChar, $defenderActor);
         $state = new BattleState($attackerActor, $defenderActor, 'pvp');
+        $relicBattle->startBattle($attackerActor, $defenderActor, $state);
         $state->rankBattleMinimumDamageGuaranteeEnabled = $context->rankBattleMinimumDamageGuaranteeEnabled;
         $state->rankBattleDamageCapEnabled = $context->rankBattleDamageCapEnabled;
         $state->rankBattleBaseDamageMultiplier = $context->rankBattleBaseDamageMultiplier;
@@ -646,6 +664,9 @@ class PvPBattleService
     ): void
     {
         $this->ensureRoomRuleAssociation($state);
+        if ($attacker->namelessRelicsEnabled) {
+            app(NamelessRelicBattleService::class)->beginAction($attacker, $state);
+        }
         $this->jobArtBattleSupport->beginAction($attacker, $state);
         $state->beginCompetitiveAction($attacker, $defender);
         if ($state->speedBreakthroughEnabled) {
@@ -1057,6 +1078,10 @@ class PvPBattleService
             if ($attacker->isDead() || $defender->isDead()) break;
         }
 
+        if ($attacker->namelessRelicsEnabled && $attacker->isDead()) {
+            return;
+        }
+
         if ($skill->isJobArt()) {
             $this->applyJobArtTemplateEffects(
                 $attacker,
@@ -1389,6 +1414,7 @@ class PvPBattleService
         BattleState $state,
         float $existingIgnoreRate,
     ): array {
+        $attacker->namelessExistingIgnoreRate = $existingIgnoreRate;
         $none = [
             'nominal_rate' => 0.0,
             'existing_ignore_rate' => $existingIgnoreRate,

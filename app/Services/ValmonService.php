@@ -487,7 +487,8 @@ class ValmonService
     public function equipmentFeedExp(CharacterItem $characterItem): int
     {
         $item = $characterItem->item;
-        if (!$item || $characterItem->is_equipped || $characterItem->is_locked || $characterItem->isMarketListed()) {
+        if (!$item || $characterItem->is_equipped || $characterItem->is_locked || $characterItem->isMarketListed()
+            || app(NamelessRelicEquipmentService::class)->hasAttachedRelics($characterItem)) {
             return 0;
         }
 

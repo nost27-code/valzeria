@@ -77,6 +77,7 @@ class EquipmentMarketController extends Controller
             'sell_rank' => ['nullable', 'in:G,F,E,D,C,B,A,S,SS,SSS,EPIC'],
         ]);
         $sellableQuery = CharacterItem::query()->with(['item', 'affixPrefix', 'affixSuffix'])
+            ->when(app(\App\Services\NamelessRelicEquipmentService::class)->ordinarySchemaReady(), fn ($q) => $q->withExists(['relics as has_attached_relics']))
             ->where('character_id', $character->id)->whereNull('market_listing_id')
             ->where('is_equipped', false)->where('is_locked', false)
             ->whereHas('item', fn ($q) => $q->whereIn('type', ['weapon', 'armor'])->where('is_tradeable', true))

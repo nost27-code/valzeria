@@ -14,16 +14,18 @@ use RuntimeException;
 class NamelessEquipmentService
 {
     public const MAX_FORGE_LEVEL = 99;
+    public const KINDS = ['weapon', 'armor', 'accessory'];
     private const MILESTONES = [10 => 1, 30 => 3, 50 => 5, 70 => 7, 90 => 9, 99 => 10];
     private const TYPES = [
         'weapon' => ['剣', '短剣', '槍', '斧', '弓', '杖', '魔導書', '銃', '拳具'],
         'armor' => ['鎧', '服', 'ローブ', '外套', '盾', '装束'],
+        'accessory' => ['指輪', '腕輪', '首飾り', '羽飾り', '護符'],
     ];
     private const STAT_KEYS = [
         'weapon' => ['剣' => 'str', '短剣' => 'str', '槍' => 'str', '斧' => 'str', '弓' => 'str', '銃' => 'str', '拳具' => 'str', '杖' => 'mag', '魔導書' => 'mag'],
         'armor' => ['鎧' => 'def', '服' => 'def', '外套' => 'def', '盾' => 'def', '装束' => 'def', 'ローブ' => 'spr'],
+        'accessory' => ['指輪' => 'str', '腕輪' => 'def', '首飾り' => 'hp', '羽飾り' => 'agi', '護符' => 'str'],
     ];
-
     public static function powerFor(int $forgeLevel): int
     {
         return 5 + (max(0, min(self::MAX_FORGE_LEVEL, $forgeLevel)) * 5);
@@ -31,13 +33,13 @@ class NamelessEquipmentService
 
     public static function goldCostForNextLevel(int $nextLevel): int
     {
-        return max(0, min(self::MAX_FORGE_LEVEL, $nextLevel)) * 10000;
+        return max(0, min(self::MAX_FORGE_LEVEL, $nextLevel)) * 1000;
     }
 
     public static function totalGoldCostFor(int $forgeLevel): int
     {
         $level = max(0, min(self::MAX_FORGE_LEVEL, $forgeLevel));
-        return 10000 * $level * ($level + 1) / 2;
+        return 1000 * $level * ($level + 1) / 2;
     }
 
     public static function totalFineMaterialsFor(int $forgeLevel): int
@@ -58,6 +60,14 @@ class NamelessEquipmentService
         return max(10, min(90, intdiv(max(10, $cityOrder), 10) * 10));
     }
 
+    public static function kindLabelFor(string $kind): string
+    {
+        return match ($kind) {
+            'weapon' => '武器', 'armor' => '防具', 'accessory' => '装飾品',
+            default => throw new RuntimeException('この武具種別は選択できません。'),
+        };
+    }
+
     /** @return array{key: string, label: string} */
     public static function statFor(string $kind, string $equipmentType): array
     {
@@ -69,7 +79,21 @@ class NamelessEquipmentService
     /** @return array<string, array{key: string, label: string}> */
     public static function statOptionsFor(string $kind): array
     {
-        return collect(self::STAT_KEYS[$kind] ?? [])->map(fn (string $key) => ['key' => $key, 'label' => PlayerStatLabel::for($key)])->all();
+        return collect(self::STAT_KEYS[$kind] ?? [])->map(function (string $key, string $type) use ($kind): array {
+            $label = PlayerStatLabel::for($key);
+            $targets = config('nameless_relics.armor_stat_targets_at_max.'.$type);
+            if ($kind === 'armor' && app()->environment(['local', 'testing']) && config('nameless_relics.enabled') && is_array($targets)) {
+                $focus = $targets['def'] === $targets['spr'] ? '均等' : ($targets['def'] > $targets['spr'] ? '防御重視' : '精神重視');
+                $label = '防御・精神／'.$focus;
+            }
+
+            if ($kind === 'accessory' && app()->environment(['local', 'testing']) && config('nameless_relics.enabled')) {
+                $targets = config('nameless_relics.accessory_stat_targets_at_max.'.$type, []);
+                $label = implode('・', array_map(fn (string $stat) => PlayerStatLabel::for($stat), array_keys($targets)));
+            }
+
+            return ['key' => $key, 'label' => $label];
+        })->all();
     }
 
     public function rowsFor(Character $character): array
@@ -158,7 +182,7 @@ class NamelessEquipmentService
             return ['name' => $requirement['material']->displayName(), 'owned' => $owned, 'required' => $requirement['required'], 'missing' => max(0, $requirement['required'] - $owned)];
         })->all();
         $stat = self::statFor($kind, (string) $equipment->equipment_type);
-        $nextPower = (int) $equipment->base_power + ($nextLevel * (int) $equipment->power_per_level);
+        $nextPower = $equipment->powerAt($nextLevel);
         return compact('kind', 'equipment', 'cap', 'nextLevel', 'requirements', 'materials', 'canForge', 'stat', 'nextPower') + [
             'owned' => true,
             'stat_options' => self::statOptionsFor($kind),

@@ -11,6 +11,8 @@
     'exitLabel' => null,
     'exitUrl' => null,
     'battleResultLayout' => false,
+    'battleReturnViaLink' => false,
+    'compactHeader' => false,
     'showBattleChatLog' => null,
     'exitTextClass' => 'text-slate-500 hover:text-[#d4af37]',
     'headerOverlayClass' => 'bg-white/75',
@@ -211,7 +213,7 @@
             @if($showExit && !$isBattleResult)
                 <!-- 退出リンク (左上) -->
                 <div class="mb-4">
-                    @if($isBattleResult)
+                    @if($isBattleResult && !$battleReturnViaLink)
                         <form action="{{ route('battle.return') }}" method="POST" class="inline">
                             @csrf
                             <button type="submit" class="inline-flex items-center {{ $exitTextClass }} font-bold transition-colors group">
@@ -242,7 +244,7 @@
             @if($showExit)
                 <!-- 共通の退出ボタン -->
                 <div class="mt-8 flex justify-center w-full">
-                    @if($isBattleResult)
+                    @if($isBattleResult && !$battleReturnViaLink)
                         <form action="{{ route('battle.return') }}" method="POST" x-data="{ loading: false }" @submit="loading = true">
                             @csrf
                             <button type="submit"

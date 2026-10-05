@@ -1,0 +1,1 @@
+<span {{ $attributes->class(['inline-flex shrink-0 items-center justify-center rounded px-1.5 py-0.5 text-[10px] font-black leading-none'])->merge(['style' => 'background-color:#171b20;color:#e8c66a;border:1px solid #b89548;white-space:nowrap;']) }} data-equipment-rank="nameless">{{ \App\Models\PlayerNamelessEquipment::DISPLAY_RANK }}</span>

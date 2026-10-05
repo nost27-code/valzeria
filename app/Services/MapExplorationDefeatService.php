@@ -237,6 +237,7 @@ class MapExplorationDefeatService
                     'name' => $item->displayName(),
                     'rank' => $item->item?->weapon_rank ?? $item->item?->armor_rank ?? $item->item?->accessory_rank ?? $item->item?->rarity,
                 ];
+                app(NamelessRelicEquipmentService::class)->releaseForLoss($item);
                 $item->delete();
                 $itemLossRemaining--;
             }

@@ -328,6 +328,12 @@ class EquipmentEvolutionService
             $selectedSource = $sourceCharacterItemId !== null
                 ? $consumedItems->firstWhere('id', $sourceCharacterItemId)
                 : $consumedItems->first();
+            $relicEquipment = app(NamelessRelicEquipmentService::class);
+            foreach ($consumedItems as $consumed) {
+                if ($consumed->id !== $selectedSource?->id) {
+                    $relicEquipment->assertDetached($consumed);
+                }
+            }
             $sourceEnhanceLevel = (int) ($selectedSource?->enhance_level ?? 0);
             $inheritedEnhanceLevel = min(
                 $sourceEnhanceLevel,
@@ -336,7 +342,10 @@ class EquipmentEvolutionService
             $affixSource = $this->selectAffixInheritanceSource($consumedItems);
             $inheritedAffixes = $affixSource ? $this->affixInheritancePayload($affixSource) : [];
             $consumedEquipmentName = $consumedItems->first()?->displayName() ?? $candidate['from_name'];
-            CharacterItem::whereIn('id', $consumedItems->pluck('id'))->delete();
+            $hasRelicsToInherit = $selectedSource && $relicEquipment->hasAttachedRelics($selectedSource);
+            if (! $hasRelicsToInherit) {
+                CharacterItem::whereIn('id', $consumedItems->pluck('id'))->delete();
+            }
 
             $consumedMaterials = [];
             foreach ($materialRequirements as $materialRequirement) {
@@ -375,6 +384,10 @@ class EquipmentEvolutionService
                 'market_relistable_at' => $consumedItems->max('market_relistable_at'),
             ], $inheritedAffixes));
 
+            if ($hasRelicsToInherit) {
+                $relicEquipment->inheritEvolution($character, $selectedSource, $created);
+                CharacterItem::whereIn('id', $consumedItems->pluck('id'))->delete();
+            }
             $qualityUpgrade = $this->upgradeQualityAfterEvolution($created, $character);
 
             EquipmentEvolutionLog::create([
@@ -1668,6 +1681,7 @@ class EquipmentEvolutionService
 
             $remaining = $this->evolutionSourceEquipmentQuery($character, $itemId)
                 ->where('id', '!=', $sourceCharacterItemId)
+                ->when(app(NamelessRelicEquipmentService::class)->ordinarySchemaReady(), fn ($q) => $q->whereDoesntHave('relics'))
                 ->with(['item', 'affixPrefix', 'affixSuffix'])
                 ->lockForUpdate()
                 ->limit($requiredCount - 1)
@@ -1699,7 +1713,7 @@ class EquipmentEvolutionService
             return true;
         }
 
-        $highestCityId = (int) ($character->highest_city_id ?: $character->current_city_id ?: 1);
+        $highestCityId = app(NamelessTownService::class)->normalProgressCityId($character);
 
         if (isset($recipe->unlock_city_id) && $recipe->unlock_city_id !== null && (int) $recipe->unlock_city_id > $highestCityId) {
             return false;
@@ -1730,7 +1744,7 @@ class EquipmentEvolutionService
             return null;
         }
 
-        $highestCityId = (int) ($character->highest_city_id ?: $character->current_city_id ?: 1);
+        $highestCityId = app(NamelessTownService::class)->normalProgressCityId($character);
 
         if (isset($recipe->unlock_city_id) && $recipe->unlock_city_id !== null && (int) $recipe->unlock_city_id > $highestCityId) {
             return '進化に必要な街まで到達していません。';

@@ -8,6 +8,15 @@ class CharacterItem extends Model
 {
     protected static function booted(): void
     {
+        static::deleting(function (CharacterItem $characterItem): void {
+            app(\App\Services\NamelessRelicEquipmentService::class)->assertDetached($characterItem);
+        });
+        static::updating(function (CharacterItem $characterItem): void {
+            if ($characterItem->isDirty('character_id')) {
+                app(\App\Services\NamelessRelicEquipmentService::class)->assertDetached($characterItem);
+            }
+        });
+
         static::created(function (CharacterItem $characterItem): void {
             app(\App\Services\EquipmentDiscoveryService::class)->record(
                 (int) $characterItem->character_id,
@@ -70,6 +79,11 @@ class CharacterItem extends Model
     public function item()
     {
         return $this->belongsTo(Item::class);
+    }
+
+    public function relics()
+    {
+        return $this->hasMany(PlayerRelic::class, 'character_item_id');
     }
 
     public function affixPrefix()

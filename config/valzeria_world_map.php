@@ -4,6 +4,14 @@ return [
     'image_path' => 'images/map/map01.webp',
     'active_window_minutes' => 30,
 
+    // ローカル工房街の入口。2026-10-03の人間指定位置（大陸北西の丘陵）。
+    'nameless_workshop' => [
+        'label' => '名もなき工房',
+        'short_label' => '工房',
+        'x_percent' => 28,
+        'y_percent' => 12,
+    ],
+
     'cities' => [
         [
             'city_name' => '王都アークレア',

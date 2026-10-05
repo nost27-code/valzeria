@@ -434,6 +434,12 @@ Route::middleware('auth')->group(function () {
         Route::patch('/job-arts/presets/{preset}', [JobArtPresetController::class, 'update'])->name('job-arts.presets.update');
         Route::delete('/job-arts/presets/{preset}', [JobArtPresetController::class, 'destroy'])->name('job-arts.presets.destroy');
 
+        // 名もなき工房は Controller/Service の環境判定で本番・staging とも利用不可。
+        Route::get('/nameless-workshop', [\App\Http\Controllers\NamelessWorkshopController::class, 'index'])->name('nameless-workshop.index');
+        Route::get('/nameless-ruins/result/{uuid}', [\App\Http\Controllers\NamelessWorkshopController::class, 'result'])->whereUuid('uuid')->name('nameless-workshop.result');
+        Route::get('/nameless-town/return/{tab}', [\App\Http\Controllers\NamelessWorkshopController::class, 'returnToTown'])->name('nameless-workshop.return');
+        Route::post('/nameless-workshop/{action}', [\App\Http\Controllers\NamelessWorkshopController::class, 'act'])->name('nameless-workshop.act');
+
         // 鍛冶屋・合成屋
         Route::get('/blacksmith', [\App\Http\Controllers\SmithController::class, 'enhanceIndex'])->name('blacksmith.index');
         Route::get('/blacksmith/help', [\App\Http\Controllers\SmithController::class, 'enhanceHelp'])->name('blacksmith.help');

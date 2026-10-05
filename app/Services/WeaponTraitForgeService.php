@@ -218,6 +218,7 @@ class WeaponTraitForgeService
     private function validatePair(CharacterItem $base, CharacterItem $material, string $operation): array
     {
         $this->assertOperation($operation);
+        app(NamelessRelicEquipmentService::class)->assertDetached($material);
         $this->assertEquipmentsCanBeForged($base, $material);
 
         $prefixLevel = $base->effectiveAffixPrefixLevel();

@@ -345,7 +345,10 @@
                         $rankColors[$_r] = $rankColors[strtoupper($_r)];
                     }
                     unset($_r);
-                    $equipmentRankSlot = function ($label, $characterItem, $rankColumn) {
+                    $equipmentRankSlot = function ($label, $characterItem, $rankColumn, $nameless = null) {
+                        if ($nameless) {
+                            return ['label' => $label, 'item' => $nameless, 'rank' => \App\Models\PlayerNamelessEquipment::DISPLAY_RANK, 'rank_label' => \App\Models\PlayerNamelessEquipment::DISPLAY_RANK, 'nameless' => true];
+                        }
                         $item = $characterItem?->item;
                         $rank = strtoupper((string) ($item?->{$rankColumn} ?? $item?->rarity ?? ''));
 
@@ -360,9 +363,9 @@
                     };
 
                     $equippedSlots = [
-                        $equipmentRankSlot('武器', $weapon, 'weapon_rank'),
-                        $equipmentRankSlot('防具', $armor, 'armor_rank'),
-                        $equipmentRankSlot('装飾', $accessory, 'accessory_rank'),
+                        $equipmentRankSlot('武器', $weapon, 'weapon_rank', $namelessEquipped['weapon'] ?? null),
+                        $equipmentRankSlot('防具', $armor, 'armor_rank', $namelessEquipped['armor'] ?? null),
+                        $equipmentRankSlot('装飾', $accessory, 'accessory_rank', $namelessEquipped['accessory'] ?? null),
                     ];
                 @endphp
                 <div class="space-y-1">
@@ -370,12 +373,14 @@
                     <div class="flex items-center border border-slate-200 rounded text-xs bg-slate-50 overflow-hidden">
                         <div class="px-2 py-1 bg-slate-100 border-r border-slate-200 text-slate-600 w-12 text-center flex-shrink-0 text-[10px] font-bold whitespace-nowrap">{{ $slot['label'] }}</div>
                         @if($slot['item'])
-                            @if($slot['rank'])
+                            @if($slot['nameless'] ?? false)
+                                <x-nameless-equipment-badge class="ml-1" />
+                            @elseif($slot['rank'])
                                 @php $rankColor = $rankColors[$slot['rank']] ?? '#94a3b8'; @endphp
                                 <div class="ml-1 inline-flex h-5 min-w-5 shrink-0 items-center justify-center border border-black/20 px-1 text-[10px] font-black leading-none text-white shadow-sm"
                                      style="background-color:{{ $rankColor }};">{{ $slot['rank_label'] }}</div>
                             @endif
-                            <div class="px-2 py-1 flex-1 truncate leading-tight text-slate-800 font-semibold">{{ $slot['item']->displayName(false) }}</div>
+                            <div class="px-2 py-1 flex-1 min-w-0 truncate leading-tight font-semibold" @if(($slot['nameless'] ?? false) && $slot['item']->isRenamed()) style="color:#1d4ed8" @else style="color:#1e293b" @endif>@if($slot['nameless'] ?? false){{ $slot['item']->displayName() }} +{{ $slot['item']->forge_level }}@else{{ $slot['item']->displayName(false) }}@endif</div>
                         @else
                             <div class="px-2 py-1 flex-1 truncate leading-tight text-slate-400">なし</div>
                         @endif

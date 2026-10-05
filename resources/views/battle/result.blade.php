@@ -1,4 +1,4 @@
-<x-layouts.facility :title="(($result['result'] ?? null) === 'timeout' && (bool) ($result['timeout_defeat_display'] ?? false)) ? '時間切れ敗北' : ((($result['special_event'] ?? null) === 'depth_gate') ? (($result['depth_gate']['label'] ?? '深層') . 'への入口発見') : ((($result['special_event'] ?? null) === 'depth_retreat') ? '探索を継続' : '戦闘開始！'))" :subtitle="$areaName ?? null" :headerIconImage="$battleHeaderIconImage ?? 'images/icon/icon_005.webp'" :pageBackgroundStyle="$battleCityBackgroundStyle ?? null" :headerOverlayClass="$battleHeaderOverlayClass ?? 'bg-white/75'" :headerTitleClass="$battleHeaderTitleClass ?? null" :headerShellStyle="$battleHeaderShellStyle ?? null" :headerBorderClass="$battleHeaderBorderClass ?? null" bgImage="images/bg-battle.webp" :battleResultLayout="true" :showBattleChatLog="true" :exitUrl="isset($mapExploration) ? route('exploration-maps.leave') : null" :exitLabel="!empty($hasActiveValmonEgg) ? '卵を連れて街へ戻る' : ((isset($result['error']) && !empty($result['batch_explore']) && (int) data_get($result, 'batch_explore.completed', 0) === 0) ? '街に戻る' : null)">
+<x-layouts.facility :title="(($result['result'] ?? null) === 'timeout' && (bool) ($result['timeout_defeat_display'] ?? false)) ? '時間切れ敗北' : ((($result['special_event'] ?? null) === 'depth_gate') ? (($result['depth_gate']['label'] ?? '深層') . 'への入口発見') : ((($result['special_event'] ?? null) === 'depth_retreat') ? '探索を継続' : '戦闘開始！'))" :subtitle="$areaName ?? null" :headerIconImage="$battleHeaderIconImage ?? 'images/icon/icon_005.webp'" :pageBackgroundStyle="$battleCityBackgroundStyle ?? null" :headerOverlayClass="$battleHeaderOverlayClass ?? 'bg-white/75'" :headerTitleClass="$battleHeaderTitleClass ?? null" :headerShellStyle="$battleHeaderShellStyle ?? null" :headerBorderClass="$battleHeaderBorderClass ?? null" bgImage="images/bg-battle.webp" :battleResultLayout="true" :battleReturnViaLink="isset($namelessRuins)" :showBattleChatLog="true" :exitUrl="isset($namelessRuins) ? route('nameless-workshop.return', ['tab' => 'town']) : (isset($mapExploration) ? route('exploration-maps.leave') : null)" :exitLabel="!empty($hasActiveValmonEgg) ? '卵を連れて街へ戻る' : ((isset($result['error']) && !empty($result['batch_explore']) && (int) data_get($result, 'batch_explore.completed', 0) === 0) ? '街に戻る' : null)">
     <style>
         [data-battle-compact-only] { display: none; }
         [data-battle-result-page][data-compact="1"] [data-battle-compact-only] { display: block; }
@@ -407,14 +407,18 @@
                                                     <span class="flex items-center justify-center gap-1 border-r border-inherit bg-white/60 px-1 text-xs text-slate-500">
                                                         <span>{{ $equippedItem['slot'] }}</span>
                                                         @if(!empty($equippedItem['rank']))
+                                                            @if($equippedItem['rank'] === \App\Models\PlayerNamelessEquipment::DISPLAY_RANK)
+                                                                <x-nameless-equipment-badge />
+                                                            @else
                                                             <span class="inline-flex min-w-6 items-center justify-center rounded border px-1 py-0.5 text-[10px] font-black {{ $rankBadgeClass }}">{{ $equippedItem['rank'] }}</span>
+                                                            @endif
                                                         @endif
                                                     </span>
                                                     <span class="flex min-w-0 items-center gap-1.5 px-2 py-1.5">
                                                         @if($equippedItem['icon'])
                                                             <img src="{{ asset($equippedItem['icon']) }}" alt="" class="h-5 w-5 shrink-0 object-contain">
                                                         @endif
-                                                        <span class="truncate">{{ $equippedItem['name'] }}</span>
+                                                        <span class="truncate" @if($equippedItem['is_renamed'] ?? false) style="color:#1d4ed8" @endif>{{ $equippedItem['name'] }}</span>
                                                         @if($equippedItem['trait_label'])
                                                             <span class="shrink-0 text-[10px] {{ $equippedItem['is_killer_active'] ? 'text-emerald-700' : 'text-sky-700' }}">{{ $equippedItem['trait_label'] }}</span>
                                                         @endif
@@ -504,13 +508,17 @@
                                                     @endphp
                                                     <div class="inline-flex max-w-full items-center gap-1 rounded border px-1.5 py-1 text-[10px] font-bold leading-tight {{ $equippedItem['is_killer_active'] ? 'border-emerald-400 bg-emerald-100 text-emerald-800 shadow-sm shadow-emerald-200' : ($equippedItem['is_resist_active'] ? 'border-sky-400 bg-sky-100 text-sky-800 shadow-sm shadow-sky-200' : 'border-amber-200 bg-white text-slate-600') }}">
                                                         @if(!empty($equippedItem['rank']))
+                                                            @if($equippedItem['rank'] === \App\Models\PlayerNamelessEquipment::DISPLAY_RANK)
+                                                                <x-nameless-equipment-badge />
+                                                            @else
                                                             <span class="inline-flex min-w-5 items-center justify-center rounded border px-1 py-0.5 text-[9px] font-black {{ $rankBadgeClass }}">{{ $equippedItem['rank'] }}</span>
+                                                            @endif
                                                         @endif
                                                         @if($equippedItem['icon'])
                                                             <img src="{{ asset($equippedItem['icon']) }}" alt="" class="h-4 w-4 shrink-0 object-contain">
                                                         @endif
                                                         <span class="shrink-0 text-slate-400">{{ $equippedItem['slot'] }}</span>
-                                                        <span class="truncate">{{ $equippedItem['name'] }}</span>
+                                                        <span class="truncate" @if($equippedItem['is_renamed'] ?? false) style="color:#1d4ed8" @endif>{{ $equippedItem['name'] }}</span>
                                                         @if($equippedItem['trait_label'])
                                                             <span class="shrink-0 {{ $equippedItem['is_killer_active'] ? 'text-emerald-700' : 'text-sky-700' }}">{{ $equippedItem['trait_label'] }}</span>
                                                         @endif
@@ -1838,6 +1846,10 @@
 
                     {{-- アクションボタン --}}
                     <div class="flex flex-col justify-center items-center gap-3 mt-6 pb-6" data-battle-action-area>
+                        @isset($namelessRuins)
+                            @include('nameless-workshop.explore-result')
+                            @include('nameless-workshop.explore-actions')
+                        @else
 
                         @php
                             $battleWaitDepthKey = data_get($result, 'exploration_summary.depth.current.key', 'surface');
@@ -2329,6 +2341,7 @@
                             @endif
                         @endif
 
+                        @endisset
                     </div>
                     @if($usesStamina)
                         <div id="batch-stamina-modal" class="hidden fixed inset-0 z-50 items-center justify-center bg-slate-950/45 px-4 py-6" style="z-index: 10000; overflow-y: auto; overscroll-behavior: contain; pointer-events: auto; -webkit-overflow-scrolling: touch;" role="dialog" aria-modal="true" aria-labelledby="batch-stamina-modal-title">

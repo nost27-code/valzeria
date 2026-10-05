@@ -52,6 +52,10 @@ class JobArtV2SpCostCalculator
         $discountedFixed = ($this->progressionService ?? app(JobArtV2ProgressionService::class))
             ->adjustedSpCost($actor, $skill, $base);
 
+        $discountedFixed = app(NamelessRelicBattleService::class)->discountFixedSp(
+            $discountedFixed, (float) ($actor->namelessRelicEffects['thrift'] ?? 0),
+        );
+
         return $this->scalingService()->forActor($actor, $skill, $base, $discountedFixed);
     }
 

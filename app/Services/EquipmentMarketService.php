@@ -153,6 +153,7 @@ class EquipmentMarketService
             $buyer = $characters->get((int) $buyer->id) ?? throw new RuntimeException('購入者が見つかりません。');
             $seller = $characters->get((int) $listing->seller_character_id) ?? throw new RuntimeException('出品者が見つかりません。');
             $this->assertListingItemValid($listing, $item, $seller);
+            app(NamelessRelicEquipmentService::class)->assertDetached($item);
             $this->storageCapacityService->assertCanReceiveEquipment($buyer, 1);
             $salePrice = (int) $listing->listing_price;
             $fee = $this->appraisalService->fee($salePrice, (int) $listing->fee_rate_bps);
@@ -221,6 +222,7 @@ class EquipmentMarketService
 
     private function assertMarketListable(CharacterItem $item): void
     {
+        app(NamelessRelicEquipmentService::class)->assertDetached($item);
         if (! in_array($item->item?->type, ['weapon', 'armor'], true)) throw new RuntimeException('武器または防具のみ出品できます。');
         if (! $item->hasMarketableEquipmentTrait()) throw new RuntimeException('銘・特攻・耐性・固有効果のいずれかがある装備のみ出品できます。');
         if ($item->is_equipped) throw new RuntimeException('装備中の装備品は出品できません。');
