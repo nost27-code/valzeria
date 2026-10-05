@@ -20,8 +20,20 @@
 
 ゲートは遺物・操作台帳・発見記録・進行テーブルと、通常装備ソケット・育成進捗・本体の追加カラムを検査する。kindのenum・unique制約・外部キーの移行完了も公開手順で確認する。
 
-その後、正式設定をONにして公開手順でconfig cacheを再生成し、`php artisan nameless:install-town` で工房街を登録する。旧名 `nameless:install-local-town` も使用できる。コマンドは設定ONとschema準備完了を要求する。街が未登録なら入口は出ず、利用できない。APP_ENVをlocalへ変更して開放しない。
+DB移行と街登録はOFFのまま準備できる。`php artisan nameless:prepare --json` は読取だけで、対象5本の未適用・必要schema・enum・unique・外部キー・街数を報告する。準備未完了（街が0件/重複を含む）は非0終了とする。
+
+明示されたDB準備タスクでは `php artisan nameless:prepare --apply --register-town` を使う。正式スイッチOFFを要求し、対象5本だけを適用する。MariaDBでは移行と街登録それぞれにadvisory lockを取得し、同時登録を直列化する。途中のDDLが成功してmigration記録だけ未完了の場合、存在する対象列/テーブル/索引を再作成せず、最後に制約を検証する。不整合な型・欠落した外部キーを無条件で修復せず停止する。既存データを削除するdownは運用復旧に使わない。
+
+`php artisan nameless:install-town --prepare-off` でも、対象移行・制約確認済みのOFF状態で街だけを登録できる。オプションなしの旧コマンド名・別名は従来どおり設定ONとschema準備完了を要求する。OFF中は登録済み街もMAP・専用操作へ公開しない。
+
+準備確認後、別途明示された有効化タスクで正式設定をONにし、公開手順でconfig cacheを再生成する。APP_ENVをlocalへ変更して開放しない。
 
 公開前に認証済みの探索・報酬・育成・装着・持ち替え・売却・進化・敗北を確認する。OFFへ戻す場合もconfig cacheを公開手順で再生成し、既存資産の保護・継承を備えたコードを維持する。旧OFF配備版へコードだけ戻すことや、資産を削除するmigration downを通常の復旧手順にしない。
 
-DBスキーマ変更は今回の修正に含まない。実MariaDBでの移行・同時操作、正式ONの実プレイ、実機スマホは未確認。所持枠満杯時の救済は、育成途中の余剰品をランク/進捗の再確認付きで破棄する修正により対応済み。装着中・保護中・最高ランク1個は保持する。塔・国家レイドの効果範囲、深層報酬は別の調査指摘として残る。
+今回の改善はOFFの準備コードと既存5本の非破壊的な再実行対策。新しいテーブル/カラム/費用は追加しない。本番のmigration・街登録・設定変更は実施しない。
+
+塔・国家レイドは人間裁定により能力上昇と特殊効果を適用する。塔は共通の装着・開始・勝利回復経路を接続。正式レイドは出撃snapshotへ効果を固定し、特攻/耐性/直接効果/反応を既存の倍率・capの中で解決する。OFFは効果停止を維持する。
+
+`scripts/verify/nameless-mariadb.php all --confirm-isolated-database` は検証専用。APP_ENV=testing、明示された127.0.0.1の3306以外のport、DB_DATABASE=valzeria_nameless_verify_*、DB接続情報をprocess環境へ設定し、config cacheなしで実行する。既存DB・DB_URL・接続redirectを拒否する。新しい使い捨てDBに基準schemaを作り、5本の移行・既存個体保持・OFF維持・同時街登録・同UUID再送・競合UUID育成・transaction rollbackを検証する。本番と同じMariaDB 10.5.26の隔離ローカル環境で合格済み。本番DB上での実行と正式ONの実プレイ、実機スマホは未確認。
+
+所持枠満杯時の救済は対応済み。深層報酬の調査指摘は別途残る。

@@ -92,11 +92,27 @@ final readonly class NationRaidPlayerPreparationService
         $weapon = $equipped->first(fn ($entry) => $entry->item?->type === 'weapon');
         $armor = $equipped->first(fn ($entry) => $entry->item?->type === 'armor');
         $effects = $weapon ? $this->permissions->effectiveKillerEffects($character, $weapon) : [];
+        $relics = app(\App\Services\NamelessRelicBattleService::class)->snapshot($character);
         $rawKillerRate = array_sum(array_map(
             fn (array $effect): float => ($effect['species_key'] ?? null) === NationRaidRules::BOSS_SPECIES_KEY
                 ? (float) $effect['damage_rate'] : 0.0,
             $effects,
         ));
+
+        $resistanceRate = max(array_column($equipment, 'resist_rate') ?: [0.0]);
+        if ($relics['enabled']) {
+            $relicService = app(\App\Services\NamelessRelicBattleService::class);
+            $actor = new \App\Services\Battle\BattleActor('遺物確認', true, [
+                'weapon_killer_effects' => $effects,
+                'armor_resist_species_key' => $armor?->resist_species_key,
+                'armor_species_damage_reduction_rate' => $armor ? $this->permissions->effectiveSpeciesDamageReductionRate($character, $armor) : 0.0,
+            ]);
+            $boss = new \App\Services\Battle\BattleActor('レイド', false, ['species_key' => NationRaidRules::BOSS_SPECIES_KEY]);
+            $relicService->restoreSnapshot($actor, $relics);
+            $relicService->startBattle($actor, $boss, new \App\Services\Battle\BattleState($actor, $boss, NationRaidRules::BATTLE_TYPE));
+            $rawKillerRate = $relicService->matchingKillerRate($actor, $boss);
+            $resistanceRate = min(NationRaidRules::ARMOR_SPECIES_RESISTANCE_RATE_CAP, $relicService->resistanceRate($boss, $actor, false));
+        }
 
         return [
             'actor' => [
@@ -119,6 +135,7 @@ final readonly class NationRaidPlayerPreparationService
                 'job_art_strategy' => $this->jobArtService->battleStrategy($character, JobArtService::RAID_SLOT_CONTEXT),
                 // Runtime属性（発動率・slot・条件）も保存。後からskills/slotを読み直さない。
                 'job_arts' => $arts->map(fn (Skill $art): array => $art->getAttributes())->values()->all(),
+                'nameless_relics' => $relics,
             ],
             'character' => [
                 'name' => (string) $character->name,
@@ -139,7 +156,7 @@ final readonly class NationRaidPlayerPreparationService
                 'luck' => $stats['luk'],
             ],
             'equipment' => $equipment,
-            'raid_resistance_rate' => max(array_column($equipment, 'resist_rate') ?: [0.0]),
+            'raid_resistance_rate' => $resistanceRate,
             'boss_set' => array_values($set),
             'boss_set_exact_identities' => $identities,
             'counterplay_enabled' => $role->active && $this->requiredJobArtFlagsEnabled(),

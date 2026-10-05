@@ -44,6 +44,46 @@ class NamelessRelicBattleService
         }
     }
 
+    /** Admission snapshot: never read current equipment while resolving a saved raid. */
+    public function snapshot(Character $character): array
+    {
+        $actor = new BattleActor('遺物', true, [], $character);
+        $this->attach($character, $actor);
+
+        return [
+            'version' => 1,
+            'enabled' => $actor->namelessRelicsEnabled,
+            'effects' => $actor->namelessRelicEffects,
+            'killer_effects' => $actor->weaponKillerEffects,
+            'resist_effects' => $actor->namelessResistEffects,
+            'brand' => $actor->namelessBrand,
+            'species_keys' => $actor->speciesKeys,
+            'normal_attack_type' => isset($actor->namelessRelicEffects['convert_physical'])
+                || isset($actor->namelessRelicEffects['convert_magical']) ? $actor->normalAttackType : null,
+        ];
+    }
+
+    public function restoreSnapshot(BattleActor $actor, array $snapshot): void
+    {
+        // Old snapshots have no relics. Turning OFF also stops pending snapshots.
+        if (! app(NamelessWorkshopService::class)->enabled() || ! ($snapshot['enabled'] ?? false)) {
+            return;
+        }
+        if (($snapshot['version'] ?? null) !== 1) {
+            throw new \RuntimeException('未対応の遺物snapshotです。');
+        }
+        $actor->namelessRelicsEnabled = true;
+        $actor->namelessRelicEffects = $snapshot['effects'];
+        $actor->weaponKillerEffects = array_merge($actor->weaponKillerEffects, $snapshot['killer_effects']);
+        $actor->namelessResistEffects = $snapshot['resist_effects'];
+        $actor->namelessBrand = $snapshot['brand'];
+        $actor->speciesKeys = $snapshot['species_keys'];
+        $actor->speciesKey = $actor->speciesKeys[0] ?? null;
+        if ($snapshot['normal_attack_type'] !== null) {
+            $actor->normalAttackType = $snapshot['normal_attack_type'];
+        }
+    }
+
     public function attachOrdinaryEquipment(Character $character, BattleActor $actor): void
     {
         if (! $actor->namelessRelicsEnabled) {
@@ -87,6 +127,15 @@ class NamelessRelicBattleService
     /** 刻印は自然種族へ加算しない。PvEの複数自然種族は従来の合計、PvPは最大一致を使う。 */
     public function killerRate(BattleActor $attacker, BattleActor $defender, bool $pvp): float
     {
+        $rate = $this->matchingKillerRate($attacker, $defender, $pvp);
+        return min($pvp ? (float) config('nameless_relics.pvp_killer_cap') : (float) config('equipment_affix.weapon_killer_damage_rate_cap', .55),
+            $rate * ($pvp ? (float) config('nameless_relics.pvp_species_scale') : 1))
+            * (1 - ($defender->namelessRelicEffects['brand_guard'] ?? 0));
+    }
+
+    /** Uncapped match; each battle mode applies its existing cap exactly once. */
+    public function matchingKillerRate(BattleActor $attacker, BattleActor $defender, bool $pvp = false): float
+    {
         $bySpecies = [];
         foreach ($attacker->weaponKillerEffects as $effect) {
             $key = $effect['species_key'];
@@ -100,10 +149,7 @@ class NamelessRelicBattleService
                 $foreignRate = max($foreignRate, $value * $defender->namelessForeignPotency);
             }
         }
-        $rate = max($nativeRate, $foreignRate);
-        $rate = min($pvp ? (float) config('nameless_relics.pvp_killer_cap') : (float) config('equipment_affix.weapon_killer_damage_rate_cap', .55), $rate * ($pvp ? (float) config('nameless_relics.pvp_species_scale') : 1));
-
-        return $rate * (1 - ($defender->namelessRelicEffects['brand_guard'] ?? 0));
+        return max($nativeRate, $foreignRate);
     }
 
     public function resistanceRate(BattleActor $attacker, BattleActor $defender, bool $pvp): float
@@ -205,7 +251,7 @@ class NamelessRelicBattleService
             }
         }
         $threshold = (float) config('nameless_relics.low_hp_threshold');
-        if ($defender->hp <= $defender->maxHp * $threshold) {
+        if (($defender->namelessReferenceHp ?? $defender->hp) <= $defender->maxHp * $threshold) {
             $multiplier *= 1 + ($attacker->namelessRelicEffects['finisher'] ?? 0);
             $multiplier *= 1 - ($defender->namelessRelicEffects['last_stand'] ?? 0);
         }

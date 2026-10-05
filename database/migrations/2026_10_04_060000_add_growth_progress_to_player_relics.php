@@ -10,7 +10,9 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('player_relics', function (Blueprint $table) {
-            $table->unsignedTinyInteger('growth_progress')->default(0);
+            if (! Schema::hasColumn('player_relics', 'growth_progress')) {
+                $table->unsignedTinyInteger('growth_progress')->default(0);
+            }
         });
     }
 

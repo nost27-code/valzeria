@@ -10,8 +10,12 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('player_relics', function (Blueprint $table) {
-            $table->foreignId('character_item_id')->nullable()->constrained('character_items')->nullOnDelete();
-            $table->unique(['character_item_id', 'slot_number'], 'player_relic_ordinary_socket_unique');
+            if (! Schema::hasColumn('player_relics', 'character_item_id')) {
+                $table->foreignId('character_item_id')->nullable()->constrained('character_items')->nullOnDelete();
+            }
+            if (! Schema::hasIndex('player_relics', 'player_relic_ordinary_socket_unique')) {
+                $table->unique(['character_item_id', 'slot_number'], 'player_relic_ordinary_socket_unique');
+            }
         });
     }
 

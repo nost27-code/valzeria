@@ -50,6 +50,11 @@ final readonly class NationRaidExistingPlayerDefenseApplier implements NationRai
         $sourceActionId = $this->resourceService->beginAction($this->boss, $this->state)
             ?? $this->state->beginSourceAction();
 
+        $relics = app(\App\Services\NamelessRelicBattleService::class);
+        if ($this->player->namelessRelicsEnabled) {
+            $relics->beginAction($this->boss, $this->state);
+        }
+
         try {
             foreach ($allocatedHits as $hit) {
                 if ($this->player->isDead()) {
@@ -59,7 +64,8 @@ final readonly class NationRaidExistingPlayerDefenseApplier implements NationRai
                 $result = $this->damageApplication->apply(new DamageApplicationRequest(
                     sourceActor: $this->boss,
                     targetActor: $this->player,
-                    resolvedDamage: $hit['damage'],
+                    resolvedDamage: $this->player->namelessRelicsEnabled
+                        ? $relics->directDamage($hit['damage'], $this->boss, $this->player) : $hit['damage'],
                     sourceType: DamageSourceType::OTHER,
                     sourceId: $enemyActionId,
                     battleType: $this->state->battleType,
@@ -77,6 +83,15 @@ final readonly class NationRaidExistingPlayerDefenseApplier implements NationRai
                         sourceType: DamageSourceType::OTHER,
                     ),
                 ));
+                if ($this->player->namelessRelicsEnabled) {
+                    $relics->completeDirectHit($this->boss, $this->player, $this->state, $result,
+                        fn ($from, $to, $amount, $type) => $this->damageApplication->apply(new DamageApplicationRequest(
+                            sourceActor: $from, targetActor: $to, resolvedDamage: $amount,
+                            sourceType: $type, sourceId: null, battleType: $this->state->battleType, battleState: $this->state,
+                        )),
+                        fn ($actor, $amount) => app(\App\Services\JobArtV2FieldService::class)->applyHpHeal($actor, $this->state, $amount),
+                        fn () => \App\Services\Battle\ScopedBattleRandomizer::int(1, 10000));
+                }
                 $requestedDamage += $result->requestedDamage;
                 if ($this->player->gutsJustTriggered) {
                     $gutsTriggered = true;

@@ -419,6 +419,7 @@ class TowerBattleService extends BattleService
         ], $enemyModel);
 
         $state = new BattleState($player, $enemy, 'pve');
+        app(NamelessRelicBattleService::class)->startBattle($player, $enemy, $state);
         if (($strategySpec['key'] ?? 'normal') === 'cautious') {
             $state->addLog('<span style="color:#047857;font-weight:900;">足音を潜めて進み、相手の気勢を削いだ。</span>');
         }
@@ -465,6 +466,10 @@ class TowerBattleService extends BattleService
             $player->isDead() => 'defeat',
             default => 'timeout',
         };
+
+        if ($result === 'victory' && $player->namelessRelicsEnabled) {
+            app(NamelessRelicBattleService::class)->recoverAfterVictory($player, $state);
+        }
 
         return [
             'result' => $result,
@@ -554,6 +559,7 @@ class TowerBattleService extends BattleService
             $actor->jobKey = $currentJob->key;
         }
 
+        app(NamelessRelicBattleService::class)->attach($character, $actor);
         $actor->jobArtActivationPolicy = (string) ($character->job_art_activation_policy ?: 'normal');
         $jobArts = $this->jobArtService->battleArtsFor($character, 'pve');
         $actor->jobArts = $jobArts->all();

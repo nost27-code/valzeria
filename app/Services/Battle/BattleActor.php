@@ -16,6 +16,7 @@ class BattleActor
 
     /** ローカル遺物。通常PvE・対人のActor生成時だけ注入。永続スナップショットには保存しない。 */
     public array $namelessRelicEffects = [];
+    public ?int $namelessReferenceHp = null; // レイドのdamage sinkと条件判定HPを分離。
     public bool $namelessRelicsEnabled = false;
     public array $namelessResistEffects = [];
     public ?array $namelessBrand = null;
