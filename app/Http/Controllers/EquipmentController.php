@@ -304,6 +304,10 @@ class EquipmentController extends Controller
         } elseif ($request->boolean('return_to_smith')) {
             $redirectRoute = 'smith.index';
         }
+        $redirectParameters = $redirectRoute === 'smith.index'
+            && in_array($characterItem->item?->type, ['weapon', 'armor', 'accessory'], true)
+                ? ['type' => $characterItem->item->type]
+                : [];
 
         if (!$character || (int) $characterItem->character_id !== (int) $character->id) {
             $message = 'この装備は所持していません。';
@@ -319,7 +323,7 @@ class EquipmentController extends Controller
                 ], 404);
             }
 
-            return redirect()->route($redirectRoute)
+            return redirect()->route($redirectRoute, $redirectParameters)
                 ->with('error', $message)
                 ->with('activeMode', $mode)
                 ->with('activeTab', $tab);
@@ -342,7 +346,7 @@ class EquipmentController extends Controller
                 ], 422);
             }
 
-            return redirect()->route($redirectRoute)
+            return redirect()->route($redirectRoute, $redirectParameters)
                 ->with('error', $message)
                 ->with('activeMode', $mode)
                 ->with('activeTab', $tab);
@@ -359,7 +363,7 @@ class EquipmentController extends Controller
             ]);
         }
 
-        return redirect()->route($redirectRoute)
+        return redirect()->route($redirectRoute, $redirectParameters)
             ->with('status', $message)
             ->with('activeMode', $mode)
             ->with('activeTab', $tab);

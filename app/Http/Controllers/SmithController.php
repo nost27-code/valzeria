@@ -103,14 +103,20 @@ class SmithController extends Controller
     /**
      * 合成屋のトップ画面を表示する
      */
-    public function index()
+    public function index(Request $request)
     {
+        $validated = $request->validate([
+            'type' => 'nullable|in:weapon,armor,accessory',
+        ]);
+        $equipmentType = $validated['type'] ?? null;
         $character = Auth::user()->currentCharacter();
         $currentCity = $character->currentCity;
-        $evolutionCandidates = $this->equipmentEvolutionService->candidates($character);
+        $evolutionCandidates = $equipmentType === null
+            ? []
+            : $this->equipmentEvolutionService->candidates($character, $equipmentType);
         $goldSummary = app(BankService::class)->summary($character);
 
-        return view('smith.index', compact('character', 'currentCity', 'evolutionCandidates', 'goldSummary'));
+        return view('smith.index', compact('character', 'currentCity', 'equipmentType', 'evolutionCandidates', 'goldSummary'));
     }
 
     /**
@@ -280,10 +286,10 @@ class SmithController extends Controller
                 (bool) ($validated['use_bank'] ?? false)
             );
         } catch (RuntimeException $e) {
-            return back()->with('error', $e->getMessage());
+            return redirect()->route('smith.index', ['type' => $validated['recipe_type']])->with('error', $e->getMessage());
         }
 
-        return redirect()->route('smith.index')->with('status', $result['message']);
+        return redirect()->route('smith.index', ['type' => $validated['recipe_type']])->with('status', $result['message']);
     }
 
     /**

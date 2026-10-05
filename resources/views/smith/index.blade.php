@@ -2,6 +2,8 @@
     $headerIconImage = 'images/icon/icon_034.webp';
     $bgImage = 'images/card_bg/shop_blacksmith.webp';
     $title = '合成屋 (' . ($currentCity->name ?? '冒険都市ヴァルゼリア') . ')';
+    $equipmentType = $equipmentType ?? null;
+    $equipmentTypes = ['weapon' => '武器', 'armor' => '防具', 'accessory' => '装飾品'];
 
     // 所持している装備個体ごとに表示する。1個体に複数ルートがある場合だけ、カード内で分岐させる。
     $displayCandidates = collect($evolutionCandidates)->flatMap(function ($candidate) {
@@ -38,7 +40,6 @@
             modalOpen: false,
             helpOpen: false,
             selected: null,
-            typeFilter: 'all',
             statusFilter: 'all',
             sortBy: 'default',
             handGold: @js((int) ($goldSummary['hand_gold'] ?? 0)),
@@ -65,11 +66,13 @@
                     <a href="{{ route('smith.help') }}" @click.prevent="helpOpen = true" class="inline-flex items-center gap-1 rounded border border-slate-300 bg-white px-2.5 py-2 text-xs font-bold text-slate-700 transition hover:bg-slate-100" title="進化合成の解説">
                         <span class="text-sm leading-none">?</span> 解説
                     </a>
+                    @if($equipmentType !== null)
                     <div class="rounded border border-slate-200 bg-slate-100 px-3 py-2 text-xs text-slate-600 sm:text-sm">
                         候補: <span class="font-bold text-slate-900">{{ $candidateCount }}</span> 件
                         <span class="mx-1 text-slate-300">/</span>
                         進化可能: <span class="font-bold text-emerald-700">{{ $evolvableCount }}</span> 件
                     </div>
+                    @endif
                 </div>
             </div>
 
@@ -80,26 +83,22 @@
                 <a href="{{ route('blacksmith.traits.index') }}" class="text-center rounded-lg border border-slate-300 bg-slate-50 px-2 py-3 text-xs sm:text-sm font-bold text-slate-700 transition hover:bg-slate-100">
                     銘・特攻・耐性を鍛える
                 </a>
-                <a href="{{ route('smith.index') }}" class="text-center rounded-lg bg-slate-900 px-2 py-3 text-xs sm:text-sm font-bold text-white shadow-sm">
+                <a href="{{ route('smith.index', $equipmentType ? ['type' => $equipmentType] : []) }}" class="text-center rounded-lg bg-slate-900 px-2 py-3 text-xs sm:text-sm font-bold text-white shadow-sm">
                     進化合成
                 </a>
             </div>
 
-            <div class="grid grid-cols-4 gap-2 mb-5">
-                <button type="button" @click="typeFilter = 'all'" :class="typeFilter === 'all' ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-700'" class="rounded-lg px-2 py-2.5 text-xs sm:text-sm font-bold transition">
-                    全て
-                </button>
-                <button type="button" @click="typeFilter = 'weapon'" :class="typeFilter === 'weapon' ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-700'" class="rounded-lg px-2 py-2.5 text-xs sm:text-sm font-bold transition">
-                    武器
-                </button>
-                <button type="button" @click="typeFilter = 'armor'" :class="typeFilter === 'armor' ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-700'" class="rounded-lg px-2 py-2.5 text-xs sm:text-sm font-bold transition">
-                    防具
-                </button>
-                <button type="button" @click="typeFilter = 'accessory'" :class="typeFilter === 'accessory' ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-700'" class="rounded-lg px-2 py-2.5 text-xs sm:text-sm font-bold transition">
-                    装飾品
-                </button>
+            <div class="grid grid-cols-3 gap-2 mb-5" aria-label="合成する装備の種類">
+                @foreach($equipmentTypes as $type => $label)
+                    <a href="{{ route('smith.index', ['type' => $type]) }}"
+                       @if($equipmentType === $type) aria-current="page" @endif
+                       class="rounded-lg px-2 py-3 text-center text-sm font-bold transition {{ $equipmentType === $type ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200' }}">
+                        {{ $label }}
+                    </a>
+                @endforeach
             </div>
 
+            @if($equipmentType !== null)
             <div class="grid grid-cols-2 gap-2 mb-5">
                 <button type="button" @click="statusFilter = 'all'" :class="statusFilter === 'all' ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-700'" class="rounded-lg px-2 py-2.5 text-xs sm:text-sm font-bold transition">
                     全候補
@@ -149,6 +148,7 @@
                     </div>
                 </div>
             </div>
+            @endif
 
             @if(session('status'))
                 <div class="bg-emerald-50 border border-emerald-200 text-emerald-800 px-4 py-3 rounded mb-4 font-bold">
@@ -162,9 +162,13 @@
             @endif
             <div id="smith-async-message" class="pointer-events-none fixed left-3 right-3 top-3 z-[70] hidden rounded-xl px-4 py-3 text-sm font-black shadow-2xl transition-all duration-200 sm:left-1/2 sm:right-auto sm:w-full sm:max-w-md sm:-translate-x-1/2"></div>
 
-            @if($candidateCount === 0)
+            @if($equipmentType === null)
+                <div class="text-center py-8 text-sm text-slate-600">
+                    <p>合成する装備の種類を選んでください。</p>
+                </div>
+            @elseif($candidateCount === 0)
                 <div class="text-center py-10 text-slate-500">
-                    <p>進化できる装備はまだありません。</p>
+                    <p>進化できる{{ $equipmentTypes[$equipmentType] }}はまだありません。</p>
                 </div>
             @else
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-2.5">
@@ -200,7 +204,7 @@
                         <div
                             data-smith-source-card
                             data-source-item-id="{{ $groupSourceItemId ?: '' }}"
-                            x-show="(typeFilter === 'all' || typeFilter === '{{ $groupType }}') && (statusFilter === 'all' || {{ $groupHasEvolvable ? 'true' : 'false' }})"
+                            x-show="statusFilter === 'all' || {{ $groupHasEvolvable ? 'true' : 'false' }}"
                             :style="sortBy === 'enhance' ? { order: -{{ $groupEnhanceLevel }} } : (sortBy === 'stats' ? { order: -{{ $groupTotalStatValue }} } : {})"
                             x-data="{
                                 groupOpen: false,

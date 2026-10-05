@@ -91,38 +91,55 @@ class EquipmentEvolutionService
     {
     }
 
-    public function candidates(Character $character): array
+    public function candidates(Character $character, ?string $equipmentType = null): array
     {
+        $definitions = [
+            'weapon' => ['weapon_evolution_recipes', 'from_weapon_id'],
+            'armor' => ['armor_evolution_recipes', 'source_armor_id'],
+            'accessory' => ['accessory_evolution_recipes', 'from_accessory_id'],
+        ];
+        if ($equipmentType !== null && !isset($definitions[$equipmentType])) {
+            throw new RuntimeException('合成種別が不正です。');
+        }
+
+        $recipesByType = [];
+        foreach ($definitions as $type => [$table, $sourceColumn]) {
+            if ($equipmentType !== null && $equipmentType !== $type) {
+                continue;
+            }
+            if ($type === 'accessory' && !app(SchemaStateService::class)->hasTable($table)) {
+                continue;
+            }
+
+            // 表示しない進化元の素材・解放条件・入手先を計算する前に、所持レシピだけ取得する。
+            $recipesByType[$type] = DB::table($table . ' as recipes')
+                ->where('recipes.is_active', true)
+                ->whereExists(function ($query) use ($character, $type, $sourceColumn) {
+                    $query->selectRaw('1')->from('character_items as owned')
+                        ->join('items as owned_item', 'owned.item_id', '=', 'owned_item.id')
+                        ->where('owned.character_id', $character->id)
+                        ->where('owned_item.type', $type)
+                        ->where('owned_item.is_active', true)
+                        ->whereColumn('owned_item.external_item_id', 'recipes.' . $sourceColumn);
+                })
+                ->orderBy('recipes.id')
+                ->get();
+        }
+        if (collect($recipesByType)->every(fn (Collection $recipes) => $recipes->isEmpty())) {
+            return [];
+        }
+
         $ownedMaterials = $this->ownedMaterialMap($character);
         $discoveredItemIds = $this->discoveredItemIds($character);
         $candidates = [];
 
-        $weaponRecipes = DB::table('weapon_evolution_recipes')
-            ->where('is_active', true)
-            ->orderBy('id')
-            ->get();
-
-        foreach ($weaponRecipes as $recipe) {
-            $candidates[] = $this->buildWeaponCandidate($character, $recipe, $ownedMaterials, $discoveredItemIds);
-        }
-
-        $armorRecipes = DB::table('armor_evolution_recipes')
-            ->where('is_active', true)
-            ->orderBy('id')
-            ->get();
-
-        foreach ($armorRecipes as $recipe) {
-            $candidates[] = $this->buildArmorCandidate($character, $recipe, $ownedMaterials, $discoveredItemIds);
-        }
-
-        if (app(SchemaStateService::class)->hasTable('accessory_evolution_recipes')) {
-            $accessoryRecipes = DB::table('accessory_evolution_recipes')
-                ->where('is_active', true)
-                ->orderBy('id')
-                ->get();
-
-            foreach ($accessoryRecipes as $recipe) {
-                $candidates[] = $this->buildAccessoryCandidate($character, $recipe, $ownedMaterials, $discoveredItemIds);
+        foreach ($recipesByType as $type => $recipes) {
+            foreach ($recipes as $recipe) {
+                $candidates[] = match ($type) {
+                    'weapon' => $this->buildWeaponCandidate($character, $recipe, $ownedMaterials, $discoveredItemIds),
+                    'armor' => $this->buildArmorCandidate($character, $recipe, $ownedMaterials, $discoveredItemIds),
+                    'accessory' => $this->buildAccessoryCandidate($character, $recipe, $ownedMaterials, $discoveredItemIds),
+                };
             }
         }
 
