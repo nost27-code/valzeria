@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-10-05-nameless-off-smith-display',
+        'date' => '2026-10-05',
+        'category' => 'internal',
+        'title' => '遺物機能OFF時の鍛冶屋表示漏れを修正',
+        'detail' => '通常の鍛冶屋で、遺物機能がOFFのときは遺物装着中の説明と取り外し警告を出力しないよう修正します。装備操作・DB構造は変更しません。',
+    ],
+    [
         'id' => '2026-10-05-nameless-workshop-off-release',
         'date' => '2026-10-05',
         'category' => 'internal',
