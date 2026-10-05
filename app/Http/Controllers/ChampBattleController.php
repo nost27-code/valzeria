@@ -70,7 +70,7 @@ class ChampBattleController extends Controller
 
             return back()->with(
                 'message',
-                'ほかの冒険者のチャンプ戦を処理中です。少し待ってから、もう一度挑戦してください。',
+                'ほかの処理と重なりました。少し待ってから、もう一度挑戦してください。',
             );
         }
         if (empty($result['ok'])) {

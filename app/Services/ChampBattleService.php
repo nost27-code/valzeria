@@ -252,15 +252,7 @@ class ChampBattleService
     ): array
     {
         $result = app(ChampBattleTransactionRunner::class)->run((int) $challenger->id, function (string &$phase) use ($challenger, $expectedChampCharacterId, $expectedChampAppointedAt) {
-            $challenger = Character::query()
-                ->with(['jobClass', 'user'])
-                ->lockForUpdate()
-                ->findOrFail($challenger->id);
-            $isAdminTester = $challenger->isAdminTester();
-
-            // Calculate without owning the global champ lock. The challenger stays locked
-            // so their loadout, rewards and cooldown cannot be committed twice.
-            $phase = 'battle_calculation';
+            $phase = 'champ_snapshot';
             $champ = ChampState::query()->first();
             if (! $champ) {
                 // Retain the original gap-lock protection for the exceptional empty table.
@@ -274,6 +266,22 @@ class ChampBattleService
                     'message' => 'チャンプが交代しました。最新の情報を確認して、もう一度挑戦してください。',
                 ];
             }
+
+            // The log/history FKs need this reference lock even though battle stats are
+            // snapshots. Wait before locking the challenger or calculating a battle:
+            // the incumbent may be finishing an exploration request of their own.
+            $phase = 'champ_character_lock';
+            if ($champ->character_id && (int) $champ->character_id !== (int) $challenger->id) {
+                if (! Character::query()->whereKey($champ->character_id)->sharedLock()->first()) {
+                    throw new ChampBattleStateChangedException;
+                }
+            }
+            $phase = 'challenger_lock';
+            $challenger = Character::query()
+                ->with(['jobClass', 'user'])
+                ->lockForUpdate()
+                ->findOrFail($challenger->id);
+            $isAdminTester = $challenger->isAdminTester();
 
             $availability = $this->challengeAvailability($challenger, $champ);
             if (!$availability['can_challenge']) {
@@ -301,14 +309,11 @@ class ChampBattleService
                 'accessory_name' => $champ->accessory_name,
             ];
             $challengerActor = $this->resultActorSnapshot($challenger);
+            // The shared champ row remains unlocked during battle calculation. The
+            // challenger lock still protects loadout, rewards and cooldown from replay.
+            $phase = 'battle_calculation';
             $battle = $this->runBattle($challenger, $champ);
 
-            // Logs/history reference the incumbent character. Acquire that FK lock before
-            // the shared champ row, so the incumbent's exploration cannot block everyone.
-            $phase = 'champ_character_lock';
-            if ($champ->character_id) {
-                Character::query()->whereKey($champ->character_id)->sharedLock()->first();
-            }
             $phase = 'champ_state_lock';
             $currentChamp = ChampState::query()->whereKey($champ->id)->lockForUpdate()->first();
             // A locking read sees the latest committed row even under REPEATABLE READ.

@@ -109,7 +109,7 @@ class ChampBattleConsistencyTest extends TestCase
 
         $this->assertInstanceOf(RedirectResponse::class, $response);
         $this->assertSame(
-            'ほかの冒険者のチャンプ戦を処理中です。少し待ってから、もう一度挑戦してください。',
+            'ほかの処理と重なりました。少し待ってから、もう一度挑戦してください。',
             session('message'),
         );
         $this->assertSame(0, ChampBattleLog::query()->count());

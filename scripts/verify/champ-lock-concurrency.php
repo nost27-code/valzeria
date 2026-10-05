@@ -5,6 +5,7 @@
 declare(strict_types=1);
 
 use App\Models\ChampBattleLog;
+use App\Models\ChampHistory;
 use App\Models\ChampState;
 use App\Models\Character;
 use App\Models\CharacterMaterial;
@@ -29,7 +30,7 @@ config([
     'app.key' => 'base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=',
     'database.default' => 'mysql',
     'database.connections.mysql' => [
-        'driver' => 'mysql', 'host' => '127.0.0.1', 'port' => 13329,
+        'driver' => 'mysql', 'host' => '127.0.0.1', 'port' => 13339,
         'database' => $database, 'username' => 'root', 'password' => '',
         'charset' => 'utf8mb4', 'collation' => 'utf8mb4_unicode_ci', 'prefix' => '',
     ],
@@ -46,6 +47,16 @@ if (! str_contains($db->selectOne('SELECT VERSION() AS v')->v, 'MariaDB')) {
 
 if (($argv[1] ?? '') === 'worker') {
     $mode = $argv[2];
+    if ($mode === 'legacy-reference') {
+        // Negative control: the prior elapsed budget stopped an incumbent wait
+        // after its first MariaDB timeout. Keep this harness self-contained.
+        $app->instance(\App\Services\ChampBattleTransactionRunner::class, new class extends \App\Services\ChampBattleTransactionRunner {
+            protected function shouldStopRetrying(int $attempt, int $elapsedMs, string $phase, bool $stateChanged): bool
+            {
+                return $attempt >= 3 || $elapsedMs >= 2000;
+            }
+        });
+    }
     $character = Character::findOrFail((int) $argv[3]);
     $champ = ChampState::firstOrFail();
     $snapshots = 0;
@@ -57,8 +68,17 @@ if (($argv[1] ?? '') === 'worker') {
         }
     });
     $paused = false;
+    if (in_array($mode, ['reference-wait', 'legacy-reference'], true)) {
+        $db->beforeExecuting(function (string $sql) use (&$paused): void {
+            if (! $paused && str_contains(strtolower($sql), 'lock in share mode')) {
+                $paused = true;
+                echo "READY\n";
+                fflush(STDOUT);
+            }
+        });
+    }
     $db->listen(function ($query) use ($mode, &$paused): void {
-        if ($mode === 'plain' || $paused || ! str_contains($query->sql, '`character_job_art_slots`')) {
+        if (in_array($mode, ['plain', 'reference-wait', 'legacy-reference'], true) || $paused || ! str_contains($query->sql, '`character_job_art_slots`')) {
             return;
         }
         $paused = true;
@@ -91,8 +111,11 @@ function check(bool $ok, string $label): void
 }
 function actor(): Character
 {
+    $key = bin2hex(random_bytes(8));
+
     return Character::create([
-        'user_id' => User::factory()->create()->id, 'name' => 'champ-lock-'.bin2hex(random_bytes(4)),
+        'user_id' => User::factory()->create(['email' => 'champ-lock-'.$key.'@example.test'])->id,
+        'name' => 'champ-lock-'.$key,
         'level' => 100, 'exp' => 0, 'hp_base' => 100, 'current_hp' => 100,
         'mp_base' => 0, 'current_mp' => 0, 'attack_base' => 10, 'defense_base' => 8,
         'speed_base' => 1000, 'magic_base' => 8, 'spirit_base' => 8, 'luck_base' => 5,
@@ -106,7 +129,7 @@ function worker(Character $actor, string $mode = 'plain'): array
         throw new RuntimeException('Worker failed to reach battle-calculation barrier: '.stream_get_contents($pipes[2]));
     }
 
-    return [$process, $pipes, $mode];
+    return [$process, $pipes, in_array($mode, ['reference-wait', 'legacy-reference'], true) ? 'plain' : $mode];
 }
 function finish(array $worker): array
 {
@@ -150,7 +173,7 @@ $champ->update([
     'def' => 10000, 'spd' => 1, 'defense_count' => 0,
     'appointed_at' => now()->subDay(),
 ]);
-$holder = new PDO('mysql:host=127.0.0.1;port=13329;dbname='.$database, 'root', '', [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
+$holder = new PDO('mysql:host=127.0.0.1;port=13339;dbname='.$database, 'root', '', [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
 $legacy = worker(actor(), 'legacy');
 try {
     $holder->beginTransaction();
@@ -195,13 +218,44 @@ check(! $changedResult['ok'] && str_contains($changedResult['message'], '交代'
 
 $incumbent = actor();
 $champ->refresh()->update(['character_id' => $incumbent->id]);
+$probe = new PDO('mysql:host=127.0.0.1;port=13339;dbname='.$database, 'root', '', [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
+foreach (['legacy-reference', 'reference-wait'] as $mode) {
+    $waitingActor = actor();
+    $holder->beginTransaction();
+    $holder->query('SELECT id FROM characters WHERE id='.(int) $incumbent->id.' FOR UPDATE')->fetch();
+    $waiting = worker($waitingActor, $mode);
+    $probe->beginTransaction();
+    $probe->query('SELECT id FROM characters WHERE id='.(int) $waitingActor->id.' FOR UPDATE NOWAIT')->fetch();
+    $probe->rollBack();
+    check(true, 'incumbent wait does not lock the challenger: '.$mode);
+    usleep(3_000_000);
+    $holder->rollBack();
+    $waitingResult = finish($waiting);
+    if ($mode === 'legacy-reference') {
+        check(! $waitingResult['ok'] && unchanged($waitingActor), 'old elapsed budget gives up before temporary incumbent lock clears');
+    } else {
+        check($waitingResult['ok'] && rewardsMatch($waitingActor)
+            && ChampBattleLog::where('challenger_character_id', $waitingActor->id)->count() === 1,
+            'temporary incumbent lock retries and commits one battle');
+    }
+}
 $blockedActor = actor();
-$blocked = worker($blockedActor, 'staged');
 $holder->beginTransaction();
 $holder->query('SELECT id FROM characters WHERE id='.(int) $incumbent->id.' FOR UPDATE')->fetch();
+$blocked = worker($blockedActor, 'reference-wait');
 $blockedResult = finish($blocked);
 $holder->rollBack();
-check(! $blockedResult['ok'] && $blockedResult['seconds'] < 5 && unchanged($blockedActor), 'busy incumbent returns bounded feedback without consuming rewards or cooldown: '.json_encode($blockedResult, JSON_UNESCAPED_UNICODE));
+check(! $blockedResult['ok'] && $blockedResult['seconds'] < 8 && unchanged($blockedActor), 'busy incumbent returns bounded feedback without consuming rewards or cooldown: '.json_encode($blockedResult, JSON_UNESCAPED_UNICODE));
+
+$incumbentBefore = $incumbent->fresh()->getRawOriginal();
+$champ->refresh()->update(['current_hp' => 1, 'max_hp' => 1, 'def' => 0, 'spd' => 1]);
+$victor = actor();
+$victory = finish(worker($victor));
+check($victory['ok'] && (int) $champ->fresh()->character_id === (int) $victor->id
+    && ChampHistory::where('character_id', $incumbent->id)->where('defeated_by_character_id', $victor->id)->count() === 1
+    && ChampBattleLog::where('challenger_character_id', $victor->id)->count() === 1
+    && rewardsMatch($victor), 'real incumbent defeat commits history appointment and rewards once with FKs enabled');
+check($incumbentBefore === $incumbent->fresh()->getRawOriginal(), 'challenge preserves incumbent gameplay state');
 
 $champ->refresh()->update(['character_id' => null]);
 foreach (['challenger', 'champ'] as $lockTarget) {

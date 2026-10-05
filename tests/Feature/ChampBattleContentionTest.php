@@ -174,6 +174,57 @@ class ChampBattleContentionTest extends TestCase
         $this->assertSame(1, ChampBattleLog::count());
     }
 
+    public function test_early_incumbent_wait_can_retry_after_mariadb_timeout_exceeds_two_seconds(): void
+    {
+        $calls = 0;
+        $result = app(ChampBattleTransactionRunner::class)->run(0, function (string &$phase) use (&$calls) {
+            $phase = 'champ_character_lock';
+            if (++$calls === 1) {
+                usleep(2_100_000);
+                throw $this->queryError(1205);
+            }
+
+            return ['ok' => true];
+        });
+
+        $this->assertTrue($result['ok']);
+        $this->assertSame(2, $calls);
+    }
+
+    public function test_later_contention_still_stops_at_the_existing_elapsed_budget(): void
+    {
+        Log::spy();
+        $calls = 0;
+        $result = app(ChampBattleTransactionRunner::class)->run(0, function (string &$phase) use (&$calls) {
+            $phase = 'battle_log_save';
+            $calls++;
+            usleep(2_100_000);
+            throw $this->queryError(1205);
+        });
+
+        $this->assertFalse($result['ok']);
+        $this->assertSame(1, $calls);
+        $this->assertStringNotContainsString('ほかの冒険者のチャンプ戦', $result['message']);
+    }
+
+    public function test_persistent_early_incumbent_wait_is_limited_to_three_attempts(): void
+    {
+        Log::spy();
+        $calls = 0;
+        $result = app(ChampBattleTransactionRunner::class)->run(0, function (string &$phase) use (&$calls) {
+            $phase = 'champ_character_lock';
+            $calls++;
+            throw $this->queryError(1205);
+        });
+
+        $this->assertFalse($result['ok']);
+        $this->assertSame(3, $calls);
+        Log::shouldHaveReceived('warning')->once()->withArgs(fn ($message, $context) => $context['phase'] === 'champ_character_lock'
+            && $context['attempts'] === 3
+            && $context['database_error_code'] === 1205
+        );
+    }
+
     private function character(): Character
     {
         ChampState::firstOrFail()->update([

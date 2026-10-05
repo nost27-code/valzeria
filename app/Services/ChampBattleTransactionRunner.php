@@ -46,9 +46,7 @@ class ChampBattleTransactionRunner
                     // The transaction has rolled back. Never reuse stats from a rolled-back level-up.
                     CharacterStatusService::clearRequestCache($challengerId);
                     $elapsedMs = (int) ((hrtime(true) - $startedAt) / 1_000_000);
-                    // Server timeout resolution can exceed one second; do not accumulate
-                    // three full waits when the lock is persistently held elsewhere.
-                    if ($attempt === 3 || $elapsedMs >= 2000) {
+                    if ($this->shouldStopRetrying($attempt, $elapsedMs, $phase, $stateChanged)) {
                         Log::warning('Champ battle database contention handled.', [
                             'database_error_code' => (int) ($error[1] ?? 0),
                             'reason' => $stateChanged ? 'champ_state_changed' : 'database_lock',
@@ -59,7 +57,7 @@ class ChampBattleTransactionRunner
 
                         return [
                             'ok' => false,
-                            'message' => 'ほかの冒険者のチャンプ戦を処理中です。少し待ってから、もう一度挑戦してください。',
+                            'message' => 'ほかの処理と重なりました。少し待ってから、もう一度挑戦してください。',
                         ];
                     }
 
@@ -73,6 +71,16 @@ class ChampBattleTransactionRunner
         }
 
         throw new \LogicException('Champ transaction ended without a result.');
+    }
+
+    protected function shouldStopRetrying(int $attempt, int $elapsedMs, string $phase, bool $stateChanged): bool
+    {
+        // An incumbent reference wait occurs before gameplay locks/writes. MariaDB
+        // timeout rounding must not consume all three attempts on the first wait.
+        // Later failures retain the shorter budget and rollback before retrying.
+        $earlyReferenceWait = ! $stateChanged && $phase === 'champ_character_lock';
+
+        return $attempt >= 3 || (! $earlyReferenceWait && $elapsedMs >= 2000);
     }
 
     protected function waitBeforeRetry(int $attempt): void
