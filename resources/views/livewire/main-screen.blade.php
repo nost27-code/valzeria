@@ -122,6 +122,12 @@
                         </div>
                 @endif
 
+                @if($isNamelessTown && $currentLocation === 'town')
+                    <section class="mb-4 overflow-hidden rounded-xl border border-amber-300 bg-white shadow">
+                        <img src="{{ asset(\App\Services\NamelessTownService::IMAGE) }}" alt="無もなき工房街の街並み" class="w-full object-cover" style="height:180px">
+                        <div class="p-3"><h2 class="text-lg font-black text-amber-900">遺物を拾い、武具を育て、さらに深く。</h2><p class="mt-1 text-sm text-slate-600">探索タブから6つの遺跡へ。帰還したら工房で遺物を宿し、宿屋で次の探索に備えましょう。</p></div>
+                    </section>
+                @endif
                 @if($currentLocation === 'dungeon' && !empty($hasActiveValmonEgg))
                     <section class="mb-4 rounded-xl border-2 border-rose-300 bg-rose-50 px-4 py-3 shadow-sm" role="status">
                         <div class="flex items-start gap-3">
@@ -445,9 +451,14 @@
                     @php
                         $worldMapPath = config('valzeria_world_map.image_path', 'images/map/map01.webp');
                         $mapCitiesByName = collect(config('valzeria_world_map.cities', []))->keyBy('city_name');
+                        $worldMapCities = collect($cities);
+                        if ($namelessTown) {
+                            $worldMapCities->push($namelessTown);
+                            $mapCitiesByName->put($namelessTown->name, config('valzeria_world_map.nameless_workshop'));
+                        }
                         $cityPopulationCounts = collect($cityPopulationCounts ?? []);
                         $cityIconSamples = collect($cityIconSamples ?? []);
-                        $worldZoomIconItems = collect($cities)
+                        $worldZoomIconItems = $worldMapCities
                             ->flatMap(function ($city) use ($mapCitiesByName, $cityIconSamples) {
                                 $mapCity = $mapCitiesByName->get($city->name);
                                 $iconSamples = collect($cityIconSamples[$city->id] ?? []);
@@ -510,7 +521,7 @@
                                 <div class="mt-1 flex items-center gap-1.5"><span class="h-2.5 w-2.5 rounded-full bg-slate-400"></span>未解放</div>
                             </div>
 
-                            @foreach($cities as $city)
+                            @foreach($worldMapCities as $city)
                                 @php
                                     $mapCity = $mapCitiesByName->get($city->name);
                                     $isUnlocked = $city->sort_order <= $highestCityOrder;
@@ -526,6 +537,7 @@
                                 @endphp
                                 @if($mapCity)
                                     <div class="absolute z-10 -translate-x-1/2 -translate-y-1/2"
+                                         @if($namelessTown && (int) $city->id === (int) $namelessTown->id) data-nameless-town-entry @endif
                                          style="left: {{ (float) ($mapCity['x_percent'] ?? 50) }}%; top: {{ (float) ($mapCity['y_percent'] ?? 50) }}%;">
                                         @if($isCurrent)
                                             <div class="flex flex-col items-center">
@@ -966,6 +978,10 @@
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 overflow-y-auto pr-1 content-start pb-4">
                     @endif
                     @foreach($locationData['facilities'] as $facility)
+                        @if($facility['nameless_ruin'] ?? false)
+                            @include('nameless-workshop.ruin-card')
+                            @continue
+                        @endif
                         @php
                             $isLocked = $facility['status'] === 'locked';
                             $isComingSoon = $facility['status'] === 'coming_soon';

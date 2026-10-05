@@ -81,6 +81,7 @@ class JobArtV2SpPowerPathWiringTest extends TestCase
             'Services/HeroTrialBenchmarkService.php',
             'Services/HeroTrialService.php',
             'Services/MapExplorationBatchService.php',
+            'Services/NamelessRuinService.php',
             'Services/Nation/NationWarBattleEngine.php',
             'Services/Nation/Raid/Simulation/NationRaidPassiveBossActionProfileProvider.php',
             'Services/Nation/Raid/Simulation/NationRaidTurnByTurnActionProfileBridge.php',

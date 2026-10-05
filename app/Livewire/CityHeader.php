@@ -299,6 +299,11 @@ class CityHeader extends Component
 
         $cityIcon = CityVisualCatalog::icon($cityId);
         $cityBackground = CityVisualCatalog::background($cityId);
+        $namelessTown = app(\App\Services\NamelessTownService::class);
+        if ($namelessTown->isTown($currentCity) && $namelessTown->availableTown()) {
+            $cityIcon = substr(\App\Services\NamelessTownService::ICON, 7);
+            $cityBackground = substr(\App\Services\NamelessTownService::IMAGE, 7);
+        }
 
         return view('livewire.city-header', [
             'headerInfo' => $headerInfo,

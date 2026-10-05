@@ -248,6 +248,9 @@ class MainScreen extends Component
 
         $currentCity = $this->character && $this->character->currentCity ? $this->character->currentCity : null;
 
+        $namelessTowns = app(\App\Services\NamelessTownService::class);
+        $namelessTown = $namelessTowns->availableTown();
+        $isNamelessTown = $namelessTown && $namelessTowns->isTown($currentCity);
         $isFerdiaSimpleBase = $this->isFerdiaSimpleBase($currentCity);
         $isFerdiaRegion = $currentCity
             && app(\App\Services\FerdiaMapService::class)->isFerdiaCityId((int) $currentCity->id);
@@ -281,8 +284,12 @@ class MainScreen extends Component
         }
         $explorationStateService = app(\App\Services\ExplorationStateService::class);
 
+        if ($isNamelessTown) {
+            $locationData['town']['facilities'] = $namelessTowns->townFacilities($locationData['town']['facilities']);
+        }
+
         // location が dungeon の場合、DBから取得したデータをセットする
-        if ($this->currentLocation === 'dungeon') {
+        if ($this->currentLocation === 'dungeon' && ! $isNamelessTown) {
             $dungeons = [];
             $allDungeonsCleared = false;
             $totalAreasInCity = 0;
@@ -543,6 +550,13 @@ class MainScreen extends Component
         }
 
         // ホームタブ専用データ（他タブでは計算不要）
+        if ($this->currentLocation === 'dungeon' && $isNamelessTown) {
+            $locationData['dungeon']['facilities'] = $namelessTowns->ruinFacilities($this->character);
+            $locationData['dungeon']['description'] = '欲しい遺物の区画を選び、深みへ。ボスを倒すと、その遺跡の次の深度が開きます。';
+            $locationData['dungeon']['all_cleared'] = false;
+            $locationData['dungeon']['next_city_travel'] = null;
+            $locationData['dungeon']['rumors'] = [];
+        }
         $nextGoal = ($this->character && $isHomeTab) ? $goalService->getNextGoal($this->character) : null;
         $showsBeginnerMissions = in_array($this->currentLocation, ['town', 'dungeon', 'home', 'guild'], true);
         $beginnerMissions = ($this->character && $showsBeginnerMissions) ? $beginnerMissionService->summary($this->character) : null;
@@ -585,6 +599,7 @@ class MainScreen extends Component
             $cities = \App\Models\City::orderBy('sort_order', 'asc')
                 ->get()
                 ->reject(fn (\App\Models\City $city): bool => $ferdiaMapService->isFerdiaCityId((int) $city->id))
+                ->reject(fn (\App\Models\City $city): bool => $namelessTowns->isTown($city))
                 ->values();
             $highestCityOrder = $this->character && $this->character->highestCity ? $this->character->highestCity->sort_order : 0;
             $cityPopulationService = app(\App\Services\CityPopulationService::class);
@@ -608,6 +623,8 @@ class MainScreen extends Component
         return view('livewire.main-screen', [
             'character' => $this->character,
             'currentCity' => $currentCity,
+            'namelessTown' => $namelessTown,
+            'isNamelessTown' => (bool) $isNamelessTown,
             'cities' => $cities,
             'highestCityOrder' => $highestCityOrder,
             'cityPopulationCounts' => $cityPopulationCounts,

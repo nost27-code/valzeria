@@ -125,6 +125,24 @@ class CharacterStatusService
             }
         }
 
+        // 名もなき武具本体は通常武具と同じ性能計算へ。遺物の割合はこの後に適用する。
+        $namelessWorkshop = app(NamelessWorkshopService::class);
+        $nameless = $namelessWorkshop->equippedFixedBonuses($character);
+        $namelessWeapon = $namelessWorkshop->equippedWeaponOffense($character);
+        $namelessArmor = $namelessWorkshop->equippedArmorDefense($character);
+        $weaponStr += $namelessWeapon['str'];
+        $weaponMag += $namelessWeapon['mag'];
+        $armorDef += $namelessArmor['def'];
+        $armorSpr += $namelessArmor['spr'];
+        $hp_equip += $nameless['hp'];
+        $mp_equip += $nameless['mp'];
+        $atk_equip += $nameless['str'];
+        $def_equip += $nameless['def'];
+        $mag_equip += $nameless['mag'];
+        $spr_equip += $nameless['spr'];
+        $spd_equip += $nameless['agi'];
+        $luk_equip += $nameless['luk'];
+
         // 実効攻撃性能 = 武器を除いた基礎能力 × (1.00 + 8倍化後の武器能力 ÷ 3000)
         $weaponBaseStr = $preEquip['str'] + $atk_equip;
         $weaponBaseMag = $preEquip['mag'] + $mag_equip;
@@ -143,7 +161,7 @@ class CharacterStatusService
         $unarmoredDef = $preEquip['def'];
         $unarmoredSpr = $preEquip['spr'];
 
-        return [
+        $stats = [
             'max_hp' => max(1, $preEquip['hp'] + $hp_equip),
             'max_mp' => max(0, $preEquip['mp'] + $mp_equip),
             'str' => max(1, $finalStr),
@@ -170,6 +188,20 @@ class CharacterStatusService
             'armor_base' => ['def' => $armorBaseDef, 'spr' => $armorBaseSpr],
             'armor_defense' => ['def' => $armorDef, 'spr' => $armorSpr],
         ];
+        if (! $namelessWorkshop->enabled()) {
+            return $stats;
+        }
+        $baseline = array_intersect_key($stats, array_flip(['max_hp', 'max_mp', 'str', 'def', 'agi', 'mag', 'spr', 'luk']));
+        $rates = $namelessWorkshop->equippedStatRates($character);
+        $stats = app(NamelessRelicCatalog::class)->applyStatRates($stats, $rates);
+        $stats['relic_baseline'] = $baseline;
+        $stats['relic_stat_rates'] = $rates;
+        foreach (['hp' => 'max_hp', 'mp' => 'max_mp', 'str' => 'str', 'def' => 'def', 'mag' => 'mag', 'spr' => 'spr', 'agi' => 'agi', 'luk' => 'luk'] as $stat => $key) {
+            $delta = $stats[$key] - $baseline[$key];
+            $stats['relic_stat_bonuses'][$stat] = $delta;
+            $stats['bonuses'][$stat] += $delta;
+        }
+        return $stats;
     }
 
     /** @return array{str: int, mag: int} */
@@ -195,11 +227,13 @@ class CharacterStatusService
         $base = $stats['weapon_base'] ?? ['str' => 0, 'mag' => 0];
         $weapon = $this->weaponOffenseFor($character, $characterItem);
         $calculator = app(WeaponOffenseCalculator::class);
+        $removed = app(NamelessWorkshopService::class)->equippedFixedBonuses($character, 'weapon');
 
-        return [
-            'str' => $calculator->calculateEffectiveOffense((int) $base['str'], $weapon['str']),
-            'mag' => $calculator->calculateEffectiveOffense((int) $base['mag'], $weapon['mag']),
+        $preview = [
+            'str' => $calculator->calculateEffectiveOffense((int) $base['str'] - $removed['str'], $weapon['str']),
+            'mag' => $calculator->calculateEffectiveOffense((int) $base['mag'] - $removed['mag'], $weapon['mag']),
         ];
+        return app(NamelessRelicCatalog::class)->applyStatRates($preview, app(NamelessWorkshopService::class)->equippedStatRates($character, 'weapon', $characterItem));
     }
 
     /** @return array{def: int, spr: int} */
@@ -225,11 +259,13 @@ class CharacterStatusService
         $base = $stats['armor_base'] ?? ['def' => 0, 'spr' => 0];
         $armor = $this->armorDefenseFor($character, $characterItem);
         $calculator = app(WeaponOffenseCalculator::class);
+        $removed = app(NamelessWorkshopService::class)->equippedFixedBonuses($character, 'armor');
 
-        return [
-            'def' => $this->effectiveArmorStat((int) $base['def'], $armor['def'], $calculator),
-            'spr' => $this->effectiveArmorStat((int) $base['spr'], $armor['spr'], $calculator),
+        $preview = [
+            'def' => $this->effectiveArmorStat((int) $base['def'] - $removed['def'], $armor['def'], $calculator),
+            'spr' => $this->effectiveArmorStat((int) $base['spr'] - $removed['spr'], $armor['spr'], $calculator),
         ];
+        return app(NamelessRelicCatalog::class)->applyStatRates($preview, app(NamelessWorkshopService::class)->equippedStatRates($character, 'armor', $characterItem));
     }
 
     private function effectiveArmorStat(int $baseStatWithoutArmor, int $armorStat, WeaponOffenseCalculator $calculator): int
@@ -355,51 +391,55 @@ class CharacterStatusService
             'luk' => 0,
         ];
         $afterStats = [];
+        $type = (string) ($item->type ?? '');
+        $namelessRemoved = in_array($type, NamelessEquipmentService::KINDS, true)
+            ? app(NamelessWorkshopService::class)->equippedFixedBonuses($character, $type)
+            : $emptyStats;
 
         foreach ($finalKeys as $key => $finalKey) {
             $afterStats[$key] = max(
                 $minimums[$key],
-                (int) ($currentStats[$finalKey] ?? 0)
+                (int) ($currentStats['relic_baseline'][$finalKey] ?? $currentStats[$finalKey] ?? 0)
                     - (int) $currentEquipmentStats[$key]
+                    - (int) $namelessRemoved[$key]
                     + (int) $effectiveStats[$key],
             );
         }
 
         $calculator = app(WeaponOffenseCalculator::class);
-        $type = (string) ($item->type ?? '');
 
         if ($type === 'weapon') {
             $weaponBase = $currentStats['weapon_base'] ?? ['str' => 0, 'mag' => 0];
             $afterStats['str'] = max(1, $calculator->calculateEffectiveOffense(
-                (int) ($weaponBase['str'] ?? 0),
+                (int) ($weaponBase['str'] ?? 0) - $namelessRemoved['str'],
                 (int) $effectiveStats['str'],
             ));
             $afterStats['mag'] = max(0, $calculator->calculateEffectiveOffense(
-                (int) ($weaponBase['mag'] ?? 0),
+                (int) ($weaponBase['mag'] ?? 0) - $namelessRemoved['mag'],
                 (int) $effectiveStats['mag'],
             ));
 
             $armorBase = $currentStats['armor_base'] ?? ['def' => 0, 'spr' => 0];
             $armorDefense = $currentStats['armor_defense'] ?? ['def' => 0, 'spr' => 0];
             $afterStats['def'] = max(0, $this->effectiveArmorStat(
-                (int) ($armorBase['def'] ?? 0) - (int) $currentEquipmentStats['def'] + (int) $effectiveStats['def'],
+                (int) ($armorBase['def'] ?? 0) - (int) $currentEquipmentStats['def'] - $namelessRemoved['def'] + (int) $effectiveStats['def'],
                 (int) ($armorDefense['def'] ?? 0),
                 $calculator,
             ));
             $afterStats['spr'] = max(0, $this->effectiveArmorStat(
-                (int) ($armorBase['spr'] ?? 0) - (int) $currentEquipmentStats['spr'] + (int) $effectiveStats['spr'],
+                (int) ($armorBase['spr'] ?? 0) - (int) $currentEquipmentStats['spr'] - $namelessRemoved['spr'] + (int) $effectiveStats['spr'],
                 (int) ($armorDefense['spr'] ?? 0),
                 $calculator,
             ));
         } elseif ($type === 'armor') {
             $armorBase = $currentStats['armor_base'] ?? ['def' => 0, 'spr' => 0];
             $afterStats['def'] = max(0, $this->effectiveArmorStat(
-                (int) ($armorBase['def'] ?? 0),
+                (int) ($armorBase['def'] ?? 0) - $namelessRemoved['def'],
                 (int) $effectiveStats['def'],
                 $calculator,
             ));
             $afterStats['spr'] = max(0, $this->effectiveArmorStat(
-                (int) ($armorBase['spr'] ?? 0),
+                (int) ($armorBase['spr'] ?? 0) - $namelessRemoved['spr'],
                 (int) $effectiveStats['spr'],
                 $calculator,
             ));
@@ -407,15 +447,34 @@ class CharacterStatusService
             $weaponBase = $currentStats['weapon_base'] ?? ['str' => 0, 'mag' => 0];
             $weaponOffense = $currentStats['weapon_offense'] ?? ['str' => 0, 'mag' => 0];
             $afterStats['str'] = max(1, $calculator->calculateEffectiveOffense(
-                (int) ($weaponBase['str'] ?? 0) - (int) $currentEquipmentStats['str'] + (int) $effectiveStats['str'],
+                (int) ($weaponBase['str'] ?? 0) - (int) $currentEquipmentStats['str'] - $namelessRemoved['str'] + (int) $effectiveStats['str'],
                 (int) ($weaponOffense['str'] ?? 0),
             ));
             $afterStats['mag'] = max(0, $calculator->calculateEffectiveOffense(
-                (int) ($weaponBase['mag'] ?? 0) - (int) $currentEquipmentStats['mag'] + (int) $effectiveStats['mag'],
+                (int) ($weaponBase['mag'] ?? 0) - (int) $currentEquipmentStats['mag'] - $namelessRemoved['mag'] + (int) $effectiveStats['mag'],
                 (int) ($weaponOffense['mag'] ?? 0),
             ));
         }
 
+        if ($type === 'accessory' && (array_sum(app(NamelessWorkshopService::class)->equippedArmorDefense($character)) + array_sum(app(NamelessWorkshopService::class)->equippedWeaponOffense($character)) + array_sum($namelessRemoved)) > 0 || ($type === 'accessory' && app(NamelessWorkshopService::class)->activeRelics($character)->isNotEmpty())) {
+            // 装飾品の持ち替えで基礎能力が変わるため、装備中の武具性能も含めて再計算する。
+            foreach (['str', 'mag'] as $key) {
+                $afterStats[$key] = max($minimums[$key], $calculator->calculateEffectiveOffense(
+                    (int) $currentStats['weapon_base'][$key] - (int) $currentEquipmentStats[$key] - $namelessRemoved[$key] + (int) $effectiveStats[$key],
+                    (int) $currentStats['weapon_offense'][$key],
+                ));
+            }
+            foreach (['def', 'spr'] as $key) {
+                $afterStats[$key] = max($minimums[$key], $this->effectiveArmorStat(
+                    (int) $currentStats['armor_base'][$key] - (int) $currentEquipmentStats[$key] - $namelessRemoved[$key] + (int) $effectiveStats[$key],
+                    (int) $currentStats['armor_defense'][$key],
+                    $calculator,
+                ));
+            }
+        }
+
+        $afterStats = app(NamelessRelicCatalog::class)->applyStatRates($afterStats,
+            app(NamelessWorkshopService::class)->equippedStatRates($character, in_array($type, NamelessEquipmentService::KINDS, true) ? $type : null));
         $deltas = [];
         $visibleStats = [];
         $performanceVisibleStats = [];
@@ -425,6 +484,8 @@ class CharacterStatusService
                 (int) $rawStats[$key] !== 0
                 || (int) $effectiveStats[$key] !== 0
                 || (int) $currentEquipmentStats[$key] !== 0
+                || (int) $namelessRemoved[$key] !== 0
+                || (app(NamelessWorkshopService::class)->enabled() && $deltas[$key] !== 0)
             ) {
                 $visibleStats[] = $key;
             }

@@ -1,5 +1,7 @@
 # AI_CONTEXT.md
 
+- 名もなき鍛冶屋・遺跡・遺物のコード配備はOFF（2026-10-05）。`NamelessWorkshopService::enabled()`はlocal/testing環境と`NAMELESS_RELICS_LOCAL_ENABLED`の両方を要求し、production/stagingでは常に利用不可。公開は`migration_mode=none`、新規テーブル・工房街・プレイヤー資産は作らない。正式開放には環境ゲート・DB・データ・並行処理の別検証が必要。対象と手順は`docs/experiments/NAMELESS_RELIC_OFF_RELEASE.md`。
+
 Purpose: compressed current-state snapshot for ChatGPT and Codex.
 Source of truth: current behavior = code / intended spec = DOMAIN_RULES.md + human rulings (see AGENTS.md "Source of truth"). On conflict, report 要裁定 — do not pick a side.
 Last updated: 2026-09-30

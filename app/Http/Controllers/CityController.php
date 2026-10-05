@@ -24,11 +24,12 @@ class CityController extends Controller
         $cities = City::orderBy('sort_order', 'asc')
             ->get()
             ->reject(fn (City $city): bool => $ferdiaMapService->isFerdiaCityId((int) $city->id))
+            ->reject(fn (City $city): bool => app(\App\Services\NamelessTownService::class)->isTown($city))
             ->values();
         
         $highestCity = $character->highestCity;
         // 最高到達街がない（初期データ不良等）場合は一番最初の街を最高とする
-        $highestCityOrder = $highestCity ? $highestCity->sort_order : 0;
+        $highestCityOrder = $highestCity ? $highestCity->sort_order : (app(\App\Services\NamelessWorkshopService::class)->ready() ? (City::query()->where('is_initial', true)->value('sort_order') ?? 0) : 0);
         $highestCityName = $highestCity ? (string) $highestCity->name : '未到達';
         $cityPopulationCounts = $cityPopulationService->countsByCity();
         $cityIconSamples = $cityPopulationService->iconSamplesByCity(12);
@@ -36,7 +37,8 @@ class CityController extends Controller
         $currentLocationName = $this->currentLocationName($character, $ferdiaMapService, $ferdiaMap);
         $initialMapRegion = $this->initialMapRegion($character, $ferdiaMapService, $ferdiaMap);
 
-        return view('city.index', compact('character', 'cities', 'highestCityOrder', 'highestCityName', 'cityPopulationCounts', 'cityIconSamples', 'ferdiaMap', 'currentLocationName', 'initialMapRegion'));
+        $namelessTown = app(\App\Services\NamelessTownService::class)->availableTown();
+        return view('city.index', compact('character', 'cities', 'highestCityOrder', 'highestCityName', 'cityPopulationCounts', 'cityIconSamples', 'ferdiaMap', 'currentLocationName', 'initialMapRegion', 'namelessTown'));
     }
 
     public function travel(Request $request, City $city, FerdiaMapService $ferdiaMapService)
@@ -47,8 +49,13 @@ class CityController extends Controller
         }
 
         $highestCity = $character->highestCity;
-        $highestCityOrder = $highestCity ? $highestCity->sort_order : 0;
+        $highestCityOrder = $highestCity ? $highestCity->sort_order : (app(\App\Services\NamelessWorkshopService::class)->ready() ? (City::query()->where('is_initial', true)->value('sort_order') ?? 0) : 0);
 
+        $namelessTowns = app(\App\Services\NamelessTownService::class);
+        $isNamelessTown = $namelessTowns->isTown($city);
+        if ($isNamelessTown) {
+            abort_unless($namelessTowns->availableTown()?->id === $city->id, 404);
+        }
         $canTravel = $ferdiaMapService->isFerdiaCityId((int) $city->id)
             ? $ferdiaMapService->canTravelCity($character, $city)
             : $city->sort_order <= $highestCityOrder;
@@ -58,17 +65,22 @@ class CityController extends Controller
             $resolvedValmonEggs = app(\App\Services\ValmonService::class)->hatchActiveEggs($character);
             $character->current_city_id = $city->id;
             $character->save();
-            app(\App\Services\PlayerLifecycleEventService::class)->recordCityReached($character, $city);
+            if (! $isNamelessTown) {
+                app(\App\Services\PlayerLifecycleEventService::class)->recordCityReached($character, $city);
+            }
             app(\App\Services\ExplorationStateService::class)->reset($character);
             if ($request->boolean('from_battle_result')) {
                 session()->forget('lastBattleData');
             }
             // MAPからの通常移動は、次の探索先を選びやすい探索画面を開く。
             // 戦闘結果で新しい街へ進んだ場合だけは、帰還後の施設利用を優先する。
-            session(['current_location' => $request->boolean('from_battle_result') ? 'town' : 'dungeon']);
+            session(['current_location' => $isNamelessTown || $request->boolean('from_battle_result') ? 'town' : 'dungeon']);
 
             $routeParams = $request->boolean('from_battle_result') ? ['skip_resume' => 1] : [];
             $redirect = redirect()->route('home', $routeParams)->with('success', "{$city->name} に移動しました。");
+            if ($isNamelessTown && app(\App\Services\NamelessWorkshopService::class)->needsIntroduction($character)) {
+                $redirect = redirect()->route('nameless-workshop.index')->with('success', "{$city->name} に移動しました。");
+            }
             if (!empty($resolvedValmonEggs)) {
                 $message = '卵が淡く光りはじめた……<br>';
                 foreach ($resolvedValmonEggs as $egg) {

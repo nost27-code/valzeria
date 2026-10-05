@@ -261,7 +261,7 @@ class DiscoveryService
 
         if ($link->to_type === 'city') {
             $city = City::find((int) $link->to_id);
-            if (!$city) {
+            if (!$city || app(NamelessTownService::class)->isTown($city)) {
                 return null;
             }
 
@@ -295,6 +295,10 @@ class DiscoveryService
 
     private function discoverCity(Character $character, City $city): void
     {
+        // 独立した工房拠点は通常都市の発見・最高到達情報に含めない。
+        if (app(NamelessTownService::class)->isTown($city)) {
+            return;
+        }
         CharacterCityDiscovery::updateOrCreate(
             ['character_id' => $character->id, 'city_id' => $city->id],
             ['discovery_state' => 'discovered', 'discovered_at' => now()]

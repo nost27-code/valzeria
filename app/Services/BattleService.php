@@ -175,36 +175,47 @@ class BattleService
         }
 
         if (! $this->jobArtV2FeatureGate->usesDamageApplication($source, $target)) {
-            $target->takeDamage($damage);
-
-            return null;
+            if (! ($source?->namelessRelicsEnabled || $target->namelessRelicsEnabled)) {
+                $target->takeDamage($damage);
+                return null;
+            }
+            $hpBefore = $target->hp;
+            $target->takeDamage($damage, ! in_array($sourceType, [DamageSourceType::DOT, DamageSourceType::SELF_DAMAGE, DamageSourceType::RECOIL], true));
+            $result = new DamageApplicationResult($damage, $hpBefore, $target->hp, max(0, $hpBefore - $target->hp), max(0, $damage - $hpBefore), $target->isDead(), $sourceType, $sourceId, $hitResult, $hitIndex, $hitCount);
+        } else {
+            $result = $this->damageApplicationService->apply(new DamageApplicationRequest(
+                sourceActor: $source,
+                targetActor: $target,
+                resolvedDamage: $damage,
+                sourceType: $sourceType,
+                sourceId: $sourceId,
+                battleType: $state->battleType,
+                hitResult: $hitResult,
+                hitIndex: $hitIndex,
+                hitCount: $hitCount,
+                battleState: $state,
+                directAttackResolution: $isDirect
+                    && $source !== null
+                    && $state->currentSourceActionId() !== null
+                    ? DirectAttackResolution::fromDamageSource(
+                        sourceActionId: $state->currentSourceActionId(),
+                        attacker: $source,
+                        target: $target,
+                        hitResult: $hitResult,
+                        damageCategory: (string) $damageCategory,
+                        direct: true,
+                        sourceType: $sourceType,
+                    )
+                    : null,
+            ));
         }
-
-        return $this->damageApplicationService->apply(new DamageApplicationRequest(
-            sourceActor: $source,
-            targetActor: $target,
-            resolvedDamage: $damage,
-            sourceType: $sourceType,
-            sourceId: $sourceId,
-            battleType: $state->battleType,
-            hitResult: $hitResult,
-            hitIndex: $hitIndex,
-            hitCount: $hitCount,
-            battleState: $state,
-            directAttackResolution: $isDirect
-                && $source !== null
-                && $state->currentSourceActionId() !== null
-                ? DirectAttackResolution::fromDamageSource(
-                    sourceActionId: $state->currentSourceActionId(),
-                    attacker: $source,
-                    target: $target,
-                    hitResult: $hitResult,
-                    damageCategory: (string) $damageCategory,
-                    direct: true,
-                    sourceType: $sourceType,
-                )
-                : null,
-        ));
+        if ($isDirect && $source !== null && ($source->namelessRelicsEnabled || $target->namelessRelicsEnabled)) {
+            app(NamelessRelicBattleService::class)->completeDirectHit($source, $target, $state, $result,
+                fn ($from, $to, $amount, $type) => $this->applyResolvedDamage($from, $to, $state, $amount, $type),
+                fn ($actor, $amount) => $this->jobArtV2FieldService->applyHpHeal($actor, $state, $amount),
+                fn () => $this->battleRandomInt(1, 10000));
+        }
+        return $result;
     }
 
     /**
@@ -344,6 +355,9 @@ class BattleService
         if (($options['battle_type'] ?? null) === NationRaidRules::BATTLE_TYPE) {
             $battleContext = NationRaidRules::BATTLE_TYPE;
         }
+        if ($preparedPlayer === null && $battleContext !== NationRaidRules::BATTLE_TYPE) {
+            app(NamelessRelicBattleService::class)->attach($character, $playerActor);
+        }
         $jobArtBattleContext = (string) ($options['job_art_context'] ?? $this->jobArtBattleContext($enemy));
         if (! in_array($jobArtBattleContext, ['pve', 'boss', JobArtService::RAID_SLOT_CONTEXT], true)) {
             $jobArtBattleContext = $this->jobArtBattleContext($enemy);
@@ -401,6 +415,7 @@ class BattleService
         $result->playerMpBefore = $playerActor->mp;
 
         $state = new BattleState($playerActor, $enemyActor, $battleContext);
+        app(NamelessRelicBattleService::class)->startBattle($playerActor, $enemyActor, $state);
         if (! (bool) ($options['valmon_assist_enabled'] ?? true)) {
             $state->valmonAssistRolled = true;
         }
@@ -509,6 +524,9 @@ class BattleService
             $result->result = 'timeout';
         }
 
+        if ($result->result === 'victory' && $playerActor->namelessRelicsEnabled) {
+            app(NamelessRelicBattleService::class)->recoverAfterVictory($playerActor, $state);
+        }
         $result->logs = $state->logs;
         $result->playerHpAfter = $playerActor->hp;
         $result->playerMpAfter = $playerActor->mp;
@@ -785,6 +803,9 @@ class BattleService
      */
     protected function executeAction(BattleActor $attacker, BattleActor $defender, BattleState $state): void
     {
+        if ($attacker->namelessRelicsEnabled) {
+            app(NamelessRelicBattleService::class)->beginAction($attacker, $state);
+        }
         $sourceActionId = $this->jobArtV2ResourceService->beginAction($attacker, $state);
         if ($sourceActionId !== null) {
             $this->jobArtV2RoleEffectService->beginAction($attacker, $state, $sourceActionId);
@@ -1759,9 +1780,13 @@ class BattleService
                 $this->logGutsIfTriggered($defender, $state);
             }
 
-            if ($defender->isDead()) {
+            if ($defender->isDead() || ($attacker->namelessRelicsEnabled && $attacker->isDead())) {
                 break;
             }
+        }
+
+        if ($attacker->namelessRelicsEnabled && $attacker->isDead()) {
+            return;
         }
 
         if ((int) $skill->gold_bonus_percent > 0) {
@@ -2320,6 +2345,10 @@ class BattleService
 
     private function applySelfBuff(BattleActor $attacker, BattleState $state, Skill $skill, ?bool $forceMagical = null): void
     {
+        if ($attacker->namelessRelicsEnabled && $attacker->isDead()) {
+            return;
+        }
+
         $damageType = $forceMagical === null ? null : ($forceMagical ? 'magical' : 'physical');
         $shared = $this->jobArtV2RoleEffectService->applySharedSelfBuff($attacker, $state, $skill, $damageType);
         if ($shared !== null) {
@@ -2483,6 +2512,10 @@ class BattleService
         float $rate,
         bool $applyTargetEffects = true,
     ): void {
+        if ($attacker->namelessRelicsEnabled && $attacker->isDead()) {
+            return;
+        }
+
         $template = (string) $skill->effect_template;
 
         if (! in_array($template, ['HEAL', 'HEAL_CLEANSE'], true) && (int) $skill->heal_percent > 0) {
@@ -2607,6 +2640,14 @@ class BattleService
             return $damage;
         }
 
+        if ($state->battleType !== NationRaidRules::BATTLE_TYPE && ($attacker->namelessRelicsEnabled || $defender->namelessRelicsEnabled)) {
+            $damage = app(NamelessRelicBattleService::class)->speciesDamage($damage, $attacker, $defender, false);
+            if ($defender->isPlayer) {
+                $damage = app(ExplorationSupportService::class)->reduceDirectDamage($damage, $state->explorationSupportSnapshot);
+            }
+            return app(NamelessRelicBattleService::class)->directDamage($damage, $attacker, $defender);
+        }
+
         $killerRate = $this->pveKillerDamageRate($attacker, $defender, $state);
         if ($killerRate > 0) {
             $damage = max(1, (int) floor($damage * (1 + $killerRate)));
@@ -2637,7 +2678,9 @@ class BattleService
             $damage = app(ExplorationSupportService::class)->reduceDirectDamage($damage, $state->explorationSupportSnapshot);
         }
 
-        return $damage;
+        return ($attacker->namelessRelicsEnabled || $defender->namelessRelicsEnabled)
+            ? app(NamelessRelicBattleService::class)->directDamage($damage, $attacker, $defender)
+            : $damage;
     }
 
     protected function pveArmorResistanceRate(

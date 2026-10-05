@@ -102,6 +102,7 @@ class CityPopulationService
         }
 
         $configByName = collect(config('valzeria_world_map.cities', []))->keyBy('city_name');
+        $configByName->put(NamelessTownService::NAME, config('valzeria_world_map.nameless_workshop'));
 
         return \App\Models\City::query()
             ->get(['id', 'name'])

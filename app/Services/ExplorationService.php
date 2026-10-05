@@ -992,11 +992,12 @@ class ExplorationService
         int $requestedCount = 10,
         ?callable $exploreRunner = null,
         array $repeatableSpecialEvents = [],
+        ?int $perRunStaminaCost = null,
     ): array
     {
         // Also cover sub-area batches and callers without the HTTP commit middleware.
         return app(GameSettingService::class)->withFreshSnapshot(
-            fn () => $this->exploreRepeatedWithSnapshot($character, $areaId, $requestedCount, $exploreRunner, $repeatableSpecialEvents),
+            fn () => $this->exploreRepeatedWithSnapshot($character, $areaId, $requestedCount, $exploreRunner, $repeatableSpecialEvents, $perRunStaminaCost),
         );
     }
 
@@ -1006,6 +1007,7 @@ class ExplorationService
         int $requestedCount,
         ?callable $exploreRunner,
         array $repeatableSpecialEvents,
+        ?int $perRunStaminaCost,
     ): array
     {
         $requestedCount = self::normalizeRepeatCount($requestedCount);
@@ -1026,7 +1028,7 @@ class ExplorationService
 
         $initialStamina = $staminaService->summary($character);
         $requiredStamina = self::staminaCostForCount(
-            (int) ($initialStamina['cost'] ?? 1),
+            $perRunStaminaCost ?? (int) ($initialStamina['cost'] ?? 1),
             $requestedCount,
         );
         if ((int) ($initialStamina['current'] ?? 0) < $requiredStamina) {

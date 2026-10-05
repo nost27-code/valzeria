@@ -48,6 +48,12 @@ class EquipmentService
                     return ['success' => false, 'message' => $message];
                 }
 
+                try {
+                    app(NamelessRelicEquipmentService::class)->assertCanEquip($lockedCharacter, $lockedItem);
+                } catch (\RuntimeException $e) {
+                    return ['success' => false, 'message' => $e->getMessage()];
+                }
+
                 $slot = $item->type === 'accessory' ? self::ACCESSORY_SLOT : $item->type;
                 CharacterItem::where('character_id', $lockedCharacter->id)
                     ->where('equipped_slot', $slot)
@@ -55,6 +61,11 @@ class EquipmentService
                     ->update(['is_equipped' => false, 'equipped_slot' => null]);
 
                 // 同じ装備の再送でも、直前の一括解除後の状態から必ず再装備する。
+                if (app(NamelessWorkshopService::class)->ready()) {
+                    \App\Models\PlayerNamelessEquipment::query()
+                        ->where('character_id', $lockedCharacter->id)->where('kind', $slot)->where('is_equipped', true)
+                        ->update(['is_equipped' => false, 'revision' => DB::raw('revision + 1')]);
+                }
                 $lockedItem->refresh();
                 $lockedItem->forceFill(['is_equipped' => true, 'is_stored' => false, 'equipped_slot' => $slot])->save();
                 $this->clampCurrentResources($lockedCharacter);

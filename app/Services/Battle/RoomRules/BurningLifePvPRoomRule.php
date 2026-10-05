@@ -175,7 +175,7 @@ final class BurningLifePvPRoomRule implements PvPRoomRuleInterface
         }
 
         $hpBefore = $actor->hp;
-        $actor->takeDamage($requestedSelfDamage);
+        $actor->takeDamage($requestedSelfDamage, false);
         $this->recordHpLoss($state, $actor, max(0, $hpBefore - $actor->hp));
     }
 

@@ -34,6 +34,7 @@ class WeaponTraitTransferService
             ->where('character_id', $character->id)
             ->whereHas('item', fn ($query) => $query->whereIn('type', self::TRANSFERABLE_ITEM_TYPES))
             ->with(['item', 'affixPrefix', 'affixSuffix'])
+            ->when(app(NamelessRelicEquipmentService::class)->ordinarySchemaReady(), fn ($query) => $query->withExists(['relics as has_attached_relics']))
             ->orderByDesc('is_equipped')
             ->orderByDesc('id')
             ->get();
@@ -176,6 +177,7 @@ class WeaponTraitTransferService
 
     private function assertEquipmentsCanBeTransferred(CharacterItem $base, CharacterItem $material): void
     {
+        app(NamelessRelicEquipmentService::class)->assertDetached($material);
         $baseType = $base->item?->type ?? null;
         $materialType = $material->item?->type ?? null;
         if (!in_array($baseType, self::TRANSFERABLE_ITEM_TYPES, true) || !in_array($materialType, self::TRANSFERABLE_ITEM_TYPES, true)) {
@@ -334,6 +336,7 @@ class WeaponTraitTransferService
             'is_equipped' => (bool) $characterItem->is_equipped,
             'is_locked' => (bool) $characterItem->is_locked,
             'is_market_listed' => $characterItem->isMarketListed(),
+            'has_attached_relics' => (bool) $characterItem->getAttribute('has_attached_relics'),
             'maximum_level' => $this->rules->maxLevelForItem($characterItem->item),
             'engraving' => $this->traitPayload($characterItem, 'engraving'),
             'slayer' => $this->traitPayload($characterItem, 'slayer'),

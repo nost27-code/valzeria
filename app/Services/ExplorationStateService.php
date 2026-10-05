@@ -346,6 +346,7 @@ class ExplorationStateService
                 'name' => $characterItem->displayName(),
                 'rank' => $item?->weapon_rank ?? $item?->armor_rank ?? $item?->accessory_rank ?? $item?->rarity,
             ];
+            app(NamelessRelicEquipmentService::class)->releaseForLoss($characterItem);
             $characterItem->delete();
             $itemLostTotal++;
             $itemLossRemaining--;

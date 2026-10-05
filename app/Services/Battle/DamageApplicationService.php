@@ -35,7 +35,7 @@ class DamageApplicationService
 
         $hpBefore = $request->targetActor->hp;
         $gutsReadyBefore = $request->targetActor->gutsReady;
-        $request->targetActor->takeDamage($resolvedDamage);
+        $request->targetActor->takeDamage($resolvedDamage, ! in_array($request->sourceType, [DamageSourceType::DOT, DamageSourceType::SELF_DAMAGE, DamageSourceType::RECOIL], true));
         $hpAfter = $request->targetActor->hp;
 
         $result = new DamageApplicationResult(

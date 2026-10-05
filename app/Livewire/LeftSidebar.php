@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Auth;
 use App\Services\CharacterStatusService;
 use App\Services\LevelService;
 use App\Services\ValmonService;
+use App\Services\NamelessWorkshopService;
 
 class LeftSidebar extends Component
 {
@@ -27,6 +28,7 @@ class LeftSidebar extends Component
         $valmonNextLevelRemaining = null;
         $valmonIsMaxLevel = false;
         $valmonExpPercent = 0;
+        $namelessEquipped = collect();
 
         if (Auth::check()) {
             $baseCharacter = Auth::user()->currentCharacter();
@@ -43,6 +45,7 @@ class LeftSidebar extends Component
                 ]);
                 
                 $finalStats = $statusService->getFinalStatsUsingLoadedRelations($character);
+                $namelessEquipped = app(NamelessWorkshopService::class)->equippedEquipmentForDisplay($character);
                 $nextExp = $levelService->getRequiredExp($character->level);
 
                 $partnerValmon = $character->partnerValmon;
@@ -69,6 +72,7 @@ class LeftSidebar extends Component
 
         return view('livewire.left-sidebar', [
             'character' => $character,
+            'namelessEquipped' => $namelessEquipped,
             'finalStats' => $finalStats,
             'nextExp' => $nextExp,
             'jobLevel' => $jobLevel,

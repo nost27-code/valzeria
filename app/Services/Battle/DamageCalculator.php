@@ -126,7 +126,7 @@ class DamageCalculator
      */
     public function criticalChance(BattleActor $attacker, BattleActor $defender, float $bonusRate = 0.0): float
     {
-        $critRate = 5 + $bonusRate
+        $critRate = 5 + $bonusRate + (float) ($attacker->namelessRelicEffects['critical'] ?? 0)
             + (($attacker->effectiveLuk() - $defender->effectiveLuk()) * 0.2);
 
         return max(1.0, min(30.0, $critRate));
@@ -151,7 +151,7 @@ class DamageCalculator
 
     public function rankBattleCriticalChance(BattleActor $attacker, BattleActor $defender, float $bonusRate = 0.0): float
     {
-        $critRate = 3.0 + $bonusRate + (($attacker->effectiveLuk() - $defender->effectiveLuk()) * 0.03);
+        $critRate = 3.0 + $bonusRate + (float) ($attacker->namelessRelicEffects['critical'] ?? 0) + (($attacker->effectiveLuk() - $defender->effectiveLuk()) * 0.03);
 
         return max(2.0, min(12.0, $critRate));
     }
@@ -230,6 +230,14 @@ class DamageCalculator
         $effectiveDefense = $this->rankBattleEffectiveDefense($attackType, $def, $spr);
         if ($additionalDefenseIgnoreRate > 0.0) {
             $effectiveDefense *= 1 - min(0.50, $additionalDefenseIgnoreRate);
+        }
+
+        $relicPierce = (float) ($attacker->namelessRelicEffects['pierce_'.$attackType] ?? 0);
+        if ($relicPierce > 0) {
+            $nativeDefense = $this->rankBattleEffectiveDefense($attackType, $defender->effectiveDef(), $defender->effectiveSpr());
+            $knownIgnore = $attacker->namelessExistingIgnoreRate === null ? null
+                : 1 - (1 - $attacker->namelessExistingIgnoreRate) * (1 - min(.50, $additionalDefenseIgnoreRate));
+            $effectiveDefense = $this->relicPenetrationDefense($nativeDefense, $effectiveDefense, $relicPierce, $knownIgnore);
         }
 
         $baseDamage = $this->rankBattleRecommendedBaseDamage($attackPower, $effectiveDefense)
@@ -423,6 +431,8 @@ class DamageCalculator
             return $this->calculatePveEnemyPercentageDamage($atk, $def, $defender, $skillPower, $isCritical, $skillPowerCenti);
         }
 
+        $def = $this->relicPenetrationDefense($defender->effectiveDef(), $def, (float) ($attacker->namelessRelicEffects['pierce_physical'] ?? 0));
+
         if ($isCritical) {
             $def = (int)($def * 0.5); // クリティカル時は敵の防御力半減
         }
@@ -470,6 +480,8 @@ class DamageCalculator
             return $this->calculatePveEnemyPercentageDamage($atk, $def, $defender, $skillPower, $isCritical, $skillPowerCenti);
         }
 
+        $def = $this->relicPenetrationDefense($defender->effectiveSpr(), $def, (float) ($attacker->namelessRelicEffects['pierce_magical'] ?? 0));
+
         if ($isCritical) {
             $def = (int)($def * 0.5);
         }
@@ -497,6 +509,17 @@ class DamageCalculator
         }
 
         return max(1, $finalDamage);
+    }
+
+    private function relicPenetrationDefense(float $original, float $remaining, float $rate, ?float $knownIgnore = null): float
+    {
+        if ($knownIgnore !== null) {
+            $additional = $knownIgnore >= .50 ? 0 : min($rate, (.50 - $knownIgnore) / max(.01, 1 - $knownIgnore));
+            return $remaining * (1 - max(0, $additional));
+        }
+        if ($rate <= 0 || $original <= 0 || $remaining <= $original * .50) { return $remaining; }
+        // 既存の貫通・敏捷突破が消した守りを差し引き、残りに追加する。
+        return max($original * .50, $remaining * (1 - min(.50, $rate)));
     }
 
     private function usesPveEnemyPercentageDefense(BattleActor $attacker, BattleActor $defender): bool

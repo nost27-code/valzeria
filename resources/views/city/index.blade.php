@@ -60,9 +60,14 @@
             @php
                 $worldMapPath = config('valzeria_world_map.image_path', 'images/map/map01.webp');
                 $mapCitiesByName = collect(config('valzeria_world_map.cities', []))->keyBy('city_name');
+                $worldMapCities = collect($cities);
+                if ($namelessTown) {
+                    $worldMapCities->push($namelessTown);
+                    $mapCitiesByName->put($namelessTown->name, config('valzeria_world_map.nameless_workshop'));
+                }
                 $cityPopulationCounts = collect($cityPopulationCounts ?? []);
                 $cityIconSamples = collect($cityIconSamples ?? []);
-                $worldZoomIconItems = collect($cities)
+                $worldZoomIconItems = $worldMapCities
                     ->flatMap(function ($city) use ($mapCitiesByName, $cityIconSamples) {
                         $mapCity = $mapCitiesByName->get($city->name);
                         $iconSamples = collect($cityIconSamples[$city->id] ?? []);
@@ -126,7 +131,7 @@
                         <div class="mt-1 flex items-center gap-1.5"><span class="h-2.5 w-2.5 rounded-full bg-slate-400"></span>未解放</div>
                     </div>
 
-                    @foreach($cities as $city)
+                    @foreach($worldMapCities as $city)
                         @php
                             $mapCity = $mapCitiesByName->get($city->name);
                             $isUnlocked = $city->sort_order <= $highestCityOrder;
@@ -142,6 +147,7 @@
                         @endphp
                         @if($mapCity)
                             <div class="absolute z-10 -translate-x-1/2 -translate-y-1/2"
+                                 @if($namelessTown && (int) $city->id === (int) $namelessTown->id) data-nameless-town-entry @endif
                                  style="left: {{ (float) ($mapCity['x_percent'] ?? 50) }}%; top: {{ (float) ($mapCity['y_percent'] ?? 50) }}%;">
                                 @if($isCurrent)
                                     <div class="group flex flex-col items-center">

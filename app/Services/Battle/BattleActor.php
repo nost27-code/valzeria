@@ -14,6 +14,21 @@ class BattleActor
     public string $name;
     public bool $isPlayer;
 
+    /** ローカル遺物。通常PvE・対人のActor生成時だけ注入。永続スナップショットには保存しない。 */
+    public array $namelessRelicEffects = [];
+    public bool $namelessRelicsEnabled = false;
+    public array $namelessResistEffects = [];
+    public ?array $namelessBrand = null;
+    public ?string $namelessForeignSpecies = null;
+    public float $namelessForeignPotency = 0.0;
+    public bool $namelessSurvivalUsed = false;
+    public array $namelessProcActions = [];
+    public array $namelessMirrorBlocked = [];
+    public ?float $namelessExistingIgnoreRate = null;
+    public int $namelessActionSerial = 0;
+    public ?int $namelessOpenerAction = null;
+    public ?string $namelessGuardAction = null;
+
     /** HTML装飾付きログへ埋め込む名前。比較・通知用のnameは元の文字列を保つ。 */
     public function logName(): string
     {
@@ -240,15 +255,23 @@ class BattleActor
         return ($this->hp * $otherMaxHp) > ($other->hp * $ownMaxHp);
     }
 
-    public function takeDamage(int $damage): void
+    public function takeDamage(int $damage, bool $allowRelicSurvival = true): void
     {
+        $hpBefore = $this->hp;
         $this->totalDamageTaken += max(0, $damage);
         $this->hp -= $damage;
         if ($this->hp <= 0 && $this->gutsReady) {
             $this->hp = 1;
             $this->gutsReady = false;
             $this->gutsJustTriggered = true;
+            $this->namelessSurvivalUsed = true;
             return;
+        }
+
+        if ($hpBefore > 0 && $this->hp <= 0 && $allowRelicSurvival && ! $this->namelessSurvivalUsed && ($this->namelessRelicEffects['survive'] ?? 0) > 0) {
+            $this->namelessSurvivalUsed = true;
+            $this->hp = max(1, (int) floor($this->maxHp * $this->namelessRelicEffects['survive']));
+            $this->gutsReady = false;
         }
 
         if ($this->hp < 0) {
@@ -258,6 +281,9 @@ class BattleActor
 
     public function healHp(int $amount): int
     {
+        if (($this->namelessRelicsEnabled && $this->isDead()) || ($this->namelessRelicEffects['blood_pact'] ?? 0) > 0) {
+            return 0;
+        }
         $amount = max(0, (int) floor($amount * (1 - $this->conditionRate('recovery_block'))));
         $before = $this->hp;
         $this->hp += $amount;

@@ -39,6 +39,7 @@ class GoldService
             && !$characterItem->is_equipped
             && !$characterItem->is_locked
             && !$characterItem->isMarketListed()
+            && !app(NamelessRelicEquipmentService::class)->hasAttachedRelics($characterItem)
             && $this->equipmentSalePrice($item) > 0
             && !$this->isProtectedEquipment($item);
     }
@@ -118,11 +119,32 @@ class GoldService
 
     public function sellEquipment(Character $character, CharacterItem $characterItem): array
     {
+        if (! app(NamelessWorkshopService::class)->enabled()) {
+            return $this->sellLockedEquipment($character, $characterItem);
+        }
+        $result = DB::transaction(function () use ($character, $characterItem): array {
+            $locked = Character::query()->whereKey($character->id)->lockForUpdate()->firstOrFail();
+            $item = CharacterItem::query()->where('character_id', $locked->id)->whereKey($characterItem->id)->with('item')->lockForUpdate()->first();
+            if (! $item) {
+                throw new RuntimeException('この装備は所持していません。');
+            }
+            $result = $this->sellLockedEquipment($locked, $item);
+            $character->setRawAttributes($locked->getAttributes(), true);
+
+            return $result;
+        }, 3);
+
+        return $result;
+    }
+
+    private function sellLockedEquipment(Character $character, CharacterItem $characterItem): array
+    {
         $characterItem->loadMissing('item');
         if ((int) $characterItem->character_id !== (int) $character->id) {
             throw new RuntimeException('この装備は所持していません。');
         }
 
+        app(NamelessRelicEquipmentService::class)->assertDetached($characterItem);
         if (!$this->canSellEquipment($characterItem)) {
             if ($characterItem->isMarketListed()) {
                 throw new RuntimeException('この武器は冒険者市場へ出品中です。操作するには先に出品を取り消してください。');

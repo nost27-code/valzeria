@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-10-05-nameless-workshop-off-release',
+        'date' => '2026-10-05',
+        'category' => 'internal',
+        'title' => '名もなき鍛冶屋の関連機能を停止状態で配備',
+        'detail' => '工房・遺跡・遺物のコードと画像を配備。production/stagingでは常にOFFとし、入口・装備表示・能力加算・新報酬を停止します。migrationは実行せず、工房街やプレイヤー資産は登録しません。正式開放には別途準備が必要です。',
+    ],
+    [
         'id' => '2026-10-05-exploration-settings-snapshot',
         'date' => '2026-10-05',
         'category' => 'changed',

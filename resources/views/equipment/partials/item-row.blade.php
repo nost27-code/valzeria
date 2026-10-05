@@ -21,6 +21,7 @@
     $statusService = app(\App\Services\CharacterStatusService::class);
     $affixLines = $ci->affixEffectLines($equipmentEffectRate);
     $isMarketListed = $ci->isMarketListed();
+    $hasAttachedRelics = $ci->relationLoaded('relics') && $ci->relics->isNotEmpty();
     $totalStats = $currentCharacter
         ? $statusService->equipmentStatsFor($currentCharacter, $ci)
         : \App\Services\EquipmentEnhancementService::enhancedStatTotalsForItem($ci->item, (int) ($ci->enhance_level ?? 0));
@@ -265,10 +266,10 @@
                 <button type="button"
                     data-action-button
                     @click="confirmSell = true"
-                    @if(!($ci->can_sell ?? false)) disabled title="{{ $isMarketListed ? '市場出品中は売却不可' : ($ci->is_equipped ? '装備中は売却不可' : ($ci->is_locked ? '保護中は売却不可' : '売却不可')) }}" @endif
+                    @if(!($ci->can_sell ?? false)) disabled title="{{ $isMarketListed ? '市場出品中は売却不可' : ($hasAttachedRelics ? '遺物を取り外してから売却してください' : ($ci->is_equipped ? '装備中は売却不可' : ($ci->is_locked ? '保護中は売却不可' : '売却不可'))) }}" @endif
                     class="w-full h-8 text-xs font-bold rounded transition-all duration-150 active:scale-95
                            {{ ($ci->can_sell ?? false) ? 'bg-orange-600 text-white hover:bg-orange-700' : 'bg-slate-100 text-slate-400 cursor-not-allowed' }}">
-                    @if($sellPrice > 0) 売却する @else 売却不可 @endif
+                    @if($sellPrice > 0 && !$hasAttachedRelics) 売却する @else 売却不可 @endif
                 </button>
                 @if(($ci->can_sell ?? false) && $sellPrice > 0)
                     <div x-show="confirmSell"
@@ -304,6 +305,16 @@
 
         @if($isWeapon && $equipmentIcon)
                 </div>
+            </div>
+        @endif
+
+        @include('equipment.partials.attached-relics', ['equipment' => $ci])
+        @if($hasAttachedRelics)
+            <div class="text-[11px] leading-snug text-slate-600" data-relic-sale-restriction="{{ $ci->id }}">
+                遺物装着中は売却できません。
+                @if(app(\App\Services\NamelessWorkshopService::class)->ready())
+                    <a href="{{ route('nameless-workshop.index', ['tab' => 'sets', 'character_item' => $ci->id]) }}" class="font-bold text-amber-800 underline">遺物を取り外す</a>
+                @endif
             </div>
         @endif
 

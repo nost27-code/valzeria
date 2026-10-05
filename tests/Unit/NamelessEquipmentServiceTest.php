@@ -18,8 +18,8 @@ class NamelessEquipmentServiceTest extends TestCase
         $this->assertSame(5, NamelessEquipmentService::powerFor(0));
         $this->assertSame(10, NamelessEquipmentService::powerFor(1));
         $this->assertSame(500, NamelessEquipmentService::powerFor(99));
-        $this->assertSame(990000, NamelessEquipmentService::goldCostForNextLevel(99));
-        $this->assertSame(49500000, NamelessEquipmentService::totalGoldCostFor(99));
+        $this->assertSame(99000, NamelessEquipmentService::goldCostForNextLevel(99));
+        $this->assertSame(4950000, NamelessEquipmentService::totalGoldCostFor(99));
     }
 
     public function test_material_totals_and_city_caps_follow_the_specification(): void

@@ -221,7 +221,7 @@ class BeginnerMissionService
                 ->get()
                 ->keyBy('area_id');
 
-        $highestCityId = (int) ($character->highest_city_id ?? $character->current_city_id ?? 0);
+        $highestCityId = app(NamelessTownService::class)->normalProgressCityId($character, 0);
         $hasReachedNextCity = $highestCityId > self::ARKREA_CITY_ID;
         $lastAreaId = (int) $areas->last()->id;
 
