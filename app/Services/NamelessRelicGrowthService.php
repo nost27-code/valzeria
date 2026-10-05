@@ -45,7 +45,7 @@ class NamelessRelicGrowthService
     public function preview(Character $character, int $relicId, array $sourceIds, bool $lock = false): array
     {
         if (! $this->ready()) {
-            throw new RuntimeException('遺物育成はローカル試作専用です。設定とmigrationを確認してください。');
+            throw new RuntimeException('遺物育成は現在利用できません。設定とmigrationを確認してください。');
         }
         $ids = array_map('intval', array_values($sourceIds));
         if (! $ids || count($ids) !== count(array_unique($ids)) || min($ids) < 1 || in_array($relicId, $ids, true)) {

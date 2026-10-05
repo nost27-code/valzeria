@@ -24,3 +24,7 @@
 ## 検証と復旧
 
 機能テストは独立したメモリDBで実行。本番/staging境界と未migration状態は`NamelessProductionOffTest`で確認。既存市場の購入制限・装備性能・戦闘・探索の回帰テストとビルドを行う。公開後に公開SHA、health、環境ゲート、DB未変更、認証境界、ログ差分と直前リリースを読み戻す。問題時は標準公開手順で直前のリリースへ戻す（DB変更なし）。
+
+## 有効化準備修正（OFF配備）
+
+上記はOFF配備版d87204daの記録。2026-10-05の後続修正では全環境共通のNAMELESS_RELICS_ENABLEDを追加し、旧ローカルキーの互換はlocal/testingに限定する。必要schema未完なら停止し、既存装着資産の保護・継承は設定OFFでも維持する。能力計算も同じ設定を使う。手順はNAMELESS_RELIC_ACTIVATION.mdを参照。本番の設定・DB・街登録は変更していない。

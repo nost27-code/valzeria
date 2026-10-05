@@ -16,14 +16,13 @@ class NamelessRelicEquipmentService
 {
     public function ordinarySchemaReady(): bool
     {
-        return app(NamelessWorkshopService::class)->enabled()
-            && Schema::hasTable('player_relics') && Schema::hasColumn('player_relics', 'character_item_id');
+        return app(NamelessWorkshopService::class)->ready() && $this->storedRelicsSchemaReady();
     }
 
+    /** 効果・画面を停止しても、既存装着資産の保護と継承は全環境で維持する。 */
     public function storedRelicsSchemaReady(): bool
     {
-        return app()->environment(['local', 'testing'])
-            && Schema::hasTable('player_relics') && Schema::hasColumn('player_relics', 'character_item_id');
+        return Schema::hasTable('player_relics') && Schema::hasColumn('player_relics', 'character_item_id');
     }
 
     public function rank(Item $item): string
@@ -183,7 +182,7 @@ class NamelessRelicEquipmentService
 
     public function inheritEvolution(Character $character, CharacterItem $source, CharacterItem $destination): void
     {
-        if (! $this->ordinarySchemaReady()) {
+        if (! $this->storedRelicsSchemaReady()) {
             return;
         }
         $relics = $source->relics()->lockForUpdate()->get();

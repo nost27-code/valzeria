@@ -9,7 +9,9 @@ class InstallNamelessLocalTown extends Command
 {
     protected $signature = 'nameless:install-local-town';
 
-    protected $description = 'ローカル試作の無もなき工房街だけを登録する';
+    protected $aliases = ['nameless:install-town'];
+
+    protected $description = '有効化設定と必要なDB移行を確認して無もなき工房街を登録する';
 
     public function handle(NamelessTownService $town): int
     {

@@ -377,7 +377,7 @@ class NamelessAccessoryTest extends TestCase
         }
     }
 
-    public function test_nonlocal_and_disabled_feature_ignore_accessory_stats_and_relics(): void
+    public function test_disabled_feature_ignores_accessory_stats_and_relics_in_all_environments(): void
     {
         $character = $this->character();
         $body = $this->body($character, '護符', 99);
@@ -386,7 +386,7 @@ class NamelessAccessoryTest extends TestCase
         $this->login($character);
         foreach (['testing', 'production', 'staging'] as $environment) {
             $this->app->instance('env', $environment);
-            config(['nameless_relics.enabled' => $environment !== 'testing']);
+            config(['nameless_relics.enabled' => false]);
             CharacterStatusService::clearRequestCache();
             $this->assertSame(1000, app(CharacterStatusService::class)->getFinalStats($character->fresh())['str']);
             $this->assertSame(0, array_sum($this->workshop()->equippedFixedBonuses($character)));

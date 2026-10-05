@@ -35,12 +35,14 @@ class NamelessProductionOffTest extends TestCase
                 config(['nameless_relics.enabled' => $flag]);
                 DB::flushQueryLog();
                 DB::enableQueryLog();
-                $this->assertFalse(app(NamelessWorkshopService::class)->enabled());
+                $this->assertSame($flag, app(NamelessWorkshopService::class)->enabled());
                 $this->assertFalse(app(NamelessWorkshopService::class)->ready());
                 $this->assertNull(app(NamelessTownService::class)->availableTown());
                 $this->assertFalse(app(NamelessRelicEquipmentService::class)->ordinarySchemaReady());
                 $this->assertFalse(app(NamelessRelicEquipmentService::class)->hasAttachedRelics(new CharacterItem(['id' => 1])));
-                $this->assertSame([], DB::getQueryLog());
+                foreach (DB::getQueryLog() as $query) {
+                    $this->assertDoesNotMatchRegularExpression('/(?:from|into|update|join)\s+[\"`]?player_relics\b/i', $query['query']);
+                }
                 DB::disableQueryLog();
             }
         }
