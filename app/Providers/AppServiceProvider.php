@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Services\GameSettingService;
 use App\Services\SchemaStateService;
 use Illuminate\Support\ServiceProvider;
 
@@ -13,6 +14,7 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->scoped(SchemaStateService::class);
+        $this->app->scoped(GameSettingService::class);
     }
 
     /**

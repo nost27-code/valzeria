@@ -994,6 +994,20 @@ class ExplorationService
         array $repeatableSpecialEvents = [],
     ): array
     {
+        // Also cover sub-area batches and callers without the HTTP commit middleware.
+        return app(GameSettingService::class)->withFreshSnapshot(
+            fn () => $this->exploreRepeatedWithSnapshot($character, $areaId, $requestedCount, $exploreRunner, $repeatableSpecialEvents),
+        );
+    }
+
+    private function exploreRepeatedWithSnapshot(
+        Character $character,
+        int $areaId,
+        int $requestedCount,
+        ?callable $exploreRunner,
+        array $repeatableSpecialEvents,
+    ): array
+    {
         $requestedCount = self::normalizeRepeatCount($requestedCount);
         $staminaService = app(ExplorationStaminaService::class);
         if ($requestedCount === 1) {

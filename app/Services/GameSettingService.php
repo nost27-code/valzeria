@@ -9,6 +9,26 @@ use Illuminate\Support\Facades\DB;
 
 class GameSettingService
 {
+    private bool $snapshotActive = false;
+
+    private ?array $snapshot = null;
+
+    /** Reuse fresh DB settings for one operation, without touching shared cache. */
+    public function withFreshSnapshot(callable $operation): mixed
+    {
+        if ($this->snapshotActive) {
+            return $operation();
+        }
+
+        $this->snapshotActive = true;
+        try {
+            return $operation();
+        } finally {
+            $this->snapshot = null;
+            $this->snapshotActive = false;
+        }
+    }
+
     public function getFloat(string $key, float $default): float
     {
         return (float) $this->get($key, $default);
@@ -51,11 +71,18 @@ class GameSettingService
 
     public function flush(): void
     {
+        $this->snapshot = null;
         Cache::forget($this->cacheKey());
     }
 
     public function all(): array
     {
+        if ($this->snapshotActive) {
+            return $this->snapshot ??= app(SchemaStateService::class)->hasTable('game_settings')
+                ? $this->loadSettings()
+                : [];
+        }
+
         if (! app(SchemaStateService::class)->hasTable('game_settings')) {
             return [];
         }
