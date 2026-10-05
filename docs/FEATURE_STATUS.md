@@ -4,6 +4,7 @@ Legend: D=done, P=partial, N=not implemented, ?=unverified, X=removed
 
 | Feature | St | Evidence | Notes |
 |---|---:|---|---|
+| Nameless relic rank progression to depth 100 | P | `config/nameless_relics.php`, `NamelessRuinRankProgressionTest`, `NamelessRelicBattleTest` | 2026-10-06人間裁定により深度補正を100まで延長。深度1〜31の配分を保持し、32以降も高ランク側の累積確率が毎階層で改善する。深度100はVII以上約12.19%、IX約0.780%。機能設定・DB変更なし。抽選変更を機能OFFで事前配備。正式ONは未実施。 |
 | Nameless tower / raid relic effects | P | `NamelessBattleIntegrationTest`, `NationRaidExistingPlayerDefenseApplierTest`, `TowerBattleService`, `NationRaidPlayerPreparationService` | 2026-10-05人間裁定により塔・国家レイドとも能力と特殊効果を反映。塔の持越しHP/SPと勝利回復、レイドの効果snapshotと反応damage集計を維持。修正コードをOFFで事前配備。正式ON未実施。 |
 | Nameless relic inventory recovery | P | `NamelessRelicDiscardRecoveryTest`, `NamelessActivationTest`, `NamelessWorkshopService`, `NamelessWorkshopController`, `nameless-workshop/relics.blade.php` | 2026-10-05の修正コードをOFF配備。機能ONは未実施。育成途中の余剰遺物を進捗喪失の確認付きで破棄し、300枠満杯・本体最大強化から探索を再開できる。装着中/保護中/効果ごとの最高ランク1個は保持。ランクと進捗の変更は拒否し、消失した進捗を台帳へ記録。UUID再送と失敗時rollbackを維持。実MariaDB並行操作・実機スマホは未確認。 |
 | Nameless activation / stored relic protection | P | `NamelessActivationTest`, `NamelessWorkshopService`, `NamelessRelicEquipmentService`, `config/nameless_relics.php`, `docs/experiments/NAMELESS_RELIC_ACTIVATION.md` | 2026-10-05の修正コードをOFF配備。機能ONは未実施。正式設定はNAMELESS_RELICS_ENABLED、既定OFF。全環境で同じ能力・装着条件を使い、必要schema未完なら停止。OFFでも既存装着資産の売却/所有者変更保護、進化継承、敗北解除を維持。MariaDB 10.5.26隔離環境で対象5本の移行・資産保持・同時街登録を確認。OFF準備コマンドあり。本番DB準備・機能ON・実機スマホは未確認。 |
