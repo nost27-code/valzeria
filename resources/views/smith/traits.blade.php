@@ -3,6 +3,7 @@
     $bgImage = 'images/card_bg/shop_blacksmith.webp';
     $title = '装備の銘・特攻・耐性を鍛える (' . ($currentCity->name ?? '冒険都市ヴァルゼリア') . ')';
     $initialKind = old('trait_kind', session('weapon_trait_kind', 'engraving'));
+    $relicWorkshopAvailable = app(\App\Services\NamelessWorkshopService::class)->ready();
 @endphp
 
 <x-layouts.facility :title="$title" :headerIcon="$headerIcon" :bgImage="$bgImage">
@@ -147,8 +148,10 @@
                             <span class="shrink-0 rounded-lg bg-orange-600 px-3 py-2 text-xs font-black text-white">選ぶ</span>
                         </button>
                     </template>
-                    <p class="mt-1 text-xs font-bold text-slate-500">素材装備は消滅します。装備中・保護中・市場出品中・遺物装着中のものは使えません。</p>
-                    <p x-show="selectedMaterial()?.has_attached_relics && !preview" class="mt-2 text-xs font-bold text-red-700">遺物を取り外してください。</p>
+                    <p class="mt-1 text-xs font-bold text-slate-500">素材装備は消滅します。装備中・保護中・市場出品中{{ $relicWorkshopAvailable ? '・遺物装着中' : '' }}のものは使えません。</p>
+                    @if($relicWorkshopAvailable)
+                        <p x-show="selectedMaterial()?.has_attached_relics && !preview" class="mt-2 text-xs font-bold text-red-700">遺物を取り外してください。</p>
+                    @endif
                 </div>
 
                 <template x-if="lockNotice">
@@ -295,7 +298,9 @@
                                             <span x-show="item.is_equipped" class="rounded bg-amber-100 px-2 py-1 text-amber-800">装備中</span>
                                             <span x-show="item.is_locked" class="rounded bg-yellow-100 px-2 py-1 text-yellow-800">保護中</span>
                                             <span x-show="item.is_market_listed" class="rounded bg-rose-100 px-2 py-1 text-rose-800">市場出品中</span>
-                                            <span x-show="picker === 'material' && item.has_attached_relics" class="rounded bg-red-100 px-2 py-1 text-red-700">遺物を取り外してください。</span>
+                                            @if($relicWorkshopAvailable)
+                                                <span x-show="picker === 'material' && item.has_attached_relics" class="rounded bg-red-100 px-2 py-1 text-red-700">遺物を取り外してください。</span>
+                                            @endif
                                             <span x-show="picker === 'material' && (item.is_equipped || item.is_locked || item.is_market_listed)" class="rounded bg-red-100 px-2 py-1 text-red-700">このままでは素材に使えません</span>
                                         </div>
                                     </button>
@@ -497,7 +502,11 @@
                             this.pickerStatus === 'all'
                             || (this.pickerStatus === 'equipped' && item.is_equipped)
                             || (this.pickerStatus === 'locked' && item.is_locked)
-                            || (this.pickerStatus === 'ready' && !item.is_equipped && !item.is_locked && !item.is_market_listed && (this.picker !== 'material' || !item.has_attached_relics))
+                            || (this.pickerStatus === 'ready' && !item.is_equipped && !item.is_locked && !item.is_market_listed
+                                @if($relicWorkshopAvailable)
+                                    && (this.picker !== 'material' || !item.has_attached_relics)
+                                @endif
+                            )
                         )
                         && (this.pickerQuality === 'all' || item.quality === this.pickerQuality)
                         && (
@@ -770,7 +779,9 @@
                     if (!base || !material) return null;
                     if (Number(base.id) === Number(material.id)) return { available: false, reason: '同じ装備をベースと素材に選べません。' };
                     if (base.item_type !== material.item_type) return { available: false, reason: '武器と防具をまたいで鍛えることはできません。武器同士・防具同士で選んでください。' };
-                    if (material.has_attached_relics) return { available: false, reason: '遺物を取り外してください。' };
+                    @if($relicWorkshopAvailable)
+                        if (material.has_attached_relics) return { available: false, reason: '遺物を取り外してください。' };
+                    @endif
                     if (material.is_equipped) return { available: false, reason: `素材${this.equipLabel()}は装備中です。先に装備を外してください。` };
                     if (material.is_locked) return { available: false, reason: `素材${this.equipLabel()}は保護中です。先に保護を解除してください。` };
                     if (material.is_market_listed) return { available: false, reason: `素材${this.equipLabel()}は市場へ出品中です。先に出品を取り消してください。` };

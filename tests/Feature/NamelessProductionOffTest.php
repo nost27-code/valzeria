@@ -85,6 +85,8 @@ class NamelessProductionOffTest extends TestCase
             ->withoutMiddleware(CheckCharacterSelected::class);
         $this->get(route('equipment.index'))->assertOk()->assertDontSee('data-equipment-attached-relics', false);
         $this->get(route('city.index'))->assertOk()->assertDontSee('data-nameless-town-entry', false);
+        $this->get(route('blacksmith.traits.index'))->assertOk()
+            ->assertDontSee('遺物装着中')->assertDontSee('遺物を取り外してください');
         $this->assertTrue(app(EquipmentService::class)->unequip($character, $equipment->fresh())['success']);
         $equipment->refresh();
         $this->assertTrue(app(GoldService::class)->canSellEquipment($equipment));

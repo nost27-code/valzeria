@@ -6,6 +6,10 @@ Do not record tiny refactors, formatting-only changes, or AI docs-only edits.
 
 ## Unreleased
 
+### Internal: 機能OFF時の鍛冶屋表示を修正（2026-10-05）
+
+- 通常の鍛冶屋で、遺物機能がOFFのときは遺物装着中の説明・取り外し警告を表示しないよう修正。装備操作・DB構造は変更しません。
+
 ### Internal: 名もなき鍛冶屋・遺跡・遺物をOFF状態で配備（2026-10-05）
 
 - 関連コードと画像を配備します。production/stagingでは環境判定により利用不可で、入口・装備表示・能力加算・新報酬は有効化しません。
