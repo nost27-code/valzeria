@@ -171,6 +171,7 @@ class NationRaidTurnByTurnActionProfileBridge extends BattleService
         // 現行player engineの割合効果は仮想最大HP 100,000を参照する。
         // 現在HPは適用中だけ大容量damage sinkのまま維持し、20手を途中終了させない。
         $defender->maxHp = NationRaidRules::VIRTUAL_MAX_HP;
+        $defender->namelessReferenceHp = $prompt->bossVirtualHp;
         $state->valmonAssistRolled = true;
         $marks = [
             'hunting' => $this->jobArtV2ProgressionService->huntingMarkCountFor($defender, $attacker),

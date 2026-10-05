@@ -6,6 +6,7 @@ use App\Models\Character;
 use App\Models\City;
 use App\Models\NamelessRuinProgress;
 use RuntimeException;
+use Illuminate\Support\Facades\DB;
 
 class NamelessTownService
 {
@@ -31,22 +32,49 @@ class NamelessTownService
 
     public function installLocalTown(): City
     {
-        app(NamelessWorkshopService::class)->assertAvailable();
+        return $this->installTown();
+    }
 
-        $town = City::query()->firstOrCreate(['unlock_condition_type' => self::MARKER], [
-            'name' => self::NAME,
-            'description' => '古い遺跡のふもとに築かれた、探索者と職人の小さな街。持ち帰った遺物を武具に宿し、次の深みへ備える。',
-            'sort_order' => 0,
-            'is_initial' => false,
-            // レベル制限は設けない。通常都市の到達順とは別の拠点。
-            'recommended_level_min' => 1,
-            'recommended_level_max' => 255,
-        ]);
-        if ($town->name !== self::NAME) {
-            $town->update(['name' => self::NAME]);
+    public function installTown(bool $prepareOff = false): City
+    {
+        $workshop = app(NamelessWorkshopService::class);
+        if ($prepareOff) {
+            if ($workshop->enabled() || ! app(NamelessPreparationService::class)->status()['ready']) {
+                throw new RuntimeException('OFF状態かつDB移行確認済みの場合だけ街を事前登録できます。');
+            }
+        } else {
+            $workshop->assertAvailable();
         }
-
-        return $town;
+        $connection = DB::connection();
+        $maria = in_array($connection->getDriverName(), ['mysql', 'mariadb'], true);
+        // citiesにはmarkerのuniqueがないので、同時実行による重複登録を防ぐ。
+        $lock = 'valzeria.nameless.install-town';
+        if ($maria && (int) $connection->selectOne('SELECT GET_LOCK(?, 10) AS acquired', [$lock])->acquired !== 1) {
+            throw new RuntimeException('工房街登録が実行中です。完了後に再実行してください。');
+        }
+        try {
+            return $connection->transaction(function (): City {
+                $existing = City::query()->where('unlock_condition_type', self::MARKER)->get();
+                if ($existing->count() > 1) {
+                    throw new RuntimeException('工房街が重複しています。既存データを確認してください。');
+                }
+                $town = $existing->first() ?? City::query()->create([
+                    'unlock_condition_type' => self::MARKER,
+                    'name' => self::NAME,
+                    'description' => '古い遺跡のふもとに築かれた、探索者と職人の小さな街。持ち帰った遺物を武具に宿し、次の深みへ備える。',
+                    'sort_order' => 0, 'is_initial' => false,
+                    'recommended_level_min' => 1, 'recommended_level_max' => 255,
+                ]);
+                if ($town->name !== self::NAME) {
+                    $town->update(['name' => self::NAME]);
+                }
+                return $town;
+            }, 3);
+        } finally {
+            if ($maria) {
+                $connection->selectOne('SELECT RELEASE_LOCK(?) AS released', [$lock]);
+            }
+        }
     }
 
     public function assertVisiting(Character $character): void

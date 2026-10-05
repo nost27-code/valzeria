@@ -27,7 +27,13 @@ class NamelessWorkshopService
 
     public function ready(): bool
     {
-        return $this->enabled() && Schema::hasTable('player_relics') && Schema::hasTable('nameless_workshop_operations')
+        return $this->enabled() && $this->schemaReady();
+    }
+
+    /** OFFのまま移行・街登録を準備するためのschema判定。 */
+    public function schemaReady(): bool
+    {
+        return Schema::hasTable('player_relics') && Schema::hasTable('nameless_workshop_operations')
             && Schema::hasTable('nameless_equipment_discoveries') && Schema::hasTable('nameless_ruin_progress')
             && Schema::hasColumns('player_relics', ['growth_progress', 'character_item_id'])
             && Schema::hasColumns('player_nameless_equipments', ['growth_exp', 'revision', 'acquisition_source', 'is_locked']);

@@ -355,8 +355,10 @@ class BattleService
         if (($options['battle_type'] ?? null) === NationRaidRules::BATTLE_TYPE) {
             $battleContext = NationRaidRules::BATTLE_TYPE;
         }
-        if ($preparedPlayer === null && $battleContext !== NationRaidRules::BATTLE_TYPE) {
+        if ($preparedPlayer === null) {
             app(NamelessRelicBattleService::class)->attach($character, $playerActor);
+        } else {
+            app(NamelessRelicBattleService::class)->restoreSnapshot($playerActor, (array) ($preparedPlayer['nameless_relics'] ?? []));
         }
         $jobArtBattleContext = (string) ($options['job_art_context'] ?? $this->jobArtBattleContext($enemy));
         if (! in_array($jobArtBattleContext, ['pve', 'boss', JobArtService::RAID_SLOT_CONTEXT], true)) {
@@ -2669,9 +2671,11 @@ class BattleService
             }
         }
 
-        // レイドは武器特攻と防具耐性だけを装備連携する。探索支援品は対象外。
+        // レイド固有の特攻倍率・上限を維持し、遺物の直接効果だけを追加する。
         if ($state->battleType === NationRaidRules::BATTLE_TYPE) {
-            return $damage;
+            return ($attacker->namelessRelicsEnabled || $defender->namelessRelicsEnabled)
+                ? app(NamelessRelicBattleService::class)->directDamage($damage, $attacker, $defender)
+                : $damage;
         }
 
         if ($defender->isPlayer) {
@@ -2690,6 +2694,11 @@ class BattleService
     ): float {
         if ($attacker->isPlayer || ! $defender->isPlayer) {
             return 0.0;
+        }
+
+        if ($attacker->namelessRelicsEnabled || $defender->namelessRelicsEnabled) {
+            return min($cap ?? app(EquipmentAffixRulesService::class)->armorResistDamageReductionCap(),
+                app(NamelessRelicBattleService::class)->resistanceRate($attacker, $defender, false));
         }
 
         $resistSpecies = (string) ($defender->armorResistSpeciesKey ?? '');
@@ -2721,7 +2730,10 @@ class BattleService
         ));
 
         if ($state->battleType === NationRaidRules::BATTLE_TYPE) {
-            return NationRaidRules::raidKillerDamageRate($rate);
+            if ($attacker->namelessRelicsEnabled || $defender->namelessRelicsEnabled) {
+                $rate = app(NamelessRelicBattleService::class)->matchingKillerRate($attacker, $defender);
+            }
+            return NationRaidRules::raidKillerDamageRate($rate) * (1 - ($defender->namelessRelicEffects['brand_guard'] ?? 0));
         }
 
         return min(

@@ -350,6 +350,15 @@ final class NationRaidSimulationSnapshotBuilder
             'damage_reduction_rate' => round($resistanceRate, 6),
             'damage_reduction_rate_cap' => NationRaidRules::ARMOR_SPECIES_RESISTANCE_RATE_CAP,
         ];
+        if (app(\App\Services\NamelessWorkshopService::class)->ready()) {
+            $prepared = app(\App\Services\Nation\Raid\NationRaidPlayerPreparationService::class)->capture($character);
+            $row['nameless_relics'] = $prepared['actor']['nameless_relics'];
+            $row['raid_killer']['matched'] = $prepared['killer_effective_rate'] > 0;
+            $row['raid_killer']['damage_rate'] = round($prepared['killer_effective_rate'], 6);
+            $row['raid_killer']['combined_raw_rate'] = $prepared['killer_raw_rate'];
+            $row['raid_resistance']['matched'] = $prepared['raid_resistance_rate'] > 0;
+            $row['raid_resistance']['damage_reduction_rate'] = round($prepared['raid_resistance_rate'], 6);
+        }
         $profiles = $this->profileCacheHasher->sealProfiles(
             $this->actionProfiles->profilesFor($character, $profileCount),
         );

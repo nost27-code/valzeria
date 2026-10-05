@@ -7,7 +7,7 @@ use Illuminate\Console\Command;
 
 class InstallNamelessLocalTown extends Command
 {
-    protected $signature = 'nameless:install-local-town';
+    protected $signature = 'nameless:install-local-town {--prepare-off : 機能OFFのまま確認済みschemaに街を登録}';
 
     protected $aliases = ['nameless:install-town'];
 
@@ -15,7 +15,7 @@ class InstallNamelessLocalTown extends Command
 
     public function handle(NamelessTownService $town): int
     {
-        $city = $town->installLocalTown();
+        $city = $town->installTown((bool) $this->option('prepare-off'));
         $this->info($city->name.'を登録しました。city_id='.$city->id);
 
         return self::SUCCESS;

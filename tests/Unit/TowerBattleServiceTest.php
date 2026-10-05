@@ -31,7 +31,11 @@ class TowerBattleServiceTest extends TestCase
     {
         parent::setUp();
 
-        config(['star_tree_tower.star_tree.enabled' => true]);
+        // 戦闘テストのfixtureは街進行を作らない。解放条件は専用テストで検証する。
+        config(['star_tree_tower.star_tree.enabled' => true, 'star_tree_tower.star_tree.unlock.required_city_id' => null]);
+        $this->mock(\App\Services\ExtraContentControlService::class, function ($mock): void {
+            $mock->shouldReceive('isActive')->with('star_tree_tower', \Mockery::any())->andReturn(true);
+        });
 
         foreach ([
             'tower_run_events',

@@ -11,21 +11,31 @@ return new class extends Migration
     {
         Schema::table('player_nameless_equipments', function (Blueprint $table) {
             // 既存個体の銘・強化・遺物は保持し、初期配布として扱う。
-            $table->string('acquisition_source', 16)->default('starter');
-            $table->boolean('is_locked')->default(false);
-            $table->index(['character_id', 'kind'], 'nameless_equipment_owner_kind');
+            if (! Schema::hasColumn('player_nameless_equipments', 'acquisition_source')) {
+                $table->string('acquisition_source', 16)->default('starter');
+            }
+            if (! Schema::hasColumn('player_nameless_equipments', 'is_locked')) {
+                $table->boolean('is_locked')->default(false);
+            }
+            if (! Schema::hasIndex('player_nameless_equipments', 'nameless_equipment_owner_kind')) {
+                $table->index(['character_id', 'kind'], 'nameless_equipment_owner_kind');
+            }
         });
         Schema::table('player_nameless_equipments', function (Blueprint $table) {
-            $table->dropUnique(['character_id', 'kind']);
+            if (Schema::hasIndex('player_nameless_equipments', 'player_nameless_equipments_character_id_kind_unique')) {
+                $table->dropUnique(['character_id', 'kind']);
+            }
         });
-        Schema::create('nameless_equipment_discoveries', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('character_id')->constrained()->cascadeOnDelete();
-            $table->string('kind', 16);
-            $table->string('equipment_type', 32);
-            $table->timestamps();
-            $table->unique(['character_id', 'equipment_type'], 'nameless_discovery_owner_type');
-        });
+        if (! Schema::hasTable('nameless_equipment_discoveries')) {
+            Schema::create('nameless_equipment_discoveries', function (Blueprint $table) {
+                $table->id();
+                $table->foreignId('character_id')->constrained()->cascadeOnDelete();
+                $table->string('kind', 16);
+                $table->string('equipment_type', 32);
+                $table->timestamps();
+                $table->unique(['character_id', 'equipment_type'], 'nameless_discovery_owner_type');
+            });
+        }
     }
 
     public function down(): void

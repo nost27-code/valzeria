@@ -74,6 +74,49 @@ class NationRaidExistingPlayerDefenseApplierTest extends TestCase
         $this->assertFalse($player->gutsJustTriggered);
     }
 
+    public function test_relic_first_guard_covers_one_multihit_action_and_does_not_repeat(): void
+    {
+        [$player, $boss, $state] = $this->battle(1000);
+        $player->namelessRelicsEnabled = $boss->namelessRelicsEnabled = true;
+        $player->namelessRelicEffects = ['first_guard' => .20];
+        $damage = $this->damage([
+            ['index' => 1, 'type' => 'physical', 'outcome' => 'hit', 'damage' => 100],
+            ['index' => 2, 'type' => 'magical', 'outcome' => 'hit', 'damage' => 100],
+        ], 200);
+        $first = $this->applier($player, $boss, $state)->apply($damage, 'first', 1000, 100);
+        $this->assertSame(840, $first->playerHp);
+        $this->assertSame(160, $first->damage->finalDamage);
+        $next = $this->applier($player, $boss, $state)->apply($damage, 'second', 840, 100);
+        $this->assertSame(640, $next->playerHp);
+        $this->assertSame(200, $next->damage->finalDamage);
+    }
+
+    public function test_relic_counter_and_mirror_return_once_without_reapplying_direct_effects(): void
+    {
+        [$player, $boss, $state] = $this->battle(1000);
+        $player->namelessRelicsEnabled = $boss->namelessRelicsEnabled = true;
+        $player->namelessRelicEffects = ['counter' => 1.0, 'mirror_guard' => .20, 'opener' => 1.0];
+        $result = $this->applier($player, $boss, $state)->apply($this->damage([
+            ['index' => 1, 'type' => 'physical', 'outcome' => 'hit', 'damage' => 200],
+        ], 200), 'mirror', 1000, 100);
+        $this->assertSame(840, $result->playerHp);
+        $this->assertSame(50, $result->counterDamage);
+        $this->assertStringContainsString('【返刃】', implode(' ', $state->logs));
+        $this->assertStringContainsString('【鏡守】', implode(' ', $state->logs));
+    }
+
+    public function test_relic_survival_is_reflected_in_the_raid_hp_result(): void
+    {
+        [$player, $boss, $state] = $this->battle(100);
+        $player->namelessRelicsEnabled = $boss->namelessRelicsEnabled = true;
+        $player->namelessRelicEffects = ['survive' => .08];
+        $result = $this->applier($player, $boss, $state)->apply($this->damage([
+            ['index' => 1, 'type' => 'magical', 'outcome' => 'hit', 'damage' => 200],
+        ], 200), 'survival', 100, 100);
+        $this->assertSame(8, $result->playerHp);
+        $this->assertTrue($player->namelessSurvivalUsed);
+    }
+
     /** @return array{BattleActor, BattleActor, BattleState} */
     private function battle(int $playerHp): array
     {

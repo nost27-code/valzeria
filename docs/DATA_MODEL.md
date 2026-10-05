@@ -1,5 +1,11 @@
 # DATA_MODEL.md
 
+## 遺物のOFF準備・レイドsnapshot（2026-10-05）
+
+- 新しいschemaは追加しない。既存5本のmigrationは部分DDLの再実行で対象列/テーブル/索引を重複作成せず、準備コマンドでenum・unique・外部キーを検証する。既存資産・操作・進行記録があるprototype migrationのdownは拒否する。
+- `nation_raid_battle_results.summary.admission.player.actor.nameless_relics` に出撃時の効果snapshot（version、special、特攻/耐性、刻印・種族・通常攻撃型）を保存する。後続処理は現在の装備へ再参照せず、旧snapshotへ効果を追加しない。
+- 工房街は既存citiesのmarkerを使う。MariaDB advisory lockで同時登録を直列化し、重複があれば停止する。OFFでは登録済み街も非公開。
+
 ## Equipment decomposition (2026-10-05, feature gated)
 
 - Reuses `equipment_decomposition_logs` without a migration. Each successful operation stores owner, deleted instance/master IDs, display name, rank, enhancement level and the `obtained_materials` JSON array (`material_id`, `material_code`, `name`, `quantity`). Existing admin action-log aggregation reads this array.

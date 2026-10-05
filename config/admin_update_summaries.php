@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-10-05-nameless-battle-off-preparation',
+        'date' => '2026-10-05',
+        'category' => 'internal',
+        'title' => '遺物の塔・レイド対応とOFF移行準備を整備',
+        'detail' => '人間裁定により塔・国家レイドへ遺物の能力と特殊効果を接続。出撃snapshot・既存damage capを保持します。OFFのまま対象5本だけを移行・確認し工房街を登録する明示コマンドを追加。MariaDB隔離環境で移行・同時街登録・同時育成と再送・rollbackを検証。本番設定・DBは変更せず、正式ONや実機スマホ確認は未実施です。',
+    ],
+    [
         'id' => '2026-10-06-equipment-decomposition',
         'date' => '2026-10-06',
         'category' => 'internal',
