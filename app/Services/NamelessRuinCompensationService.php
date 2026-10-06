@@ -17,9 +17,16 @@ class NamelessRuinCompensationService
     public const COUNTER_CUTOFF = '2026-10-07 01:43:27';
     public const REWARD_CUTOFF = '2026-10-07 00:37:10';
 
+    public function __construct(
+        private readonly MapExplorationRewardService $reference,
+        private readonly NamelessRuinService $ruins,
+        private readonly BattleService $battle,
+    ) {}
+
     /** Read-only: fix random draws in a private plan before any asset repair. */
     public function createPlan(array $targets): array
     {
+        $goldRoll = new \ReflectionMethod(BattleService::class, 'rollGoldReward');
         $entries = [];
         $seen = [];
         foreach ($targets as $target) {
@@ -37,10 +44,10 @@ class NamelessRuinCompensationService
             $rewards = [];
             foreach ($this->unpaidRuns($source) as $run) {
                 $enemy = $this->enemy($data, $run);
-                $reference = app(MapExplorationRewardService::class)->normalReferenceFor($enemy);
+                $reference = $this->reference->normalReferenceFor($enemy);
                 $enemy->forceFill(['gold_reward' => $reference['gold']]);
                 // Reuse the ordinary battle chance/variance, without unknown historical bonuses.
-                $gold = (new \ReflectionMethod(BattleService::class, 'rollGoldReward'))->invoke(app(BattleService::class), $enemy);
+                $gold = $goldRoll->invoke($this->battle, $enemy);
                 $rewards[] = ['experience' => (int) $reference['experience'], 'gold' => $gold,
                     'reference_gold' => (int) $reference['gold'], 'reference_level' => (int) $reference['level'],
                     'reference_job_exp' => (int) $reference['job_experience'], 'boss' => (bool) $enemy->is_boss,
@@ -155,7 +162,7 @@ class NamelessRuinCompensationService
             }
             return new Enemy($data['enemy'] + ['is_boss' => (bool) ($data['boss'] ?? false)]);
         }
-        $zone = app(NamelessRuinService::class)->zones()[$data['zone_key']] ?? throw new RuntimeException('補填元の遺跡が不明です。');
+        $zone = $this->ruins->zones()[$data['zone_key']] ?? throw new RuntimeException('補填元の遺跡が不明です。');
         $definition = collect(array_merge($zone['enemies'], $zone['bosses'], [(array) config('nameless_relics.relic_goblin')]))
             ->first(fn ($enemy) => ($enemy['name'] ?? null) === ($run['enemy_name'] ?? null));
         if (! $definition) {
@@ -163,7 +170,7 @@ class NamelessRuinCompensationService
         }
         $boss = collect($data['rare_encounters'] ?? [])->contains(fn ($encounter) => ($encounter['kind'] ?? null) === 'cleared_boss'
             && (int) ($encounter['index'] ?? 0) === (int) ($run['index'] ?? -1));
-        return new Enemy(app(NamelessRuinService::class)->enemyStats($definition, (int) $data['depth'], $boss) + ['is_boss' => $boss]);
+        return new Enemy($this->ruins->enemyStats($definition, (int) $data['depth'], $boss) + ['is_boss' => $boss]);
     }
 
     private function jobReward(array $reward, int $level): int

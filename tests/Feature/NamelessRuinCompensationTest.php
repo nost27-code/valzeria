@@ -179,6 +179,24 @@ class NamelessRuinCompensationTest extends TestCase
         $this->assertSame(0, GoldTransaction::query()->count());
     }
 
+    public function test_reward_reference_is_loaded_once_for_multiple_source_operations(): void
+    {
+        $character = $this->character();
+        $sources = [$this->single($character), $this->single($character)];
+        $count = 0;
+        \Illuminate\Support\Facades\DB::listen(function ($query) use (&$count): void {
+            if (preg_match('/from [`"]enemies[`"]/', $query->sql)) {
+                $count++;
+            }
+        });
+        $targets = array_map(fn ($source) => ['operation_id' => $source->id, 'character_id' => $character->id,
+            'original_result_sha256' => hash('sha256', $source->getRawOriginal('result')), 'wins' => 1, 'zero_exp_wins' => 1], $sources);
+        $plan = app(NamelessRuinCompensationService::class)->createPlan($targets);
+        $this->assertCount(2, $plan['entries']);
+        $this->assertSame(1, $count);
+        $this->assertSame(10, (int) $character->fresh()->wins);
+    }
+
     private function character(): Character
     {
         $job = JobClass::query()->create(['key' => 'compensation-fixture', 'name' => '補填試験職', 'rank' => '一般職']);

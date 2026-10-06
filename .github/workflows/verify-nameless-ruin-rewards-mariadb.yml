@@ -125,7 +125,7 @@ jobs:
         run: |
           set -euo pipefail
           for filter in \
-            'test_plan_is_readonly_and_fixed_batch_rewards_replay_without_duplicate_history$|test_level_growth_preserves_hp_and_pays_the_current_job$' \
+            'test_plan_is_readonly_and_fixed_batch_rewards_replay_without_duplicate_history$|test_level_growth_preserves_hp_and_pays_the_current_job$|test_reward_reference_is_loaded_once_for_multiple_source_operations$' \
             'test_capped_level_and_mastered_job_keep_caps_but_receive_gold_and_wins$|test_failed_gold_ledger_rolls_back_all_growth_and_can_retry_the_fixed_plan$' \
             'test_changed_source_and_changed_receipt_payload_are_rejected$|test_counter_only_history_does_not_pay_existing_rewards_again$|test_active_map_defers_repair_without_creating_a_receipt$|test_fallback_job_reward_uses_reference_level_and_fixed_draws_with_no_gold$'; do
             count=$(( ${count:-0} + 1 ))
