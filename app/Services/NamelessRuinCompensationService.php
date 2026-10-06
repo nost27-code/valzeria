@@ -14,8 +14,9 @@ use RuntimeException;
 class NamelessRuinCompensationService
 {
     public const POLICY = 'ruin-launch-20261007-v1';
-    public const COUNTER_CUTOFF = '2026-10-07 01:43:27';
-    public const REWARD_CUTOFF = '2026-10-07 00:37:10';
+    public const COUNTER_SNAPSHOT_CUTOFF = '2026-10-07 01:43:27';
+    public const COUNTER_CUTOFF = '2026-10-07 01:45:14';
+    public const REWARD_CUTOFF = '2026-10-07 01:45:14';
 
     public function __construct(
         private readonly MapExplorationRewardService $reference,
@@ -134,7 +135,13 @@ class NamelessRuinCompensationService
     {
         $source = NamelessWorkshopOperation::query()->whereKey((int) $target['operation_id'])
             ->where('character_id', (int) $target['character_id'])->where('action', 'ruin')->firstOrFail();
-        if ($source->created_at->format('Y-m-d H:i:s') >= self::COUNTER_CUTOFF
+        $at = $source->created_at->format('Y-m-d H:i:s');
+        $snapshot = $source->result;
+        // Early records precede deployment. In the switch window only the old
+        // single-result format proves a missing counter; ambiguous batches refuse.
+        $switchWindowUnproven = $at >= self::COUNTER_SNAPSHOT_CUTOFF
+            && (is_array(data_get($snapshot, 'batch_explore.runs')) || array_key_exists('stamina_max_up', $snapshot));
+        if ($at >= self::COUNTER_CUTOFF || $switchWindowUnproven
             || ! hash_equals((string) $target['original_result_sha256'], hash('sha256', $source->getRawOriginal('result')))) {
             throw new RuntimeException('補填元の期間または記録ハッシュが一致しません。');
         }

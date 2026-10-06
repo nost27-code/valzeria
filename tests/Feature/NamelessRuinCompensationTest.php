@@ -197,6 +197,32 @@ class NamelessRuinCompensationTest extends TestCase
         $this->assertSame(10, (int) $character->fresh()->wins);
     }
 
+    public function test_verified_switch_window_old_single_is_compensated_and_new_single_is_rejected(): void
+    {
+        $character = $this->character();
+        $source = $this->single($character, '2026-10-07 01:43:30');
+        $source->update(['result' => array_replace($source->result, ['exp_gained' => 17])]);
+        $entry = $this->plan($source, 1, 0)['entries'][0];
+        $this->assertSame('applied', app(NamelessRuinCompensationService::class)->applyEntry($entry)['status']);
+        $this->assertSame(11, (int) $character->fresh()->wins);
+        $source = $this->single($character, '2026-10-07 01:43:31');
+        $source->update(['result' => $source->result + ['stamina_max_up' => 0]]);
+        $this->expectExceptionMessage('補填元の期間');
+        $this->plan($source, 1, 0);
+    }
+
+    public function test_reward_switch_window_zero_reward_is_paid_and_ambiguous_counter_batch_is_rejected(): void
+    {
+        $character = $this->character();
+        $entry = $this->plan($this->single($character, '2026-10-07 00:37:12'), 1, 1)['entries'][0];
+        $result = app(NamelessRuinCompensationService::class)->applyEntry($entry);
+        $this->assertSame(17, $result['receipt']['experience_added']);
+        $this->assertSame(1, $result['receipt']['reward_wins']);
+        $source = $this->source($character, ['batch_explore' => ['runs' => [['result' => 'victory', 'turn_count' => 1, 'exp' => 17]]]], '2026-10-07 01:43:30');
+        $this->expectExceptionMessage('補填元の期間');
+        $this->plan($source, 1, 0);
+    }
+
     private function character(): Character
     {
         $job = JobClass::query()->create(['key' => 'compensation-fixture', 'name' => '補填試験職', 'rank' => '一般職']);

@@ -90,6 +90,12 @@ try {
     $check($before === $character->fresh()->getAttributes(), 'Pruning and detection must not change player assets or progress.');
     // The same two connections also prove concurrent compensation rejects busy play,
     // then applies once, preserving the source and returning its receipt on replay.
+    $referenceCity = \App\Models\City::query()->create(['name' => 'Compensation CI reference', 'recommended_level_min' => 1, 'recommended_level_max' => 100]);
+    $referenceArea = \App\Models\Area::query()->create(['city_id' => $referenceCity->id, 'name' => 'Compensation CI reference',
+        'slug' => 'compensation-ci-reference', 'recommended_level_min' => 1, 'recommended_level_max' => 100]);
+    \App\Models\Enemy::query()->create((array) config('nameless_relics.enemy_base') + ['area_id' => $referenceArea->id,
+        'name' => 'Compensation CI reference', 'level' => 100, 'exp_reward' => 17, 'gold_reward' => 10, 'job_exp_reward' => 2, 'is_boss' => false]);
+    config(['exploration_maps.reward_balance.reference_city_range' => [$referenceCity->id, $referenceCity->id]]);
     config(['gold.battle.normal_drop_rate' => 100]);
     $data = ['result' => 'victory', 'turn_count' => 1, 'exp_gained' => 0,
         'enemy' => app(\App\Services\NamelessRuinService::class)->enemyStats(config('nameless_ruins.sand.enemies.0'), 1, false)];
