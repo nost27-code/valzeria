@@ -79,16 +79,17 @@ try {
     try {
         schemaRequire($inspector->problems() === [], 'Normal asset DB rejected.');
         $queries = DB::getQueryLog();
-        schemaRequire(count($queries) === 6, 'Full native inspection must use five metadata queries and one migration query.');
-        schemaRequire(count(array_filter($queries, fn ($query) => str_contains(strtolower($query['query']), 'information_schema.'))) === 5, 'Metadata query budget exceeded.');
-        schemaRequire($inspector->problems() === [] && count(DB::getQueryLog()) === 12, 'Repeated inspection must re-read schema and history.');
+        schemaRequire(count($queries) === 8, 'Full native inspection must use six metadata queries, current database and migration history.');
+        schemaRequire(count(array_filter($queries, fn ($query) => str_contains(strtolower($query['query']), 'information_schema.'))) === 6, 'Metadata query budget exceeded.');
+        schemaRequire(! collect($queries)->contains(fn ($query) => str_contains(strtolower($query['query']), 'join information_schema.')), 'Catalog joins must not scan unrelated hosted databases.');
+        schemaRequire($inspector->problems() === [] && count(DB::getQueryLog()) === 16, 'Repeated inspection must re-read schema and history.');
         DB::flushQueryLog();
         schemaRequire(! app(NamelessWorkshopService::class)->ready() && DB::getQueryLog() === [], 'OFF runtime gate must not inspect the DB.');
     } finally {
         DB::disableQueryLog();
         DB::flushQueryLog();
     }
-    $checks['fresh_batched_inspection_query_budget'] = ['pass' => true, 'queries_per_inspection' => 6, 'metadata_queries' => 5, 'off_gate_queries' => 0];
+    $checks['fresh_batched_inspection_query_budget'] = ['pass' => true, 'queries_per_inspection' => 8, 'metadata_queries' => 6, 'off_gate_queries' => 0];
     schemaRequire(assets() === $before, 'Read-only normal inspection changed assets.');
     $checks['normal_assets_read_only'] = ['pass' => true];
 
@@ -116,6 +117,10 @@ try {
     } finally {
         DB::statement('DROP INDEX fixture_socket_fk ON player_relics');
     }
+    schemaFault('wrong_socket_foreign_delete_rule',
+        'ALTER TABLE player_relics DROP FOREIGN KEY player_relics_character_item_id_foreign, ADD CONSTRAINT fixture_wrong_socket_delete_rule FOREIGN KEY (character_item_id) REFERENCES character_items(id) ON DELETE RESTRICT',
+        'ALTER TABLE player_relics DROP FOREIGN KEY fixture_wrong_socket_delete_rule, ADD CONSTRAINT player_relics_character_item_id_foreign FOREIGN KEY (character_item_id) REFERENCES character_items(id) ON DELETE SET NULL',
+        'player_relics:foreign:character_item_id:expected=character_items.id/set null');
     $current = 'migration_history_missing';
     $before = assets();
     DB::beginTransaction();

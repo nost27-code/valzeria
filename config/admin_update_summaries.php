@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-10-06-nameless-schema-catalog-performance',
+        'date' => '2026-10-06',
+        'category' => 'internal',
+        'title' => '遺物の公開時に行うDB構造確認を軽量化',
+        'detail' => '公開ONの確認で応答遅延が出たため一度OFFへ停止。対象DBを明示し、構造情報の重い結合処理を分割。装備一覧の遺物比較もまとめて取得するよう改善しました。不足列・型・制約の検出と最新状態の再確認を維持します。DB変更・資産初期化・ゲーム数値変更なし。',
+    ],
+    [
         'id' => '2026-10-06-own-chat-deletion',
         'date' => '2026-10-06',
         'category' => 'added',

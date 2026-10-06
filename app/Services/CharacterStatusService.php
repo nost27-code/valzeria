@@ -221,19 +221,20 @@ class CharacterStatusService
     }
 
     /** @return array{str: int, mag: int} */
-    public function weaponEffectivePreview(Character $character, CharacterItem $characterItem): array
+    public function weaponEffectivePreview(Character $character, CharacterItem $characterItem, ?array $displayRelicRates = null): array
     {
         $stats = $this->getFinalStats($character);
         $base = $stats['weapon_base'] ?? ['str' => 0, 'mag' => 0];
         $weapon = $this->weaponOffenseFor($character, $characterItem);
         $calculator = app(WeaponOffenseCalculator::class);
-        $removed = app(NamelessWorkshopService::class)->equippedFixedBonuses($character, 'weapon');
+        // Fixed nameless bonuses apply to accessories only; prepared list rates need no per-row DB gate.
+        $removed = $displayRelicRates !== null ? ['str' => 0, 'mag' => 0] : app(NamelessWorkshopService::class)->equippedFixedBonuses($character, 'weapon');
 
         $preview = [
             'str' => $calculator->calculateEffectiveOffense((int) $base['str'] - $removed['str'], $weapon['str']),
             'mag' => $calculator->calculateEffectiveOffense((int) $base['mag'] - $removed['mag'], $weapon['mag']),
         ];
-        return app(NamelessRelicCatalog::class)->applyStatRates($preview, app(NamelessWorkshopService::class)->equippedStatRates($character, 'weapon', $characterItem));
+        return app(NamelessRelicCatalog::class)->applyStatRates($preview, $displayRelicRates ?? app(NamelessWorkshopService::class)->equippedStatRates($character, 'weapon', $characterItem));
     }
 
     /** @return array{def: int, spr: int} */
@@ -253,19 +254,20 @@ class CharacterStatusService
     }
 
     /** @return array{def: int, spr: int} */
-    public function armorEffectivePreview(Character $character, CharacterItem $characterItem): array
+    public function armorEffectivePreview(Character $character, CharacterItem $characterItem, ?array $displayRelicRates = null): array
     {
         $stats = $this->getFinalStats($character);
         $base = $stats['armor_base'] ?? ['def' => 0, 'spr' => 0];
         $armor = $this->armorDefenseFor($character, $characterItem);
         $calculator = app(WeaponOffenseCalculator::class);
-        $removed = app(NamelessWorkshopService::class)->equippedFixedBonuses($character, 'armor');
+        // Fixed nameless bonuses apply to accessories only; prepared list rates need no per-row DB gate.
+        $removed = $displayRelicRates !== null ? ['def' => 0, 'spr' => 0] : app(NamelessWorkshopService::class)->equippedFixedBonuses($character, 'armor');
 
         $preview = [
             'def' => $this->effectiveArmorStat((int) $base['def'] - $removed['def'], $armor['def'], $calculator),
             'spr' => $this->effectiveArmorStat((int) $base['spr'] - $removed['spr'], $armor['spr'], $calculator),
         ];
-        return app(NamelessRelicCatalog::class)->applyStatRates($preview, app(NamelessWorkshopService::class)->equippedStatRates($character, 'armor', $characterItem));
+        return app(NamelessRelicCatalog::class)->applyStatRates($preview, $displayRelicRates ?? app(NamelessWorkshopService::class)->equippedStatRates($character, 'armor', $characterItem));
     }
 
     private function effectiveArmorStat(int $baseStatWithoutArmor, int $armorStat, WeaponOffenseCalculator $calculator): int

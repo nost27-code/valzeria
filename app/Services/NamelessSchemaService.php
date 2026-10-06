@@ -119,17 +119,27 @@ final class NamelessSchemaService
         $physical = array_map(fn ($table) => $connection->getTablePrefix().$table, $tables);
         $logical = array_combine($physical, $tables);
         $in = implode(', ', array_fill(0, count($physical), '?'));
-        $select = fn (string $sql) => $connection->selectFromWriteConnection($sql, $physical);
+        // Literal schema predicates let MariaDB prune unrelated hosted schemas before reading catalogs.
+        $databaseName = (string) $connection->selectFromWriteConnection('SELECT DATABASE() AS name')[0]->name;
+        $databaseLiteral = $connection->getPdo()->quote($databaseName);
+        $select = fn (string $sql) => $connection->selectFromWriteConnection(str_replace('DATABASE()', $databaseLiteral, $sql), $physical);
         foreach ($select("SELECT TABLE_NAME AS table_name, ENGINE AS engine FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME IN ($in) AND TABLE_TYPE IN ('BASE TABLE', 'SYSTEM VERSIONED')") as $row) {
             $metadata[$logical[$row->table_name]] = ['columns' => [], 'indexes' => [], 'foreign_keys' => [], 'checks' => [], 'engine' => $row->engine];
         }
         $columns = $select("SELECT TABLE_NAME AS table_name, COLUMN_NAME AS name, DATA_TYPE AS type_name, COLUMN_TYPE AS type, COLLATION_NAME AS collation, IS_NULLABLE AS nullable, COLUMN_DEFAULT AS `default`, COLUMN_COMMENT AS comment, GENERATION_EXPRESSION AS expression, EXTRA AS extra FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME IN ($in) ORDER BY TABLE_NAME, ORDINAL_POSITION");
         $indexes = $select("SELECT TABLE_NAME AS table_name, INDEX_NAME AS name, GROUP_CONCAT(COLUMN_NAME ORDER BY SEQ_IN_INDEX) AS `columns`, INDEX_TYPE AS type, NOT NON_UNIQUE AS `unique` FROM information_schema.STATISTICS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME IN ($in) GROUP BY TABLE_NAME, INDEX_NAME, INDEX_TYPE, NON_UNIQUE");
-        $keys = $select("SELECT kc.TABLE_NAME AS table_name, kc.CONSTRAINT_NAME AS name, GROUP_CONCAT(kc.COLUMN_NAME ORDER BY kc.ORDINAL_POSITION) AS `columns`, kc.REFERENCED_TABLE_SCHEMA AS foreign_schema, kc.REFERENCED_TABLE_NAME AS foreign_table, GROUP_CONCAT(kc.REFERENCED_COLUMN_NAME ORDER BY kc.ORDINAL_POSITION) AS foreign_columns, rc.UPDATE_RULE AS on_update, rc.DELETE_RULE AS on_delete FROM information_schema.KEY_COLUMN_USAGE kc JOIN information_schema.REFERENTIAL_CONSTRAINTS rc ON kc.CONSTRAINT_SCHEMA=rc.CONSTRAINT_SCHEMA AND kc.CONSTRAINT_NAME=rc.CONSTRAINT_NAME AND kc.TABLE_NAME=rc.TABLE_NAME WHERE kc.TABLE_SCHEMA=DATABASE() AND kc.TABLE_NAME IN ($in) AND kc.REFERENCED_TABLE_NAME IS NOT NULL GROUP BY kc.TABLE_NAME, kc.CONSTRAINT_NAME, kc.REFERENCED_TABLE_SCHEMA, kc.REFERENCED_TABLE_NAME, rc.UPDATE_RULE, rc.DELETE_RULE");
+        $keys = $select("SELECT TABLE_NAME AS table_name, CONSTRAINT_NAME AS name, GROUP_CONCAT(COLUMN_NAME ORDER BY ORDINAL_POSITION) AS `columns`, REFERENCED_TABLE_SCHEMA AS foreign_schema, REFERENCED_TABLE_NAME AS foreign_table, GROUP_CONCAT(REFERENCED_COLUMN_NAME ORDER BY ORDINAL_POSITION) AS foreign_columns FROM information_schema.KEY_COLUMN_USAGE WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME IN ($in) AND REFERENCED_TABLE_NAME IS NOT NULL GROUP BY TABLE_NAME, CONSTRAINT_NAME, REFERENCED_TABLE_SCHEMA, REFERENCED_TABLE_NAME");
+        // Joining these virtual catalogs can materialize unrelated databases on shared hosts.
+        $rules = collect($select("SELECT TABLE_NAME AS table_name, CONSTRAINT_NAME AS name, UPDATE_RULE AS on_update, DELETE_RULE AS on_delete FROM information_schema.REFERENTIAL_CONSTRAINTS WHERE CONSTRAINT_SCHEMA=DATABASE() AND TABLE_NAME IN ($in)"))->keyBy(fn ($row) => $row->table_name.'.'.$row->name);
+        foreach ($keys as $key) {
+            $rule = $rules->get($key->table_name.'.'.$key->name);
+            $key->on_update = $rule?->on_update ?? '';
+            $key->on_delete = $rule?->on_delete ?? '';
+        }
         // MariaDB represents JSON as LONGTEXT + CHECK. Native JSON needs no CHECK query.
         $needsJsonChecks = collect($columns)->contains(fn ($column) => $column->type_name === 'longtext'
             && (self::COLUMNS[$logical[$column->table_name]][$column->name][0] ?? null) === 'json');
-        $checks = $needsJsonChecks ? $select("SELECT tc.TABLE_NAME AS table_name, cc.CHECK_CLAUSE AS clause FROM information_schema.CHECK_CONSTRAINTS cc JOIN information_schema.TABLE_CONSTRAINTS tc ON tc.CONSTRAINT_SCHEMA=cc.CONSTRAINT_SCHEMA AND tc.CONSTRAINT_NAME=cc.CONSTRAINT_NAME AND tc.TABLE_NAME=cc.TABLE_NAME WHERE tc.TABLE_SCHEMA=DATABASE() AND tc.TABLE_NAME IN ($in)") : [];
+        $checks = $needsJsonChecks ? $select("SELECT TABLE_NAME AS table_name, CHECK_CLAUSE AS clause FROM information_schema.CHECK_CONSTRAINTS WHERE CONSTRAINT_SCHEMA=DATABASE() AND TABLE_NAME IN ($in)") : [];
         foreach (['columns' => $columns, 'indexes' => $indexes, 'foreign_keys' => $keys, 'checks' => $checks] as $kind => $rows) {
             foreach (collect($rows)->groupBy('table_name') as $table => $group) {
                 $name = $logical[$table];
