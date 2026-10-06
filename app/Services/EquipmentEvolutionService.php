@@ -767,6 +767,8 @@ class EquipmentEvolutionService
                     'id' => (int) $item->id,
                     'display_name' => $item->displayName(),
                     'display_name_without_rank' => $item->displayName(false),
+                    'quality' => $item->affix_quality ?: 'normal',
+                    'category' => $item->item ? app(EquipmentPermissionService::class)->categoryLabel($item->item) : null,
                     'evolved_display_name' => $this->evolvedSourceDisplayName($item, $toItem, $toDisplayName),
                     'is_equipped' => (bool) $item->is_equipped,
                     'is_locked' => (bool) $item->is_locked,

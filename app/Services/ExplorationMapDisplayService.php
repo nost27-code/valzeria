@@ -8,6 +8,33 @@ use Illuminate\Support\Collection;
 
 class ExplorationMapDisplayService
 {
+    public function rewardFilterOptions(bool $includeUnknown = false): array
+    {
+        $options = ['all' => 'すべての報酬傾向'];
+        foreach ((array) config('exploration_maps.reward_profiles', []) as $key => $profile) {
+            $options[$key] = $profile['label'];
+        }
+        if ($includeUnknown) $options['unknown'] = '未調査・調査中';
+        $options['other'] = 'その他・報酬傾向なし';
+        return $options;
+    }
+
+    public function rewardFilterKey(ExplorationMap $map): string
+    {
+        if (in_array($map->status, ['uninvestigated', 'surveying'], true)) return 'unknown';
+        $label = $this->rewardLabel($map);
+        if ($label === null) return 'other';
+        if (str_starts_with($label, '古代片：')) return 'ancient_fragment';
+        foreach ((array) config('exploration_maps.reward_profiles', []) as $key => $profile) {
+            if ($label === $profile['label']) return $key;
+        }
+        return match ($label) {
+            '経験値が20%多い' => 'experience',
+            'Goldが25%多い' => 'wealth',
+            default => 'other',
+        };
+    }
+
     public function __construct(
         private readonly ExplorationMapDifficultyService $difficulty,
         private readonly ExplorationMapLegacyRewardService $legacyRewards,

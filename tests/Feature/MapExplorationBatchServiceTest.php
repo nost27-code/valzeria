@@ -405,6 +405,52 @@ class MapExplorationBatchServiceTest extends TestCase
         $this->assertSame(10, (int) $first->reserved_count);
     }
 
+    public function test_only_owner_only_maps_allow_fifty_and_replays_do_not_reserve_twice(): void
+    {
+        [$visitor, $registration] = $this->createPublishedMapAndVisitor('個人地図50回試験', 'owner-map-fifty');
+        $owner = $registration->map->owner;
+        $service = app(MapExplorationBatchService::class);
+        $registration->update(['remaining_explorations' => 120]);
+        $this->assertSame(10, $service->maxRepeatCount($owner, $registration));
+        $shared = $service->reserve($owner, $registration, 50, (string) Str::uuid());
+        $this->assertSame(10, (int) $shared->reserved_count);
+        $registration->update(['visibility_scope' => 'owner']);
+        $this->assertSame(50, $service->maxRepeatCount($owner, $registration));
+        $this->assertSame(10, $service->maxRepeatCount($visitor, $registration));
+        $remaining = (int) $registration->fresh()->remaining_explorations;
+        $uuid = (string) Str::uuid();
+        $batch = $service->reserve($owner, $registration, 50, $uuid);
+        $replay = $service->reserve($owner, $registration->fresh(), 50, $uuid);
+        $this->assertSame(50, (int) $batch->reserved_count);
+        $this->assertSame($batch->id, $replay->id);
+        $this->assertSame($remaining - 50, (int) $registration->fresh()->remaining_explorations);
+        $registration->update(['remaining_explorations' => 3]);
+        $this->assertSame([1, 3], $service->repeatCounts($owner, $registration));
+        $partial = $service->reserve($owner, $registration, 50, (string) Str::uuid());
+        $this->assertSame(3, (int) $partial->reserved_count);
+    }
+
+    public function test_owner_only_fifty_batch_stops_on_defeat_and_returns_all_unexecuted_counts(): void
+    {
+        [, $registration] = $this->createPublishedMapAndVisitor('個人地図停止試験', 'owner-map-fifty-stop');
+        $registration->update(['visibility_scope' => 'owner']);
+        $owner = $registration->map->owner;
+        $remaining = (int) $registration->remaining_explorations;
+        $service = app(MapExplorationBatchService::class);
+        $batch = $service->reserve($owner, $registration, 50, (string) Str::uuid());
+        $defeat = new BattleResult();
+        $defeat->result = 'defeat';
+        $battle = Mockery::mock(BattleService::class);
+        $battle->shouldReceive('executeBattle')->once()->andReturn($defeat);
+        $this->app->instance(BattleService::class, $battle);
+        $result = $service->execute($owner, $batch)['battle_result'];
+        $this->assertSame(50, (int) data_get($result, 'batch_explore.requested'));
+        $this->assertSame(1, (int) data_get($result, 'batch_explore.completed'));
+        $this->assertSame('defeat', data_get($result, 'batch_explore.stop_reason'));
+        $this->assertSame($remaining - 1, (int) $registration->fresh()->remaining_explorations);
+        $this->assertSame(1, (int) $batch->fresh()->reserved_count);
+    }
+
     public function test_separate_reservations_receive_non_overlapping_global_ranges(): void
     {
         [$visitor, $registration] = $this->createPublishedMapAndVisitor('地図探索番号試験地', 'map-batch-index-range-test');
@@ -571,7 +617,7 @@ class MapExplorationBatchServiceTest extends TestCase
 
     private function enableStaminaMode(): void
     {
-        $this->app->instance(GameSettingService::class, new class
+        $this->app->instance(GameSettingService::class, new class extends GameSettingService
         {
             public function getString(string $key, string $default = ''): string
             {

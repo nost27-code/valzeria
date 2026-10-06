@@ -2,11 +2,17 @@
     <div class="mx-auto max-w-6xl space-y-5">
         <section class="rounded-xl border border-indigo-200 bg-indigo-50 p-4 shadow-sm">
             <h2 class="font-black text-indigo-950">地図院で公開された地図</h2>
-            <p class="mt-1 text-sm font-bold text-indigo-900">地図を開くと、出現する魔物や地図の特徴を確認できます。入場中は×10探索を何度続けても追加料金はかかりません。街へ戻って入り直すと、入場料がもう一度かかります。</p>
+            <p class="mt-1 text-sm font-bold text-indigo-900">地図を開くと、出現する魔物や地図の特徴を確認できます。自分だけの地図は最大50回、共有地図は最大10回をまとめて探索できます。入場中の追加料金はかかりません。街へ戻って入り直すと、入場料がもう一度かかります。</p>
             <p class="mt-2 text-xs font-black text-indigo-800">手持ち {{ number_format((int) $bankSummary['hand_gold']) }}G ／ 銀行 {{ number_format((int) $bankSummary['bank_gold']) }}G</p>
         </section>
 
         <form method="GET" action="{{ route('exploration-maps.published') }}" class="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+            <label for="published-map-reward" class="block text-sm font-black text-slate-900">報酬傾向で絞り込む</label>
+            <select id="published-map-reward" name="reward" onchange="this.form.submit()" class="mb-3 mt-2 w-full rounded-lg border-slate-300 text-sm font-bold text-slate-900">
+                @foreach($rewardFilterOptions as $value => $label)
+                    <option value="{{ $value }}" @selected($rewardFilter === $value)>{{ $label }}</option>
+                @endforeach
+            </select>
             <label for="map-sort" class="block text-sm font-black text-slate-900">並び替え</label>
             <select id="map-sort" name="sort" onchange="this.form.submit()" class="mt-2 w-full rounded-lg border-slate-300 text-sm font-bold text-slate-900 sm:w-72">
                 @foreach($sortOptions as $value => $label)
@@ -25,7 +31,7 @@
                         $details = $mapDetails[$registration->id];
                         $isEnded = !$registration->isOpen();
                         $isActive = (int) $registration->id === $activeRegistrationId;
-                        $exploreCounts = $isEnded ? [] : array_values(array_unique([1, min(10, (int) $registration->remaining_explorations)]));
+                        $exploreCounts = $mapBatchService->repeatCounts($character, $registration);
                         $entryFee = (!$isActive && !$owner) ? (int) $registration->entry_fee_per_exploration : 0;
                         $entryHandUsed = min((int) $bankSummary['hand_gold'], $entryFee);
                         $entryBankUsed = max(0, $entryFee - $entryHandUsed);

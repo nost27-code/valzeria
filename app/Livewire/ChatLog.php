@@ -95,6 +95,13 @@ class ChatLog extends Component
             'fallback_tab' => 'システム',
             'default' => true,
         ],
+        'map' => [
+            'label' => '地図情報',
+            'description' => '英雄・伝説地図の公開通知',
+            'types' => ['system_map_published'],
+            'fallback_tab' => 'システム',
+            'default' => true,
+        ],
         'newcomer' => [
             'label' => '新規冒険者',
             'description' => '新しい冒険者の到着ログ',
@@ -519,7 +526,7 @@ class ChatLog extends Component
 
             // タブによるフィルタリング
             if ($this->activeTab !== 'all') {
-                if ($this->activeTab === 'system' && !in_array($log->type, ['system', 'area', 'job', 'growth', 'job_change', 'newcomer', 'sub_area', 'arena', 'duel', 'valmon'], true) && ! $isNewcomerLog) {
+                if ($this->activeTab === 'system' && !in_array($log->type, ['system', 'system_map_published', 'area', 'job', 'growth', 'job_change', 'newcomer', 'sub_area', 'arena', 'duel', 'valmon'], true) && ! $isNewcomerLog) {
                     continue;
                 }
                 if ($this->activeTab === 'drop' && $log->type !== 'drop') {

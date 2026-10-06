@@ -29,6 +29,31 @@ class ExplorationMapLifecycleTest extends TestCase
 {
     use CreatesExplorationMapEnemyFixtures, RefreshDatabase;
 
+    public function test_reward_filter_selects_only_matching_known_maps_and_does_not_reveal_unsurveyed_rewards(): void
+    {
+        [$character, $city, $area, $enemy] = $this->mapContext();
+        $material = $this->generateMap($character, $area, $enemy, 701);
+        $experience = $this->generateMap($character, $area, $enemy, 702);
+        $unknown = $this->generateMap($character, $area, $enemy, 703);
+        foreach ([$material, $experience, $unknown] as $index => $map) {
+            $profile = $index === 1 ? 'experience' : 'material';
+            $map->update(['reward_profile' => $profile, 'reward_modifiers_json' => app(\App\Services\ExplorationMapRewardProfileService::class)->modifiers($profile, $map->map_grade)]);
+        }
+        $materialRegistration = app(MapSurveyService::class)->start($character, $material->fresh(), $city);
+        app(MapSurveyService::class)->start($character, $experience->fresh(), $city);
+        $this->withoutMiddleware(\App\Http\Middleware\CheckCharacterSelected::class)
+            ->actingAs($character->user)->withSession(['current_character_id' => $character->id]);
+        $this->get(route('exploration-maps.index', ['reward' => 'material']))->assertOk()
+            ->assertViewHas('ownedMaps', fn ($maps) => $maps->pluck('id')->all() === [$material->id]);
+        $this->get(route('exploration-maps.index', ['reward' => 'unknown']))->assertOk()
+            ->assertViewHas('ownedMaps', fn ($maps) => $maps->pluck('id')->all() === [$unknown->id]);
+        app(MapPublicationService::class)->publish($character, $materialRegistration, 0, 'owner');
+        $this->get(route('exploration-maps.published', ['reward' => 'material', 'sort' => 'fee_asc']))
+            ->assertOk()->assertViewHas('published', fn ($maps) => $maps->pluck('id')->all() === [$materialRegistration->id]);
+        $this->get(route('exploration-maps.published', ['reward' => 'experience']))
+            ->assertOk()->assertViewHas('published', fn ($maps) => $maps->isEmpty());
+    }
+
     public function test_owner_can_bulk_survey_selected_maps_with_one_payment(): void
     {
         [$character, $city, $area, $enemy] = $this->mapContext();
@@ -366,7 +391,7 @@ class ExplorationMapLifecycleTest extends TestCase
             ->assertSee('目安戦力：')
             ->assertSee('未調査の探索地図')
             ->assertSee('探索地図の一括調査')
-            ->assertDontSee('経験の導き')
+            ->assertDontSee('報酬傾向：経験の導き')
             ->assertSee('name="map_ids[]"', false);
         $this->assertSame('uninvestigated', $uninvestigated->fresh()->status);
     }

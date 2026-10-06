@@ -32,7 +32,7 @@
 
                 try {
                     const savedSort = window.localStorage.getItem('valzeria.blacksmith.enhance.sort');
-                    if (['rank_desc', 'enhance_asc', 'enhance_desc', 'name_asc'].includes(savedSort)) {
+                    if (['rank_desc', 'quality_desc', 'enhance_asc', 'enhance_desc', 'name_asc'].includes(savedSort)) {
                         params.set('sort', savedSort);
                         window.location.replace(`${window.location.pathname}?${params.toString()}`);
                     }
@@ -92,24 +92,40 @@
                 @endforeach
             </div>
 
-            @if($candidateCount > 1)
-                <form method="GET" action="{{ route('blacksmith.index') }}" class="mb-4 flex items-center justify-end gap-2">
-                    <input type="hidden" name="type" value="{{ $initialType }}">
-                    <label for="enhance-sort" class="text-xs font-bold text-slate-600">並び順</label>
-                    <select
-                        id="enhance-sort"
-                        name="sort"
-                        onchange="try { window.localStorage.setItem('valzeria.blacksmith.enhance.sort', this.value); } catch (error) {} this.form.submit()"
-                        class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-bold text-slate-700 shadow-sm"
-                    >
-                        <option value="recommended" @selected($enhanceSort === 'recommended')>おすすめ順</option>
-                        <option value="rank_desc" @selected($enhanceSort === 'rank_desc')>ランクが高い順</option>
-                        <option value="enhance_asc" @selected($enhanceSort === 'enhance_asc')>強化値が低い順</option>
-                        <option value="enhance_desc" @selected($enhanceSort === 'enhance_desc')>強化値が高い順</option>
-                        <option value="name_asc" @selected($enhanceSort === 'name_asc')>名前順</option>
-                    </select>
-                </form>
-            @endif
+            <form method="GET" action="{{ route('blacksmith.index') }}" class="mb-4 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                <input type="hidden" name="type" value="{{ $initialType }}">
+                <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                    <label class="col-span-2 text-xs font-bold text-slate-700 sm:col-span-1">装備を探す
+                        <input type="search" name="q" value="{{ $browseFilters['q'] }}" placeholder="装備名・銘・カテゴリ" class="mt-1 w-full rounded border-slate-300 text-sm">
+                    </label>
+                    <label class="col-span-2 text-xs font-bold text-slate-700 sm:col-span-1">並び順
+                        <select name="sort" onchange="try { window.localStorage.setItem('valzeria.blacksmith.enhance.sort', this.value); } catch (error) {}" class="mt-1 w-full rounded border-slate-300 text-sm">
+                            @foreach(['recommended' => 'おすすめ順', 'rank_desc' => 'ランクが高い順', 'quality_desc' => '品質が高い順', 'enhance_asc' => '強化値が低い順', 'enhance_desc' => '強化値が高い順', 'name_asc' => '名前順'] as $value => $label)
+                                <option value="{{ $value }}" @selected($enhanceSort === $value)>{{ $label }}</option>
+                            @endforeach
+                        </select>
+                    </label>
+                    <label class="text-xs font-bold text-slate-700">状態
+                        <select name="status" class="mt-1 w-full rounded border-slate-300 text-sm">
+                            @foreach(['all' => 'すべて', 'equipped' => '装備中', 'locked' => '保護中', 'ready' => '未装備・未保護'] as $value => $label)
+                                <option value="{{ $value }}" @selected($browseFilters['status'] === $value)>{{ $label }}</option>
+                            @endforeach
+                        </select>
+                    </label>
+                    <label class="text-xs font-bold text-slate-700">品質
+                        <select name="quality" class="mt-1 w-full rounded border-slate-300 text-sm">
+                            @foreach(['all' => 'すべて', 'normal' => '通常', 'good' => '良品', 'excellent' => '逸品'] as $value => $label)
+                                <option value="{{ $value }}" @selected($browseFilters['quality'] === $value)>{{ $label }}</option>
+                            @endforeach
+                        </select>
+                    </label>
+                </div>
+                <div class="mt-3 flex items-center gap-3">
+                    <button class="rounded bg-indigo-700 px-4 py-2 text-sm font-bold text-white">この条件で表示</button>
+                    <a href="{{ route('blacksmith.index', ['type' => $initialType, 'sort' => $enhanceSort]) }}" class="text-xs font-bold text-slate-600">条件をクリア</a>
+                </div>
+                <p class="mt-2 text-xs font-bold text-slate-600">条件に合う装備：{{ $matchingEnhancementCount }}件</p>
+            </form>
 
             @if(session('status'))
                 <div class="bg-emerald-50 border border-emerald-200 text-emerald-800 px-4 py-3 rounded mb-4 font-bold">
@@ -134,6 +150,9 @@
                         </div>
                     @endif
 
+                    @if($matchingEnhancementCount === 0)
+                        <p class="rounded-lg bg-slate-50 px-4 py-8 text-center text-sm font-bold text-slate-500">条件に合う装備がありません。</p>
+                    @endif
                     @foreach($enhancementCandidates as $candidate)
                         @php
                             $level = (int) $candidate['current_level'];
@@ -163,6 +182,7 @@
                                                 次: +{{ $nextLevel }}
                                             </span>
                                         @endif
+                                        <span class="rounded bg-sky-50 px-2 py-0.5 text-xs font-bold text-sky-800">品質：{{ ['normal' => '通常', 'good' => '良品', 'excellent' => '逸品'][$candidate['quality']] ?? '通常' }}</span>
                                         @if($candidate['is_equipped'])
                                             <span class="inline-flex items-center rounded bg-amber-200 px-2 py-0.5 text-xs font-bold text-amber-800">
                                                 装備中
@@ -174,7 +194,7 @@
                                             </span>
                                         @endif
                                     </div>
-                                    <h3 class="text-lg font-extrabold text-slate-900">
+                                    <h3 class="break-words text-lg font-extrabold text-slate-900">
                                         [{{ $candidate['rank'] }}] {{ $candidate['display_name_without_rank'] ?? $candidate['name'] }}
                                     </h3>
                                     <p class="text-xs text-slate-500 mt-1">
@@ -289,10 +309,10 @@
                     @if($hasMoreEnhancementCandidates)
                         <div class="pt-2 text-center">
                             <a
-                                href="{{ route('blacksmith.index', ['type' => $initialType, 'sort' => $enhanceSort, 'limit' => min($typeCounts[$initialType], $enhanceLimit + 20)]) }}"
+                                href="{{ route('blacksmith.index', array_merge($browseFilters, ['type' => $initialType, 'sort' => $enhanceSort, 'limit' => min($matchingEnhancementCount, $enhanceLimit + 20)])) }}"
                                 class="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50 sm:w-auto sm:min-w-64"
                             >
-                                さらに20件表示（{{ count($enhancementCandidates) }} / {{ $typeCounts[$initialType] }}件）
+                                さらに20件表示（{{ count($enhancementCandidates) }} / {{ $matchingEnhancementCount }}件）
                             </a>
                         </div>
                     @endif

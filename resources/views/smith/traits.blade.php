@@ -284,7 +284,7 @@
                                     <button type="button" @click="selectPickerItem(item)" :class="isPickerSelected(item) ? 'border-slate-900 bg-slate-100 ring-1 ring-slate-900' : (picker === 'material' ? 'border-orange-200 bg-orange-50/50 hover:border-orange-400' : 'border-slate-200 bg-white hover:border-slate-400')" class="w-full rounded-lg border p-3 text-left transition">
                                         <div class="flex items-start justify-between gap-3">
                                             <div class="min-w-0">
-                                                <p class="font-black text-slate-900" x-text="item.display_name"></p>
+                                                <p class="break-words font-black text-slate-900" x-text="item.display_name"></p>
                                                 <p class="mt-1 text-xs font-bold text-slate-500"><span x-text="item.rank"></span>ランク / <span x-text="item.weapon_category"></span></p>
                                             </div>
                                             <span x-show="isPickerSelected(item)" class="shrink-0 rounded bg-slate-900 px-2 py-1 text-xs font-black text-white">選択中</span>
@@ -295,6 +295,7 @@
                                             <p class="rounded border border-sky-100 bg-sky-50 px-2 py-1 text-sky-800"><span x-text="(item.suffix_trait_label || '特攻') + ':'"></span> <span x-text="item.slayer.label"></span><span x-show="effectLines(item, 'slayer_effect_lines')"> / <span x-text="effectLines(item, 'slayer_effect_lines')"></span></span></p>
                                         </div>
                                         <div class="mt-2 flex flex-wrap gap-1 text-[11px] font-black">
+                                            <span class="rounded border border-violet-200 bg-violet-50 px-2 py-1 text-violet-800" x-text="'品質：' + ({normal: '通常', good: '良品', excellent: '逸品'}[item.quality] || '通常')"></span>
                                             <span x-show="item.is_equipped" class="rounded bg-amber-100 px-2 py-1 text-amber-800">装備中</span>
                                             <span x-show="item.is_locked" class="rounded bg-yellow-100 px-2 py-1 text-yellow-800">保護中</span>
                                             <span x-show="item.is_market_listed" class="rounded bg-rose-100 px-2 py-1 text-rose-800">市場出品中</span>
