@@ -106,6 +106,29 @@ try {
     }
     schemaRequire(assets() === $before && app(NamelessPreparationService::class)->status()['ready'], 'Migration inspection changed assets.');
     $checks[$current] = ['pass' => true, 'assets_unchanged' => true];
+    $current = 'unmigrated_db_existing_assets';
+    $before = assets();
+    $tables = ['player_relics', 'nameless_workshop_operations', 'nameless_equipment_discoveries', 'nameless_ruin_progress'];
+    DB::statement('RENAME TABLE '.implode(', ', array_map(fn ($table) => $table.' TO retained_'.$table, $tables)));
+    try {
+        DB::beginTransaction();
+        try {
+            DB::table('migrations')->whereIn('migration', NamelessPreparationService::MIGRATIONS)->delete();
+            config(['nameless_relics.enabled' => true]);
+            $status = app(NamelessPreparationService::class)->status();
+            schemaRequire(count($status['pending_migrations']) === 5 && ! $status['ready'] && ! app(NamelessWorkshopService::class)->ready(), 'Unmigrated DB opened the feature.');
+            foreach ($tables as $table) {
+                schemaRequire(in_array($table.':table_missing', $status['schema_problems'], true), 'Missing unmigrated table diagnostic: '.$table);
+            }
+        } finally {
+            DB::rollBack();
+            config(['nameless_relics.enabled' => false]);
+        }
+    } finally {
+        DB::statement('RENAME TABLE '.implode(', ', array_map(fn ($table) => 'retained_'.$table.' TO '.$table, $tables)));
+    }
+    schemaRequire(assets() === $before && app(NamelessPreparationService::class)->status()['ready'], 'Unmigrated inspection lost assets.');
+    $checks[$current] = ['pass' => true, 'assets_unchanged' => true];
     echo json_encode(['pass' => true, 'server_version' => $version, 'driver' => DB::getDriverName(), 'checks' => $checks, 'scope' => 'Ephemeral CI only; no production data or setting changed.'], JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT).PHP_EOL;
 } catch (Throwable $exception) {
     echo json_encode(['pass' => false, 'failed_check' => $current, 'checks' => $checks, 'error_class' => $exception::class,

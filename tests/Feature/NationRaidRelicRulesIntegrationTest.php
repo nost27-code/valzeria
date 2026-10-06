@@ -95,6 +95,21 @@ class NationRaidRelicRulesIntegrationTest extends TestCase
         $this->assertSame(.01, config('nameless_relics.counter_damage_rate'));
     }
 
+    public function test_socket_capacity_change_invalidates_admission_and_freezes_capture(): void
+    {
+        config(['nameless_relics.enabled' => true]);
+        $character = $this->character();
+        $event = $this->event();
+        $rules = $event->ruleset_snapshot['nameless_relic_combat'];
+        $expected = app(\App\Services\Nation\Raid\NationRaidPlayerPreparationService::class)->capture($character, $rules);
+        config(['nameless_relics.slots_per_equipment' => 1, 'nameless_relics.ordinary_equipment_slots.SSS' => 1]);
+        $this->assertNotSame($event->ruleset_hash, app(NationRaidRules::class)->rulesetHash());
+        $this->rejectNew(app(NationRaidSortieService::class), $event, $character);
+        $this->assertSame($expected, app(\App\Services\Nation\Raid\NationRaidPlayerPreparationService::class)->capture($character, $rules));
+        $this->assertSame(1, config('nameless_relics.slots_per_equipment'));
+        $this->assertSame(0, NationRaidBattleResult::where('event_id', $event->id)->count());
+    }
+
     public function test_stale_draft_cannot_be_approved_after_toggle(): void
     {
         config(['nameless_relics.enabled' => false]);

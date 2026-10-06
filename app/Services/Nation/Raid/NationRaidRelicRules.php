@@ -12,7 +12,8 @@ final class NationRaidRelicRules
     public const MODEL = 'nameless-raid-combat-v1';
     public const SETTINGS = ['stat_rate_cap', 'resist_cap', 'chase_damage_rate', 'counter_damage_rate',
         'mirror_return_rate', 'low_hp_threshold', 'profiles', 'special_values', 'weapon_power_at_max',
-        'armor_power_at_max', 'armor_stat_targets_at_max', 'accessory_stat_targets_at_max'];
+        'armor_power_at_max', 'armor_stat_targets_at_max', 'accessory_stat_targets_at_max',
+        'slots_per_equipment', 'ordinary_equipment_slots'];
 
     public function current(): array
     {

@@ -77,6 +77,25 @@ class NamelessSchemaReadinessTest extends TestCase
         $this->assertSame($before, $body->fresh()->getRawOriginal());
     }
 
+    public function test_unmigrated_db_preserves_existing_weapon_and_refuses_activation(): void
+    {
+        $body = $this->asset();
+        $before = $body->fresh()->getRawOriginal();
+        foreach (['player_relics', 'nameless_workshop_operations', 'nameless_equipment_discoveries', 'nameless_ruin_progress'] as $table) {
+            Schema::drop($table); // Isolated fixture only: no rows in these new tables.
+        }
+        Schema::table('player_nameless_equipments', fn ($table) => $table->dropColumn(['growth_exp', 'revision']));
+        DB::table('migrations')->whereIn('migration', NamelessPreparationService::MIGRATIONS)->delete();
+        config(['nameless_relics.enabled' => true]);
+        $status = app(NamelessPreparationService::class)->status();
+        $this->assertFalse($status['ready']);
+        $this->assertFalse(app(NamelessWorkshopService::class)->ready());
+        $this->assertCount(5, $status['pending_migrations']);
+        $this->assertContains('player_relics:table_missing', $status['schema_problems']);
+        $this->assertContains('player_nameless_equipments:column_missing:growth_exp', $status['schema_problems']);
+        $this->assertSame(array_diff_key($before, ['growth_exp' => true, 'revision' => true]), $body->fresh()->getRawOriginal());
+    }
+
     public function test_unrecorded_migrations_cannot_open_an_otherwise_complete_schema(): void
     {
         $body = $this->asset();
