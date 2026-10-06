@@ -63,14 +63,12 @@ class ExplorationItemService
                     ->whereKey($character->id)
                     ->lockForUpdate()
                     ->firstOrFail();
-                $ownedItems = CharacterItem::query()
+                $ownedCount = CharacterItem::query()
                     ->where('character_id', $lockedCharacter->id)
                     ->where('item_id', $item->id)
                     ->where('is_equipped', false)
-                    ->oldest('id')
-                    ->lockForUpdate()
-                    ->get();
-                $owned = $ownedItems->first();
+                    ->count();
+                $owned = app(OwnedConsumableService::class)->lockFirst((int) $lockedCharacter->id, (int) $item->id);
 
                 $carry = ExplorationItemCarry::query()
                     ->where('character_id', $lockedCharacter->id)
@@ -83,13 +81,13 @@ class ExplorationItemService
                         'character_id' => $lockedCharacter->id,
                         'item_id' => $item->id,
                         'area_id' => $areaId,
-                        'carried_count' => $this->initialCarryCount($ownedItems->count()),
+                        'carried_count' => $this->initialCarryCount($ownedCount),
                         'used_count' => 0,
                     ]);
                 } elseif ((int) $carry->area_id !== $areaId) {
                     $carry->forceFill([
                         'area_id' => $areaId,
-                        'carried_count' => $this->initialCarryCount($ownedItems->count()),
+                        'carried_count' => $this->initialCarryCount($ownedCount),
                         'used_count' => 0,
                     ])->save();
                 }
@@ -155,13 +153,7 @@ class ExplorationItemService
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            $owned = CharacterItem::query()
-                ->where('character_id', $lockedCharacter->id)
-                ->where('item_id', $item->id)
-                ->where('is_equipped', false)
-                ->oldest('id')
-                ->lockForUpdate()
-                ->first();
+            $owned = app(OwnedConsumableService::class)->lockFirst((int) $lockedCharacter->id, (int) $item->id);
 
             if (! $owned) {
                 return ['success' => false, 'message' => "{$item->name}を所持していません。"];
