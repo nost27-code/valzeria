@@ -2,6 +2,7 @@
 
 namespace App\Livewire;
 
+use App\Livewire\Concerns\DeletesOwnChatMessages;
 use App\Models\Character;
 use App\Models\PublicLog;
 use App\Services\Nation\NationChatService;
@@ -16,6 +17,8 @@ use Livewire\Component;
 
 class ChatLog extends Component
 {
+    use DeletesOwnChatMessages;
+
     public string $activeTab = 'all';
     public bool $isExpanded = false;
     public bool $drawer = false;
@@ -508,8 +511,8 @@ class ChatLog extends Component
                 $excludedTypes,
                 $newcomersVisible,
             );
-        } elseif ($this->activeTab === 'drop') {
-            $publicLogs = $logService->getRecentLogs($displayLimit, $characterId, ['drop']);
+        } elseif (in_array($this->activeTab, ['drop', 'private'], true)) {
+            $publicLogs = $logService->getRecentLogs($displayLimit, $characterId, [$this->activeTab]);
         } else {
             $publicLogs = $logService->getRecentLogs($fetchLimit, $characterId);
         }
@@ -711,8 +714,8 @@ class ChatLog extends Component
             );
         }
 
-        if ($this->activeTab === 'drop') {
-            return $logService->getRecentLogsVersion($displayLimit, $characterId, ['drop']);
+        if (in_array($this->activeTab, ['drop', 'private'], true)) {
+            return $logService->getRecentLogsVersion($displayLimit, $characterId, [$this->activeTab]);
         }
 
         $fetchLimit = $displayLimit <= 15 ? 50 : min(2000, $displayLimit * 4);

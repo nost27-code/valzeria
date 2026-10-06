@@ -2,6 +2,7 @@
 
 namespace App\Livewire;
 
+use App\Livewire\Concerns\DeletesOwnChatMessages;
 use Livewire\Component;
 use Livewire\WithPagination;
 use Livewire\Attributes\Layout;
@@ -15,6 +16,7 @@ use Illuminate\Support\Facades\Auth;
 #[Layout('components.layouts.facility')]
 class MessageBox extends Component
 {
+    use DeletesOwnChatMessages;
     use WithPagination;
 
     private const ADMIN_CONVERSATION_ID = -1;
@@ -263,10 +265,10 @@ class MessageBox extends Component
                     $threadMessages = PublicLog::query()
                         ->whereIn('type', ['admin_private', 'admin_private_reply'])
                         ->where('receiver_id', $character->id)
-                        ->orderBy('created_at')
-                        ->orderBy('id')
+                        ->orderByDesc('created_at')
+                        ->orderByDesc('id')
                         ->limit(120)
-                        ->get();
+                        ->get()->reverse()->values();
                 } elseif ($this->selectedConversationId) {
                     $selectedConversation = Character::find($this->selectedConversationId);
 
@@ -282,10 +284,10 @@ class MessageBox extends Component
                                         ->where('receiver_id', $character->id);
                                 });
                             })
-                            ->orderBy('created_at')
-                            ->orderBy('id')
+                            ->orderByDesc('created_at')
+                            ->orderByDesc('id')
                             ->limit(120)
-                            ->get();
+                            ->get()->reverse()->values();
 
                         $this->receiverId = (string) $selectedConversation->id;
                         $this->replyingToName = $selectedConversation->name;
