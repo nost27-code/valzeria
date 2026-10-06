@@ -44,6 +44,8 @@ class ReleaseReadinessService
             'equipment_book' => $this->equipmentBookIssues(),
             'character_icon_design' => $this->characterIconDesignIssues(),
             'hero_trials' => $this->heroTrialIssues(),
+            'hero_trials_second_wave' => $this->heroTrialIssues('hero_trials_second_wave'),
+            'hero_trials_final_wave' => $this->heroTrialIssues('hero_trials_final_wave'),
             default => ["未対応の追加コンテンツです: {$contentKey}"],
         };
     }
@@ -318,14 +320,22 @@ class ReleaseReadinessService
     }
 
     /** @return array<int, string> */
-    private function heroTrialIssues(): array
+    private function heroTrialIssues(?string $releaseGate = null): array
     {
         $issues = $this->missingTables(['areas', 'job_classes', 'job_requirements']);
         if ($issues !== []) {
             return $issues;
         }
 
+        array_push($issues, ...$this->heroTrialHallConfigurationIssues());
+
         foreach (config('hero_trials.released_trials', []) as $trialKey => $trial) {
+            if ($releaseGate !== null && (string) ($trial['release_gate'] ?? '') !== $releaseGate) {
+                continue;
+            }
+
+            array_push($issues, ...$this->heroTrialDefinitionIssues((string) $trialKey, (array) $trial));
+
             $areaId = (int) ($trial['area_id'] ?? 0);
             if ($areaId <= 0 || !DB::table('areas')->where('id', $areaId)->exists()) {
                 $issues[] = "英雄試練 {$trialKey} の試練場マスタがありません。";
@@ -350,6 +360,175 @@ class ReleaseReadinessService
         }
 
         return $issues;
+    }
+
+    /** @return array<int, string> */
+    private function heroTrialHallConfigurationIssues(): array
+    {
+        $issues = [];
+        $tiers = config('hero_trials.hall_tiers', []);
+        $cards = config('hero_trials.hall_cards', []);
+        $releasedTrials = config('hero_trials.released_trials', []);
+
+        if (! is_array($tiers) || $tiers === []) {
+            $issues[] = '英雄試練殿の難易度区分がありません。';
+
+            return $issues;
+        }
+        if (! is_array($cards) || $cards === []) {
+            $issues[] = '英雄試練殿の試練カード設定がありません。';
+
+            return $issues;
+        }
+        if (! is_array($releasedTrials)) {
+            $issues[] = '英雄試練の実装済み試練設定を読み込めません。';
+
+            return $issues;
+        }
+
+        $seenTrialKeys = [];
+        foreach ($tiers as $tierKey => $tier) {
+            if (! is_array($tier)) {
+                $issues[] = "英雄試練殿の難易度区分 {$tierKey} が不正です。";
+
+                continue;
+            }
+
+            $recommendedPower = (int) ($tier['recommended_power'] ?? 0);
+            if ($recommendedPower <= 0) {
+                $issues[] = "英雄試練殿の難易度区分 {$tierKey} に目安戦力がありません。";
+            }
+            if (! array_key_exists('is_planned', $tier) || ! is_bool($tier['is_planned'])) {
+                $issues[] = "英雄試練殿の難易度区分 {$tierKey} の予定区分が不正です。";
+            }
+
+            $isPlanned = (bool) ($tier['is_planned'] ?? false);
+            $trialKeys = $tier['trial_keys'] ?? null;
+            if (! is_array($trialKeys) || $trialKeys === []) {
+                $issues[] = "英雄試練殿の難易度区分 {$tierKey} に試練がありません。";
+
+                continue;
+            }
+
+            foreach ($trialKeys as $trialKey) {
+                $trialKey = trim((string) $trialKey);
+                if ($trialKey === '') {
+                    $issues[] = "英雄試練殿の難易度区分 {$tierKey} に空の試練キーがあります。";
+
+                    continue;
+                }
+                if (isset($seenTrialKeys[$trialKey])) {
+                    $issues[] = "英雄試練 {$trialKey} が複数の難易度区分に登録されています。";
+
+                    continue;
+                }
+
+                $seenTrialKeys[$trialKey] = true;
+                if (! isset($cards[$trialKey]) || ! is_array($cards[$trialKey])) {
+                    $issues[] = "英雄試練 {$trialKey} の殿堂カード設定がありません。";
+                }
+
+                $isImplemented = isset($releasedTrials[$trialKey]) && is_array($releasedTrials[$trialKey]);
+                if ($isPlanned && $isImplemented) {
+                    $issues[] = "実装済み英雄試練 {$trialKey} が予定枠に残っています。";
+                } elseif (! $isPlanned && ! $isImplemented) {
+                    $issues[] = "英雄試練 {$trialKey} が実装済み枠ですが試練設定は未実装です。";
+                }
+            }
+        }
+
+        foreach ($cards as $trialKey => $card) {
+            if (! isset($seenTrialKeys[$trialKey])) {
+                $issues[] = "英雄試練 {$trialKey} が難易度区分に登録されていません。";
+            }
+            if (is_array($card)) {
+                $symbolImage = (string) ($card['symbol_image'] ?? '');
+                if (! $this->heroTrialAssetExists($symbolImage)) {
+                    $issues[] = "英雄試練 {$trialKey} の殿堂シンボル画像がありません。";
+                }
+            }
+        }
+
+        foreach ($releasedTrials as $trialKey => $trial) {
+            if (! isset($cards[$trialKey]) || ! is_array($trial)) {
+                $issues[] = "実装済み英雄試練 {$trialKey} の殿堂カード設定がありません。";
+            }
+        }
+
+        return $issues;
+    }
+
+    /**
+     * @param  array<string, mixed>  $trial
+     * @return array<int, string>
+     */
+    private function heroTrialDefinitionIssues(string $trialKey, array $trial): array
+    {
+        $issues = [];
+        $releaseGate = trim((string) ($trial['release_gate'] ?? ''));
+        if ($releaseGate !== '' && ! is_array(config("extra_content.contents.{$releaseGate}"))) {
+            $issues[] = "英雄試練 {$trialKey} の公開設定 {$releaseGate} がありません。";
+        }
+
+        foreach (['symbol_image' => 'シンボル', 'job_badge_image' => '職業バッジ'] as $configKey => $label) {
+            if (! $this->heroTrialAssetExists((string) ($trial[$configKey] ?? ''))) {
+                $issues[] = "英雄試練 {$trialKey} の{$label}画像がありません。";
+            }
+        }
+
+        $profileKey = trim((string) ($trial['profile_key'] ?? ''));
+        $profile = config("hero_trials.profiles.{$profileKey}");
+        if ($profileKey === '' || ! is_array($profile) || empty($profile['phases']) || ! is_array($profile['phases'])) {
+            $issues[] = "英雄試練 {$trialKey} の戦闘プリセットがありません。";
+
+            return $issues;
+        }
+        if ((string) ($profile['trial_key'] ?? '') !== $trialKey) {
+            $issues[] = "英雄試練 {$trialKey} と戦闘プリセットの試練キーが一致しません。";
+        }
+
+        $benchmark = $profile['benchmark'] ?? null;
+        $runs = is_array($benchmark) ? (int) ($benchmark['runs'] ?? 0) : 0;
+        $passes = is_array($benchmark) ? (int) ($benchmark['passes'] ?? -1) : -1;
+        $passRate = is_array($benchmark) && is_numeric($benchmark['pass_rate'] ?? null)
+            ? (float) $benchmark['pass_rate']
+            : -1.0;
+        if (! is_array($benchmark)
+            || trim((string) ($benchmark['measured_on'] ?? '')) === ''
+            || trim((string) ($benchmark['basis'] ?? '')) === ''
+            || trim((string) ($benchmark['note'] ?? '')) === ''
+            || $runs <= 0
+            || $passes < 0
+            || $passes > $runs
+            || $passRate < 0
+            || $passRate > 100
+        ) {
+            $issues[] = "英雄試練 {$trialKey} の実戦闘ベンチマークが不完全です。";
+        } elseif (abs(round(($passes / $runs) * 100, 1) - $passRate) > 0.05) {
+            $issues[] = "英雄試練 {$trialKey} の実戦闘ベンチマーク勝率が試行結果と一致しません。";
+        }
+
+        foreach ($profile['phases'] as $phaseIndex => $phase) {
+            if (! is_array($phase) || ! $this->heroTrialAssetExists((string) ($phase['image_path'] ?? ''))) {
+                $phaseNumber = (int) $phaseIndex + 1;
+                $issues[] = "英雄試練 {$trialKey} の第{$phaseNumber}形態画像がありません。";
+            }
+        }
+
+        return $issues;
+    }
+
+    private function heroTrialAssetExists(string $path): bool
+    {
+        $path = ltrim(str_replace('\\', '/', trim($path)), '/');
+        if ($path === '') {
+            return false;
+        }
+        if (! str_starts_with($path, 'images/')) {
+            $path = 'images/'.$path;
+        }
+
+        return is_file(public_path($path));
     }
 
     /** @param array<int, string> $tables

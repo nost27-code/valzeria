@@ -176,8 +176,11 @@ class BattleService
 
         if (! $this->jobArtV2FeatureGate->usesDamageApplication($source, $target)) {
             if (! ($source?->namelessRelicsEnabled || $target->namelessRelicsEnabled)) {
+                $hpBefore = $target->hp;
                 $target->takeDamage($damage);
-                return null;
+                return new DamageApplicationResult($damage, $hpBefore, $target->hp,
+                    max(0, $hpBefore - $target->hp), max(0, $damage - $hpBefore), $target->isDead(),
+                    $sourceType, $sourceId, $hitResult, $hitIndex, $hitCount);
             }
             $hpBefore = $target->hp;
             $target->takeDamage($damage, ! in_array($sourceType, [DamageSourceType::DOT, DamageSourceType::SELF_DAMAGE, DamageSourceType::RECOIL], true));
@@ -1444,6 +1447,17 @@ class BattleService
                 $this->executeMagicalAttack($attacker, $defender, $state, (int) $action->power_percent);
 
                 return;
+            case 'magical_drain':
+                $damageResult = $this->executeMagicalAttack($attacker, $defender, $state, (int) $action->power_percent);
+                if (! $suppressSecondary && ! $attacker->isDead() && ($damageResult?->actualHpLoss ?? 0) > 0) {
+                    $drainPercent = max(0, min(100, (int) $action->effect_percent));
+                    $recovered = $attacker->healHp((int) floor($damageResult->actualHpLoss * $drainPercent / 100));
+                    if ($recovered > 0) {
+                        $state->addLog("<span class=\"text-emerald-700 font-bold\">{$attacker->logName()} は魂を吸収し、HPが {$recovered} 回復した！</span>");
+                    }
+                }
+
+                return;
             case 'magical_multi_hit':
                 for ($hit = 0; $hit < max(1, (int) $action->hit_count); $hit++) {
                     $this->executeMagicalAttack($attacker, $defender, $state, (int) $action->power_percent);
@@ -1639,12 +1653,12 @@ class BattleService
         int $hitCount = 1,
         ?Skill $jobArtSkill = null,
         ?int $powerCenti = null,
-    ): void {
+    ): ?DamageApplicationResult {
         // 魔法も回避される可能性がある前提（命中判定）
         if (! $skipHitCheck && ! $this->isPveAttackHit($attacker, $defender, $state)) {
             $state->addLog("{$attacker->logName()} は魔法を唱えた！……しかし、{$defender->logName()} は抵抗した！");
 
-            return;
+            return null;
         }
 
         $statOverrides = $jobArtSkill !== null
@@ -1681,6 +1695,8 @@ class BattleService
         $this->tryExplorationSupportHerbal($defender, $state);
         $state->addDamageLog("{$attacker->logName()} の魔法攻撃！ {$defender->logName()} に <span class=\"text-purple-600 font-extrabold text-lg\">{$damage}</span> のダメージ！");
         $this->logGutsIfTriggered($defender, $state);
+
+        return $damageResult;
     }
 
     private function isPveAttackHit(BattleActor $attacker, BattleActor $defender, BattleState $state, int $skillAccuracy = 100): bool

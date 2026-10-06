@@ -36,17 +36,18 @@ class HeroTrialController extends Controller
 
         session(['current_location' => 'dungeon']);
 
-        $trials = collect($trialService->hallFacilitiesFor($character, $cityId))
-            ->map(function (array $trial) use ($character, $innService): array {
-                if ((bool) ($trial['challenge_requirements']['only_hp_sp_missing'] ?? false)) {
-                    $trial['inn_fee'] = $innService->fee($character);
-                }
+        $sections = collect($trialService->hallSectionsFor($character, $cityId))
+            ->map(function (array $section) use ($character, $innService): array {
+                $section['trials'] = collect($section['trials'])->map(function (array $trial) use ($character, $innService): array {
+                    if ((bool) ($trial['challenge_requirements']['only_hp_sp_missing'] ?? false)) {
+                        $trial['inn_fee'] = $innService->fee($character);
+                    }
+                    return $trial;
+                })->all();
+                return $section;
+            })->all();
 
-                return $trial;
-            })
-            ->all();
-
-        return view('hero-trials.index', ['trials' => $trials]);
+        return view('hero-trials.index', ['trialSections' => $sections]);
     }
 
     public function rest(
@@ -166,6 +167,10 @@ class HeroTrialController extends Controller
     ): View|RedirectResponse {
         if (! $trialService->isEnabled()) {
             return redirect()->route('home')->with('error', '英雄試練は現在公開されていません。');
+        }
+
+        if (! $trialService->isTrialEnabled($trialKey)) {
+            return redirect()->route('home')->with('error', 'この英雄試練は現在公開されていません。');
         }
 
         $outcome = $request->session()->get('heroTrialData');

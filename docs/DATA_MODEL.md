@@ -1,5 +1,15 @@
 # DATA_MODEL.md
 
+## Hero trial final wave (2026-10-06, OFF preparation)
+
+- No schema change. The additive migration `2026_10_06_180000_prepare_final_wave_hero_trials` prepares unpublished City 10 Areas 92/93 and hidden active hero jobs 73/76 with crown-master mappings 73->62 and 76->61. It checks area ID/slug and exact job IDs and commits both preparations in one transaction. Rollback only closes the trial areas, retaining job masters, requirements and all player-owned data.
+- Final clears use existing `character_area_progresses`; enemies/actions remain virtual config data. `hero_trials_final_wave` defaults OFF and requires the parent gate and both periods. It does not require the second-wave gate. Real local/staging/production migration and MariaDB checks are unperformed; isolated SQLite was used.
+
+## Hero trial second wave (2026-10-06, OFF preparation)
+
+- No schema change. The additive migration prepares unpublished City 10 trial Areas 88–91 and hidden hero jobs 74/75/78/79, with exact crown-master requirements 74→65, 75→66, 78→68, 79→69. It rejects ID/slug conflicts and commits all four master updates in one transaction. Existing player progress and inventory are untouched.
+- Trial clears continue to use `character_area_progresses.boss_defeated`; virtual enemies and actions use `config/hero_trials.php`. The second-wave content key defaults OFF and depends on the parent gate and period. Saved unlocks remain valid after closing either gate. Migration was exercised only against isolated SQLite; MariaDB execution is unverified.
+
 ## 倉庫の素材まとめ売り（2026-10-06、ローカル実装）
 
 - DBスキーマ変更なし。`gold_transactions` の既存 `material_sale` 行を素材ごとに保存し、`metadata` に `bulk_sale_uuid`、正規化した素材ID/個数の `bulk_sale_hash`、`sale_name`、`remaining_quantity` を追加する。既存の `material_id`、`quantity`、`unit_price`、`source_id`、素材ごとの `balance_after` は維持する。

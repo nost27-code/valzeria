@@ -33,14 +33,35 @@ class ExtraContentControlService
 
     public function isActive(string $contentKey, ?array $content = null): bool
     {
+        return $this->isActiveWithDependencies($contentKey, $content, []);
+    }
+
+    /** @param array<int, string> $visited */
+    private function isActiveWithDependencies(string $contentKey, ?array $content, array $visited): bool
+    {
         $content ??= config("extra_content.contents.{$contentKey}");
         if (!is_array($content) || !$this->isEnabled($contentKey, $content)) {
             return false;
         }
 
-        $period = $this->periodFor($contentKey);
+        if (in_array($contentKey, $visited, true)) {
+            return false;
+        }
 
-        return (bool) ($period['active'] ?? false);
+        $period = $this->periodFor($contentKey);
+        if (! (bool) ($period['active'] ?? false)) {
+            return false;
+        }
+
+        $visited[] = $contentKey;
+        foreach ((array) ($content['requires_active'] ?? []) as $requiredContentKey) {
+            $requiredContentKey = trim((string) $requiredContentKey);
+            if ($requiredContentKey === '' || ! $this->isActiveWithDependencies($requiredContentKey, null, $visited)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     public function setEnabled(string $contentKey, bool $enabled): void
@@ -151,7 +172,7 @@ class ExtraContentControlService
             'route' => (string) ($content['route'] ?? ''),
             'enabled' => $enabled,
             'default_enabled' => $this->defaultEnabled($content),
-            'active' => $enabled && (bool) ($period['active'] ?? false),
+            'active' => $this->isActive($contentKey, $content),
             'period' => $period,
             'enabled_setting_key' => $this->enabledSettingKey($contentKey),
             'starts_at_setting_key' => $this->startsAtSettingKey($contentKey),

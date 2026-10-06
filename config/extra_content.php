@@ -50,5 +50,23 @@ return [
             'default_enabled' => env('HERO_TRIALS_ENABLED', false),
             'setting_label' => '英雄試練 公開状態',
         ],
+        'hero_trials_second_wave' => [
+            'name' => '英雄試練 第2陣',
+            'category' => '高難度コンテンツ',
+            'description' => '天機・聖域・荒天・白銀の試練場を追加公開します。英雄試練本体がONの時だけ有効になります。',
+            'route' => 'hero-trials.index',
+            'default_enabled' => env('HERO_TRIALS_SECOND_WAVE_ENABLED', false),
+            'setting_label' => '英雄試練 第2陣公開状態',
+            'requires_active' => ['hero_trials'],
+        ],
+        'hero_trials_final_wave' => [
+            'name' => '英雄試練 最終陣',
+            'category' => '高難度コンテンツ',
+            'description' => '蒼竜・幻葬の最終2試練を公開します。英雄試練本体がONかつ期間内の時だけ有効になります。',
+            'route' => 'hero-trials.index',
+            'default_enabled' => env('HERO_TRIALS_FINAL_WAVE_ENABLED', false),
+            'setting_label' => '英雄試練 最終陣公開状態',
+            'requires_active' => ['hero_trials'],
+        ],
     ],
 ];

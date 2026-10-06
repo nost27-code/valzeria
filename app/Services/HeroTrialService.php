@@ -57,6 +57,10 @@ class HeroTrialService
             throw new DomainException('指定された英雄試練は存在しません。');
         }
 
+        if (! $this->isTrialActive($trial)) {
+            throw new DomainException('この英雄試練は現在公開されていません。');
+        }
+
         return $this->buildChallengeRequirements($character, $trial);
     }
 
@@ -106,7 +110,10 @@ class HeroTrialService
 
         $facilities = [];
         foreach ((array) config('hero_trials.released_trials', []) as $trialKey => $trial) {
-            if (! is_array($trial) || (int) ($trial['city_id'] ?? 0) !== (int) $cityId) {
+            if (! is_array($trial)
+                || ! $this->isTrialActive($trial)
+                || (int) ($trial['city_id'] ?? 0) !== (int) $cityId
+            ) {
                 continue;
             }
 
@@ -126,34 +133,80 @@ class HeroTrialService
      */
     public function hallFacilitiesFor(Character $character, ?int $cityId): array
     {
+        return collect($this->hallSectionsFor($character, $cityId))
+            ->flatMap(static fn (array $section): array => $section['trials'])
+            ->values()
+            ->all();
+    }
+
+    public function hallSectionsFor(Character $character, ?int $cityId): array
+    {
         if (! $this->canViewHall($character, $cityId)) {
             return [];
         }
 
         $releasedTrials = (array) config('hero_trials.released_trials', []);
+        $hallCards = (array) config('hero_trials.hall_cards', []);
+        $sections = [];
 
-        return collect((array) config('hero_trials.hall_cards', []))
-            ->filter(fn (array $card, string $trialKey): bool => is_array($releasedTrials[$trialKey] ?? null))
-            ->map(function (array $card, string $trialKey) use ($character, $releasedTrials): array {
-                $trial = $releasedTrials[$trialKey];
-                if ($this->appearanceRequirementsMet($character, $trial)) {
-                    $this->ensureProgress($character, $trial);
+        foreach ((array) config('hero_trials.hall_tiers', []) as $tierKey => $tier) {
+            if (! is_array($tier)) {
+                continue;
+            }
 
-                    return $this->buildFacility($character, $trialKey, $trial, $card);
+            $recommendedPower = max(0, (int) ($tier['recommended_power'] ?? 0));
+            $isPlanned = (bool) ($tier['is_planned'] ?? false);
+            $facilities = [];
+
+            foreach ((array) ($tier['trial_keys'] ?? []) as $trialKey) {
+                $trialKey = (string) $trialKey;
+                $card = $hallCards[$trialKey] ?? null;
+                if (! is_array($card)) {
+                    continue;
                 }
 
-                return [
+                $trial = $releasedTrials[$trialKey] ?? null;
+                $isTrialActive = is_array($trial) && $this->isTrialActive($trial);
+                if (! $isTrialActive) {
+                    continue;
+                }
+                if ($isTrialActive && $this->appearanceRequirementsMet($character, $trial)) {
+                    $this->ensureProgress($character, $trial);
+
+                    $facilities[] = $this->buildFacility(
+                        $character,
+                        $trialKey,
+                        $trial,
+                        $card,
+                    ) + ['recommended_power' => $recommendedPower, 'recommended_power_is_planned' => $isPlanned];
+
+                    continue;
+                }
+
+                $facilities[] = [
                     'name' => (string) ($card['label'] ?? '名もなき試練場'),
                     'symbol_image' => (string) ($card['symbol_image'] ?? 'jobbadge/jobbadge_070.webp'),
                     'desc' => (string) ($card['facility_desc'] ?? '扉は固く閉ざされている。'),
+                    'recommended_power' => $recommendedPower,
+                    'recommended_power_is_planned' => $isPlanned,
                     'bg_image' => 'card_bg/dungeon_10_07.webp',
-                    'status' => 'locked',
-                    'action' => '道は閉ざされている',
-                    'badge' => null,
+                    'status' => $isTrialActive ? 'locked' : 'coming_soon',
+                    'action' => $isTrialActive ? '道は閉ざされている' : '準備中',
+                    'badge' => $isTrialActive ? null : (is_array($trial) ? '未公開' : '未実装'),
                 ];
-            })
-            ->values()
-            ->all();
+            }
+
+            if ($facilities !== []) {
+                $sections[] = [
+                    'key' => (string) $tierKey,
+                    'recommended_power' => $recommendedPower,
+                    'recommended_power_is_planned' => $isPlanned,
+                    'trials' => $facilities,
+                ];
+            }
+        }
+
+        return $sections;
     }
 
     /**
@@ -182,6 +235,10 @@ class HeroTrialService
         $trial = $this->trial($trialKey);
         if (! $trial) {
             throw new DomainException('指定された英雄試練は存在しません。');
+        }
+
+        if (! $this->isTrialActive($trial)) {
+            throw new DomainException('この英雄試練は現在公開されていません。');
         }
 
         $profile = $this->profileService->profile((string) ($trial['profile_key'] ?? ''));
@@ -533,5 +590,22 @@ class HeroTrialService
             })
             ->values()
             ->all();
+    }
+
+    public function isTrialEnabled(string $trialKey): bool
+    {
+        $trial = $this->trial($trialKey);
+
+        return $this->isEnabled()
+            && $trial !== null
+            && $this->isTrialActive($trial);
+    }
+
+    private function isTrialActive(array $trial): bool
+    {
+        $releaseGate = trim((string) ($trial['release_gate'] ?? ''));
+
+        return $releaseGate === ''
+            || app(ExtraContentControlService::class)->isActive($releaseGate);
     }
 }

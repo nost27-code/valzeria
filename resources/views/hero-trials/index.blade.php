@@ -12,10 +12,14 @@
             <h1 class="mt-1 text-xl font-black">挑む試練を選べ</h1>
             <p class="mt-2 text-xs leading-relaxed text-slate-300">冠位を極めた者だけに、英雄へ至る道が姿を現す。</p>
             <p class="mt-2 text-xs font-bold leading-relaxed text-amber-100">試練を越えると対応する英雄職が神殿に解放されます。勝利しただけで自動的に転職することはありません。</p>
+            <p class="mt-1 text-[11px] leading-relaxed text-slate-400">目安戦力は入場条件ではなく、装備や奥義との相性で前後する。</p>
         </section>
 
-        <div class="grid gap-4 md:grid-cols-2">
-            @foreach($trials as $trial)
+        @foreach($trialSections as $section)
+        <section class="space-y-3">
+            <h2 class="text-sm font-black text-amber-200">目安戦力 {{ number_format($section['recommended_power']) }}</h2>
+            <div class="grid gap-4 md:grid-cols-2">
+            @foreach($section['trials'] as $trial)
                 <article class="relative overflow-hidden rounded-xl border border-amber-300/60 bg-white shadow-lg">
                     @if(! empty($trial['bg_image']))
                         <div class="absolute inset-0 bg-cover bg-right opacity-15" style="background-image: url('{{ asset('images/'.ltrim($trial['bg_image'], '/')) }}');"></div>
@@ -28,7 +32,7 @@
                             </div>
                             <div class="min-w-0 flex-1">
                                 <div class="text-[10px] font-black tracking-wider text-amber-700">{{ $trial['badge'] ?? '英雄試練' }}</div>
-                                <h2 class="text-lg font-black text-slate-950">{{ $trial['name'] }}</h2>
+                                <h3 class="text-lg font-black text-slate-950">{{ $trial['name'] }}</h3>
                                 <p class="mt-1 text-xs leading-relaxed text-slate-600">{{ $trial['desc'] }}</p>
                             </div>
                         </div>
@@ -158,7 +162,9 @@
                     </div>
                 </article>
             @endforeach
-        </div>
+            </div>
+        </section>
+        @endforeach
     </div>
 
     @once
