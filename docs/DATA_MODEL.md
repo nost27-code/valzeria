@@ -1,5 +1,12 @@
 # DATA_MODEL.md
 
+## Deleted chat evidence (2026-10-07)
+
+- `chat_message_deletion_logs` stores one snapshot per original `public_log_id` (unique): chat/private type, message, sender/recipient character and user IDs, names at deletion, original `sent_at`, and `deleted_at`. Historical IDs have no cascading foreign keys; renaming or removing a character cannot rewrite or delete evidence.
+- `ChatMessageDeletionService` locks the owned public-log row, archives it, removes the matching private-message notification, and deletes the original in one transaction. Failures roll everything back. Repeated deletion cannot create a second snapshot. Migrate the new table before activating the code; missing schema never permits deletion without evidence.
+- `/admin/deleted-chat-logs` is read-only and requires the existing admin middleware plus a fresh admin-role check when rendering. Player chats/search/notifications continue using the original tables only. No archive purge or restore operation is provided. Migration down refuses to drop a nonempty evidence table.
+- Previously deleted messages are not recovered or backfilled.
+
 ## Hero trial final wave (2026-10-06, OFF preparation)
 
 - No schema change. The additive migration `2026_10_06_180000_prepare_final_wave_hero_trials` prepares unpublished City 10 Areas 92/93 and hidden active hero jobs 73/76 with crown-master mappings 73->62 and 76->61. It checks area ID/slug and exact job IDs and commits both preparations in one transaction. Rollback only closes the trial areas, retaining job masters, requirements and all player-owned data.

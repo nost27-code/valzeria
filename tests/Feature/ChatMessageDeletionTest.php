@@ -68,6 +68,10 @@ class ChatMessageDeletionTest extends TestCase
             ->call('deleteMessage');
         $this->assertDatabaseMissing('public_logs', ['id' => $log->id]);
 
+        $this->assertDatabaseHas('chat_message_deletion_logs', [
+            'public_log_id' => $log->id, 'message' => '削除する自分の発言', 'character_id' => $sender->id,
+        ]);
+
         $this->login($receiver);
         Livewire::test(ChatLog::class)->call('setTab', $type === 'private' ? 'private' : 'chat')
             ->assertDontSee('削除する自分の発言');

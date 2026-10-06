@@ -681,6 +681,7 @@ Route::middleware(['auth', 'admin'])->group(function () {
     Route::get('/admin/public-logs', \App\Livewire\Admin\PublicLogManager::class)->name('admin.public-logs');
     Route::get('/admin/chat', \App\Livewire\Admin\AdminChatManager::class)->name('admin.chat');
     Route::get('/admin/private-chat-logs', \App\Livewire\Admin\PrivateChatLogManager::class)->name('admin.private-chat-logs');
+    Route::get('/admin/deleted-chat-logs', \App\Livewire\Admin\DeletedChatLogManager::class)->name('admin.deleted-chat-logs');
     Route::get('/admin/contact-messages', \App\Livewire\Admin\ContactMessageManager::class)->name('admin.contact-messages');
     Route::get('/admin/bug-reports', \App\Livewire\Admin\BugReportManager::class)->name('admin.bug-reports');
     Route::get('/admin/bug-reports/attachments/{attachment}', [\App\Http\Controllers\BugReportController::class, 'attachment'])->name('admin.bug-reports.attachments.show');
