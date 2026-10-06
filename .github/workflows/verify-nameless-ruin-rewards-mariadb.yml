@@ -122,7 +122,7 @@ jobs:
           php -d memory_limit=128M vendor/phpunit/phpunit/phpunit --log-junit reward-evidence/map.xml tests/Feature/MapExplorationRewardServiceTest.php
           php -d memory_limit=128M vendor/phpunit/phpunit/phpunit --filter 'test_actual_ruin_boss_battle_awards_once_advances_only_its_zone_and_consumes_stamina$|test_fifty_ruin_battles_aggregate_relics_and_replay_without_extra_consumption$' --log-junit reward-evidence/prototype.xml tests/Feature/NamelessRelicPrototypeTest.php
           php -d memory_limit=128M vendor/phpunit/phpunit/phpunit --filter 'test_actual_ruin_defeat_has_no_drop_or_progress_and_persists_standard_defeat_resources$|test_boss_reappears_only_at_cleared_depth_without_unlocking_or_extra_stamina_cost$' --log-junit reward-evidence/ruin-encounters.xml tests/Feature/NamelessRelicPrototypeTest.php
-          php -d memory_limit=128M vendor/phpunit/phpunit/phpunit --filter 'test_every_boss_can_be_fought_and_replayed_without_changing_reward_or_progress_rules$' --log-junit reward-evidence/boss.xml tests/Feature/NamelessRuinDepthBossTest.php
+          php -d memory_limit=128M vendor/phpunit/phpunit/phpunit --filter 'test_every_boss_can_be_fought_and_replayed_with_depth_experience_and_existing_progress_rules$' --log-junit reward-evidence/boss.xml tests/Feature/NamelessRuinDepthBossTest.php
       - name: Verify preserved depth experience changes sequentially
         shell: bash
         run: |
