@@ -83,6 +83,8 @@ try {
         'ALTER TABLE player_relics MODIFY COLUMN rank TINYINT UNSIGNED NOT NULL', 'player_relics:type:rank:expected=tinyint:actual=varchar(3)');
     schemaFault('missing_json_constraint', 'ALTER TABLE nameless_workshop_operations DROP CONSTRAINT result',
         'ALTER TABLE nameless_workshop_operations ADD CONSTRAINT result CHECK (JSON_VALID(result))', 'nameless_workshop_operations:type:result:expected=json:actual=longtext');
+    schemaFault('weakened_json_constraint', 'ALTER TABLE nameless_workshop_operations DROP CONSTRAINT result, ADD CONSTRAINT result CHECK (JSON_VALID(result) OR 1)',
+        'ALTER TABLE nameless_workshop_operations DROP CONSTRAINT result, ADD CONSTRAINT result CHECK (JSON_VALID(result))', 'nameless_workshop_operations:type:result:expected=json:actual=longtext');
     schemaFault('missing_table_preserves_storage', 'RENAME TABLE nameless_equipment_discoveries TO retained_nameless_discoveries',
         'RENAME TABLE retained_nameless_discoveries TO nameless_equipment_discoveries', 'nameless_equipment_discoveries:table_missing');
     DB::statement('CREATE INDEX fixture_socket_fk ON player_relics (character_item_id, slot_number)');

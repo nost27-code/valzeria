@@ -106,7 +106,7 @@ final class NamelessSchemaService
             }
             if ($maria && $type === 'longtext') {
                 $checks = DB::select('SELECT cc.CHECK_CLAUSE AS clause FROM information_schema.CHECK_CONSTRAINTS cc JOIN information_schema.TABLE_CONSTRAINTS tc ON tc.CONSTRAINT_SCHEMA=cc.CONSTRAINT_SCHEMA AND tc.CONSTRAINT_NAME=cc.CONSTRAINT_NAME AND tc.TABLE_NAME=cc.TABLE_NAME WHERE tc.TABLE_SCHEMA=DATABASE() AND tc.TABLE_NAME=?', [$table]);
-                return collect($checks)->contains(fn ($check) => preg_match('/json_valid\s*\(\s*`?'.preg_quote($name, '/').'`?\s*\)/i', $check->clause) === 1);
+                return collect($checks)->contains(fn ($check) => preg_match('/\A\s*(?:\(\s*)*json_valid\s*\(\s*`?'.preg_quote($name, '/').'`?\s*\)(?:\s*\))*\s*\z/i', $check->clause) === 1);
             }
             return false;
         }

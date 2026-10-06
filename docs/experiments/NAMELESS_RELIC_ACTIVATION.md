@@ -1,6 +1,6 @@
 # 名もなき工房の有効化設定
 
-2026-10-05の有効化準備修正。今回の配備は修正コードのみで、機能OFF・migration実行なし・工房街登録なしとする。街登録、migration、正式ONは別途明示された公開タスクで実施する。
+2026-10-05の有効化準備に対する2026-10-06の整合性修正。本修正は本番未反映で、本番設定変更・migration・準備コマンド・街登録・正式ONは実行しない。以下の本番手順は、将来別途明示承認されたタスクでのみ実施する。
 
 | 設定 | 挙動 |
 |---|---|
@@ -28,7 +28,7 @@
 | `nameless_equipment_discoveries` | id, character_id, kind, equipment_type, created_at, updated_at |
 | `nameless_ruin_progress` | id, character_id, zone_key, unlocked_depth, created_at, updated_at |
 
-MariaDBではInnoDB、idのunsigned bigint相当・auto increment・主キー、所有者/装着先のunsigned bigint以上、ランク/進捗のunsigned tinyint以上、進行/改訂のunsigned int以上、成長EXPのunsigned bigint以上を検査する。フラグはtinyint、日時はnullable timestamp/datetime、文字列はmigrationで定めた長さ以上を必要とする。kindはweapon/armor/accessoryのenum、resultはJSONまたはJSON_VALID制約付きlongtext。各列のnullableと書込みが依存する既定値も検査する（詳細値はCOLUMNS）。生成列は拒否する。
+MariaDBではInnoDB、idのunsigned bigint相当・auto increment・主キー、所有者/装着先のunsigned bigint以上、ランク/進捗のunsigned tinyint以上、進行/改訂のunsigned int以上、成長EXPのunsigned bigint以上を検査する。フラグはtinyint、日時はnullable timestamp/datetime、文字列はmigrationで定めた長さ以上を必要とする。kindはweapon/armor/accessoryのenum、resultはJSONまたは単独のJSON_VALID検査を強制する制約付きlongtext（OR 1などで無条件に通す弱い制約は拒否）。各列のnullableと書込みが依存する既定値も検査する（詳細値はCOLUMNS）。生成列は拒否する。
 
 ソケットの2組のunique、操作のcharacter_id/request_uuid、発見のcharacter_id/equipment_type、進行のcharacter_id/zone_keyのuniqueを要求する。古いcharacter_id/kindの一意制約は拒否する。所有者FKはcharacters.idへcascade、装着先FKは各武具.idへset nullを要求する。対象5本の移行記録がない場合も準備未完了。SQLiteは検査できる型/制約を使い、MariaDB固有の幅・unsigned・JSON制約・engineは隔離MariaDBで別途検証する。
 
