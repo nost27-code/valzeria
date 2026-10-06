@@ -76,7 +76,7 @@ class NationRaidRelicRulesIntegrationTest extends TestCase
         $this->assertSame($changed, config('nameless_relics.enabled'));
         $this->assertSame($originalHash, $event->fresh()->ruleset_hash);
         $this->assertSame($assets, $character->fresh()->getRawOriginal());
-        $this->assertSame(1, NationRaidDailyUsage::where('event_id', $event->id)->sum('used_count'));
+        $this->assertSame(1, (int) NationRaidDailyUsage::where('event_id', $event->id)->sum('used_count'));
         $this->assertSame(1, NationRaidBattleResult::where('event_id', $event->id)->count());
     }
 
@@ -186,7 +186,7 @@ class NationRaidRelicRulesIntegrationTest extends TestCase
         $replay = $settlement->resolve($battle, $calculation);
         $this->assertSame('resolved', $first->status);
         $this->assertSame($first->applied_damage_total, $replay->applied_damage_total);
-        $this->assertSame(1, NationRaidDailyUsage::where('event_id', $event->id)->sum('resolved_count'));
+        $this->assertSame(1, (int) NationRaidDailyUsage::where('event_id', $event->id)->sum('resolved_count'));
         $this->assertSame($resources, [$character->fresh()->current_hp, $character->fresh()->current_mp, $character->fresh()->explore_stamina]);
         $this->assertFalse(config('nameless_relics.enabled'));
     }
@@ -211,8 +211,8 @@ class NationRaidRelicRulesIntegrationTest extends TestCase
         $replay = $settlement->refund($battle, 'unversioned_relic_contract');
         $this->assertSame('refunded', $first->status);
         $this->assertSame($first->id, $replay->id);
-        $this->assertSame(0, NationRaidDailyUsage::where('event_id', $event->id)->sum('used_count'));
-        $this->assertSame(1, NationRaidDailyUsage::where('event_id', $event->id)->sum('refunded_count'));
+        $this->assertSame(0, (int) NationRaidDailyUsage::where('event_id', $event->id)->sum('used_count'));
+        $this->assertSame(1, (int) NationRaidDailyUsage::where('event_id', $event->id)->sum('refunded_count'));
         $this->assertSame(3, PlayerRelic::where('character_id', $character->id)->count());
         $this->assertSame(1, PlayerNamelessEquipment::where('character_id', $character->id)->count());
     }
@@ -232,7 +232,7 @@ class NationRaidRelicRulesIntegrationTest extends TestCase
         $prepared = (new \ReflectionMethod($service, 'preparePlayer'))->invoke($service, $battle, 0.0, 0.0);
         $this->assertSame($expected, $prepared->summary['admission']['player']);
         $this->assertFalse(config('nameless_relics.enabled'));
-        $this->assertSame(1, NationRaidDailyUsage::where('event_id', $event->id)->sum('used_count'));
+        $this->assertSame(1, (int) NationRaidDailyUsage::where('event_id', $event->id)->sum('used_count'));
     }
 
     private function rejectNew(NationRaidSortieService $service, NationRaidEvent $event, Character $character): void
