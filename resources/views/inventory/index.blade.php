@@ -39,7 +39,8 @@
         @endphp
 
         <script src="{{ asset('js/inventory/inventory-material-sales.js') }}?v=20261006"></script>
-        <script src="{{ asset('js/facilities/facility-page-state.js') }}?v=20261006"></script>
+        <script src="{{ asset('js/inventory/inventory-browse-feedback.js') }}?v=20261006"></script>
+        <script src="{{ asset('js/facilities/facility-page-state.js') }}?v=20261006-feedback1"></script>
         <script>
         (() => {
             const registerInventoryAlpine = () => {
@@ -116,6 +117,7 @@
             <div
                 class="bg-white p-4 sm:p-6 rounded-lg shadow-sm border border-slate-200"
                 x-data="{
+                    ...window.inventoryBrowseFeedback(),
                     storageTab: 'material',
                     activeMaterialTab: 'material',
                     activeEquipmentTab: 'weapon',
@@ -172,16 +174,16 @@
                     normalizeEquipmentText(value) {
                         return String(value || '').toLocaleLowerCase('ja-JP').replace(/[\s　]+/g, '');
                     },
-                    matchesEquipment(element) {
+                    matchesEquipment(element, locked = element.dataset.equipmentLocked === '1', equipped = element.dataset.equipmentEquipped === '1') {
                         const query = this.normalizeEquipmentText(this.equipmentQuery);
                         const searchText = this.normalizeEquipmentText(element.dataset.equipmentSearch);
 
                         return (!query || searchText.includes(query))
                             && (
                                 this.equipmentStatus === 'all'
-                                || (this.equipmentStatus === 'equipped' && element.dataset.equipmentEquipped === '1')
-                                || (this.equipmentStatus === 'locked' && element.dataset.equipmentLocked === '1')
-                                || (this.equipmentStatus === 'ready' && element.dataset.equipmentEquipped === '0' && element.dataset.equipmentLocked === '0')
+                                || (this.equipmentStatus === 'equipped' && equipped)
+                                || (this.equipmentStatus === 'locked' && locked)
+                                || (this.equipmentStatus === 'ready' && !equipped && !locked)
                             )
                             && (this.equipmentQuality === 'all' || element.dataset.equipmentQuality === this.equipmentQuality)
                             && (
@@ -231,6 +233,7 @@
                         }, () => {
                             this.sortMaterialCards();
                             this.sortEquipmentCards();
+                            this.browseReady = true;
                         });
                         this.$watch('materialSort', () => this.$nextTick(() => this.sortMaterialCards()));
                         this.$watch('equipmentSort', () => this.$nextTick(() => this.sortEquipmentCards()));
@@ -438,7 +441,7 @@
                             </div>
 
                             <div x-ref="materialGrid" class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                @forelse($materials as $cm)
+                                @foreach($materials as $cm)
                                     @php
                                         $materialBrowseMeta = $materialBrowseMetadata[$cm->id] ?? ['name' => '', 'search_text' => '', 'purposes' => [], 'created_at' => 0];
                                         $unitSalePrice = max(0, (int) ($cm->material?->npc_sale_price ?? 0));
@@ -692,11 +695,11 @@
                                         </div>
 
                                     </div>
-                                @empty
-                                    <div class="col-span-1 sm:col-span-2 text-center py-10 bg-white rounded-lg border border-slate-200 border-dashed">
-                                        <p class="text-slate-500">倉庫に保管されている素材はありません。</p>
-                                    </div>
-                                @endforelse
+                                @endforeach
+                                <div x-show="browseReady && visibleMaterialCount() === 0" style="display:none;" data-material-empty-state role="status" class="col-span-1 sm:col-span-2 rounded-lg border border-dashed border-slate-200 bg-white p-6 text-center">
+                                    <p class="text-sm text-slate-600" x-text="hasMaterialFilters() ? '条件に一致する品はありません。' : '倉庫に保管されている素材はありません。'"></p>
+                                    <button type="button" x-show="hasMaterialFilters()" @click="clearMaterialFilters()" class="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-bold text-emerald-800 hover:bg-emerald-100">絞り込み解除</button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -913,8 +916,8 @@
                                     </div>
                                 </div>
 
-                                <div data-equipment-grid class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                    @forelse($equipmentGroups[$type] as $characterItem)
+                                <div data-equipment-grid="{{ $type }}" x-ref="{{ $type }}Grid" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    @foreach($equipmentGroups[$type] as $characterItem)
                                         @php
                                             $item = $characterItem->item;
                                             $equipmentIcon = $item?->iconImagePath()
@@ -981,7 +984,7 @@
                                             data-equipment-rank="{{ $equipmentRankSort }}"
                                             data-equipment-price="{{ $sellPrice }}"
                                             data-equipment-created-at="{{ (int) ($characterItem->created_at?->getTimestamp() ?? 0) }}"
-                                            x-show="matchesEquipment($el, locked)"
+                                            x-show="matchesEquipment($el, locked, equipped)"
                                             x-transition
                                         >
                                             <div class="mr-3 shrink-0">
@@ -1053,11 +1056,11 @@
                                                 </form>
                                             </div>
                                         </div>
-                                    @empty
-                                        <div class="col-span-1 sm:col-span-2 text-center py-10 bg-white rounded-lg border border-slate-200 border-dashed">
-                                            <p class="text-slate-500">{{ $typeMeta[$type]['empty'] }}</p>
-                                        </div>
-                                    @endforelse
+                                    @endforeach
+                                    <div x-show="browseReady && visibleEquipmentCount(@js($type)) === 0" style="display:none;" data-equipment-empty-state="{{ $type }}" role="status" class="col-span-1 sm:col-span-2 rounded-lg border border-dashed border-slate-200 bg-white p-6 text-center">
+                                        <p class="text-sm text-slate-600" x-text="hasEquipmentFilters() ? '条件に一致する品はありません。' : @js($typeMeta[$type]['empty'])"></p>
+                                        <button type="button" x-show="hasEquipmentFilters()" @click="clearEquipmentFilters()" class="mt-3 rounded-lg border border-orange-200 bg-orange-50 px-4 py-2 text-sm font-bold text-orange-800 hover:bg-orange-100">絞り込み解除</button>
+                                    </div>
                                 </div>
                             </div>
                         @endforeach
