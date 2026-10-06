@@ -197,7 +197,7 @@
             </div>
         @endif
         @if (session('error'))
-            <div x-data="{ show: true }" x-show="show" class="bg-red-600 text-white px-4 py-3 shadow-md w-full relative z-50 flex justify-between items-center">
+            <div data-facility-error role="alert" tabindex="-1" x-data="{ show: true }" x-show="show" class="bg-red-600 text-white px-4 py-3 shadow-md w-full relative z-50 flex justify-between items-center">
                 <div class="flex items-center">
                     <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.72-1.36 3.485 0l5.58 9.92c.75 1.334-.214 2.981-1.742 2.981H4.42c-1.528 0-2.492-1.647-1.742-2.981l5.58-9.92zM11 13a1 1 0 10-2 0 1 1 0 002 0zm-1-7a1 1 0 00-1 1v3a1 1 0 102 0V7a1 1 0 00-1-1z" clip-rule="evenodd"></path></svg>
                     <span class="font-bold text-sm">{{ session('error') }}</span>

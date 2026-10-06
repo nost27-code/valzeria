@@ -1,6 +1,6 @@
 (() => {
     // Only browsing preferences are stored; never assets, selections or payment consent.
-    window.attachFacilityPageState = (component, scope, characterId, rules, afterRestore = () => {}) => {
+    window.attachFacilityPageState = (component, scope, characterId, rules, afterRestore = () => {}, { errorTarget = null } = {}) => {
         const key = `valzeria:${scope}:v1:${characterId}`;
         const clean = (values) => Object.fromEntries(Object.entries(rules).map(([name, rule]) => {
             const value = values?.[name];
@@ -21,6 +21,12 @@
             afterRestore();
             // Let Alpine apply filters and sorted cards before restoring the position.
             window.requestAnimationFrame(() => window.requestAnimationFrame(() => {
+                // A failed action must remain visible even when browsing was saved lower down.
+                if (errorTarget?.isConnected) {
+                    errorTarget.scrollIntoView({ block: 'center', behavior: 'auto' });
+                    errorTarget.focus({ preventScroll: true });
+                    return;
+                }
                 if (Number.isFinite(saved.scrollY) && saved.scrollY >= 0) window.scrollTo(0, saved.scrollY);
             }));
         });

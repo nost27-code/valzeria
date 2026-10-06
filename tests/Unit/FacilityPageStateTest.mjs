@@ -58,3 +58,22 @@ test('craft reload retains recipe quantities but clamps to current shared stock 
     assert.equal(rule({ beast: 1000 }).beast, 10);
     assert.equal(a.craftRule({ beast: 1000 })({ beast: 200 }).beast, 99);
 });
+
+test('craft failure focuses the reason instead of restoring a lower scroll position while preserving quantities', () => {
+    const saved = new Map([['valzeria:apothecary:v1:1', JSON.stringify({ values: { quantities: { beast: 7 } }, scrollY: 2400 })]]);
+    const a = browser(saved); const calls = [];
+    const errorTarget = { isConnected: true, scrollIntoView: options => calls.push(['scroll', options.block]), focus: options => calls.push(['focus', options.preventScroll]) };
+    const component = { ...a.component(), quantities: {}, useBank: false };
+    a.attach(component, 'apothecary', 1, { quantities: a.craftRule({ beast: 3 }) }, () => calls.push(['restore']), { errorTarget });
+    assert.equal(component.quantities.beast, 3); assert.equal(component.useBank, false);
+    assert.deepEqual(a.positions, []);
+    assert.deepEqual(calls, [['restore'], ['scroll', 'center'], ['focus', true]]);
+});
+test('a fresh failure is visible without saved browsing, while a detached error does not suppress normal restoration', () => {
+    const a = browser(); let focused = false;
+    a.attach(a.component(), 'apothecary', 1, a.rules, () => {}, { errorTarget: { isConnected: true, scrollIntoView() {}, focus() { focused = true; } } });
+    assert.equal(focused, true);
+    const b = browser(new Map([['valzeria:apothecary:v1:1', JSON.stringify({ values: {}, scrollY: 900 })]]));
+    b.attach(b.component(), 'apothecary', 1, b.rules, () => {}, { errorTarget: { isConnected: false } });
+    assert.deepEqual(b.positions, [900]);
+});

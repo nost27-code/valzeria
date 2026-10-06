@@ -7,7 +7,7 @@
     $remainingPercent = $activeSupport ? max(0, min(100, (int) round(($activeSupport['remaining'] / ($activeSupport['max_battles'] ?? 50)) * 100))) : 0;
 @endphp
 <x-layouts.facility :title="$title" :headerIconImage="$headerIconImage" :bgImage="$bgImage">
-    <script src="{{ asset('js/facilities/facility-page-state.js') }}?v=20261006"></script>
+    <script src="{{ asset('js/facilities/facility-page-state.js') }}?v=20261006-feedback1"></script>
     <div class="w-full mx-auto pb-10" x-data="{
         modalOpen: false,
         selected: null,
@@ -18,7 +18,7 @@
         init() {
             this.disposeBrowseState = window.attachFacilityPageState(this, 'apothecary', @js($character->id), {
                 quantities: window.facilityCraftQuantities(@js($craftLimits)),
-            });
+            }, () => {}, { errorTarget: document.querySelector('[data-facility-error]') });
         },
         destroy() { this.disposeBrowseState?.(); },
         handGold: {{ (int) ($character->money ?? 0) }},
