@@ -12,6 +12,9 @@ use RuntimeException;
 
 class NamelessRuinService
 {
+    /** @var array<string, array<int, int>> 連続探索内で深度別EXPを再計算しない。 */
+    private array $experienceCurves = [];
+
     public function __construct(private readonly MapExplorationRewardService $rewardReference) {}
 
     public function zones(): array
@@ -136,6 +139,31 @@ class NamelessRuinService
         return $stats + ['danger_rate' => 0, 'danger_label' => '遺跡 深度'.$depth, 'base_str' => $stats['str'], 'bonus_str' => 0, 'base_def' => $stats['def'], 'bonus_def' => 0, 'base_hp' => $stats['max_hp'], 'bonus_hp' => 0, 'durability_hp_multiplier' => 1, 'durability_def_spr_multiplier' => 1, 'durability_atk_mag_multiplier' => 1, 'durability_tier' => 'nameless_ruin'];
     }
 
+    public function experienceForDepth(array $zone, array $definition, int $depth, bool $boss): int
+    {
+        $maxDepth = (int) config('nameless_relics.max_depth');
+        if ($depth < 1 || $depth > $maxDepth) {
+            throw new RuntimeException('遺跡の深度が範囲外です。');
+        }
+        $multiplier = (float) config('nameless_relics.experience_depth_multiplier_at_max', 1.5);
+        $key = hash('sha256', serialize([
+            $boss ? $zone['bosses'] : $definition['profile'], $boss, $maxDepth, $multiplier,
+            config('nameless_relics.enemy_base'), config('nameless_relics.enemy_depth_growth'),
+            config('nameless_relics.enemy_depth_quadratic_growth'), config('nameless_relics.boss_stat_multiplier'),
+        ]));
+        if (! isset($this->experienceCurves[$key])) {
+            $baseExperiences = [];
+            for ($candidateDepth = 1; $candidateDepth <= $maxDepth; $candidateDepth++) {
+                $candidate = $boss ? $this->bossForDepth($zone, $candidateDepth) : $definition;
+                $enemy = new Enemy($this->enemyStats($candidate, $candidateDepth, $boss));
+                $baseExperiences[$candidateDepth] = $this->rewardReference->normalReferenceFor($enemy)['experience'];
+            }
+            $this->experienceCurves[$key] = app(NamelessRuinExperienceCurve::class)->build($baseExperiences, $multiplier);
+        }
+
+        return $this->experienceCurves[$key][$depth];
+    }
+
     public function fight(Character $character, string $zoneKey, int $depth, bool $boss, string $uuid, int $count = 1): array
     {
         $zone = $this->zones()[$zoneKey] ?? throw new RuntimeException('未知の遺跡です。');
@@ -231,8 +259,9 @@ class NamelessRuinService
         $enemyStats = $this->enemyStats($definition, $depth, $enemyBoss);
         $enemy->forceFill($enemyStats);
         $reference = $this->rewardReference->normalReferenceFor($enemy);
+        $experience = $depth === 1 ? $reference['experience'] : $this->experienceForDepth($zone, $definition, $depth, $enemyBoss);
         // 職業経験値のレベル差も、同程度の通常敵を基準にする。
-        $enemy->forceFill(['exp_reward' => $reference['experience'], 'gold_reward' => $reference['gold'],
+        $enemy->forceFill(['exp_reward' => $experience, 'gold_reward' => $reference['gold'],
             'job_exp_reward' => $reference['job_experience'], 'level' => $reference['level']]);
         $enemy->setRelation('actions', $enemyBoss ? $this->bossActions($definition) : collect());
         $battle = app(BattleService::class)->executeBattle($locked, $enemy, 0, [
