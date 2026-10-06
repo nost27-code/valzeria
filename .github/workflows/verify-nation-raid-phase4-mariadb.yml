@@ -100,6 +100,16 @@ jobs:
           coverage: none
       - name: Install PHP dependencies
         run: composer install --prefer-dist --no-interaction --no-progress
+      - name: Migrate the ephemeral test database
+        run: |
+          php artisan config:clear --no-ansi
+          php artisan migrate --force --no-interaction --no-ansi
+      - name: Verify Phase 4 with independent worker connections
+        shell: bash
+        run: php scripts/verify/nation-raid-phase4-mariadb.php all --confirm-isolated-database | tee nation-raid-phase4-result.json
+      - name: Verify complete MariaDB relic schema and preserved assets
+        shell: bash
+        run: php scripts/verify/nameless-schema-mariadb.php --confirm-isolated-database | tee nameless-schema-result.json
       # Feature regressions use the disposable MariaDB, not the legacy SQLite migration path.
       # DDL fault cases run separately in nameless-schema-mariadb.php; local SQLite tests retain column coverage.
       - name: Verify relic contracts and schema regression tests sequentially
@@ -115,16 +125,6 @@ jobs:
           php vendor/bin/phpunit tests/Feature/NamelessBattleIntegrationTest.php --colors=never
           php vendor/bin/phpunit tests/Feature/NationRaidLifecycleTest.php --colors=never
           php vendor/bin/phpunit tests/Feature/NationRaidSortieTest.php --filter 'test_(official_sortie|error_refunds|started_retry|snapshot_only|coordination_settlement|preparation_|retry_rolls|exhausted_settlement|lost_settlement|runtime_job)' --colors=never
-      - name: Migrate the ephemeral test database
-        run: |
-          php artisan config:clear --no-ansi
-          php artisan migrate --force --no-interaction --no-ansi
-      - name: Verify Phase 4 with independent worker connections
-        shell: bash
-        run: php scripts/verify/nation-raid-phase4-mariadb.php all --confirm-isolated-database | tee nation-raid-phase4-result.json
-      - name: Verify complete MariaDB relic schema and preserved assets
-        shell: bash
-        run: php scripts/verify/nameless-schema-mariadb.php --confirm-isolated-database | tee nameless-schema-result.json
       - name: Retain pass or failure evidence
         if: always()
         uses: actions/upload-artifact@v4

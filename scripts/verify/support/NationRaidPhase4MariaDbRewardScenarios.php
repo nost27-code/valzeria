@@ -245,6 +245,11 @@ trait NationRaidPhase4MariaDbRewardScenarios
             'rollback_then_retry_granted_once' => true];
     }
 
+    private function hasExclusiveOwnerLock(string $sql): bool
+    {
+        return preg_match('/\sfor update(?:\s+nowait)?\s*$/i', $sql) === 1;
+    }
+
     private function rewardWorker(array $job, string $directory): array
     {
         if ($job['op'] === 'reward_finalize') {
@@ -279,7 +284,7 @@ trait NationRaidPhase4MariaDbRewardScenarios
                     if ($ownerBarrierActive && $connection->transactionLevel() === 1
                         && preg_match('/^select\b.*\bfrom `characters`(?:\s|$)/i', $sql)
                         && (int) ($bindings[0] ?? 0) === (int) $job['character']) {
-                        $this->check(str_ends_with(strtolower($sql), 'for update'), 'First owner read must take an exclusive row lock.');
+                        $this->check($this->hasExclusiveOwnerLock($sql), 'First owner read must take an exclusive row lock.');
                         $ownerBarrierActive = false;
                         $ownerBarrierReached = true;
                         touch($directory.'/reward-owner-read-requested');
