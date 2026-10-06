@@ -139,6 +139,15 @@ jobs:
           php -d memory_limit=128M vendor/phpunit/phpunit/phpunit --log-junit reward-evidence/card.xml tests/Feature/AdventurerCardAdventureRecordsCacheTest.php
           php -d memory_limit=128M vendor/phpunit/phpunit/phpunit --log-junit reward-evidence/retention.xml tests/Feature/SecurityLoginRetentionTest.php
           php -d memory_limit=128M vendor/phpunit/phpunit/phpunit --filter 'test_scan_detects_rapid_battles_and_unexpected_job_exp_without_duplicate_cases$|test_scan_detects_abnormal_gold_and_shared_ip_without_storing_plain_ip$|test_busy_character_keeps_baseline_while_other_characters_are_scanned_and_next_scan_catches_growth$' --log-junit reward-evidence/security.xml tests/Feature/AdminSecurityAnomalyDetectionTest.php
+          printf '{}' > reward-evidence/rejected-plan.json
+          set +e
+          php -d memory_limit=128M scripts/maintenance/compensate-nameless-ruins.php --preview reward-evidence/rejected-plan.json --sha256 invalid > reward-evidence/rejected-plan.out 2> reward-evidence/rejected-plan.err
+          rejected_plan_status=$?
+          APP_ENV=local php -d memory_limit=128M scripts/verify/security-retention-concurrency.php > reward-evidence/rejected-environment.out 2> reward-evidence/rejected-environment.err
+          rejected_environment_status=$?
+          set -e
+          test "$rejected_plan_status" -eq 1
+          test "$rejected_environment_status" -eq 1
           php -d memory_limit=128M scripts/verify/security-retention-concurrency.php > reward-evidence/retention-concurrency.json
       - uses: actions/upload-artifact@v4
         if: always()
