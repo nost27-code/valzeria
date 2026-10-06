@@ -41,6 +41,30 @@ class ExplorationSupportLureTest extends TestCase
             ->assertDontSeeText('必要素材（1回で1個完成）');
     }
 
+    public function test_apothecary_display_and_restore_limits_match_the_existing_request_limit(): void
+    {
+        $this->withoutMiddleware(\App\Http\Middleware\CheckCharacterSelected::class);
+        $character = $this->createCharacter();
+        $recipes = app(ApothecaryService::class)->recipesFor($character);
+        foreach ($recipes as &$recipe) {
+            if ($recipe['code'] === 'lure_beast') {
+                $recipe['max_craft_count'] = 300;
+                $recipe['unlocked'] = true;
+            }
+        }
+        unset($recipe);
+        $mock = $this->mock(ApothecaryService::class);
+        $mock->shouldReceive('recipesFor')->once()->andReturn($recipes);
+        $mock->shouldNotReceive('craft');
+        $this->actingAs($character->user)->withSession(['current_character_id' => $character->id])
+            ->get(route('apothecary.index'))->assertOk()
+            ->assertSee('最大99回')->assertSee('max="99"', false)->assertDontSee('最大300回');
+        $money = (int) $character->money;
+        $this->from(route('apothecary.index'))->post(route('apothecary.craft'), ['recipe_code' => 'lure_beast', 'count' => 100])
+            ->assertRedirect(route('apothecary.index'))->assertSessionHasErrors('count');
+        $this->assertSame($money, (int) $character->fresh()->money);
+    }
+
     public function test_switching_support_items_preserves_each_opened_items_remaining_battles(): void
     {
         $this->withoutMiddleware(\App\Http\Middleware\CheckCharacterSelected::class);

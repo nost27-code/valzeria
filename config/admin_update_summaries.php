@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-10-06-storage-smith-apothecary-browsing',
+        'date' => '2026-10-06',
+        'category' => 'changed',
+        'title' => '倉庫の条件保持と合成・薬屋の操作を改善',
+        'detail' => '倉庫の検索条件・並び順・タブ・閲覧位置と薬屋の調合数量をキャラクターごとに保持。調合数量は最新の素材・Goldと既存の99個制限で補正し、銀行利用確認は毎回表示。合成一覧の一括取得と鍛冶の検索結果共用で重複読込を削減。DB・価格・確率の変更なし。',
+    ],
+    [
         'id' => '2026-10-06-warehouse-bulk-sale-performance',
         'date' => '2026-10-06',
         'category' => 'changed',

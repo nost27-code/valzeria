@@ -39,6 +39,7 @@
         @endphp
 
         <script src="{{ asset('js/inventory/inventory-material-sales.js') }}?v=20261006"></script>
+        <script src="{{ asset('js/facilities/facility-page-state.js') }}?v=20261006"></script>
         <script>
         (() => {
             const registerInventoryAlpine = () => {
@@ -213,23 +214,28 @@
                         });
                     },
                     init() {
-                        const storedTab = sessionStorage.getItem('inventoryStorageTab');
-                        const storedEquipmentTab = sessionStorage.getItem('inventoryEquipmentTab');
-                        if (['material', 'equipment', 'key'].includes(storedTab)) {
-                            this.storageTab = storedTab;
-                        }
-                        if (['weapon', 'armor', 'accessory'].includes(storedEquipmentTab)) {
-                            this.activeEquipmentTab = storedEquipmentTab;
-                        }
-                        sessionStorage.removeItem('inventoryStorageTab');
-                        sessionStorage.removeItem('inventoryEquipmentTab');
-                        this.$nextTick(() => {
+                        this.disposeBrowseState = window.attachFacilityPageState(this, 'inventory', @js($character->id), {
+                            storageTab: ['material', 'equipment', 'key'],
+                            activeMaterialTab: ['material'],
+                            activeEquipmentTab: ['weapon', 'armor', 'accessory'],
+                            materialQuery: (value) => typeof value === 'string' ? value.slice(0, 200) : '',
+                            equipmentQuery: (value) => typeof value === 'string' ? value.slice(0, 200) : '',
+                            materialPurpose: ['all', ...@js(array_column($materialPurposeFilters, 'key'))],
+                            materialCategory: ['all', ...@js(array_column($materialCategoryFilters, 'key'))],
+                            materialRarity: ['all', ...@js(array_column($materialRarityFilters, 'key'))],
+                            materialSort: ['name_asc', 'newest', 'quantity_desc', 'quantity_asc', 'category_asc', 'rarity_desc', 'rarity_asc'],
+                            equipmentStatus: ['all', 'equipped', 'locked', 'ready'],
+                            equipmentQuality: ['all', 'normal', 'good', 'excellent'],
+                            equipmentTrait: ['all', 'prefix', 'suffix', 'none'],
+                            equipmentSort: ['rank_desc', 'name_asc', 'newest', 'rank_asc', 'price_desc', 'price_asc', 'quality_desc', 'prefix_desc', 'suffix_desc', 'enhance_desc'],
+                        }, () => {
                             this.sortMaterialCards();
                             this.sortEquipmentCards();
                         });
                         this.$watch('materialSort', () => this.$nextTick(() => this.sortMaterialCards()));
                         this.$watch('equipmentSort', () => this.$nextTick(() => this.sortEquipmentCards()));
-                    }
+                    },
+                    destroy() { this.disposeBrowseState?.(); }
                 }"
                 @material-discarded="materialStorageTotal = Math.max(0, materialStorageTotal - Number($event.detail.quantity || 0)); assetTotal = Math.max(0, assetTotal - Number($event.detail.quantity || 0)); if ($event.detail.removed) materialStorageTypes = Math.max(0, materialStorageTypes - 1); $nextTick(() => sortMaterialCards());"
                 @materials-sold.window="handGold = Number($event.detail.money); materialStorageTotal = Math.max(0, materialStorageTotal - Number($event.detail.quantity || 0)); assetTotal = Math.max(0, assetTotal - Number($event.detail.quantity || 0)); materialStorageTypes = Math.max(0, materialStorageTypes - $event.detail.sales.filter(sale => sale.remaining_quantity <= 0).length); $nextTick(() => sortMaterialCards());"
@@ -1323,8 +1329,7 @@ async function bulkSellEquipment(csrfToken, sellUrl) {
 
         store.clear();
         store.confirmOpen = false;
-        sessionStorage.setItem('inventoryStorageTab', 'equipment');
-        sessionStorage.setItem('inventoryEquipmentTab', store.activeTab || 'weapon');
+        window.dispatchEvent(new Event('facility-state-save'));
         alert(data.message);
         window.location.reload();
     } catch (error) {

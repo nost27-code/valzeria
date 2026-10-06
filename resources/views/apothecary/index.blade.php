@@ -1,10 +1,13 @@
 @php
+    // Match the existing request limit; this is a display limit, not a recipe change.
+    $craftLimits = collect($recipes)->mapWithKeys(fn ($recipe) => [$recipe['code'] => min(99, max(0, (int) $recipe['max_craft_count']))])->all();
     $title = '薬屋';
     $headerIconImage = 'images/facilities/shop_item_symbol.webp';
     $bgImage = 'images/facilities/item.webp';
     $remainingPercent = $activeSupport ? max(0, min(100, (int) round(($activeSupport['remaining'] / ($activeSupport['max_battles'] ?? 50)) * 100))) : 0;
 @endphp
 <x-layouts.facility :title="$title" :headerIconImage="$headerIconImage" :bgImage="$bgImage">
+    <script src="{{ asset('js/facilities/facility-page-state.js') }}?v=20261006"></script>
     <div class="w-full mx-auto pb-10" x-data="{
         modalOpen: false,
         selected: null,
@@ -12,6 +15,12 @@
         activateSelected: null,
         clearModalOpen: false,
         quantities: {},
+        init() {
+            this.disposeBrowseState = window.attachFacilityPageState(this, 'apothecary', @js($character->id), {
+                quantities: window.facilityCraftQuantities(@js($craftLimits)),
+            });
+        },
+        destroy() { this.disposeBrowseState?.(); },
         handGold: {{ (int) ($character->money ?? 0) }},
         bankGold: {{ (int) ($character->bank_gold ?? 0) }},
         autoRenew: {{ $activeSupport && $activeSupport['auto_renew'] ? 'true' : 'false' }},
@@ -123,7 +132,8 @@
                 @foreach($recipes as $recipe)
                     @php
                         $recipeCode = $recipe['code'];
-                        $canCraft = $recipe['unlocked'] && $recipe['max_craft_count'] > 0;
+                        $maxCraftCount = $craftLimits[$recipeCode];
+                        $canCraft = $recipe['unlocked'] && $maxCraftCount > 0;
                         $cardClass = !$recipe['unlocked']
                             ? 'border-slate-200 bg-slate-50 opacity-70'
                             : ($canCraft ? 'border-emerald-200 bg-white' : 'border-slate-200 bg-white');
@@ -221,26 +231,26 @@
                                     <div class="flex items-center rounded-lg border border-slate-200 overflow-hidden bg-white shadow-sm">
                                         <button
                                             type="button"
-                                            @click="decreaseQuantity(@js($recipeCode), {{ $recipe['max_craft_count'] }})"
+                                            @click="decreaseQuantity(@js($recipeCode), {{ $maxCraftCount }})"
                                             :disabled="quantityFor(@js($recipeCode)) <= 1"
                                             class="w-8 h-8 flex items-center justify-center border-r border-slate-200 text-base font-black text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
                                         >-</button>
                                         <input
                                             type="number"
                                             min="1"
-                                            max="{{ $recipe['max_craft_count'] }}"
+                                            max="{{ $maxCraftCount }}"
                                             :value="quantityFor(@js($recipeCode))"
-                                            @input="setQuantity(@js($recipeCode), $event.target.value, {{ $recipe['max_craft_count'] }})"
+                                            @input="setQuantity(@js($recipeCode), $event.target.value, {{ $maxCraftCount }})"
                                             class="w-12 h-8 border-0 text-center text-sm font-black text-slate-900 focus:ring-0"
                                         >
                                         <button
                                             type="button"
-                                            @click="increaseQuantity(@js($recipeCode), {{ $recipe['max_craft_count'] }})"
-                                            :disabled="quantityFor(@js($recipeCode)) >= {{ $recipe['max_craft_count'] }}"
+                                            @click="increaseQuantity(@js($recipeCode), {{ $maxCraftCount }})"
+                                            :disabled="quantityFor(@js($recipeCode)) >= {{ $maxCraftCount }}"
                                             class="w-8 h-8 flex items-center justify-center border-l border-slate-200 text-base font-black text-amber-600 hover:bg-amber-50 disabled:opacity-40 disabled:cursor-not-allowed"
                                         >+</button>
                                     </div>
-                                    <span class="text-[10px] font-bold text-slate-400">最大{{ number_format($recipe['max_craft_count']) }}回</span>
+                                    <span class="text-[10px] font-bold text-slate-400">最大{{ number_format($maxCraftCount) }}回</span>
                                     <button
                                         type="button"
                                         class="ml-auto h-8 rounded-lg bg-emerald-600 px-4 text-sm font-bold text-white shadow-sm hover:bg-emerald-700 active:scale-[0.99] transition"

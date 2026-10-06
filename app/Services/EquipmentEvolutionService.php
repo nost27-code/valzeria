@@ -132,13 +132,14 @@ class EquipmentEvolutionService
         $ownedMaterials = $this->ownedMaterialMap($character);
         $discoveredItemIds = $this->discoveredItemIds($character);
         $candidates = [];
+        $displayContext = $this->candidateDisplayContext($character, $recipesByType);
 
         foreach ($recipesByType as $type => $recipes) {
             foreach ($recipes as $recipe) {
                 $candidates[] = match ($type) {
-                    'weapon' => $this->buildWeaponCandidate($character, $recipe, $ownedMaterials, $discoveredItemIds),
-                    'armor' => $this->buildArmorCandidate($character, $recipe, $ownedMaterials, $discoveredItemIds),
-                    'accessory' => $this->buildAccessoryCandidate($character, $recipe, $ownedMaterials, $discoveredItemIds),
+                    'weapon' => $this->buildWeaponCandidate($character, $recipe, $ownedMaterials, $discoveredItemIds, $displayContext),
+                    'armor' => $this->buildArmorCandidate($character, $recipe, $ownedMaterials, $discoveredItemIds, $displayContext),
+                    'accessory' => $this->buildAccessoryCandidate($character, $recipe, $ownedMaterials, $discoveredItemIds, $displayContext),
                 };
             }
         }
@@ -469,13 +470,51 @@ class EquipmentEvolutionService
         return $payload;
     }
 
-    private function buildWeaponCandidate(Character $character, object $recipe, array $ownedMaterials, array $discoveredItemIds): array
+    /** A per-call read snapshot for the list; execution always locks and reads current assets. */
+    private function candidateDisplayContext(Character $character, array $recipesByType): array
     {
-        $fromItem = $this->findActiveItem('weapon', $recipe->from_weapon_id);
-        $toItem = $this->findActiveItem('weapon', $recipe->to_weapon_id);
-        $ingredients = DB::table('weapon_evolution_recipe_ingredients')
-            ->where('recipe_id', $recipe->recipe_id)
-            ->get();
+        $definitions = [
+            'weapon' => ['from_weapon_id', 'to_weapon_id', 'recipe_id'],
+            'armor' => ['source_armor_id', 'target_armor_id', 'evolution_recipe_id'],
+            'accessory' => ['from_accessory_id', 'to_accessory_id', 'recipe_id'],
+        ];
+        $externalIds = [];
+        $sourceExternalIds = [];
+        $ingredients = [];
+        foreach ($recipesByType as $type => $recipes) {
+            [$from, $to, $key] = $definitions[$type];
+            $externalIds[$type] = $recipes->pluck($from)->merge($recipes->pluck($to))->unique()->all();
+            $sourceExternalIds[$type] = $recipes->pluck($from)->all();
+            $ingredients[$type] = $recipes->isEmpty() ? collect() : DB::table($type.'_evolution_recipe_ingredients')
+                ->whereIn($key, $recipes->pluck($key))->get()->groupBy($key);
+        }
+        $items = Item::query()->where('is_active', true)
+            ->where(function ($query) use ($externalIds) {
+                foreach ($externalIds as $type => $ids) {
+                    $query->orWhere(fn ($q) => $q->where('type', $type)->whereIn('external_item_id', $ids));
+                }
+            })->get()->groupBy(fn (Item $item) => $item->type.':'.$item->external_item_id)
+            ->map(fn (Collection $rows) => $rows->first());
+        $sourceIds = $items->filter(fn (Item $item) => in_array($item->external_item_id, $sourceExternalIds[$item->type] ?? []))
+            ->pluck('id');
+        $sources = $sourceIds->isEmpty() ? collect() : CharacterItem::query()
+            ->where('character_id', $character->id)->whereIn('item_id', $sourceIds)
+            ->with(['item', 'affixPrefix', 'affixSuffix'])
+            ->orderByDesc('is_equipped')->orderBy('enhance_level')->orderBy('created_at')->orderBy('id')
+            ->get()->groupBy('item_id');
+
+        return compact('items', 'ingredients', 'sources');
+    }
+
+    private function buildWeaponCandidate(Character $character, object $recipe, array $ownedMaterials, array $discoveredItemIds, ?array $displayContext = null): array
+    {
+        $fromItem = $displayContext === null ? $this->findActiveItem('weapon', (string) $recipe->from_weapon_id)
+            : $displayContext['items']->get('weapon:'.$recipe->from_weapon_id);
+        $toItem = $displayContext === null ? $this->findActiveItem('weapon', (string) $recipe->to_weapon_id)
+            : $displayContext['items']->get('weapon:'.$recipe->to_weapon_id);
+        $ingredients = $displayContext === null ? DB::table('weapon_evolution_recipe_ingredients')
+            ->where('recipe_id', $recipe->recipe_id)->get()
+            : $displayContext['ingredients']['weapon']->get($recipe->recipe_id, collect());
 
         $requiredEquipmentCount = 1;
 
@@ -520,17 +559,20 @@ class EquipmentEvolutionService
             $ownedMaterials,
             $this->recipeUnlockOk($character, $recipe),
             $this->recipeUnlockReason($character, $recipe),
-            $discoveredItemIds
+            $discoveredItemIds,
+            $displayContext['sources'] ?? null
         );
     }
 
-    private function buildArmorCandidate(Character $character, object $recipe, array $ownedMaterials, array $discoveredItemIds): array
+    private function buildArmorCandidate(Character $character, object $recipe, array $ownedMaterials, array $discoveredItemIds, ?array $displayContext = null): array
     {
-        $fromItem = $this->findActiveItem('armor', (string) $recipe->source_armor_id);
-        $toItem = $this->findActiveItem('armor', (string) $recipe->target_armor_id);
-        $ingredients = DB::table('armor_evolution_recipe_ingredients')
-            ->where('evolution_recipe_id', $recipe->evolution_recipe_id)
-            ->get();
+        $fromItem = $displayContext === null ? $this->findActiveItem('armor', (string) $recipe->source_armor_id)
+            : $displayContext['items']->get('armor:'.$recipe->source_armor_id);
+        $toItem = $displayContext === null ? $this->findActiveItem('armor', (string) $recipe->target_armor_id)
+            : $displayContext['items']->get('armor:'.$recipe->target_armor_id);
+        $ingredients = $displayContext === null ? DB::table('armor_evolution_recipe_ingredients')
+            ->where('evolution_recipe_id', $recipe->evolution_recipe_id)->get()
+            : $displayContext['ingredients']['armor']->get($recipe->evolution_recipe_id, collect());
 
         $materials = [];
         foreach ($ingredients as $ingredient) {
@@ -571,17 +613,20 @@ class EquipmentEvolutionService
             $ownedMaterials,
             $unlockOk,
             $this->recipeUnlockReason($character, $recipe),
-            $discoveredItemIds
+            $discoveredItemIds,
+            $displayContext['sources'] ?? null
         );
     }
 
-    private function buildAccessoryCandidate(Character $character, object $recipe, array $ownedMaterials, array $discoveredItemIds): array
+    private function buildAccessoryCandidate(Character $character, object $recipe, array $ownedMaterials, array $discoveredItemIds, ?array $displayContext = null): array
     {
-        $fromItem = $this->findActiveItem('accessory', (string) $recipe->from_accessory_id);
-        $toItem = $this->findActiveItem('accessory', (string) $recipe->to_accessory_id);
-        $ingredients = DB::table('accessory_evolution_recipe_ingredients')
-            ->where('recipe_id', $recipe->recipe_id)
-            ->get();
+        $fromItem = $displayContext === null ? $this->findActiveItem('accessory', (string) $recipe->from_accessory_id)
+            : $displayContext['items']->get('accessory:'.$recipe->from_accessory_id);
+        $toItem = $displayContext === null ? $this->findActiveItem('accessory', (string) $recipe->to_accessory_id)
+            : $displayContext['items']->get('accessory:'.$recipe->to_accessory_id);
+        $ingredients = $displayContext === null ? DB::table('accessory_evolution_recipe_ingredients')
+            ->where('recipe_id', $recipe->recipe_id)->get()
+            : $displayContext['ingredients']['accessory']->get($recipe->recipe_id, collect());
 
         $materials = [];
         foreach ($ingredients as $ingredient) {
@@ -626,7 +671,8 @@ class EquipmentEvolutionService
             $ownedMaterials,
             $unlockOk,
             $this->recipeUnlockReason($character, $recipe),
-            $discoveredItemIds
+            $discoveredItemIds,
+            $displayContext['sources'] ?? null
         );
     }
 
@@ -646,13 +692,16 @@ class EquipmentEvolutionService
         array $ownedMaterials,
         bool $unlockOk,
         ?string $unlockReason = null,
-        array $discoveredItemIds = []
+        array $discoveredItemIds = [],
+        ?Collection $sourceItemsByItemId = null
     ): array {
-        $sourceItems = $fromItem
+        $sourceItems = $sourceItemsByItemId !== null
+            ? $sourceItemsByItemId->get($fromItem?->id, collect())
+            : ($fromItem
             ? $this->evolutionSourceEquipmentQuery($character, $fromItem->id)
                 ->with(['item', 'affixPrefix', 'affixSuffix'])
                 ->get()
-            : collect();
+            : collect());
         $ownedEquipmentCount = $sourceItems->count();
         $ownedEnhancedEquipmentCount = $sourceItems->where('enhance_level', '>', 0)->count();
         $ownedSourceCount = $ownedEquipmentCount;

@@ -46,18 +46,19 @@ class SmithController extends Controller
             'status' => in_array($request->query('status'), ['equipped', 'locked', 'ready'], true) ? $request->query('status') : 'all',
             'quality' => in_array($request->query('quality'), ['normal', 'good', 'excellent'], true) ? $request->query('quality') : 'all',
         ];
-        $matchingEnhancementCount = $this->equipmentEnhancementService->browseCandidateCount($character, $initialType, $browseFilters);
         $enhanceLimit = max(20, min(
             max(20, $typeCounts[$initialType] ?? 0),
             (int) $request->query('limit', 20),
         ));
-        $enhancementCandidates = $this->equipmentEnhancementService->candidatesForType(
+        $browseResult = $this->equipmentEnhancementService->browseCandidates(
             $character,
             $initialType,
             $enhanceSort,
             $enhanceLimit,
             $browseFilters,
         );
+        $matchingEnhancementCount = $browseResult['count'];
+        $enhancementCandidates = $browseResult['candidates'];
         $candidateCount = array_sum($typeCounts);
         $hasMoreEnhancementCandidates = count($enhancementCandidates) < $matchingEnhancementCount;
         $goldSummary = app(BankService::class)->summary($character);

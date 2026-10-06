@@ -98,6 +98,30 @@ class EquipmentEnhancementCandidatePerformanceTest extends TestCase
             ->assertSee('検索対象ABC剣')->assertSee('品質：逸品')->assertDontSee('その他の剣');
     }
 
+    public function test_browse_counts_and_rows_share_one_name_search_and_keep_sort_and_limit(): void
+    {
+        $character = Character::create(['user_id' => User::factory()->create()->id, 'name' => '検索共通化試験']);
+        $item = Item::create(['name' => '共通ABC剣', 'type' => 'weapon', 'weapon_rank' => 'G', 'is_active' => true]);
+        foreach (range(1, 24) as $index) {
+            CharacterItem::create(['character_id' => $character->id, 'item_id' => $item->id, 'enhance_level' => $index]);
+        }
+        $service = app(EquipmentEnhancementService::class);
+        $filters = ['q' => '共通ＡＢＣ', 'status' => 'ready'];
+        DB::flushQueryLog();
+        DB::enableQueryLog();
+        $result = $service->browseCandidates($character, 'weapon', 'enhance_desc', 20, $filters);
+        $searchQueries = collect(DB::getQueryLog())->filter(fn ($query) => str_contains($query['query'], 'select "character_items".*')
+            && !str_contains($query['query'], '"character_items"."id" in'));
+        DB::disableQueryLog();
+        $this->assertCount(1, $searchQueries, 'Names must be scanned once, not once for count and again for display.');
+        $this->assertSame(24, $result['count']);
+        $this->assertCount(20, $result['candidates']);
+        $this->assertSame(range(24, 5), array_map(fn ($row) => (int) $row['character_item']->enhance_level, $result['candidates']));
+        $empty = $service->browseCandidates($character, 'weapon', 'recommended', 20, ['q' => '存在しない名前']);
+        $this->assertSame(['count' => 0, 'candidates' => []], $empty);
+        $this->assertSame(24, $service->browseCandidates($character, 'weapon', 'name_asc', 100)['count']);
+    }
+
     public function test_repeated_material_resolution_uses_the_request_cache(): void
     {
         Material::create([

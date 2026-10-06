@@ -197,7 +197,7 @@ link_public_directory() {
     mv -Tf "$destination.next" "$destination"
 }
 
-for directory in images tools contact_images js/field js/inventory; do
+for directory in images tools contact_images js/field js/inventory js/facilities; do
     link_public_directory "$directory"
 done
 

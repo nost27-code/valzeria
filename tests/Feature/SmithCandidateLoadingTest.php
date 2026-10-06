@@ -95,6 +95,35 @@ class SmithCandidateLoadingTest extends TestCase
         $this->assertCount(1, $after);
     }
 
+    public function test_owned_recipe_list_batches_masters_ingredients_and_source_instances(): void
+    {
+        $character = $this->character();
+        foreach (['weapon', 'armor', 'accessory'] as $type) {
+            foreach (range(1, 6) as $index) {
+                $this->recipe($character, $type, 'BATCH_'.$type.'_'.$index);
+            }
+        }
+        DB::flushQueryLog();
+        DB::enableQueryLog();
+        $candidates = app(EquipmentEvolutionService::class)->candidates($character);
+        $queries = collect(DB::getQueryLog())->pluck('query');
+        DB::disableQueryLog();
+
+        $this->assertCount(18, $candidates);
+        $this->assertCount(2, $queries->filter(fn ($sql) => str_contains($sql, 'from "items"')));
+        $this->assertCount(1, $queries->filter(fn ($sql) => str_contains($sql, 'from "character_items"') && str_contains($sql, '"item_id" in')));
+        foreach (['weapon', 'armor', 'accessory'] as $type) {
+            $this->assertCount(1, $queries->filter(fn ($sql) => str_contains($sql, 'from "'.$type.'_evolution_recipe_ingredients"')));
+            $rows = array_values(array_filter($candidates, fn ($row) => $row['equipment_type'] === $type));
+            $this->assertCount(6, $rows);
+            foreach ($rows as $row) {
+                $this->assertSame(1, $row['owned_source_count']);
+                $this->assertCount(1, $row['source_options']);
+                $this->assertSame($type, $row['from_item']->type);
+            }
+        }
+    }
+
     public function test_default_service_call_keeps_all_types_for_the_home_action(): void
     {
         $character = $this->character();

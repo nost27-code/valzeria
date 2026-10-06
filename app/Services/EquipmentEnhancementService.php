@@ -130,16 +130,34 @@ class EquipmentEnhancementService
         ];
     }
 
+    /** Count and display share one filtered query, including the instance-name search. */
+    public function browseCandidates(Character $character, string $type, string $sort, int $limit, array $filters = []): array
+    {
+        $query = CharacterItem::query()->select('character_items.*')
+            ->join('items', 'items.id', '=', 'character_items.item_id')
+            ->where('character_items.character_id', $character->id)->where('items.type', $type);
+        $this->applyBrowseFilters($query, $filters);
+
+        return [
+            'count' => (clone $query)->count(),
+            'candidates' => $this->candidatesFromQuery($character, $query, $sort, $limit),
+        ];
+    }
+
     public function candidatesForType(Character $character, string $type, string $sort, int $limit, array $filters = []): array
     {
-        $materials = $this->ownedMaterials($character);
-        $query = CharacterItem::with(['item', 'affixPrefix', 'affixSuffix'])
-            ->select('character_items.*')
+        $query = CharacterItem::query()->select('character_items.*')
             ->join('items', 'items.id', '=', 'character_items.item_id')
-            ->where('character_items.character_id', $character->id)
-            ->where('items.type', $type);
-
+            ->where('character_items.character_id', $character->id)->where('items.type', $type);
         $this->applyBrowseFilters($query, $filters);
+
+        return $this->candidatesFromQuery($character, $query, $sort, $limit);
+    }
+
+    private function candidatesFromQuery(Character $character, \Illuminate\Database\Eloquent\Builder $filteredQuery, string $sort, int $limit): array
+    {
+        $materials = $this->ownedMaterials($character);
+        $query = (clone $filteredQuery)->with(['item', 'affixPrefix', 'affixSuffix']);
 
         match ($sort) {
             'quality_desc' => $query
