@@ -6,6 +6,9 @@ on:
     paths:
       - '.github/workflows/verify-nameless-ruin-rewards-mariadb.yml'
       - 'app/Services/NamelessRuinService.php'
+      - 'app/Services/NamelessRuinExperienceCurve.php'
+      - 'tests/Unit/NamelessRuinExperienceCurveTest.php'
+      - 'tests/Unit/NamelessRuinDepthExperienceTest.php'
       - 'app/Services/NamelessBattleHistoryService.php'
       - 'app/Services/NamelessRuinCompensationService.php'
       - 'tests/Feature/NamelessRuinCompensationTest.php'
@@ -120,12 +123,19 @@ jobs:
           php -d memory_limit=128M vendor/phpunit/phpunit/phpunit --filter 'test_actual_ruin_boss_battle_awards_once_advances_only_its_zone_and_consumes_stamina$|test_fifty_ruin_battles_aggregate_relics_and_replay_without_extra_consumption$' --log-junit reward-evidence/prototype.xml tests/Feature/NamelessRelicPrototypeTest.php
           php -d memory_limit=128M vendor/phpunit/phpunit/phpunit --filter 'test_actual_ruin_defeat_has_no_drop_or_progress_and_persists_standard_defeat_resources$|test_boss_reappears_only_at_cleared_depth_without_unlocking_or_extra_stamina_cost$' --log-junit reward-evidence/ruin-encounters.xml tests/Feature/NamelessRelicPrototypeTest.php
           php -d memory_limit=128M vendor/phpunit/phpunit/phpunit --filter 'test_every_boss_can_be_fought_and_replayed_without_changing_reward_or_progress_rules$' --log-junit reward-evidence/boss.xml tests/Feature/NamelessRuinDepthBossTest.php
+      - name: Verify preserved depth experience changes sequentially
+        shell: bash
+        run: |
+          set -euo pipefail
+          php -d memory_limit=128M vendor/phpunit/phpunit/phpunit --log-junit reward-evidence/depth-curve-unit.xml tests/Unit/NamelessRuinExperienceCurveTest.php tests/Unit/NamelessRuinDepthExperienceTest.php
+          php -d memory_limit=128M vendor/phpunit/phpunit/phpunit --filter 'test_deep_repeated_victories_increase_only_experience_and_replay_once$|test_deep_boss_challenge_and_reencounter_use_the_same_experience$' --log-junit reward-evidence/depth-battle.xml tests/Feature/NamelessRuinRewardsTest.php
+          php -d memory_limit=128M vendor/phpunit/phpunit/phpunit --filter 'test_deep_goblin_uses_the_depth_curve_and_preserves_job_experience$' --log-junit reward-evidence/depth-goblin.xml tests/Feature/NamelessRuinRewardsTest.php
       - name: Verify historical compensation sequentially
         shell: bash
         run: |
           set -euo pipefail
           for filter in \
-            'test_plan_is_readonly_and_fixed_batch_rewards_replay_without_duplicate_history$|test_level_growth_preserves_hp_and_pays_the_current_job$|test_reward_reference_is_loaded_once_for_multiple_source_operations$' \
+            'test_plan_is_readonly_and_fixed_batch_rewards_replay_without_duplicate_history$|test_level_growth_preserves_hp_and_pays_the_current_job$|test_reward_reference_is_loaded_once_for_multiple_source_operations$|test_legacy_compensation_preserves_approved_reference_after_new_depth_curve_release$' \
             'test_capped_level_and_mastered_job_keep_caps_but_receive_gold_and_wins$|test_failed_gold_ledger_rolls_back_all_growth_and_can_retry_the_fixed_plan$' \
             'test_changed_source_and_changed_receipt_payload_are_rejected$|test_counter_only_history_does_not_pay_existing_rewards_again$|test_active_map_defers_repair_without_creating_a_receipt$|test_fallback_job_reward_uses_reference_level_and_fixed_draws_with_no_gold$' \
             'test_verified_switch_window_old_single_is_compensated_and_new_single_is_rejected$|test_reward_switch_window_zero_reward_is_paid_and_ambiguous_counter_batch_is_rejected$'; do

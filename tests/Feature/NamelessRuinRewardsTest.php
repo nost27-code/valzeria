@@ -184,6 +184,58 @@ class NamelessRuinRewardsTest extends TestCase
         $this->assertSame($result['job_exp_gained'], $this->jobExp($character));
     }
 
+    public function test_deep_repeated_victories_increase_only_experience_and_replay_once(): void
+    {
+        $character = $this->character();
+        NamelessRuinProgress::query()->create(['character_id' => $character->id, 'zone_key' => 'sand', 'unlocked_depth' => 100]);
+        $uuid = (string) Str::uuid();
+        $service = app(NamelessRuinService::class);
+        $result = $service->fight($character, 'sand', 100, false, $uuid, 3);
+
+        // The small fixed-reference fixture also exercises the minimum +1 per depth.
+        $this->assertSame(3 * (17 + 99), $result['exp_gained']);
+        $this->assertSame($result['exp_gained'], (int) $character->fresh()->exp);
+        $this->assertSame(6, $result['job_exp_gained']);
+        $this->assertSame(6, $this->jobExp($character));
+        $this->assertSame(3, $result['batch_explore']['completed']);
+        $this->assertSame(97, (int) $character->fresh()->explore_stamina);
+        $this->assertSame(10000 + $result['gold_gained'], (int) $character->fresh()->money);
+        $before = $character->fresh()->getAttributes();
+        $this->assertSame($result, $service->fight($character, 'sand', 100, false, $uuid, 3));
+        $this->assertSame($before, $character->fresh()->getAttributes());
+        $this->assertSame(6, $this->jobExp($character));
+    }
+
+    public function test_deep_boss_challenge_and_reencounter_use_the_same_experience(): void
+    {
+        $character = $this->character();
+        NamelessRuinProgress::query()->create(['character_id' => $character->id, 'zone_key' => 'sand', 'unlocked_depth' => 100]);
+        $service = app(NamelessRuinService::class);
+        $boss = $service->fight($character, 'sand', 100, true, (string) Str::uuid());
+        config(['nameless_relics.cleared_boss_encounter_bps' => 10000]);
+        $reencounter = $service->fight($character, 'sand', 100, false, (string) Str::uuid());
+
+        $this->assertSame('cleared_boss', $reencounter['encounter_kind']);
+        $this->assertSame(116, $boss['exp_gained']);
+        $this->assertSame($boss['exp_gained'], $reencounter['exp_gained']);
+        $this->assertSame(2, $boss['job_exp_gained']);
+        $this->assertSame(2, $reencounter['job_exp_gained']);
+        $this->assertSame(96, (int) $character->fresh()->explore_stamina);
+    }
+
+    public function test_deep_goblin_uses_the_depth_curve_and_preserves_job_experience(): void
+    {
+        $character = $this->character();
+        NamelessRuinProgress::query()->create(['character_id' => $character->id, 'zone_key' => 'sand', 'unlocked_depth' => 100]);
+        config(['nameless_relics.relic_goblin_encounter_bps' => 10000]);
+        $result = app(NamelessRuinService::class)->fight($character, 'sand', 100, false, (string) Str::uuid());
+
+        $this->assertSame('relic_goblin', $result['encounter_kind']);
+        $this->assertSame(116, $result['exp_gained']);
+        $this->assertSame(2, $result['job_exp_gained']);
+        $this->assertCount(10, $result['relic_drops']);
+    }
+
     private function character(): Character
     {
         $town = app(NamelessTownService::class)->installLocalTown();

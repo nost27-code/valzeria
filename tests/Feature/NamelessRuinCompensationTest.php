@@ -223,6 +223,20 @@ class NamelessRuinCompensationTest extends TestCase
         $this->plan($source, 1, 0);
     }
 
+    public function test_legacy_compensation_preserves_approved_reference_after_new_depth_curve_release(): void
+    {
+        $character = $this->character();
+        $service = app(NamelessRuinService::class);
+        $zone = $service->zones()['sand'];
+        $definition = $zone['enemies'][0];
+        $enemy = $service->enemyStats($definition, 100, false);
+        $source = $this->source($character, ['result' => 'victory', 'turn_count' => 1, 'exp_gained' => 0, 'boss' => false, 'enemy' => $enemy]);
+        $entry = $this->plan($source, 1, 1)['entries'][0];
+        $this->assertSame(116, $service->experienceForDepth($zone, $definition, 100, false));
+        $this->assertSame(17, $entry['rewards'][0]['experience']);
+        $this->assertSame(17, app(NamelessRuinCompensationService::class)->applyEntry($entry)['receipt']['experience_added']);
+    }
+
     private function character(): Character
     {
         $job = JobClass::query()->create(['key' => 'compensation-fixture', 'name' => '補填試験職', 'rank' => '一般職']);

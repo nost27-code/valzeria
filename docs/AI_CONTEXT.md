@@ -1,6 +1,6 @@
 # AI_CONTEXT.md
 
-- 名もなき鍛冶屋・遺跡・遺物は本番ON（2026-10-06 23:19 JST、2026-10-07読み戻し確認）。正式設定は`NAMELESS_RELICS_ENABLED`（既定OFF）。`NamelessWorkshopService::enabled()`は全環境で設定を読み、`ready()`は必要な列・型・制約・移行履歴の準備も要求する。対象5本の本番DB移行・工房街登録はOFFのまま完了済み。stagingはOFF・未準備を維持。今回の追加配備は`migration_mode=none`で、設定変更や再移行を行わない。遺跡は通常敵基準のEXP・Gold・職業EXPと累計勝敗を付与し、保存済みの専用台帳を週間番付と冒険者カードに合算する。旧未付与分の補填は明示承認済み対象の非公開固定計画を別台帳で一度だけ処理し、コード配備だけでは実行しない。公開・ロールバック手順は`docs/experiments/NAMELESS_RELIC_ACTIVATION.md`。実機スマホ・認証済み本番の実戦は未確認。
+- 名もなき鍛冶屋・遺跡・遺物は本番ON（2026-10-06 23:19 JST、2026-10-07読み戻し確認）。正式設定は`NAMELESS_RELICS_ENABLED`（既定OFF）。`NamelessWorkshopService::enabled()`は全環境で設定を読み、`ready()`は必要な列・型・制約・移行履歴の準備も要求する。対象5本の本番DB移行・工房街登録はOFFのまま完了済み。stagingはOFF・未準備を維持。今回の追加配備は`migration_mode=none`で、設定変更や再移行を行わない。遺跡の通常EXPは通常敵基準を下限に深度とともに増加し、Gold・職業EXPは通常敵基準のまま。累計勝敗を付与し、保存済みの専用台帳を週間番付と冒険者カードに合算する。旧未付与分の補填は不具合発生時の通常敵基準を使い、後の深度別EXP上昇を遡及せず、明示承認済み対象の非公開固定計画を別台帳で一度だけ処理し、コード配備だけでは実行しない。公開・ロールバック手順は`docs/experiments/NAMELESS_RELIC_ACTIVATION.md`。実機スマホ・認証済み本番の実戦は未確認。
 
 Purpose: compressed current-state snapshot for ChatGPT and Codex.
 Source of truth: current behavior = code / intended spec = DOMAIN_RULES.md + human rulings (see AGENTS.md "Source of truth"). On conflict, report 要裁定 — do not pick a side.

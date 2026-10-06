@@ -271,7 +271,7 @@ Weekly ranking catch-up: the daily 09:05 finalizer runs in automatic mode, walks
 - OFF準備: `NamelessPreparationService` / `nameless:prepare` / `nameless:install-town --prepare-off`。隔離MariaDB検証: `scripts/verify/nameless-mariadb.php`。
 - 塔・レイド遺物: `NamelessRelicBattleService`、`TowerBattleService`、`NationRaidPlayerPreparationService`、`NationRaidExistingPlayerDefenseApplier`。
 - 本体の収集・育成: `NamelessEquipmentCollectionService` / `NamelessEquipmentPowerService`。遺物共通装着・育成: `NamelessRelicEquipmentService` / `NamelessRelicGrowthService`。
-- 遺跡と深度別ボス: `NamelessRuinService` / `config/nameless_ruins.php` / `config/nameless_ruin_bosses.php`。画面は`resources/views/nameless-workshop/`。
+- 遺跡と深度別ボス: `NamelessRuinService` / `config/nameless_ruins.php` / `config/nameless_ruin_bosses.php`。深度別の通常EXP曲線は`NamelessRuinExperienceCurve`と`nameless_relics.experience_depth_multiplier_at_max`。画面は`resources/views/nameless-workshop/`。
 - 本番OFF・未migration境界: `tests/Feature/NamelessProductionOffTest.php`。運用境界: `docs/experiments/NAMELESS_RELIC_OFF_RELEASE.md`。
 
 

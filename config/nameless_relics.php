@@ -13,6 +13,7 @@ return [
     'equipment_drop_chance_bps' => 10, // 深度1の勝利ごとに0.1%。遺物とは別抽選、天井なし。
     'equipment_drop_depth_multiplier_at_max' => 10, // 2026-10-06人間裁定: 深度100で1%。中間は直線補間、0.01%単位。
     'max_depth' => 100,
+    'experience_depth_multiplier_at_max' => 1.5, // 2026-10-07人間裁定: 通常EXPのみ。従来EXPを下限に深度ごとに増加。
     'next_zone_unlock_depth' => 50, // 直前の遺跡の深度50ボス撃破で、次の遺跡を解放。
     'initial_forge_cap' => 10,
     'forge_cap_per_depth' => 5,
