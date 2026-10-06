@@ -7,7 +7,7 @@ use App\Models\ExplorationMap;
 
 class MapExplorationRewardService
 {
-    /** @var array<int, array{power:int,experience:int,gold:int}>|null */
+    /** @var array<int, array{power:int,experience:int,gold:int,level:int,job_experience:int}>|null */
     private ?array $referenceEnemies = null;
 
     public function __construct(private readonly CharacterPowerService $power) {}
@@ -36,7 +36,13 @@ class MapExplorationRewardService
         return ['experience' => $experience, 'gold' => $gold];
     }
 
-    /** @return array{power:int,experience:int,gold:int} */
+    /** 通常敵の基礎報酬だけを共有する。地図の追加倍率は適用しない。 */
+    public function normalReferenceFor(Enemy $enemy): array
+    {
+        return $this->closestReference($enemy);
+    }
+
+    /** @return array{power:int,experience:int,gold:int,level:int,job_experience:int} */
     private function closestReference(Enemy $enemy): array
     {
         $targetPower = $this->power->fromEnemyStats($enemy->getAttributes());
@@ -46,7 +52,7 @@ class MapExplorationRewardService
             ->firstOrFail();
     }
 
-    /** @return array<int, array{power:int,experience:int,gold:int}> */
+    /** @return array<int, array{power:int,experience:int,gold:int,level:int,job_experience:int}> */
     private function referenceEnemies(): array
     {
         if ($this->referenceEnemies !== null) {
@@ -62,6 +68,8 @@ class MapExplorationRewardService
                 'power' => $this->power->fromEnemyStats($reference->getAttributes()),
                 'experience' => max(1, (int) $reference->exp_reward),
                 'gold' => max(1, (int) $reference->gold_reward),
+                'level' => max(1, (int) $reference->level),
+                'job_experience' => max(0, (int) $reference->job_exp_reward),
             ])
             ->all();
 

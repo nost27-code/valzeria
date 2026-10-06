@@ -29,11 +29,14 @@ use Tests\TestCase;
 class NamelessRelicPrototypeTest extends TestCase
 {
     use RefreshDatabase;
+    use \Tests\Support\NamelessRuinRewardReferences;
     use \Tests\Support\SharedStorageFixtures;
 
     protected function setUp(): void
     {
         parent::setUp();
+        $this->installRuinRewardReference();
+        config(['gold.battle.normal_drop_rate' => 0, 'gold.battle.boss_drop_rate' => 0]);
         config(['nameless_relics.enabled' => true, 'app.key' => 'base64:'.base64_encode(str_repeat('n', 32))]);
         config(['nameless_relics.cleared_boss_encounter_bps' => 0, 'nameless_relics.relic_goblin_encounter_bps' => 0, 'nameless_relics.equipment_drop_chance_bps' => 0]);
         GameSetting::query()->updateOrCreate(['setting_key' => 'exploration.mode'], ['value' => 'stamina', 'value_type' => 'string']);
@@ -816,8 +819,8 @@ class NamelessRelicPrototypeTest extends TestCase
         $this->assertCount(50, $result['batch_explore']['runs']);
         $this->assertSame(50, (int) $character->fresh()->explore_stamina);
         $this->assertSame(10000, (int) $character->fresh()->money);
-        $this->assertSame(0, $result['batch_explore']['total_exp']);
-        $this->assertSame(0, $result['batch_explore']['total_job_exp']);
+        $this->assertSame(850, $result['batch_explore']['total_exp']);
+        $this->assertSame(100, $result['batch_explore']['total_job_exp']);
         $this->assertSame(1, (int) $result['unlocked_depth']);
         $this->assertSame($result, $service->fight($character, 'sand', 1, false, $uuid, 50));
         $this->assertSame(50, PlayerRelic::query()->count());
