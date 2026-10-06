@@ -283,6 +283,7 @@ class InventoryController extends Controller
         $keyItemCount = $keyItems->sum('quantity');
         $supportItemCount = $supportItems->sum('quantity');
         $ownedItemCount = $keyItemCount + $supportItemCount;
+        $capacity = $storageCapacityService->summaryFromOwnedTotals($character, (int) $materials->sum('quantity'), $weaponCount + $armorCount + $accessoryCount);
 
         $categories = [
             'material' => ['label' => '素材', 'count' => $materials->sum('quantity'), 'icon' => '💎', 'icon_image' => 'icon/icon_011.webp'],
@@ -292,12 +293,14 @@ class InventoryController extends Controller
         ];
 
         return [
-            'total' => collect($categories)->sum('count') + $ownedItemCount,
-            'material_storage_total' => (int) ($categories['material']['count'] ?? 0),
-            'material_storage_limit' => $storageCapacityService->materialLimit($character),
+            'total' => $capacity['material_total'] + $capacity['equipment_total'] + $ownedItemCount,
+            'material_storage_total' => $capacity['material_total'],
+            'material_storage_limit' => $capacity['material_limit'],
             'material_storage_types' => $materials->count(),
-            'equipment_storage_total' => $weaponCount + $armorCount + $accessoryCount,
-            'equipment_storage_limit' => $storageCapacityService->equipmentLimit($character),
+            'equipment_storage_total' => $capacity['equipment_total'],
+            'equipment_storage_limit' => $capacity['equipment_limit'],
+            'relic_total' => $capacity['relic_total'],
+            'nameless_equipment_total' => $capacity['nameless_equipment_total'],
             'key_item_total' => $ownedItemCount,
             'key_item_types' => $supportItems->count() + $keyItems->count(),
             'support_item_total' => $supportItemCount,

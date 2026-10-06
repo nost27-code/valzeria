@@ -29,6 +29,7 @@ use Tests\TestCase;
 class NamelessRelicPrototypeTest extends TestCase
 {
     use RefreshDatabase;
+    use \Tests\Support\SharedStorageFixtures;
 
     protected function setUp(): void
     {
@@ -171,8 +172,8 @@ class NamelessRelicPrototypeTest extends TestCase
     public function test_full_inventory_can_be_managed_before_the_introduction_weapon_is_claimed(): void
     {
         $character = $this->character();
-        config(['nameless_relics.equipment_inventory_limit' => 1]);
         $body = PlayerNamelessEquipment::query()->create(['character_id' => $character->id, 'kind' => 'weapon', 'equipment_type' => '剣', 'acquisition_source' => 'ruin']);
+        $this->reserveEquipmentSlots($character, 0);
         $this->actingAs($character->user)->withSession(['current_character_id' => $character->id])->withoutMiddleware(CheckCharacterSelected::class);
         $this->get(route('nameless-workshop.index'))->assertOk()->assertViewIs('nameless-workshop.index')
             ->assertSee('武具を保護・整理する');
@@ -414,8 +415,8 @@ class NamelessRelicPrototypeTest extends TestCase
     {
         $character = $this->character();
         $this->reject(fn () => app(NamelessRuinService::class)->fight($character, 'sand', 2, false, $this->uuid()), '未解放');
-        config(['nameless_relics.inventory_limit' => 1]);
-        $this->relic($character);
+                $this->relic($character);
+        $this->reserveMaterialSlots($character, 0);
         $this->reject(fn () => app(NamelessRuinService::class)->fight($character, 'sand', 1, false, $this->uuid()), '所持枠');
         $this->assertSame(100, $character->fresh()->explore_stamina);
         $this->assertSame(0, NamelessRuinProgress::query()->count());
@@ -483,7 +484,8 @@ class NamelessRelicPrototypeTest extends TestCase
         $this->assertNull($spare->fresh());
         $this->assertNotNull($best->fresh());
         $this->assertSame(0, $body->fresh()->growth_exp);
-        config(['nameless_relics.inventory_limit' => 2, 'nameless_relics.drop_chance_bps' => 10000]);
+        config(['nameless_relics.drop_chance_bps' => 10000]);
+        $this->reserveMaterialSlots($character, 1);
         $battle = app(NamelessRuinService::class)->fight($character, 'sand', 1, false, $this->uuid());
         $this->assertSame('victory', $battle['battle_result']);
         $this->assertNotNull($battle['drop']);
@@ -841,10 +843,11 @@ class NamelessRelicPrototypeTest extends TestCase
 
     public function test_full_bag_stops_batch_after_earned_drop_without_extra_battle(): void
     {
-        config(['nameless_relics.drop_chance_bps' => 10000, 'nameless_relics.inventory_limit' => 2]);
+        config(['nameless_relics.drop_chance_bps' => 10000]);
         $character = $this->character();
         $this->unlockThrough($character, 'water');
         $this->relic($character);
+        $this->reserveMaterialSlots($character, 1);
         $result = app(NamelessRuinService::class)->fight($character, 'water', 1, false, $this->uuid(), 10);
         $this->assertSame(1, $result['batch_explore']['completed']);
         $this->assertSame('error', $result['batch_explore']['stop_reason']);
@@ -1006,11 +1009,12 @@ class NamelessRelicPrototypeTest extends TestCase
 
     public function test_goblin_guarantees_ten_relics_with_zone_ranks_and_replays_once(): void
     {
-        config(['nameless_relics.relic_goblin_encounter_bps' => 10000, 'nameless_relics.drop_chance_bps' => 0, 'nameless_relics.inventory_limit' => 12]);
+        config(['nameless_relics.relic_goblin_encounter_bps' => 10000, 'nameless_relics.drop_chance_bps' => 0]);
         $character = $this->character();
         $this->unlockThrough($character, 'water');
         $this->relic($character);
         $this->relic($character);
+        $this->reserveMaterialSlots($character, 10);
         $uuid = $this->uuid();
         $service = app(NamelessRuinService::class);
         $result = $service->fight($character, 'water', 1, false, $uuid);
@@ -1032,8 +1036,9 @@ class NamelessRelicPrototypeTest extends TestCase
 
     public function test_batch_aggregates_all_goblin_rewards_and_stops_when_bag_fills(): void
     {
-        config(['nameless_relics.relic_goblin_encounter_bps' => 10000, 'nameless_relics.inventory_limit' => 30]);
+        config(['nameless_relics.relic_goblin_encounter_bps' => 10000]);
         $character = $this->character();
+        $this->reserveMaterialSlots($character, 30);
         $uuid = $this->uuid();
         $service = app(NamelessRuinService::class);
         $result = $service->fight($character, 'sand', 1, false, $uuid, 50);
@@ -1185,25 +1190,26 @@ class NamelessRelicPrototypeTest extends TestCase
         $this->reject(fn () => $this->workshop()->configure($character, $first->id, '剣', '変形', $this->uuid()), '種類は変更できません');
         $this->assertSame('星の杖', $first->fresh()->displayName());
         $this->actingAs($character->user)->withoutMiddleware(CheckCharacterSelected::class)
-            ->get(route('nameless-workshop.index', ['equipment' => $first->id]))->assertOk()->assertSee('星の杖')->assertSee('renamed-equipment', false)->assertSee('所持 2 / 60')->assertSee('名前を変更');
+            ->get(route('nameless-workshop.index', ['equipment' => $first->id]))->assertOk()->assertSee('星の杖')->assertSee('renamed-equipment', false)->assertSee('所持 2個')->assertSee('名前を変更');
     }
 
     public function test_equipment_capacity_stops_batch_and_keeps_earned_rewards_and_replay(): void
     {
-        config(['nameless_relics.equipment_inventory_limit' => 3, 'nameless_relics.equipment_drop_chance_bps' => 10000, 'nameless_relics.drop_chance_bps' => 10000]);
+        config(['nameless_relics.equipment_drop_chance_bps' => 10000, 'nameless_relics.drop_chance_bps' => 10000]);
         $character = $this->character();
         $this->unlockThrough($character, 'water');
         $this->body($character);
+        $this->reserveEquipmentSlots($character, 2);
         $uuid = $this->uuid();
         $service = app(NamelessRuinService::class);
         $result = $service->fight($character, 'water', 1, false, $uuid, 50);
         $this->assertSame(2, $result['batch_explore']['completed']);
         $this->assertCount(2, $result['nameless_equipment_drops']);
         $this->assertCount(2, $result['relic_drops']);
-        $this->assertStringContainsString('武具の所持枠', $result['batch_explore']['stop_text']);
+        $this->assertStringContainsString('装備倉庫の所持枠', $result['batch_explore']['stop_text']);
         $this->assertSame(98, (int) $character->fresh()->explore_stamina);
         $this->assertSame($result, $service->fight($character, 'water', 1, false, $uuid, 50));
-        $this->reject(fn () => $service->fight($character, 'water', 1, false, $this->uuid()), '武具の所持枠');
+        $this->reject(fn () => $service->fight($character, 'water', 1, false, $this->uuid()), '装備倉庫の所持枠');
         $this->assertSame(98, (int) $character->fresh()->explore_stamina);
         $this->assertSame(3, PlayerNamelessEquipment::query()->count());
         $this->actingAs($character->user)->withSession(['current_character_id' => $character->id]);
@@ -1460,13 +1466,14 @@ class NamelessRelicPrototypeTest extends TestCase
         for ($i = 0; $i < 59; $i++) {
             $last = $this->droppedBody($character);
         }
+        $this->reserveEquipmentSlots($character, 0);
         $last->update(['custom_name' => '育成中の最後の一本', 'is_locked' => true]);
         $this->actingAs($character->user)->withSession(['current_character_id' => $character->id])->withoutMiddleware(CheckCharacterSelected::class);
         $this->get(route('nameless-workshop.index', ['gear_query' => '最後の一本', 'gear_protection' => 'locked']))->assertOk()
             ->assertViewHas('filteredEquipment', fn ($rows) => $rows->keys()->all() === [$last->id])
             ->assertViewHas('selectedEquipment', fn ($body) => $body->id === $last->id)
             ->assertSee('条件に合う武具 1 / 所持 60 個')
-            ->assertSee('武具の所持枠がいっぱいです。');
+            ->assertSee('装備倉庫の所持枠がいっぱいです。');
     }
 
     public function test_direct_forge_consumes_only_required_materials_and_gold_once(): void

@@ -21,6 +21,7 @@ use Tests\TestCase;
 class NamelessRelicDiscardRecoveryTest extends TestCase
 {
     use RefreshDatabase;
+    use \Tests\Support\SharedStorageFixtures;
 
     protected function setUp(): void
     {
@@ -33,7 +34,7 @@ class NamelessRelicDiscardRecoveryTest extends TestCase
         app(GameSettingService::class)->flush();
     }
 
-    public function test_full_300_slot_bag_and_maxed_body_can_be_cleared_then_explored_in_production(): void
+    public function test_full_shared_material_storage_and_maxed_body_can_be_cleared_then_explored_in_production(): void
     {
         $this->app->instance('env', 'production');
         $character = $this->character();
@@ -45,6 +46,7 @@ class NamelessRelicDiscardRecoveryTest extends TestCase
         PlayerRelic::query()->insert($rows);
         $best = PlayerRelic::query()->create(['character_id' => $character->id, 'effect_key' => 'stat_def', 'rank' => 9]);
         $spare = PlayerRelic::query()->where('character_id', $character->id)->where('growth_progress', 1)->orderBy('id')->skip(1)->firstOrFail();
+        $this->reserveMaterialSlots($character, 0);
         $workshop = app(NamelessWorkshopService::class);
         $this->assertNotNull($workshop->inventoryBlockReason($character));
         $this->reject(fn () => app(NamelessRuinService::class)->fight($character, 'sand', 1, false, (string) Str::uuid()), '所持枠がいっぱい');

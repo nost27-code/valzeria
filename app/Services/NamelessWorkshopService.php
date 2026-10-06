@@ -275,13 +275,14 @@ class NamelessWorkshopService
         });
     }
 
-    public function inventoryBlockReason(Character $character): ?string
+    public function inventoryBlockReason(Character $character, ?array $storage = null): ?string
     {
-        if (app(NamelessEquipmentCollectionService::class)->freeSlots($character) === 0) {
-            return '名もなき武具の所持枠がいっぱいです。鍛冶屋で不要な武具を整理してください。';
+        $storage ??= app(StorageCapacityService::class)->summary($character);
+        if ($storage['equipment_full']) {
+            return '装備倉庫の所持枠がいっぱいです。倉庫や鍛冶屋で不要な武具を整理してください。';
         }
-        if (PlayerRelic::query()->where('character_id', $character->id)->count() >= (int) config('nameless_relics.inventory_limit')) {
-            return '遺物の所持枠がいっぱいです。鍛冶屋で余剰品を整理してください。';
+        if ($storage['material_full']) {
+            return '素材倉庫の所持枠がいっぱいです。素材を倉庫で、余剰遺物を鍛冶屋で整理してください。';
         }
         return null;
     }

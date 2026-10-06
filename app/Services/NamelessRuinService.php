@@ -160,14 +160,13 @@ class NamelessRuinService
             $last = [];
             $result = app(ExplorationService::class)->exploreRepeated($locked, 0, $count,
                 function (Character $runner) use ($zone, $zoneKey, $depth, &$drops, &$equipmentDrops, &$rareEncounters, &$runIndex, &$last): array {
-                    // A full bag stops before another battle, keeping already earned rewards.
-                    if ($last && PlayerRelic::query()->where('character_id', $runner->id)->count() >= (int) config('nameless_relics.inventory_limit')) {
-                        return $last + ['error' => '遺物の所持枠がいっぱいになりました。'];
+                    // A full shared warehouse stops before another battle, preserving earned rewards.
+                    $storage = app(StorageCapacityService::class)->summary($runner);
+                    $block = app(NamelessWorkshopService::class)->inventoryBlockReason($runner, $storage);
+                    if ($last && $block !== null) {
+                        return $last + ['error' => $block];
                     }
-                    if ($last && app(NamelessEquipmentCollectionService::class)->freeSlots($runner) === 0) {
-                        return $last + ['error' => '名もなき武具の所持枠がいっぱいになりました。'];
-                    }
-                    $last = $this->fightLocked($runner, $zone, $zoneKey, $depth, false);
+                    $last = $this->fightLocked($runner, $zone, $zoneKey, $depth, false, $storage);
                     $runIndex++;
                     $drops = array_merge($drops, $last['relic_drops']);
                     $equipmentDrops = array_merge($equipmentDrops, $last['nameless_equipment_drops']);
@@ -193,7 +192,7 @@ class NamelessRuinService
         });
     }
 
-    private function fightLocked(Character $locked, array $zone, string $zoneKey, int $depth, bool $boss): array
+    private function fightLocked(Character $locked, array $zone, string $zoneKey, int $depth, bool $boss, ?array $storage = null): array
     {
         $progress = NamelessRuinProgress::query()->firstOrCreate(['character_id' => $locked->id, 'zone_key' => $zoneKey], ['unlocked_depth' => 1]);
         if ($depth < 1 || $depth > $progress->unlocked_depth || $depth > (int) config('nameless_relics.max_depth')) {
@@ -205,14 +204,13 @@ class NamelessRuinService
         if ($locked->exploration_cooldown_until && now()->lt($locked->exploration_cooldown_until)) {
             throw new RuntimeException('休息が必要です。宿屋で回復してください。');
         }
-        $freeSlots = max(0, (int) config('nameless_relics.inventory_limit') - PlayerRelic::query()->where('character_id', $locked->id)->count());
-        if ($freeSlots === 0) {
-            throw new RuntimeException('遺物の所持枠がいっぱいです。不要な遺物を吸収するか、一覧から余剰品を破棄してください。');
+        $storage ??= app(StorageCapacityService::class)->summary($locked);
+        $block = app(NamelessWorkshopService::class)->inventoryBlockReason($locked, $storage);
+        if ($block !== null) {
+            throw new RuntimeException($block);
         }
+        $freeSlots = $storage['material_free'];
         $collection = app(NamelessEquipmentCollectionService::class);
-        if ($collection->freeSlots($locked) === 0) {
-            throw new RuntimeException('名もなき武具の所持枠がいっぱいです。鍛冶屋で不要な武具を整理してください。');
-        }
         $stamina = app(ExplorationStaminaService::class);
         // 探索力が無効の環境では、無制限の資源生成にならないよう試作探索を開始しない。
         if (! $stamina->enabled()) {
@@ -247,7 +245,7 @@ class NamelessRuinService
                 $relic = PlayerRelic::query()->create(['character_id' => $locked->id, 'effect_key' => $zone['effects'][random_int(0, count($zone['effects']) - 1)], 'rank' => $rank]);
                 $drops[] = ['id' => $relic->id, 'name' => $relic->displayName(), 'summary' => $relic->effectSummary(), 'effect_key' => $relic->effect_key, 'rank' => $rank];
             }
-            if ($collection->dropsForTicket(random_int(1, 10000))) {
+            if ($collection->dropsForTicket(random_int(1, 10000), $depth)) {
                 $equipmentDrops[] = $collection->awardLocked($locked);
             }
             if ($boss && $depth === (int) $progress->unlocked_depth && $depth < (int) config('nameless_relics.max_depth')) {

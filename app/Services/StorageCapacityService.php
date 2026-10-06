@@ -7,6 +7,8 @@ use App\Models\CharacterItem;
 use App\Models\CharacterMaterial;
 use RuntimeException;
 use App\Support\MaterialInventoryRules;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class StorageCapacityService
 {
@@ -34,18 +36,41 @@ class StorageCapacityService
             ->reject(fn (CharacterItem $row) => $this->isKeyItem($row))
             ->count();
 
+        return $this->summaryFromOwnedTotals($character, (int) $materialTotal, (int) $equipmentTotal);
+    }
+
+    /** Reuse collections already read for the warehouse; execution calls summary() for current assets. */
+    public function summaryFromOwnedTotals(Character $character, int $materialTotal, int $equipmentTotal): array
+    {
+        $additional = $this->namelessOwnedTotals($character);
+        $materialTotal += $additional['relic_total'];
+        $equipmentTotal += $additional['nameless_equipment_total'];
         $cityClearBonusCount = $this->cityClearStorageBonusCount($character);
         $materialLimit = $this->materialLimitForBonusCount($character, $cityClearBonusCount);
         $equipmentLimit = $this->equipmentLimitForBonusCount($character, $cityClearBonusCount);
 
-        return [
-            'material_total' => (int) $materialTotal,
+        return $additional + [
+            'material_total' => $materialTotal,
             'material_limit' => $materialLimit,
-            'equipment_total' => (int) $equipmentTotal,
+            'equipment_total' => $equipmentTotal,
             'equipment_limit' => $equipmentLimit,
-            'material_full' => $materialLimit > 0 && (int) $materialTotal >= $materialLimit,
-            'equipment_full' => $equipmentLimit > 0 && (int) $equipmentTotal >= $equipmentLimit,
+            'material_free' => max(0, $materialLimit - $materialTotal),
+            'equipment_free' => max(0, $equipmentLimit - $equipmentTotal),
+            'material_full' => $materialLimit > 0 && $materialTotal >= $materialLimit,
+            'equipment_full' => $equipmentLimit > 0 && $equipmentTotal >= $equipmentLimit,
         ];
+    }
+
+    /** Count stored assets even when OFF; absent prototype tables/owner columns must not break ordinary play. */
+    private function namelessOwnedTotals(Character $character): array
+    {
+        $totals = [];
+        foreach (['player_nameless_equipments' => 'nameless_equipment_total', 'player_relics' => 'relic_total'] as $table => $key) {
+            $totals[$key] = Schema::hasColumn($table, 'character_id')
+                ? DB::table($table)->where('character_id', $character->id)->count() : 0;
+        }
+
+        return $totals;
     }
 
     public function isFull(Character $character): bool
@@ -80,12 +105,19 @@ class StorageCapacityService
         $inventoryUrl = route('inventory.index');
         $supportUrl = route('kiseki.support');
 
+        $workshopLink = '';
+        if ((($summary['relic_total'] ?? 0) > 0 || ($summary['nameless_equipment_total'] ?? 0) > 0)
+            && app(NamelessWorkshopService::class)->ready()) {
+            $workshopLink = ' 名もなき武具・遺物の整理は<a href="'.e(route('nameless-workshop.index')).'" class="underline underline-offset-2 font-extrabold">鍛冶屋</a>で行えます。';
+        }
+
         return '倉庫がいっぱいです。探索する前に'
             . '<a href="' . e($inventoryUrl) . '" class="underline underline-offset-2 font-extrabold">倉庫の整理</a>'
             . 'をしてください。倉庫の拡張は'
             . '<a href="' . e($supportUrl) . '" class="underline underline-offset-2 font-extrabold">こちら</a>'
             . 'で行えます。'
-            . $details;
+            . $details
+            . $workshopLink;
     }
 
     public function materialLimit(Character $character): int

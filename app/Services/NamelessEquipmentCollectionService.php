@@ -32,17 +32,30 @@ class NamelessEquipmentCollectionService
 
     public function freeSlots(Character $character): int
     {
-        return max(0, (int) config('nameless_relics.equipment_inventory_limit')
-            - PlayerNamelessEquipment::query()->where('character_id', $character->id)->count());
+        return app(StorageCapacityService::class)->summary($character)['equipment_free'];
     }
 
-    public function dropsForTicket(int $ticket): bool
+    public function dropChanceBpsAtDepth(int $depth): int
     {
-        $rate = (int) config('nameless_relics.equipment_drop_chance_bps');
-        if ($ticket < 1 || $ticket > 10000 || $rate < 0 || $rate > 10000) {
+        $base = (int) config('nameless_relics.equipment_drop_chance_bps');
+        $multiplier = (float) config('nameless_relics.equipment_drop_depth_multiplier_at_max', 1);
+        if ($base < 0 || $base > 10000 || ! is_finite($multiplier) || $multiplier < 1) {
             throw new RuntimeException('武具の抽選設定が不正です。');
         }
-        return $ticket <= $rate;
+        $maxDepth = max(1, (int) config('nameless_relics.max_depth'));
+        $progress = (max(1, min($depth, $maxDepth)) - 1) / max(1, $maxDepth - 1);
+
+        // 0%/100%の隔離検証設定も維持する。1枚の抽選につき武具は最大1個。
+        return (int) min(10000, round($base * (1 + ($multiplier - 1) * $progress)));
+    }
+
+    public function dropsForTicket(int $ticket, int $depth = 1): bool
+    {
+        if ($ticket < 1 || $ticket > 10000) {
+            throw new RuntimeException('武具の抽選設定が不正です。');
+        }
+
+        return $ticket <= $this->dropChanceBpsAtDepth($depth);
     }
 
     /** 遺跡勝利時のみ呼ぶ。呼出元の操作transactionでキャラクター行をロック済み。 */

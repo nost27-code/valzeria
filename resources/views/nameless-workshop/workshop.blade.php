@@ -60,7 +60,7 @@
         <form method="post" action="{{ route('nameless-workshop.act', 'claim') }}" class="stack">
             @include('nameless-workshop.token')<input type="hidden" name="kind" value="{{ $kind }}">
             <label>形<select name="type">@foreach($types[$kind] as $type => $stat)<option value="{{ $type }}">{{ $type }}（{{ $stat['label'] }}）</option>@endforeach</select></label>
-            <button class="full" @disabled($equipment->count() >= config('nameless_relics.equipment_inventory_limit'))>無料で受け取る</button>
+            <button class="full" @disabled($storageSummary['equipment_free'] === 0)>無料で受け取る</button>
         </form>
     </section>
     @endif
@@ -70,10 +70,11 @@
     <details class="card" @if($selectedRelicGrowth) open @endif><summary>所持遺物を育成・整理する（{{ $relics->count() }}個）</summary>@include('nameless-workshop.relics')</details>
 @endif
 <section class="card stack" data-nameless-collection>
-    <div class="row between"><h2>武具の入手 {{ $collection['acquired_count'] }}／{{ $collection['total'] }}</h2><span class="badge">所持 {{ $equipment->count() }} / {{ config('nameless_relics.equipment_inventory_limit') }}</span></div>
+    <div class="row between"><h2>武具の入手 {{ $collection['acquired_count'] }}／{{ $collection['total'] }}</h2><span class="badge">所持 {{ $equipment->count() }}個</span></div>
     <details><summary>入手した種類を見る</summary>
     <p class="muted">初期配布を含む所持中の種類と、遺跡で拾った記録を表示します。初期配布の形を変えると所持分の表示も変わります。遺跡の入手記録は強化・命名・破棄後も残ります。</p>
     <div class="collection-art">@foreach($collection['types'] as $type => $entry)<span class="badge {{ in_array($type, $collection['acquired'], true) ? 'gold' : '' }}" data-nameless-collection-type="{{ $type }}">@if($image = config('nameless_equipment_images.'.$entry['kind'].'.'.$type))<img src="{{ asset($image) }}" alt="" width="300" height="300" loading="lazy" decoding="async">@endif{{ in_array($type, $collection['acquired'], true) ? '入手済み' : '未入手' }} {{ $type }}</span>@endforeach</div>
     </details>
-    @if($equipment->count() >= config('nameless_relics.equipment_inventory_limit'))<p class="error">武具の所持枠がいっぱいです。探索を始める前に不要な武具を整理してください。</p>@endif
+    <p class="muted">装備倉庫 {{ number_format($storageSummary['equipment_total']) }} / {{ number_format($storageSummary['equipment_limit']) }} · 通常装備と共通の枠を使います。</p>
+    @if($storageSummary['equipment_full'])<p class="error">装備倉庫の所持枠がいっぱいです。倉庫や鍛冶屋で不要な武具を整理してください。</p>@endif
 </section>

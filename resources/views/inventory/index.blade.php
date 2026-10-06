@@ -280,6 +280,7 @@
                         <div class="flex items-start justify-between gap-3">
                             <div>
                                 <div class="text-xs font-extrabold text-emerald-700 flex items-center gap-1"><img src="{{ asset('images/icon/icon_011.webp') }}" alt="" class="w-4 h-4 object-contain"> 素材倉庫</div>
+                                @if(config('nameless_relics.enabled') && ($storageSummary['relic_total'] ?? 0) > 0)<p class="mt-1 text-[10px] text-slate-500">遺物{{ number_format($storageSummary['relic_total']) }}個を含みます。<a @click.stop @keydown.enter.stop href="{{ route('nameless-workshop.index') }}" class="underline">鍛冶屋で整理</a></p>@endif
                                 <div class="mt-1 flex flex-wrap items-end gap-x-2 gap-y-1">
                                     <div class="text-2xl font-black text-slate-900"><span x-text="materialStorageTotal.toLocaleString()"></span> / {{ number_format($storageSummary['material_storage_limit'] ?? 500) }}</div>
                                     <button
@@ -320,6 +321,7 @@
                         <div class="flex items-start justify-between gap-3">
                             <div>
                                 <div class="text-xs font-extrabold text-amber-700 flex items-center gap-1"><img src="{{ asset('images/icon/icon_006.webp') }}" alt="" class="w-4 h-4 object-contain"> 装備一覧</div>
+                                @if(config('nameless_relics.enabled') && ($storageSummary['nameless_equipment_total'] ?? 0) > 0)<p class="mt-1 text-[10px] text-slate-500">名もなき武具{{ number_format($storageSummary['nameless_equipment_total']) }}個を含みます。<a @click.stop @keydown.enter.stop href="{{ route('nameless-workshop.index') }}" class="underline">鍛冶屋で整理</a></p>@endif
                                 <div class="mt-1 flex flex-wrap items-end gap-x-2 gap-y-1">
                                     <div class="text-2xl font-black text-slate-900">{{ number_format($storageSummary['equipment_storage_total']) }} / {{ number_format($storageSummary['equipment_storage_limit'] ?? 300) }}</div>
                                     <button

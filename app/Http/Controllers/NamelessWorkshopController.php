@@ -59,15 +59,16 @@ class NamelessWorkshopController extends Controller
         $list = app(NamelessEquipmentListService::class);
         $equipmentFilters = $list->normalize($request->only(array_keys(NamelessEquipmentListService::DEFAULTS)));
         $equipmentFilterQuery = $list->query($equipmentFilters);
+        $storageSummary = app(\App\Services\StorageCapacityService::class)->summary($character);
         $receiptConversation = $request->query('conversation') === 'received';
         $receivedEquipment = $receiptConversation && $selectedBody !== null ? $equipment->get((int) $selectedBody) : null;
         if ($receiptConversation) {
             abort_unless($receivedEquipment?->kind === 'weapon' && $receivedEquipment->acquisition_source === 'starter', 404);
         }
         if ($receiptConversation || ($tab === 'workshop' && $selectedBody === null && $workshop->needsIntroduction($character)
-            && $equipment->count() < (int) config('nameless_relics.equipment_inventory_limit'))) {
+            && $storageSummary['equipment_free'] > 0)) {
             return response()->view('nameless-workshop.introduction', [
-                'namelessTown' => $namelessTown,
+                'namelessTown' => $namelessTown, 'storageSummary' => $storageSummary,
                 'smith' => NpcMaster::query()->findOrFail(14), // 既存の鍛冶屋NPC「鉄槌のガンツ」。
                 'weaponTypes' => NamelessEquipmentService::statOptionsFor('weapon'),
                 'receivedEquipment' => $receivedEquipment,
@@ -118,7 +119,8 @@ class NamelessWorkshopController extends Controller
             'equipmentFilterQuery' => $equipmentFilterQuery,
             'starterKinds' => $equipment->where('acquisition_source', 'starter')->pluck('kind')->all(),
             'collection' => app(NamelessEquipmentCollectionService::class)->summary($character),
-            'inventoryBlockReason' => $workshop->inventoryBlockReason($character),
+            'inventoryBlockReason' => $workshop->inventoryBlockReason($character, $storageSummary),
+            'storageSummary' => $storageSummary,
             'inventoryCapacityChecked' => true,
             'effects' => $catalog->all(), 'catalog' => $catalog, 'workshop' => $workshop,
             'effectGroups' => $catalog->grouped(),

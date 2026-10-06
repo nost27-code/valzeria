@@ -80,7 +80,7 @@
                             <label class="weapon"><input type="radio" name="type" value="{{ $type }}" required @checked(old('type') === $type)><span>@if($image = config('nameless_equipment_images.weapon.'.$type))<img src="{{ asset($image) }}" alt="" width="300" height="300" loading="lazy" decoding="async">@endif<strong>名もなき{{ $type }}</strong><small>{{ $stat['label'] }} +{{ \App\Services\NamelessEquipmentService::powerFor(0) }}</small></span></label>
                         @endforeach
                     </fieldset>
-                    <button class="receive">この武器を受け取る</button>
+                    <button class="receive" @disabled($storageSummary['equipment_free'] === 0)>この武器を受け取る</button>
                 </form>
             </section>
             @endif

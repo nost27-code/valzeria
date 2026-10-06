@@ -8,10 +8,10 @@ return [
         ? env('NAMELESS_RELICS_LOCAL_ENABLED', false) : false),
     'slots_per_equipment' => 3,
     'ordinary_equipment_slots' => ['SSS' => 2, 'EPIC' => 3], // 2026-10-05人間裁定: 武器・防具・装飾品。
-    'inventory_limit' => 300,
     'growth_copies' => [1 => 3, 3, 3, 3, 3, 3, 5, 5], // 本体込み。I〜VIは3個、VII〜VIIIは5個で次ランクへ。
-    'equipment_inventory_limit' => 60, // ローカル試作値。初期配布も含む。正式公開時は要裁定。
-    'equipment_drop_chance_bps' => 10, // 遺跡勝利ごとに0.1%。遺物とは別抽選、天井なし。
+    // 2026-10-06人間裁定: 武具は装備倉庫、遺物は素材倉庫の共通残枠を使用（装着済みも計上）。
+    'equipment_drop_chance_bps' => 10, // 深度1の勝利ごとに0.1%。遺物とは別抽選、天井なし。
+    'equipment_drop_depth_multiplier_at_max' => 10, // 2026-10-06人間裁定: 深度100で1%。中間は直線補間、0.01%単位。
     'max_depth' => 100,
     'next_zone_unlock_depth' => 50, // 直前の遺跡の深度50ボス撃破で、次の遺跡を解放。
     'initial_forge_cap' => 10,
