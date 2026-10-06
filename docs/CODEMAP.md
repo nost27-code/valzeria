@@ -1,5 +1,13 @@
 # CODEMAP.md
 
+## Relic approval and schema integrity (2026-10-06, unreleased)
+
+- `NamelessSchemaService`: canonical read-only tables/columns/types/defaults/constraints and migration ledger checks shared by `NamelessWorkshopService` and `NamelessPreparationService`.
+- `Nation/Raid/NationRaidRelicRules`, `NationRaidRules`, event/sortie/preparation/combat/settlement services: approved relic contract, hash, frozen actor capture and replay-safe combat.
+- Raid simulation builder/validator/projector: contract-bearing artifacts and profile model v2; outdated artifacts rejected.
+- `NationRaidAdmissionBusyException`, `scripts/verify/support/NationRaidPhase4MariaDbHarness.php`: typed NOWAIT refusal, strict race outcomes, resource/ledger/reward invariants.
+- `scripts/verify/nameless-schema-mariadb.php`, `NamelessSchemaReadinessTest`, `NationRaidRelicRulesIntegrationTest`, `NationRaidAdmissionOutcomeTest`, `.github/workflows/verify-nation-raid-phase4-mariadb.yml`: serial isolated verification; no production deployment.
+
 ## Silver Week exploration stamina
 
 `config/exploration_stamina_campaign.php` defines the JST window, 45-second recovery, and +500 cap bonus. `config/silver_week_extension_pass.php` and `SilverWeekExtensionPassService` continue the same rate/cap as an independent paid pass after 2026-09-24 00:00 JST. `ExplorationStaminaService` composes the regular pass +250 separately, takes the maximum Silver-family +500 bonus instead of stacking it, and splits elapsed recovery at campaign/pass boundaries. `ExplorationStaminaCampaignTest`, `ExplorationStaminaServiceTest`, and `SilverWeekExtensionPassTest` cover exact boundaries, persisted recovery, and post-event overflow.

@@ -86,6 +86,8 @@ final class NationRaidPhase4MariaDbHarness
 
         $this->scenario('same_token_admission_and_settlement', fn () => $this->duplicate());
         $this->scenario('different_tokens_one_pending', fn () => $this->onePending());
+        $this->scenario('nowait_owner_refusal_preserves_assets_and_retries', fn () => $this->ownerBusy());
+        $this->scenario('unexpected_admission_error_fails_worker', fn () => $this->unexpectedAdmissionError());
         $this->scenario('free_then_voluntary_cost_and_refund', fn () => $this->sortieCosts());
         $this->scenario('player_capture_releases_global_admission_lock', fn () => $this->captureConcurrency());
         $this->scenario('concurrent_carry_and_nation_coordination', fn () => $this->coordination($citizens));
@@ -144,6 +146,59 @@ final class NationRaidPhase4MariaDbHarness
         return ['admission_rows' => 1, 'applied_damage' => 11_111, 'cost_type' => 'daily_free', 'stamina_spent' => 0];
     }
 
+    private function unexpectedAdmissionError(): array
+    {
+        $character = $this->character();
+        $before = $character->fresh()->getRawOriginal();
+        try {
+            $this->race([['op' => 'start', 'character' => $character->id, 'token' => 'invalid-token']]);
+            $this->check(false, 'Unexpected DomainException was treated as success.');
+        } catch (RuntimeException $exception) {
+            $prefix = 'Worker failed: ';
+            $failure = str_starts_with($exception->getMessage(), $prefix)
+                ? json_decode(substr($exception->getMessage(), strlen($prefix)), true) : null;
+            $this->check(is_array($failure) && ($failure['pass'] ?? null) === false
+                && ($failure['error_class'] ?? null) === DomainException::class
+                && ($failure['database_error_code'] ?? null) === null, 'Expected a nonzero worker exit for an unexpected admission error.');
+        }
+        $this->check($character->fresh()->getRawOriginal() === $before, 'Failed worker changed assets.');
+        $this->check(SavedBattle::where('character_id', $character->id)->count() === 0, 'Failed worker left an admission.');
+        return ['unexpected_domain_exception' => 'worker_failed', 'assets_unchanged' => true];
+    }
+
+    private function ownerBusy(): array
+    {
+        $character = $this->character();
+        $before = $character->fresh()->getRawOriginal();
+        $job = ['op' => 'start', 'character' => $character->id, 'token' => bin2hex(random_bytes(32))];
+        DB::beginTransaction();
+        try {
+            Character::whereKey($character->id)->lockForUpdate()->firstOrFail();
+            $rows = $this->race([$job]);
+            $this->outcomes($rows, ['blocked_owner_busy']);
+        } finally {
+            DB::rollBack();
+        }
+        $this->check($character->fresh()->getRawOriginal() === $before, 'Rejected admission changed character assets.');
+        $this->check(SavedBattle::where('character_id', $character->id)->count() === 0, 'Rejected admission left a battle.');
+        $this->check(NationRaidDailyUsage::where('account_id', $character->user_id)->count() === 0, 'Rejected admission consumed usage.');
+        $this->check(NationRaidParticipation::where('account_id', $character->user_id)->count() === 0, 'Rejected admission changed free balance.');
+        $retry = $this->race([$job]);
+        $this->outcomes($retry, ['created']);
+        $replay = $this->race([$job]);
+        $this->outcomes($replay, ['existing']);
+        $this->check($retry[0]['battle'] === $replay[0]['battle'], 'Busy token retry created duplicates.');
+        $battle = SavedBattle::where('battle_token', $job['token'])->sole();
+        $this->assertUsage($character, 1, 0, 0, 250);
+        $this->assertFreeUsage($battle, 2, 1, 0);
+        $beforeDamage = $this->damage();
+        $this->settle($battle, 1234);
+        $this->settle($battle, 1234);
+        $this->check($this->damage() - $beforeDamage === 1234, 'Busy retry settled damage twice.');
+        $this->assertUsage($character, 1, 1, 0, 250);
+        return ['refusal' => $rows[0], 'retry_and_replay_battle' => $battle->id, 'cost_commits' => 1, 'damage_commits' => 1];
+    }
+
     private function onePending(): array
     {
         $character = $this->character();
@@ -151,7 +206,7 @@ final class NationRaidPhase4MariaDbHarness
             ['op' => 'start', 'character' => $character->id, 'token' => bin2hex(random_bytes(32))],
             ['op' => 'start', 'character' => $character->id, 'token' => bin2hex(random_bytes(32))],
         ]);
-        $this->outcomes($rows, ['created', 'blocked_pending']);
+        $this->admissionRaceOutcomes($rows);
         $battle = SavedBattle::query()->where('character_id', $character->id)->sole();
         $this->assertUsage($character, 1, 0, 0, 250);
         app(NationRaidSettlementService::class)->refund($battle, 'synthetic_test_cleanup');
@@ -248,7 +303,7 @@ final class NationRaidPhase4MariaDbHarness
             ['op' => 'start', 'character' => $character->id, 'token' => bin2hex(random_bytes(32))],
             ['op' => 'start', 'character' => $character->id, 'token' => bin2hex(random_bytes(32))],
         ]);
-        $this->outcomes($rows, ['created', 'blocked_pending']);
+        $this->admissionRaceOutcomes($rows);
         $last = SavedBattle::query()->where('character_id', $character->id)->where('status', 'started')->sole();
         $this->settle($last, 0);
         $this->assertUsage($character, 5, 5, 0, 230);
@@ -499,6 +554,12 @@ final class NationRaidPhase4MariaDbHarness
                     [$battle, $created] = app(NationRaidSortieService::class)->start($this->event,
                         Character::query()->findOrFail($job['character']), 'assault', $job['token']);
                     $result = ['outcome' => $created ? 'created' : 'existing', 'battle' => $battle->id];
+                } catch (\App\Services\Nation\Raid\NationRaidAdmissionBusyException $exception) {
+                    $cause = $exception->getPrevious();
+                    $code = (int) ($cause->errorInfo[1] ?? 0);
+                    $this->check($cause instanceof QueryException && in_array($code, [1205, 3572], true), 'Busy refusal must have a real NOWAIT database cause.');
+                    $this->check(DB::transactionLevel() === 0, 'Busy admission left a transaction open.');
+                    $result = ['outcome' => 'blocked_owner_busy', 'database_error_code' => $code];
                 } catch (DomainException $exception) {
                     $result = match ($exception->getMessage()) {
                         '前の出撃を処理中です。しばらく待ってから確認してください。' => ['outcome' => 'blocked_pending'],
@@ -743,6 +804,21 @@ final class NationRaidPhase4MariaDbHarness
             $participation->free_sorties_used,
             $participation->free_sorties_refunded,
         ] === [$balance, $used, $refunded], 'Free-sortie counters differ from the expected terminal effect.');
+    }
+
+    /** Either the pending check or a genuine owner NOWAIT refusal; exactly one committed admission. */
+    private function admissionRaceOutcomes(array $rows): void
+    {
+        $this->check(count($rows) === 2, 'Expected exactly two competing workers.');
+        $actual = array_column($rows, 'outcome');
+        $this->check(count(array_filter($actual, fn ($outcome) => $outcome === 'created')) === 1, 'Race must commit exactly one admission.');
+        $blocked = array_values(array_filter($actual, fn ($outcome) => $outcome !== 'created'));
+        $this->check(count($blocked) === 1 && in_array($blocked[0], ['blocked_pending', 'blocked_owner_busy'], true), 'Unexpected rejection: '.json_encode($actual));
+        foreach ($rows as $row) {
+            if ($row['outcome'] === 'blocked_owner_busy') {
+                $this->check(in_array($row['database_error_code'] ?? null, [1205, 3572], true), 'Missing NOWAIT cause.');
+            }
+        }
     }
 
     private function outcomes(array $rows, array $expected): void

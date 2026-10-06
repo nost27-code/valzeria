@@ -53,7 +53,7 @@ class NamelessBattleIntegrationTest extends TestCase
         $this->assertSame(5000, $character->fresh()->current_hp);
     }
 
-    public function test_saved_raid_relics_are_frozen_and_off_suppresses_them(): void
+    public function test_direct_profile_uses_saved_effects_and_off_suppresses_them(): void
     {
         $character = $this->character(['special_opener', 'special_first_guard', 'stat_str']);
         $prepared = app(NationRaidPlayerPreparationService::class)->capture($character)['actor'];
@@ -71,7 +71,12 @@ class NamelessBattleIntegrationTest extends TestCase
         $this->assertNotSame($first->actions[0]['damage_sources'], $without->actions[0]['damage_sources']);
         config(['nameless_relics.enabled' => false]);
         $off = $this->resolve($character, $prepared);
-        $this->assertSame($without->battleResult->toArray(), $off->battleResult->toArray());
+        // A direct profile has no approved contract scope; activation now changes its hash.
+        $this->assertNotSame($without->battleResult->rulesetHash, $off->battleResult->rulesetHash);
+        $this->assertSame(
+            array_diff_key($without->battleResult->toArray(), ['rulesetHash' => true]),
+            array_diff_key($off->battleResult->toArray(), ['rulesetHash' => true]),
+        );
         $this->assertSame($without->actions, $off->actions);
         $this->assertSame(5000, $character->fresh()->current_hp);
     }

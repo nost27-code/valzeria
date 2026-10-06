@@ -8,7 +8,7 @@ use LogicException;
 /** bridgeの完全解決結果から、7日進行simulationに必要なcompact正本だけを抽出する。 */
 final readonly class NationRaidResolvedProfileProjector
 {
-    public const MODEL_VERSION = 'turn-by-turn-live-defense-compact-v1';
+    public const MODEL_VERSION = 'turn-by-turn-live-defense-relic-contract-v2';
 
     /** @return array<string, mixed> */
     public function project(

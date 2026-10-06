@@ -22,12 +22,12 @@ class NamelessPreparationService
     {
         $applied = Schema::hasTable('migrations') ? DB::table('migrations')->pluck('migration')->all() : [];
         $pending = array_values(array_diff(self::MIGRATIONS, $applied));
-        $schema = app(NamelessWorkshopService::class)->schemaReady();
-        $problems = $schema ? $this->constraintProblems() : ['required_schema_missing'];
+        $problems = app(NamelessSchemaService::class)->problems();
+        $schema = $problems === [];
         return [
             'enabled' => app(NamelessWorkshopService::class)->enabled(),
             'pending_migrations' => $pending, 'schema_ready' => $schema,
-            'constraint_problems' => $problems,
+            'schema_problems' => $problems, 'constraint_problems' => $problems,
             'ready' => $pending === [] && $schema && $problems === [],
             'town_count' => Schema::hasTable('cities')
                 ? DB::table('cities')->where('unlock_condition_type', NamelessTownService::MARKER)->count() : 0,
@@ -50,8 +50,9 @@ class NamelessPreparationService
         try {
             $paths = array_map(fn ($name) => 'database/migrations/'.$name.'.php', self::MIGRATIONS);
             $exit = Artisan::call('migrate', ['--path' => $paths, '--force' => true]);
-            if ($exit !== 0 || ! $this->status()['ready']) {
-                throw new RuntimeException('対象DB移行の確認が完了していません。nameless:prepareで状態を確認してください。');
+            $status = $this->status();
+            if ($exit !== 0 || ! $status['ready']) {
+                throw new RuntimeException('対象DB移行の確認が完了していません: '.implode(', ', $status['schema_problems']).'。nameless:prepare --jsonで状態を確認してください。');
             }
         } finally {
             if ($maria) {
@@ -68,49 +69,4 @@ class NamelessPreparationService
         }
     }
 
-    private function constraintProblems(): array
-    {
-        $problems = [];
-        $required = [
-            'player_relics' => [
-                ['nameless_equipment_id', 'slot_number'], ['character_item_id', 'slot_number'],
-            ],
-            'nameless_workshop_operations' => [['character_id', 'request_uuid']],
-            'nameless_equipment_discoveries' => [['character_id', 'equipment_type']],
-            'nameless_ruin_progress' => [['character_id', 'zone_key']],
-        ];
-        foreach ($required as $table => $groups) {
-            $indexes = Schema::getIndexes($table);
-            foreach ($groups as $columns) {
-                if (! collect($indexes)->contains(fn ($index) => $index['unique'] && $index['columns'] === $columns)) {
-                    $problems[] = $table.':unique:'.implode(',', $columns);
-                }
-            }
-        }
-        if (collect(Schema::getIndexes('player_nameless_equipments'))->contains(
-            fn ($index) => $index['unique'] && $index['columns'] === ['character_id', 'kind'])) {
-            $problems[] = 'player_nameless_equipments:obsolete_owner_kind_unique';
-        }
-        foreach ([
-            'player_relics' => ['character_id' => 'characters', 'nameless_equipment_id' => 'player_nameless_equipments', 'character_item_id' => 'character_items'],
-            'nameless_workshop_operations' => ['character_id' => 'characters'],
-            'nameless_equipment_discoveries' => ['character_id' => 'characters'],
-            'nameless_ruin_progress' => ['character_id' => 'characters'],
-        ] as $table => $references) {
-            $foreignKeys = Schema::getForeignKeys($table);
-            foreach ($references as $column => $target) {
-                if (! collect($foreignKeys)->contains(fn ($key) => $key['columns'] === [$column]
-                    && $key['foreign_table'] === $target && $key['foreign_columns'] === ['id'])) {
-                    $problems[] = $table.':foreign:'.$column;
-                }
-            }
-        }
-        if (in_array(DB::connection()->getDriverName(), ['mysql', 'mariadb'], true)) {
-            $kind = DB::selectOne('SELECT COLUMN_TYPE AS kind_type FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?', ['player_nameless_equipments', 'kind']);
-            if (! $kind || $kind->kind_type !== "enum('weapon','armor','accessory')") {
-                $problems[] = 'player_nameless_equipments:accessory_enum_missing';
-            }
-        }
-        return $problems;
-    }
 }

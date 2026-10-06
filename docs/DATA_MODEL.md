@@ -2,6 +2,8 @@
 
 ## 遺物のOFF準備・レイドsnapshot（2026-10-05）
 
+2026-10-06の整合性修正（本番未反映）: 新規テーブル/カラムは追加しない。`nation_raid_events.ruleset_snapshot.nameless_relic_combat` はmodel/version・enabled・戦闘設定・効果定義を承認hashへ固定する。予約時に `nation_raid_battle_results.summary.admission.relic_rules` へ複製し、能力capture・戦闘・共闘精算で同じ契約を使う。旧OFF開催のhash/JSONは書換えず、契約なしをlegacy-offとして扱う。契約なし旧ON出撃は既存返却経路へ回す。実行時/準備判定は対象5本の移行記録と `NamelessSchemaService::COLUMNS` の全列・型・制約を共通確認し、検査で所有行を変更しない。
+
 - 新しいschemaは追加しない。既存5本のmigrationは部分DDLの再実行で対象列/テーブル/索引を重複作成せず、準備コマンドでenum・unique・外部キーを検証する。既存資産・操作・進行記録があるprototype migrationのdownは拒否する。
 - `nation_raid_battle_results.summary.admission.player.actor.nameless_relics` に出撃時の効果snapshot（version、special、特攻/耐性、刻印・種族・通常攻撃型）を保存する。後続処理は現在の装備へ再参照せず、旧snapshotへ効果を追加しない。
 - 工房街は既存citiesのmarkerを使う。MariaDB advisory lockで同時登録を直列化し、重複があれば停止する。OFFでは登録済み街も非公開。

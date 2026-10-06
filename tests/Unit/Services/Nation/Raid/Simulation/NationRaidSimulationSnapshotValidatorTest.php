@@ -141,6 +141,22 @@ class NationRaidSimulationSnapshotValidatorTest extends TestCase
     }
 
     /** @return array<string, mixed> */
+    public function test_missing_contract_and_incomplete_on_relic_snapshots_are_rejected(): void
+    {
+        $snapshot = $this->snapshot();
+        unset($snapshot['nameless_relic_combat']);
+        $result = (new NationRaidSimulationSnapshotValidator)->validate($snapshot);
+        $this->assertFalse($result['ready']);
+        $this->assertContains('nameless_relic_combat_contract_mismatch', array_column($result['errors'], 'reason'));
+        $snapshot = $this->snapshot();
+        $snapshot['nameless_relic_combat']['enabled'] = true;
+        $result = (new NationRaidSimulationSnapshotValidator)->validate($snapshot);
+        $this->assertContains('missing_enabled_relic_snapshot', array_column($result['errors'], 'reason'));
+        $snapshot['characters'][0]['nameless_relics'] = ['version' => 1, 'enabled' => true];
+        $result = (new NationRaidSimulationSnapshotValidator)->validate($snapshot);
+        $this->assertContains('invalid_relic_snapshot', array_column($result['errors'], 'reason'));
+    }
+
     private function snapshot(): array
     {
         $actions = [];
@@ -196,6 +212,7 @@ class NationRaidSimulationSnapshotValidatorTest extends TestCase
 
         return [
             'schema_version' => 'nation-raid-phase2-snapshot-v6',
+            'nameless_relic_combat' => (new \App\Services\Nation\Raid\NationRaidRelicRules)->current(),
             'extracted_at' => '2026-09-02T09:00:00+09:00',
             'active_window' => ['days' => 7, 'from' => '2026-08-26T09:00:00+09:00', 'to' => '2026-09-02T09:00:00+09:00'],
             'ruleset_hash' => $rulesetHash,

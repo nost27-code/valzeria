@@ -55,6 +55,10 @@ final class NationRaidSimulationSnapshotBuilder
         array $resolvedContexts = [],
         bool $resolvedContextCoverageComplete = false,
     ): array {
+        if (app(\App\Services\NamelessWorkshopService::class)->enabled()
+            && ! app(\App\Services\NamelessWorkshopService::class)->schemaReady()) {
+            throw new \RuntimeException('遺物DBの準備が不足しています: '.implode(', ', app(\App\Services\NamelessSchemaService::class)->problems()));
+        }
         $extractedAt ??= CarbonImmutable::now();
         if ($activeDays !== 7) {
             throw new InvalidArgumentException('Phase 2 active window is fixed at seven days.');
@@ -171,6 +175,7 @@ final class NationRaidSimulationSnapshotBuilder
             'version' => 'nation-raid-phase2-snapshot-builder-v6',
             'schema' => self::SCHEMA_VERSION,
             'ruleset_hash' => $rulesetHash,
+            'nameless_relic_combat' => app(\App\Services\Nation\Raid\NationRaidRelicRules::class)->current(),
             'coordination_timing_model_hash' => $this->coordinationTiming->contractHash(),
             'lineage_adapter_hash' => $this->lineageAdapter->contractHash(),
             'action_profile_model' => $this->actionProfiles->modelVersion(),
@@ -210,6 +215,7 @@ final class NationRaidSimulationSnapshotBuilder
                 'to' => $extractedAt->toIso8601String(),
             ],
             'ruleset_hash' => $rulesetHash,
+            'nameless_relic_combat' => app(\App\Services\Nation\Raid\NationRaidRelicRules::class)->current(),
             'boss_species_key' => NationRaidRules::BOSS_SPECIES_KEY,
             'raid_killer_contract_hash' => $raidKillerContractHash,
             'coordination_timing_model' => $this->coordinationTiming->contract(),

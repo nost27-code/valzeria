@@ -30,8 +30,15 @@ final readonly class NationRaidPlayerPreparationService
     ) {}
 
     /** @return array{abilities:array<string,int>,equipment:list<array<string,mixed>>,raid_resistance_rate:float,boss_set:list<array<string,mixed>>,boss_set_exact_identities:list<?string>,counterplay_enabled:bool} */
-    public function capture(Character $character): array
+    public function capture(Character $character, ?array $relicRules = null): array
     {
+        if ($relicRules !== null) {
+            return app(NationRaidRelicRules::class)->frozen($relicRules, fn () => $this->capture($character));
+        }
+        if (app(\App\Services\NamelessWorkshopService::class)->enabled()
+            && ! app(\App\Services\NamelessWorkshopService::class)->schemaReady()) {
+            throw new RuntimeException('遺物DBが不完全なため出撃snapshotを確定できません。');
+        }
         CharacterStatusService::clearRequestCache((int) $character->id);
         $character->loadMissing('currentJob');
         $stats = $this->statusService->getFinalStats($character);

@@ -13,6 +13,12 @@ on:
       - 'app/Models/KisekiTransaction.php'
       - 'app/Models/NationResourceTransaction.php'
       - 'app/Services/Nation/Raid/**'
+      - 'app/Services/NamelessSchemaService.php'
+      - 'app/Services/NamelessPreparationService.php'
+      - 'app/Services/NamelessWorkshopService.php'
+      - 'scripts/verify/nameless-schema-mariadb.php'
+      - 'tests/Feature/NationRaidRelicRulesIntegrationTest.php'
+      - 'tests/Feature/NamelessSchemaReadinessTest.php'
       - 'app/Services/Nation/CompetitionEventCoordinatorService.php'
       - 'app/Services/ExplorationStaminaService.php'
       - 'app/Services/BattleService.php'
@@ -52,6 +58,7 @@ jobs:
     timeout-minutes: 20
     strategy:
       fail-fast: false
+      max-parallel: 1
       matrix:
         driver: [mysql, mariadb]
     services:
@@ -93,6 +100,20 @@ jobs:
           coverage: none
       - name: Install PHP dependencies
         run: composer install --prefer-dist --no-interaction --no-progress
+      - name: Verify relic contracts and schema regression tests sequentially
+        shell: bash
+        run: |
+          DB_CONNECTION=sqlite DB_DATABASE=:memory: php vendor/bin/phpunit tests/Feature/NationRaidRelicRulesIntegrationTest.php --colors=never
+          DB_CONNECTION=sqlite DB_DATABASE=:memory: php vendor/bin/phpunit tests/Feature/NamelessSchemaReadinessTest.php --colors=never
+          php vendor/bin/phpunit tests/Unit/Services/Nation/Raid/NationRaidRulesTest.php --colors=never
+          php vendor/bin/phpunit tests/Unit/Services/Nation/Raid/NationRaidAdmissionOutcomeTest.php --colors=never
+          php vendor/bin/phpunit tests/Unit/Services/Nation/Raid/Simulation/NationRaidSimulationSnapshotValidatorTest.php --colors=never
+          php vendor/bin/phpunit tests/Unit/Services/Nation/Raid/Simulation/NationRaidSimulationRunnerTest.php --colors=never
+          DB_CONNECTION=sqlite DB_DATABASE=:memory: php vendor/bin/phpunit tests/Feature/NationRaidPhase2SnapshotTest.php --filter test_builder_uses_final_stats --colors=never
+          DB_CONNECTION=sqlite DB_DATABASE=:memory: php vendor/bin/phpunit tests/Feature/NamelessPreparationTest.php --colors=never
+          DB_CONNECTION=sqlite DB_DATABASE=:memory: php vendor/bin/phpunit tests/Feature/NamelessBattleIntegrationTest.php --colors=never
+          DB_CONNECTION=sqlite DB_DATABASE=:memory: php vendor/bin/phpunit tests/Feature/NationRaidLifecycleTest.php --colors=never
+          DB_CONNECTION=sqlite DB_DATABASE=:memory: php vendor/bin/phpunit tests/Feature/NationRaidSortieTest.php --filter 'test_(official_sortie|error_refunds|started_retry|snapshot_only|coordination_settlement|preparation_|retry_rolls|exhausted_settlement|lost_settlement|runtime_job)' --colors=never
       - name: Migrate the ephemeral test database
         run: |
           php artisan config:clear --no-ansi
@@ -100,10 +121,15 @@ jobs:
       - name: Verify Phase 4 with independent worker connections
         shell: bash
         run: php scripts/verify/nation-raid-phase4-mariadb.php all --confirm-isolated-database | tee nation-raid-phase4-result.json
+      - name: Verify complete MariaDB relic schema and preserved assets
+        shell: bash
+        run: php scripts/verify/nameless-schema-mariadb.php --confirm-isolated-database | tee nameless-schema-result.json
       - name: Retain pass or failure evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: nation-raid-phase4-mariadb-result-${{ matrix.driver }}
-          path: nation-raid-phase4-result.json
+          path: |
+            nation-raid-phase4-result.json
+            nameless-schema-result.json
           retention-days: 7

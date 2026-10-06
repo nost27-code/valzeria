@@ -320,6 +320,7 @@ class NationRaidSimulationRunnerTest extends TestCase
 
         return [
             'schema_version' => 'nation-raid-phase2-snapshot-v6',
+            'nameless_relic_combat' => (new \App\Services\Nation\Raid\NationRaidRelicRules)->current(),
             'extracted_at' => '2026-09-02T09:00:00+09:00',
             'active_window' => ['days' => 7, 'from' => '2026-08-26T09:00:00+09:00', 'to' => '2026-09-02T09:00:00+09:00'],
             'ruleset_hash' => $rulesetHash,

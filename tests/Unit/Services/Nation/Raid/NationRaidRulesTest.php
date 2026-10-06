@@ -86,7 +86,8 @@ final class NationRaidRulesTest extends TestCase
         $this->assertSame($previousLiveHash, $this->rules->previousLiveHpRulesetHash());
         $this->assertSame($previousRulesetHash, $this->rules->previousRulesetHash());
         $this->assertSame($previousNextCycleHash, $this->rules->previousNextCycleRulesetHash());
-        $this->assertSame($astragiaHash, $this->rules->rulesetHash());
+        $this->assertNotSame($astragiaHash, $this->rules->rulesetHash());
+        $this->assertTrue($this->rules->matchesCombatRulesetHash($astragiaHash));
         $this->assertTrue($this->rules->matchesCombatRulesetHash($previousStagedHash));
         $this->assertTrue($this->rules->matchesCombatRulesetHash($previousLiveHash));
         $this->assertTrue($this->rules->matchesCombatRulesetHash($previousNextCycleHash));

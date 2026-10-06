@@ -37,12 +37,35 @@ final class NationRaidSimulationSnapshotValidator
         $this->coordinationTiming = $coordinationTiming ?? new NationRaidCoordinationTimingModel;
     }
 
+    private function validRelicSnapshot(array $relics): bool
+    {
+        foreach (['effects', 'killer_effects', 'resist_effects', 'species_keys'] as $key) {
+            if (! is_array($relics[$key] ?? null)) { return false; }
+        }
+        return array_key_exists('brand', $relics) && ($relics['brand'] === null || is_array($relics['brand']))
+            && array_key_exists('normal_attack_type', $relics) && in_array($relics['normal_attack_type'], [null, 'physical', 'magical'], true);
+    }
+
     /** @return array{ready:bool,errors:list<array{character_key:?string,reason:string}>,warnings:list<string>,counts:array<string,int>} */
     public function validate(array $snapshot): array
     {
         $errors = [];
         $warnings = [];
+        if (($snapshot['nameless_relic_combat'] ?? null) !== app(\App\Services\Nation\Raid\NationRaidRelicRules::class)->current()) {
+            $errors[] = ['character_key' => null, 'reason' => 'nameless_relic_combat_contract_mismatch'];
+        }
         $characters = is_array($snapshot['characters'] ?? null) ? $snapshot['characters'] : [];
+        foreach ($characters as $row) {
+            if (! is_array($row)) { continue; }
+            if (($snapshot['nameless_relic_combat']['enabled'] ?? false) &&
+                (($row['nameless_relics']['version'] ?? null) !== 1 || ($row['nameless_relics']['enabled'] ?? null) !== true)) {
+                $errors[] = ['character_key' => $row['character_key'] ?? null, 'reason' => 'missing_enabled_relic_snapshot'];
+            } elseif (($snapshot['nameless_relic_combat']['enabled'] ?? false) && ! $this->validRelicSnapshot($row['nameless_relics'])) {
+                $errors[] = ['character_key' => $row['character_key'] ?? null, 'reason' => 'invalid_relic_snapshot'];
+            } elseif (! ($snapshot['nameless_relic_combat']['enabled'] ?? false) && ($row['nameless_relics']['enabled'] ?? false)) {
+                $errors[] = ['character_key' => $row['character_key'] ?? null, 'reason' => 'unexpected_enabled_relic_snapshot'];
+            }
+        }
 
         if (($snapshot['schema_version'] ?? null) !== self::SCHEMA_VERSION) {
             $errors[] = ['character_key' => null, 'reason' => 'unsupported_schema_version'];

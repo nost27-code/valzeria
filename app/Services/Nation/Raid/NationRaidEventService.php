@@ -72,6 +72,10 @@ final class NationRaidEventService
         return DB::transaction(function () use ($event, $admin, $reference): NationRaidEvent {
             $locked = NationRaidEvent::query()->whereKey($event->id)->lockForUpdate()->firstOrFail();
             throw_unless($locked->status === NationRaidEvent::STATUS_DRAFT, \DomainException::class, 'draft以外のイベントはバランス承認を変更できません。');
+            throw_unless(hash_equals($this->rules->rulesetHash(), $locked->ruleset_hash)
+                && hash_equals($locked->ruleset_hash, hash('sha256', NationRaidJson::encode($locked->ruleset_snapshot, JSON_UNESCAPED_UNICODE))),
+                \DomainException::class, '下書きの戦闘ルールが変更されています。新しいシミュレーションと下書きで承認してください。');
+            app(NationRaidRelicRules::class)->assertCurrent($locked->ruleset_snapshot);
             $this->rewardPolicy->forEvent($locked);
             $locked->update([
                 'balance_approved_at' => now(),
@@ -173,6 +177,7 @@ final class NationRaidEventService
             throw_if(! $at->lt($locked->ends_at), \DomainException::class, '終了時刻を過ぎたイベントは開始できません。');
             $this->assertBalanceApproved($locked);
             $this->assertRulesetSnapshotIntegrity($locked);
+            app(NationRaidRelicRules::class)->assertCurrent($locked->ruleset_snapshot);
             $this->assertActivationPreflight();
             $this->coordinator->assertRaidWindowAvailable($locked->starts_at, $locked->ends_at, $locked->id);
 

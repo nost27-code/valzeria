@@ -65,7 +65,7 @@ class NamelessRelicBattleService
 
     public function restoreSnapshot(BattleActor $actor, array $snapshot): void
     {
-        // Old snapshots have no relics. Turning OFF also stops pending snapshots.
+        // Old snapshots have no relics. Official raids scope config to their approved admission contract.
         if (! app(NamelessWorkshopService::class)->enabled() || ! ($snapshot['enabled'] ?? false)) {
             return;
         }

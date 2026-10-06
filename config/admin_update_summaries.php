@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-10-06-nameless-raid-schema-ci-hardening',
+        'date' => '2026-10-06',
+        'category' => 'internal',
+        'title' => '遺物のレイド承認とDB準備判定・競合検証を修正',
+        'detail' => '遺物の戦闘契約を開催承認hashと出撃snapshotへ固定。切替後の新規受付を停止し、受付済み出撃は保存契約で精算します。全必要列・型・制約と移行記録を共通確認し不足時は具体的診断で閉じます。NOWAIT拒否と異常終了を区別する隔離CIを直列実行。DB構造の追加なし、本番未反映。機能ON・本番設定変更・DB準備・街登録は行いません。',
+    ],
+    [
         'id' => '2026-10-06-nameless-rank-depth-100-local',
         'date' => '2026-10-06',
         'category' => 'internal',

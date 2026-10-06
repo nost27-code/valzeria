@@ -52,6 +52,7 @@ class NationRaidPhase2SnapshotTest extends TestCase
 
     public function test_builder_uses_final_stats_excludes_admin_and_guest_and_emits_no_direct_identifiers(): void
     {
+        config()->set('app.key', 'base64:'.base64_encode(str_repeat('x', 32)));
         config()->set('battle.job_art_v2.dynamic_single', true);
         config()->set('battle.job_art_v2.hit_resolution', true);
         config()->set('battle.job_art_v2.damage_application', true);
@@ -139,6 +140,18 @@ class NationRaidPhase2SnapshotTest extends TestCase
         $validation = app(NationRaidSimulationSnapshotValidator::class)->validate($snapshot);
 
         $this->assertTrue($validation['ready'], json_encode($validation, JSON_UNESCAPED_UNICODE));
+        $this->assertSame(app(\App\Services\Nation\Raid\NationRaidRelicRules::class)->current(), $snapshot['nameless_relic_combat']);
+        $legacyRelics = $snapshot;
+        unset($legacyRelics['nameless_relic_combat']);
+        $legacyValidation = app(NationRaidSimulationSnapshotValidator::class)->validate($legacyRelics);
+        $this->assertFalse($legacyValidation['ready']);
+        $this->assertContains('nameless_relic_combat_contract_mismatch', array_column($legacyValidation['errors'], 'reason'));
+        config(['nameless_relics.enabled' => true]);
+        $changedValidation = app(NationRaidSimulationSnapshotValidator::class)->validate($snapshot);
+        $this->assertFalse($changedValidation['ready']);
+        $this->assertContains('nameless_relic_combat_contract_mismatch', array_column($changedValidation['errors'], 'reason'));
+        config(['nameless_relics.enabled' => false]);
+
         $this->assertSame(4, $snapshot['population_report']['candidate_characters']);
         $this->assertSame(1, $snapshot['population_report']['included_characters']);
         $this->assertSame(1, $snapshot['population_report']['excluded_admin_or_tester']);

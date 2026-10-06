@@ -93,7 +93,7 @@ class NationRaidSortieService
                 // Never hold the global raid coordinator while waiting for an
                 // unrelated exploration on this character. Admission rolls back.
                 if (in_array((int) ($exception->errorInfo[1] ?? 0), [1205, 3572], true)) {
-                    throw new \DomainException('ほかの操作を処理中です。完了してからもう一度出撃してください。', previous: $exception);
+                    throw new NationRaidAdmissionBusyException($exception);
                 }
                 throw $exception;
             }
@@ -123,6 +123,7 @@ class NationRaidSortieService
             $seed = bin2hex(random_bytes(32));
             $admission = [
                 'schema' => 'nation-raid-admission-v3', 'ruleset_hash' => $event->ruleset_hash,
+                'relic_rules' => app(NationRaidRelicRules::class)->forRuleset($event->ruleset_snapshot),
                 'cycle_id' => $cycle->id,
                 'encounter' => ['stage' => $cycle->stage_no ?? $event->stage_count,
                     'current_hp' => $cycle->current_hp, 'max_hp' => $cycle->max_hp],
@@ -186,10 +187,11 @@ class NationRaidSortieService
                 && ! $character->is_frozen && ! $character->isExcludedFromPublicLogs() && ! $this->auth->isGuestUser($character->user),
                 \DomainException::class, 'このアカウントは正式出撃できません。');
             $summary = $battle->summary;
-            throw_unless($this->rules->matchesCombatRulesetHash($summary['admission']['ruleset_hash']),
+            throw_unless(app(NationRaidRelicRules::class)->frozen($summary['admission']['relic_rules'] ?? ['model' => 'legacy-off', 'enabled' => false],
+                fn () => $this->rules->matchesCombatRulesetHash($summary['admission']['ruleset_hash'])),
                 \DomainException::class, '戦闘ルールの確認中のため出撃を停止しています。');
             $captureBegan = hrtime(true);
-            $player = $this->preparation->capture($character);
+            $player = $this->preparation->capture($character, $summary['admission']['relic_rules'] ?? ['model' => 'legacy-off', 'enabled' => false]);
             $source = $summary['admission']['encounter'];
             $encounter = $this->view->encounter(
                 $source['stage'],
@@ -226,6 +228,7 @@ class NationRaidSortieService
         }
         throw_unless($event->acceptsNewSortiesAt(now()), \DomainException::class, '現在出撃を受け付けていません。');
         throw_unless($event->balance_approved_at !== null && filled($event->balance_approval_reference), \DomainException::class, '開催の確認中です。');
+        app(NationRaidRelicRules::class)->assertCurrent($event->ruleset_snapshot);
         throw_unless($this->rules->matchesCombatRulesetHash($event->ruleset_hash)
             && hash_equals($event->ruleset_hash, hash('sha256', NationRaidJson::encode($event->ruleset_snapshot, JSON_UNESCAPED_UNICODE))),
             \DomainException::class, '戦闘ルールの確認中のため出撃を停止しています。');

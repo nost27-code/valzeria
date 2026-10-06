@@ -74,7 +74,7 @@ DB変更・敵マスタ投入・プレイヤー資産の変更は不要。関連
 
 素材選択→消費する遺物と進捗/効果を確認→確定の標準POSTで処理します。確認だけでは消費せず、本体・素材・装着先武具の状態を確定時の行ロック下で再検証します。素材消費・本体育成・武具revision・操作台帳は同一transaction。同一UUIDの同じ要求は保存結果を返し、二重消費・二重育成を防ぎます。装着中のランクアップでは能力を再計算しますが、現在HP/SPは回復しません。
 
-追加migrationは `2026_10_04_060000_add_growth_progress_to_player_relics.php`。既存所有行は保持し、進捗カラムを既定0で追加します。育成利用後のdownは進捗/消費記録を保護するため拒否。利用環境は従来どおりlocal/testingかつflag ON、本番未反映。MariaDBでのmigration・並行処理、実機Safariは未確認です。
+追加migrationは `2026_10_04_060000_add_growth_progress_to_player_relics.php`。既存所有行は保持し、進捗カラムを既定0で追加します。育成利用後のdownは進捗/消費記録を保護するため拒否。現行の利用条件は全環境共通の `NAMELESS_RELICS_ENABLED=true` と対象DBの準備完了。旧local/testing限定条件は廃止済み。正式ONは未実施。MariaDBでのmigration・並行処理、実機Safariは未確認です。
 
 関連143テスト・4,150 assertionsとBladeコンパイル成功。全ランク境界、個別投入/再読み込み、同一要求の再送、変更済み確認の拒否、失敗時の巻き戻し、装着/保護中の本体育成、能力反映とHP/SPを回復しないこと、育成中の遺物の消費拒否、HTTPの所有者/環境制限を確認。ローカルSQLiteの対象migration適用前後で既存武具1個・台帳4件を保持しました。ffa.testのHTTPSサーバーへ接続できなかったため、隔離メモリDBで実Controller/Bladeを描画し、ブラウザのCSS幅390pxで素材選択・選択上限・ランクアップ確認と横はみ出しなしを検証して撮影。実プレイヤーの操作は未確認。証跡は `storage/app/private/research/nameless-relic-growth-local/`。
 
@@ -222,7 +222,7 @@ Serviceの全更新はキャラクター行をロックしたtransactionで処�
 | UI | `resources/views/nameless-workshop/` のBlade、鍛冶屋の入口。軽量なCSSと既存Alpineによる選択補助 |
 | テスト | `NamelessRelicPrototypeTest` / `NamelessRelicBattleTest`。既存装備・能力・戦技SP・直接ダメージの関連テストも実行 |
 
-`NAMELESS_RELICS_LOCAL_ENABLED` は既定false。local/testing環境とのAND条件をServiceで検証し、production/stagingはflagをtrueにしても停止する。flagをfalseに戻しても所有記録は残る。
+正式設定 `NAMELESS_RELICS_ENABLED` は全環境で既定false。ONと対象5本の移行記録・必要列/型/制約の完了をServiceで検証する。旧 `NAMELESS_RELICS_LOCAL_ENABLED` は正式キー未指定のlocal/testingのみ互換使用し、production/stagingでは旧キーだけでは開かない。OFFでも所有記録と装着資産の保護・継承は維持する。正式レイドの受付済み出撃は保存済み承認契約を使う。
 
 ## ローカル確認
 
@@ -251,7 +251,7 @@ PowerShellの確認コマンド（本番資産を参照しない）:
 ## 無もなき工房街と画像（2026-10-03）
 
 - `NamelessTownService` が既存 `cities` に試作専用の街を1件登録する。`unlock_condition_type=nameless_relic_local`、到達順0・初期街ではない。IDは自動採番で、既存IDの置換や全体seedは行わない。今回のスキーマ変更・追加migrationはない。
-- ローカル登録コマンドは `php artisan nameless:install-local-town`。local/testing環境・flag ON・試作テーブルが必要で、再実行しても街を重複追加しない。production/stagingでは実行不可。
+- 街登録は `php artisan nameless:install-town`（旧 `nameless:install-local-town` は別名）。全環境で設定ON・DB準備完了が必要で、`--prepare-off` はOFFかつDB準備完了時の明示登録に使う。再実行しても街を重複追加しない。本番での実行は別途承認された準備タスクに限る。
 - MAPタブおよび街移動画面の専用カードから移動すると街タブが開く。通常都市の最高到達情報や到達イベントは進めず、通常の街へ戻れる。最高到達街が未設定のキャラクターでも初期街だけは戻り先として扱う。
 - 街タブは名もなき鍛冶屋・宿屋・補給所・銀行。宿屋などの料金・処理は既存のものを使う。探索タブに6遺跡の絵・狙える効果・解放深度・探索操作を表示し、魔物・報酬の詳細ブロックとSP不足の注意文は表示しない。通常探索とボス挑戦は別ボタン。帰還先は探索タブまたは街タブを選べる。鍛冶屋と戦闘結果には探索開始フォームを置かない。
 - 人間裁定により街名は「無もなき工房街」、施設名は「名もなき鍛冶屋」。32文字以内で改名でき、付けた名前は青色。空欄で既定名に戻る。強化段階・成長EXP・装着遺物を保持し、名前変更は無料。
@@ -264,7 +264,7 @@ PowerShellの確認コマンド（本番資産を参照しない）:
 - 遺跡背景は1枚77,172〜105,886 bytesのWebP。原画PNGは非公開の制作記録に保存し、画面ではWebPだけを使用。一覧・各探索画面の背景に `loading="lazy"`・`decoding="async"` と画像寸法を指定し、画面外の画像読み込みをブラウザへ遅延要求する。
 - 関連テスト114件・1,478 assertions成功。ffa.testで専用検証キャラクターによる街移動→探索タブ→水路通常探索→街へ帰還→宿屋回復を確認。画像8点の読み込みを確認。改名「星巡りの杖」の保存と文字色rgb(29,78,216)、累計4,950,000Gを実画面で確認し、CSS幅390pxで横はみ出しなし。実機SafariとMariaDB並行処理は未確認。
 - ローカル試作ではレベル・通常都市クリアによる入場制限を追加しない。正式な解放条件・正式バランスは要裁定。本番未反映。
-- 2026-10-03の人間の画像指定により、工房入口を大陸MAPの北西（横28%・縦12%）へ配置。MAP上部の専用カードを外し、通常の街と同じ移動ボタン・現在地・地点の丸印・滞在人数・周辺拡大を使う。表示名は「名もなき工房」、狭幅では「工房」。街マスタ名は従来のまま。`city.index` とMainScreenのMAP双方へ反映し、工房滞在者の拡大位置も同座標へ合わせる。機能OFF・production/stagingでは入口を表示しない。DB・移動処理・通常都市の進行条件は変更しない。
+- 2026-10-03の人間の画像指定により、工房入口を大陸MAPの北西（横28%・縦12%）へ配置。MAP上部の専用カードを外し、通常の街と同じ移動ボタン・現在地・地点の丸印・滞在人数・周辺拡大を使う。表示名は「名もなき工房」、狭幅では「工房」。街マスタ名は従来のまま。`city.index` とMainScreenのMAP双方へ反映し、工房滞在者の拡大位置も同座標へ合わせる。全環境で機能OFFまたはDB準備不足なら入口を表示しない。DB・移動処理・通常都市の進行条件は変更しない。
 
 ## 正式公開前の要裁定・未確認
 

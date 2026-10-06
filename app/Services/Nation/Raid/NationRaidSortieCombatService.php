@@ -13,6 +13,15 @@ class NationRaidSortieCombatService
 {
     public function resolve(SavedBattle $sortie): array
     {
+        throw_if(! isset($sortie->summary['admission']['relic_rules'])
+            && ($sortie->summary['admission']['player']['actor']['nameless_relics']['enabled'] ?? false),
+            \DomainException::class, '承認済み遺物ルールのない旧出撃です。既存の返却処理で回収してください。');
+        $contract = $sortie->summary['admission']['relic_rules'] ?? ['model' => 'legacy-off', 'enabled' => false];
+        return app(NationRaidRelicRules::class)->frozen($contract, fn () => $this->resolveFrozen($sortie));
+    }
+
+    private function resolveFrozen(SavedBattle $sortie): array
+    {
         $snapshot = $sortie->summary['admission'];
         throw_unless(isset($snapshot['player']) && is_array($snapshot['player']), \DomainException::class, '出撃準備が未確定です。');
         $player = $snapshot['player'];

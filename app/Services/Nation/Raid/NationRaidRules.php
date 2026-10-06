@@ -596,6 +596,7 @@ final class NationRaidRules
     public function coordinationDamageRateForRulesetHash(string $hash, int $uniqueParticipants): float
     {
         if (hash_equals($this->rulesetHash(), $hash)
+            || hash_equals($this->previousReliclessRulesetHash(), $hash)
             || hash_equals($this->previousNextCycleRulesetHash(), $hash)
             || hash_equals($this->previousRulesetHash(), $hash)) {
             return self::coordinationDamageRate($uniqueParticipants);
@@ -629,6 +630,7 @@ final class NationRaidRules
     {
         return [
             'version' => self::RULESET_VERSION,
+            'nameless_relic_combat' => app(NationRaidRelicRules::class)->current(),
             'stage_attack_growth' => $this->stageAttackGrowth,
             'fixed' => [
                 'max_turns' => self::MAX_TURNS,
@@ -710,6 +712,14 @@ final class NationRaidRules
             return true;
         }
 
+        // Unversioned events remain valid only with relics OFF. Frozen pending sorties scope this locally.
+        if (app(NationRaidRelicRules::class)->current()['enabled']) {
+            return false;
+        }
+        if (hash_equals($this->previousReliclessRulesetHash(), $hash)) {
+            return true;
+        }
+
         if (hash_equals($this->previousRulesetHash(), $hash)) {
             return true;
         }
@@ -736,6 +746,13 @@ final class NationRaidRules
         unset($stage);
 
         return hash_equals(hash('sha256', NationRaidJson::encode($legacy, JSON_UNESCAPED_UNICODE)), $hash);
+    }
+
+    public function previousReliclessRulesetHash(): string
+    {
+        $snapshot = $this->rulesetSnapshot();
+        unset($snapshot['nameless_relic_combat']);
+        return hash('sha256', NationRaidJson::encode($snapshot, JSON_UNESCAPED_UNICODE));
     }
 
     public function previousStagedHpRulesetHash(): string
@@ -817,6 +834,7 @@ final class NationRaidRules
     public function previousNextCycleRulesetSnapshot(): array
     {
         $snapshot = $this->rulesetSnapshot();
+        unset($snapshot['nameless_relic_combat']);
         $snapshot['version'] = self::PREVIOUS_NEXT_CYCLE_RULESET_VERSION;
         $snapshot['fixed']['boss_species_key'] = 'dragon';
 

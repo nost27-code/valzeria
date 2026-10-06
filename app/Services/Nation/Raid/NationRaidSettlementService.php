@@ -48,11 +48,9 @@ class NationRaidSettlementService
                 && $engine->turnsCompleted >= 1 && $engine->turnsCompleted <= 20,
                 \LogicException::class, 'Raid calculation does not match its admission snapshot.');
 
-            $coordination = $this->coordination->snapshot(
-                $event,
-                $participation,
-                true,
-                (string) $admission['ruleset_hash'],
+            $coordination = app(NationRaidRelicRules::class)->frozen(
+                $admission['relic_rules'] ?? ['model' => 'legacy-off', 'enabled' => false],
+                fn () => $this->coordination->snapshot($event, $participation, true, (string) $admission['ruleset_hash']),
             );
             $stage10ReachedBefore = $event->stage10_reached_at !== null;
             $completedBefore = $event->completed_at !== null;
