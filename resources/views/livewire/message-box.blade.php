@@ -51,13 +51,16 @@
                                                 <img src="{{ $msg->type === 'admin_private' ? \App\Support\CharacterIconCatalog::adminIconAsset() : \App\Support\CharacterIconCatalog::versionedAsset($msg->character?->icon_path ?? 'images/chara/chara_001.webp') }}" class="h-full w-full object-contain" alt="icon">
                                             </div>
                                         @endunless
-                                        <div>
+                                        <div class="min-w-0">
                                             <div class="rounded-2xl px-4 py-2.5 text-sm font-bold leading-relaxed shadow-sm {{ $isMine ? 'rounded-br-sm' : 'rounded-bl-sm' }}"
                                                  style="background-color: {{ $isMine ? $privateChatTheme['own_bubble_bg'] : $privateChatTheme['partner_bubble_bg'] }}; color: {{ $isMine ? $privateChatTheme['own_bubble_text'] : $privateChatTheme['partner_bubble_text'] }};">
-                                                <div class="whitespace-pre-wrap">{{ $msg->message }}</div>
+                                                <div class="whitespace-pre-wrap break-words">{{ $msg->message }}</div>
                                             </div>
                                             <div class="mt-1 text-[10px] font-bold text-slate-400 {{ $isMine ? 'text-right' : 'text-left' }}">
                                                 {{ $msg->created_at?->format('m/d H:i') }}
+                                                @if($isMine && $msg->type === 'private')
+                                                    <button type="button" wire:click="confirmDeleteMessage({{ $msg->id }})" wire:loading.attr="disabled" wire:target="confirmDeleteMessage" class="ml-1 rounded px-2 py-1 text-red-700 hover:bg-red-50 disabled:opacity-60">削除</button>
+                                                @endif
                                             </div>
                                         </div>
                                     </div>
@@ -99,7 +102,7 @@
                                 <div class="w-full max-w-md overflow-hidden rounded-2xl border-2 border-amber-300 bg-white shadow-2xl">
                                     <div class="border-b border-amber-100 bg-amber-50 px-5 py-4">
                                         <div class="text-base font-black text-slate-900">この内容でメッセージを送りますか？</div>
-                                        <div class="mt-1 text-xs font-bold text-slate-500">送信後は取り消せません。</div>
+                                        <div class="mt-1 text-xs font-bold text-slate-500">{{ is_array($selectedConversation) ? '内容と宛先を確認してください。' : '送信したメッセージは、あとから削除できます。' }}</div>
                                     </div>
 
                                     <div class="space-y-4 px-5 py-5">
@@ -215,4 +218,5 @@
 
         </div>
     </div>
+    @include('livewire.partials.chat-message-delete-confirm')
 </div>

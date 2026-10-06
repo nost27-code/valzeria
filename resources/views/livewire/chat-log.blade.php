@@ -70,6 +70,7 @@
             this.scrollToBottom(false);
         },
         closeDrawer() {
+            if (this.$wire.pendingDeletionLogId) return;
             if (!this.drawerMode || !this.drawerOpen) return;
             this.drawerOpen = false;
             this.settingsOpen = false;
@@ -83,7 +84,7 @@
     @chat-scroll-bottom.window="scrollToBottom(false)"
     @chat-logs-refreshed.window="if (stickToBottom) scrollToBottom(false)"
     @open-chat-settings-modal.window="settingsModalOpen = true"
-    @keydown.escape.window="if (settingsModalOpen) { settingsModalOpen = false } else if (drawerOpen) { closeDrawer() }"
+    @keydown.escape.window="if (!$wire.pendingDeletionLogId) { if (settingsModalOpen) { settingsModalOpen = false } else if (drawerOpen) { closeDrawer() } }"
     @class([
         'relative w-full bg-white rounded-xl shadow-[0_8px_22px_rgba(126,96,28,0.18)] border border-[#d4af37] flex flex-col shrink-0 overflow-hidden font-sans' => ! $drawerMode,
         'h-[330px] md:h-[380px]' => ! $drawerMode && $isExpanded,
@@ -422,7 +423,7 @@
                             <span class="mb-0.5 px-1 text-[10px] font-black" style="color: var(--chat-drawer-meta-color);">{{ $log['author_name'] }}</span>
                         @endif
 
-                        <div class="flex items-end gap-1 {{ $log['is_sender'] ? 'flex-row-reverse' : '' }}">
+                        <div class="flex min-w-0 max-w-full items-end gap-1 {{ $log['is_sender'] ? 'flex-row-reverse' : '' }}">
                             <div
                                 class="min-w-0 rounded-2xl px-3 py-2 shadow-sm {{ $log['is_sender'] ? 'rounded-br-sm' : 'rounded-bl-sm border border-white/90' }}"
                                 style="background-color: var(--chat-{{ $log['is_sender'] ? 'own' : 'other' }}-bubble-background); color: var(--chat-{{ $log['is_sender'] ? 'own' : 'other' }}-bubble-text);"
@@ -461,7 +462,10 @@
                         @if($editingLogId !== $log['id'] && ($log['is_edited'] || $log['can_edit']))
                             <div class="mt-0.5 flex items-center gap-1 px-1 text-[9px] font-bold" style="color: var(--chat-drawer-meta-color);">
                                 @if($log['is_edited'])<span>修正済み</span>@endif
-                                @if($log['can_edit'])<button type="button" wire:click="startEdit({{ $log['id'] }})" class="hover:underline">修正</button>@endif
+                                @if($log['can_edit'])
+                                    <button type="button" wire:click="startEdit({{ $log['id'] }})" class="hover:underline">修正</button>
+                                    <button type="button" wire:click="confirmDeleteMessage({{ $log['id'] }})" wire:loading.attr="disabled" wire:target="confirmDeleteMessage" class="rounded px-2 py-1 text-red-700 hover:bg-red-50 disabled:opacity-60">削除</button>
+                                @endif
                             </div>
                         @endif
                     </div>
@@ -490,7 +494,7 @@
             @foreach($systemLogs as $log)
                 <div class="flex" wire:key="chat-log-{{ $log['id'] }}">
                     <span class="text-gray-400 w-10 shrink-0">{{ $log['time'] }}</span>
-                    <span class="
+                    <span class="min-w-0 flex-1 break-words
                         @if(str_contains($log['message'] ?? '', '【星樹の塔】') && str_contains($log['message'] ?? '', '100階を踏破しました')) text-pink-600 font-black
                         @elseif($log['type'] == 'system' || $log['type'] == 'newcomer') text-orange-600 font-bold
                         @elseif($log['type'] == 'chat') text-green-700 font-bold
@@ -541,6 +545,7 @@
                             @endif
                             @if($log['can_edit'])
                                 <button type="button" wire:click="startEdit({{ $log['id'] }})" class="ml-1 rounded border border-gray-200 bg-white px-1.5 py-0.5 text-[10px] font-black text-gray-500 hover:bg-gray-50">修正</button>
+                                <button type="button" wire:click="confirmDeleteMessage({{ $log['id'] }})" wire:loading.attr="disabled" wire:target="confirmDeleteMessage" class="ml-1 rounded border border-red-200 bg-white px-2 py-1 text-[10px] font-black text-red-700 hover:bg-red-50 disabled:opacity-60">削除</button>
                             @endif
                         @endif
                     </span>
@@ -607,6 +612,8 @@
             国家へ所属すると送信できます。
         </div>
     @endif
+
+    @include('livewire.partials.chat-message-delete-confirm')
 
     @if($drawerMode)
         </aside>
