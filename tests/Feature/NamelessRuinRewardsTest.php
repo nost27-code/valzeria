@@ -118,7 +118,12 @@ class NamelessRuinRewardsTest extends TestCase
         $character = $this->character();
         $before = $character->fresh()->getAttributes();
         $this->partialMock(GoldService::class, function (MockInterface $mock): void {
-            $mock->shouldReceive('add')->once()->andThrow(new RuntimeException('fixture reward failure'));
+            $mock->shouldReceive('record')->once()->withArgs(function (Character $paid): bool {
+                $this->assertGreaterThan(10000, (int) $paid->money);
+                $this->assertSame((int) $paid->money, (int) $paid->fresh()->money);
+
+                return true;
+            })->andThrow(new RuntimeException('fixture reward failure'));
         });
         try {
             app(NamelessRuinService::class)->fight($character, 'sand', 1, true, (string) Str::uuid());
