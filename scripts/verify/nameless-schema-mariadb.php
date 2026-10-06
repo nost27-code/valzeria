@@ -32,7 +32,7 @@ function schemaRequire(bool $condition, string $reason): void
 function assets(): array
 {
     $rows = [];
-    foreach (['characters', ...array_keys(NamelessSchemaService::COLUMNS)] as $table) {
+    foreach (['characters', 'character_items', ...array_keys(NamelessSchemaService::COLUMNS)] as $table) {
         $rows[$table] = DB::table($table)->orderBy('id')->get()->map(fn ($row) => (array) $row)->all();
     }
     return $rows;
@@ -87,6 +87,8 @@ try {
         'ALTER TABLE nameless_workshop_operations DROP CONSTRAINT result, ADD CONSTRAINT result CHECK (JSON_VALID(result))', 'nameless_workshop_operations:type:result:expected=json:actual=longtext');
     schemaFault('missing_table_preserves_storage', 'RENAME TABLE nameless_equipment_discoveries TO retained_nameless_discoveries',
         'RENAME TABLE retained_nameless_discoveries TO nameless_equipment_discoveries', 'nameless_equipment_discoveries:table_missing');
+    schemaFault('missing_existing_socket_target', 'RENAME TABLE character_items TO retained_character_items',
+        'RENAME TABLE retained_character_items TO character_items', 'character_items:table_missing');
     DB::statement('CREATE INDEX fixture_socket_fk ON player_relics (character_item_id, slot_number)');
     try {
         schemaFault('missing_socket_unique', 'ALTER TABLE player_relics DROP INDEX player_relic_ordinary_socket_unique',

@@ -41,6 +41,9 @@ final class NamelessSchemaService
         ],
     ];
 
+    /** Existing FK targets must physically exist, not merely be named by a retained FK. */
+    private const REFERENCES = ['characters' => ['id' => ['id', false]], 'character_items' => ['id' => ['id', false]]];
+
     public function problems(): array
     {
         $problems = [];
@@ -53,7 +56,7 @@ final class NamelessSchemaService
             }
         }
         $maria = in_array(DB::getDriverName(), ['mysql', 'mariadb'], true);
-        foreach (self::COLUMNS as $table => $required) {
+        foreach ([...self::COLUMNS, ...self::REFERENCES] as $table => $required) {
             if (! Schema::hasTable($table)) {
                 $problems[] = $table.':table_missing';
                 continue;

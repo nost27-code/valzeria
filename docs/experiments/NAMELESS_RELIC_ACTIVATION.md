@@ -30,7 +30,7 @@
 
 MariaDBではInnoDB、idのunsigned bigint相当・auto increment・主キー、所有者/装着先のunsigned bigint以上、ランク/進捗のunsigned tinyint以上、進行/改訂のunsigned int以上、成長EXPのunsigned bigint以上を検査する。フラグはtinyint、日時はnullable timestamp/datetime、文字列はmigrationで定めた長さ以上を必要とする。kindはweapon/armor/accessoryのenum、resultはJSONまたは単独のJSON_VALID検査を強制する制約付きlongtext（OR 1などで無条件に通す弱い制約は拒否）。各列のnullableと書込みが依存する既定値も検査する（詳細値はCOLUMNS）。生成列は拒否する。
 
-ソケットの2組のunique、操作のcharacter_id/request_uuid、発見のcharacter_id/equipment_type、進行のcharacter_id/zone_keyのuniqueを要求する。古いcharacter_id/kindの一意制約は拒否する。所有者FKはcharacters.idへcascade、装着先FKは各武具.idへset nullを要求する。対象5本の移行記録がない場合も準備未完了。SQLiteは検査できる型/制約を使い、MariaDB固有の幅・unsigned・JSON制約・engineは隔離MariaDBで別途検証する。
+ソケットの2組のunique、操作のcharacter_id/request_uuid、発見のcharacter_id/equipment_type、進行のcharacter_id/zone_keyのuniqueを要求する。古いcharacter_id/kindの一意制約は拒否する。所有者FKはcharacters.idへcascade、装着先FKは各武具.idへset nullを要求する。参照先の既存characters/character_itemsテーブルの実在・id型/主キー・InnoDBも確認する。対象5本の移行記録がない場合も準備未完了。SQLiteは検査できる型/制約を使い、MariaDB固有の幅・unsigned・JSON制約・engineは隔離MariaDBで別途検証する。
 
 `nameless:prepare --json` の `schema_problems` は `table:column_missing:effect_key`、`table:type:rank:expected=tinyint:actual=varchar(3)`、`table:unique:...`、`migrations:pending:...` 等の具体的診断を返す。`constraint_problems` は互換用に同じ診断を返す。プレイヤー向け画面は準備中表示に留める。
 

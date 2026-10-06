@@ -77,6 +77,17 @@ class NamelessSchemaReadinessTest extends TestCase
         $this->assertSame($before, $body->fresh()->getRawOriginal());
     }
 
+    public function test_missing_existing_socket_target_table_blocks_activation(): void
+    {
+        $body = $this->asset();
+        $before = $body->fresh()->getRawOriginal();
+        Schema::drop('character_items'); // Empty fixture, with retained FK metadata in player_relics.
+        config(['nameless_relics.enabled' => true]);
+        $this->assertContains('character_items:table_missing', app(NamelessSchemaService::class)->problems());
+        $this->assertFalse(app(NamelessWorkshopService::class)->ready());
+        $this->assertSame($before, $body->fresh()->getRawOriginal());
+    }
+
     public function test_unmigrated_db_preserves_existing_weapon_and_refuses_activation(): void
     {
         $body = $this->asset();
