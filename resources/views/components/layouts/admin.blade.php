@@ -98,6 +98,7 @@
                     ['route' => 'admin.public-logs', 'label' => '公開ログ管理', 'abbr' => 'O'],
                     ['route' => 'admin.chat', 'label' => '管理人チャット', 'abbr' => 'Q'],
                     ['route' => 'admin.private-chat-logs', 'label' => '個人チャットログ', 'abbr' => 'D'],
+                    ['route' => 'admin.deleted-chat-logs', 'label' => '削除済みチャット', 'abbr' => 'DC'],
                     ['route' => 'admin.kiseki-purchases', 'label' => '課金監査', 'abbr' => 'K'],
                     ['route' => 'admin.npc-market-analytics', 'label' => 'NPC市場分析', 'abbr' => 'M'],
                     ['route' => 'admin.equipment-market.index', 'label' => '装備市場管理', 'abbr' => 'EM'],

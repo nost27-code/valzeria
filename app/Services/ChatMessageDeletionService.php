@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Character;
 use App\Models\CharacterNotification;
+use App\Models\ChatMessageDeletionLog;
 use App\Models\PublicLog;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
@@ -22,6 +23,25 @@ class ChatMessageDeletionService
             if (! $log) {
                 return false;
             }
+
+            $sender = Character::query()->find($log->character_id, ['id', 'user_id', 'name']);
+            $receiver = $log->receiver_id
+                ? Character::query()->find($log->receiver_id, ['id', 'user_id', 'name'])
+                : null;
+            // 保存できなければ元の発言と通知も残す。同じ行ロック下で一度だけ保存する。
+            ChatMessageDeletionLog::create([
+                'public_log_id' => $log->id,
+                'type' => $log->type,
+                'character_id' => $log->character_id,
+                'user_id' => $sender?->user_id ?? $character->user_id,
+                'sender_name' => $sender?->name ?? $character->name,
+                'receiver_id' => $log->receiver_id,
+                'receiver_user_id' => $receiver?->user_id,
+                'receiver_name' => $receiver?->name,
+                'message' => $log->message,
+                'sent_at' => $log->created_at,
+                'deleted_at' => now(),
+            ]);
 
             if ($log->type === 'private') {
                 // 通知ベルに残った本文も、対象の手紙と一緒に取り除く。
