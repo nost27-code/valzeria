@@ -90,7 +90,15 @@ class NamelessRuinCompensationService
                 }
                 $appliedExp = $character->level < 255 ? (int) $reward['experience'] : 0;
                 $jobGain = $this->jobReward($reward, (int) $character->level);
-                $growth = app(LevelService::class)->addRewardAndCheckLevelUp($character, $appliedExp, 0, $jobGain);
+                if ($character->level >= 255) {
+                    // Preserve even legacy leftover EXP at the cap; do not run the level loop.
+                    if ($jobGain > 0) {
+                        app(JobService::class)->addJobExp($character, $jobGain);
+                    }
+                    $growth = ['level_up_count' => 0];
+                } else {
+                    $growth = app(LevelService::class)->addRewardAndCheckLevelUp($character, $appliedExp, 0, $jobGain);
+                }
                 $experience += $appliedExp;
                 $jobExp += $jobGain;
                 $gold += (int) $reward['gold'];

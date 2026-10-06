@@ -86,14 +86,14 @@ class NamelessRuinCompensationTest extends TestCase
     public function test_capped_level_and_mastered_job_keep_caps_but_receive_gold_and_wins(): void
     {
         $character = $this->character();
-        $character->update(['level' => 255]);
+        $character->update(['level' => 255, 'exp' => 2000000]);
         CharacterJob::query()->where('character_id', $character->id)->update(['is_mastered' => true, 'job_level' => 10]);
         $plan = $this->plan($this->single($character), 1, 1);
         $result = app(NamelessRuinCompensationService::class)->applyEntry($plan['entries'][0]);
         $this->assertSame(0, $result['receipt']['experience_added']);
         $this->assertSame(0, $result['receipt']['job_exp_added']);
         $this->assertSame(255, (int) $character->fresh()->level);
-        $this->assertSame(0, (int) $character->fresh()->exp);
+        $this->assertSame(2000000, (int) $character->fresh()->exp);
         $this->assertSame(11, (int) $character->fresh()->wins);
         $this->assertGreaterThan(100, (int) $character->fresh()->money);
     }
