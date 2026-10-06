@@ -20,7 +20,8 @@ class NamelessPreparationService
 
     public function status(): array
     {
-        $applied = Schema::hasTable('migrations') ? DB::table('migrations')->pluck('migration')->all() : [];
+        $applied = Schema::hasTable('migrations') && Schema::hasColumn('migrations', 'migration')
+            ? DB::table('migrations')->pluck('migration')->all() : [];
         $pending = array_values(array_diff(self::MIGRATIONS, $applied));
         $problems = app(NamelessSchemaService::class)->problems();
         $schema = $problems === [];

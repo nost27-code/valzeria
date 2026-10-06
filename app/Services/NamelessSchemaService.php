@@ -49,6 +49,8 @@ final class NamelessSchemaService
         $problems = [];
         if (! Schema::hasTable('migrations')) {
             $problems[] = 'migrations:table_missing';
+        } elseif (! Schema::hasColumn('migrations', 'migration')) {
+            $problems[] = 'migrations:column_missing:migration';
         } else {
             $applied = DB::table('migrations')->pluck('migration')->all();
             foreach (array_diff(NamelessPreparationService::MIGRATIONS, $applied) as $migration) {

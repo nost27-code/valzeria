@@ -77,6 +77,19 @@ class NamelessSchemaReadinessTest extends TestCase
         $this->assertSame($before, $body->fresh()->getRawOriginal());
     }
 
+    public function test_broken_migration_ledger_is_reported_without_a_query_error(): void
+    {
+        $body = $this->asset();
+        $before = $body->fresh()->getRawOriginal();
+        Schema::table('migrations', fn ($table) => $table->renameColumn('migration', 'retained_migration'));
+        config(['nameless_relics.enabled' => true]);
+        $status = app(NamelessPreparationService::class)->status();
+        $this->assertContains('migrations:column_missing:migration', $status['schema_problems']);
+        $this->assertFalse($status['ready']);
+        $this->assertFalse(app(NamelessWorkshopService::class)->ready());
+        $this->assertSame($before, $body->fresh()->getRawOriginal());
+    }
+
     public function test_missing_existing_socket_target_table_blocks_activation(): void
     {
         $body = $this->asset();
