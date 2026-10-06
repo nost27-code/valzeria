@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\Schema;
 
 class TownRankingService
 {
-    public const CACHE_KEY_PREFIX = 'town_ranking_boards_v9';
+    public const CACHE_KEY_PREFIX = 'town_ranking_boards_v10';
 
     private const LIMIT = 30;
 

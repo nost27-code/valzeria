@@ -9,6 +9,10 @@ on:
       - 'app/Services/MapExplorationRewardService.php'
       - 'app/Services/LevelService.php'
       - 'tests/Feature/NamelessRuinRewardsTest.php'
+      - 'app/Services/WeeklyWinRankingService.php'
+      - 'app/Services/TownRankingService.php'
+      - 'tests/Feature/NamelessWeeklyWinsTest.php'
+      - 'tests/Feature/WeeklyWinRankingTest.php'
       - 'tests/Feature/NamelessRuinDepthBossTest.php'
       - 'tests/Feature/NamelessRelicPrototypeTest.php'
       - 'tests/Support/NamelessRuinRewardReferences.php'
@@ -23,7 +27,7 @@ concurrency:
 jobs:
   rewards:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     services:
       mariadb:
         image: mariadb:10.5.13
@@ -82,6 +86,24 @@ jobs:
           php -d memory_limit=128M vendor/phpunit/phpunit/phpunit --log-junit reward-evidence/map.xml tests/Feature/MapExplorationRewardServiceTest.php
           php -d memory_limit=128M vendor/phpunit/phpunit/phpunit --filter 'test_actual_ruin_boss_battle_awards_once_advances_only_its_zone_and_consumes_stamina$|test_fifty_ruin_battles_aggregate_relics_and_replay_without_extra_consumption$' --log-junit reward-evidence/prototype.xml tests/Feature/NamelessRelicPrototypeTest.php
           php -d memory_limit=128M vendor/phpunit/phpunit/phpunit --filter 'test_every_boss_can_be_fought_and_replayed_without_changing_reward_or_progress_rules$' --log-junit reward-evidence/boss.xml tests/Feature/NamelessRuinDepthBossTest.php
+      - name: Verify ruin weekly wins and ranking regression sequentially
+        shell: bash
+        run: |
+          set -euo pipefail
+          for filter in \
+            'test_real_single_boss_and_batch_wins_are_counted_once_on_replay$|test_actual_defeat_increments_losses_once_and_is_not_a_weekly_win$' \
+            'test_saved_zero_exp_wins_and_partial_batch_use_original_week_even_when_off$|test_normal_and_ruin_scores_combine_with_ties_and_account_exclusions$' \
+            'test_finalization_includes_ruin_wins_without_double_rewards$'; do
+            count=$(( ${count:-0} + 1 ))
+            php -d memory_limit=128M vendor/phpunit/phpunit/phpunit --filter "$filter" --log-junit "reward-evidence/weekly-$count.xml" tests/Feature/NamelessWeeklyWinsTest.php
+          done
+          php -d memory_limit=128M vendor/phpunit/phpunit/phpunit --filter 'test_unprepared_database_keeps_existing_normal_ranking$' --log-junit reward-evidence/weekly-unprepared.xml tests/Feature/NamelessWeeklyWinsTest.php
+          for filter in \
+            'test_live_weekly_rows_use_a_short_period_scoped_cache$|test_home_widget_serves_stale_data_until_the_scheduled_warmup_replaces_it$' \
+            'test_guests_are_displayed_but_admins_and_testers_are_excluded$|test_non_combat_events_and_timeouts_saved_as_win_are_not_counted$'; do
+            count=$(( ${count:-0} + 1 ))
+            php -d memory_limit=128M vendor/phpunit/phpunit/phpunit --filter "$filter" --log-junit "reward-evidence/ranking-$count.xml" tests/Feature/WeeklyWinRankingTest.php
+          done
       - uses: actions/upload-artifact@v4
         if: always()
         with:

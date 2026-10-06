@@ -245,7 +245,11 @@ class NamelessRuinService
         $unlockedZoneName = null;
         $equipmentDrops = [];
         $reward = [];
+        $staminaMaxUp = 0;
         if ($battle->result === 'victory') {
+            $staminaMaxBefore = $stamina->maxForCharacter($locked);
+            $locked->increment('wins');
+            $staminaMaxUp = $stamina->maxForCharacter($locked) - $staminaMaxBefore;
             $reward = app(LevelService::class)->addRewardAndCheckLevelUp($locked, (int) $battle->exp, (int) $battle->gold, (int) $battle->jobExp);
             $dropCount = $encounter['kind'] === 'relic_goblin'
                 ? (int) config('nameless_relics.relic_goblin_drop_count')
@@ -267,6 +271,10 @@ class NamelessRuinService
             }
         }
 
+        if (in_array($battle->result, ['defeat', 'timeout'], true)) {
+            $locked->increment('losses');
+        }
+
         $snapshot = [
             'success' => true, 'result' => $battle->result, 'turn_count' => $battle->turnCount,
             'log' => implode("\n", $battle->logs), 'enemy' => $enemy->getAttributes() + $this->enemyStats($definition, $depth, $enemyBoss),
@@ -281,6 +289,7 @@ class NamelessRuinService
             'exp_gained' => (int) $battle->exp, 'gold_gained' => (int) $battle->gold, 'job_exp_gained' => (int) $battle->jobExp,
             'level_up_count' => $reward['level_up_count'] ?? 0, 'level_up_details' => $reward['details'] ?? [],
             'progression' => $reward['progression'] ?? null, 'job_result' => $reward['job_result'] ?? null,
+            'stamina_max_up' => $staminaMaxUp,
             'equipment_drops' => [], 'material_drop' => [], 'exploration_stamina' => $stamina->summary($locked),
         ];
         $drop = $drops[0] ?? null;
