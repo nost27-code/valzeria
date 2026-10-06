@@ -16,9 +16,22 @@ class MapExplorationBatchService
 {
     public function __construct(private readonly ExplorationMapSeedService $seeds, private readonly MapIncomeService $income, private readonly ExplorationMapDifficultyService $difficulty, private readonly MapExplorationRewardService $rewards, private readonly ExplorationMapLegacyRewardService $legacyRewards) {}
 
+    public function maxRepeatCount(Character $character, TownMapRegistration $registration): int
+    {
+        return $registration->visibilityScope() === TownMapRegistration::VISIBILITY_OWNER
+            && (int) $registration->map->owner_character_id === (int) $character->id ? 50 : 10;
+    }
+
+    public function repeatCounts(Character $character, TownMapRegistration $registration): array
+    {
+        if (!$registration->isOpen()) return [];
+        $counts = $this->maxRepeatCount($character, $registration) === 50 ? [1, 10, 50] : [1, 10];
+        return array_values(array_unique(array_map(fn (int $count): int => min($count, (int) $registration->remaining_explorations), $counts)));
+    }
+
     public function reserve(Character $character, TownMapRegistration $registration, int $requestedCount, string $requestUuid, bool $chargeEntryFee = true, bool $bankConfirmed = false): MapExplorationBatch
     {
-        $requestedCount = max(1, min(10, $requestedCount));
+        $requestedCount = max(1, $requestedCount);
         $this->recoverStaleBatches((int) $registration->id);
 
         return DB::transaction(function () use ($character, $registration, $requestedCount, $requestUuid, $chargeEntryFee, $bankConfirmed) {
@@ -34,6 +47,7 @@ class MapExplorationBatchService
             if (!app(MapPublicationVisibilityService::class)->canAccess($character, $registration, $hasActiveEntry)) {
                 throw new \RuntimeException('この地図の公開範囲には入っていません。');
             }
+            $requestedCount = min($requestedCount, $this->maxRepeatCount($character, $registration));
             $reserved = min($requestedCount, (int) $registration->remaining_explorations);
             $entryFee = $character->id === $registration->map->owner_character_id ? 0 : (int) $registration->entry_fee_per_exploration;
             $total = $reserved > 0 && $chargeEntryFee ? $entryFee : 0;
@@ -348,7 +362,7 @@ class MapExplorationBatchService
         $mapDrops = [];
         $levelUps = [];
         $summaryLines = [
-            '<span class="text-sky-800 font-extrabold">【10回探索】最大' . $batch->requested_count . '回の連続探索を行いました。</span>',
+            '<span class="text-sky-800 font-extrabold">【' . $batch->requested_count . '回探索】最大' . $batch->requested_count . '回の連続探索を行いました。</span>',
         ];
         $displayRuns = [];
 

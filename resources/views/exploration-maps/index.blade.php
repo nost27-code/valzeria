@@ -72,7 +72,15 @@
             </div>
             <p class="mt-2 text-xs font-bold text-slate-600">公開中の地図は詳細画面から取り下げると、すぐに公開枠が空きます。</p>
             <form method="GET" action="{{ route('exploration-maps.index') }}" class="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
-                <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <label class="block text-xs font-black text-slate-700">
+                        報酬傾向で絞り込む
+                        <select name="reward" class="mt-1 w-full rounded border-slate-300 bg-white text-sm font-bold text-slate-800">
+                            @foreach($rewardFilterOptions as $value => $label)
+                                <option value="{{ $value }}" @selected($rewardFilter === $value)>{{ $label }}</option>
+                            @endforeach
+                        </select>
+                    </label>
                     <label class="block text-xs font-black text-slate-700">
                         状態で絞り込む
                         <select name="status" class="mt-1 w-full rounded border-slate-300 bg-white text-sm font-bold text-slate-800">
@@ -106,6 +114,7 @@
                 </div>
             </form>
             @if($ownedMaps->whereIn('status', ['uninvestigated', 'surveyed'])->isNotEmpty())
+                <p class="mt-2 text-xs text-slate-600">絞り込みを変更すると選択を解除します。未調査地図の報酬傾向は調査後に判明します。</p>
                 <div class="mt-3 space-y-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
                     <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
                         @if($ownedMaps->where('status', 'uninvestigated')->isNotEmpty())
@@ -114,7 +123,7 @@
                             </button>
                         @endif
                         <button type="button" @click="toggleAllDiscardable()" class="rounded border border-slate-300 bg-white px-3 py-2 text-xs font-black text-slate-700 hover:bg-slate-100">
-                            <span x-text="selected.length === discardable.length ? '選択を解除' : '破棄可能な地図をすべて選択'">破棄可能な地図をすべて選択</span>
+                            <span x-text="selected.length === discardable.length ? '選択を解除' : '表示中の破棄可能な地図をすべて選択'">表示中の破棄可能な地図をすべて選択</span>
                         </button>
                     </div>
                     <p class="text-center text-xs font-black text-slate-600">選択中：<span x-text="selected.length">0</span>件</p>

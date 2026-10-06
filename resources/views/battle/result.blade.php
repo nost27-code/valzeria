@@ -2235,15 +2235,17 @@
                                             </button>
                                         </form>
                                         @if($usesStamina)
-                                            <form action="{{ $exploreAgainAction }}" method="POST" id="explore-form-batch" data-async-explore-form data-batch-explore-form data-ready-text="×10 探索" data-ready-html="{!! e('×10 探索') !!}" data-wait-seconds="0" data-initial-lock-seconds="{{ $initialExploreLockSeconds }}" data-current-hp="{{ $remainingHp ?? 0 }}" data-max-hp="{{ $maxHp ?? 1 }}" data-min-hp-percent="30" data-hp-warning="×10探索を続けるにはHPを回復してください。" data-current-stamina="{{ (int) ($stamina['current'] ?? 0) }}" data-required-stamina="{{ $batchStartStaminaCost }}" data-stamina-warning="探索力が足りません。探索力の小瓶や薬で回復してから探索してください。" data-inline-warning-target="batch-explore-inline-warning" class="shrink-0">
+                                            @foreach((isset($mapExploration) && (int) ($mapExploration['max_repeat_count'] ?? 10) === 50) ? [10, 50] : [10] as $mapBatchCount)
+                                            <form action="{{ $exploreAgainAction }}" method="POST" id="{{ $mapBatchCount === 10 ? 'explore-form-batch' : 'explore-form-batch-50' }}" data-async-explore-form data-batch-explore-form data-ready-text="×{{ $mapBatchCount }} 探索" data-ready-html="{!! e('×' . $mapBatchCount . ' 探索') !!}" data-wait-seconds="0" data-initial-lock-seconds="{{ $initialExploreLockSeconds }}" data-current-hp="{{ $remainingHp ?? 0 }}" data-max-hp="{{ $maxHp ?? 1 }}" data-min-hp-percent="30" data-hp-warning="×{{ $mapBatchCount }}探索を続けるにはHPを回復してください。" data-current-stamina="{{ (int) ($stamina['current'] ?? 0) }}" data-required-stamina="{{ $batchStartStaminaCost }}" data-stamina-warning="探索力が足りません。探索力の小瓶や薬で回復してから探索してください。" data-inline-warning-target="batch-explore-inline-warning" class="shrink-0">
                                                 @csrf <x-exploration-request-token />
                                                 <input type="hidden" name="continue_chain" value="1">
-                                                <input type="hidden" name="batch_count" value="{{ $batchExploreCount }}">
-                                                <button type="submit" id="explore-btn" title="探索力を{{ number_format($batchStaminaCost) }}消費して最大10回探索" class="h-full bg-sky-700 hover:bg-sky-800 disabled:bg-slate-400 disabled:cursor-not-allowed text-white font-bold px-3.5 rounded-lg shadow-md transition duration-200 text-xs sm:text-sm flex items-center justify-center gap-1.5">
+                                                <input type="hidden" name="batch_count" value="{{ $mapBatchCount }}">
+                                                <button type="submit" id="explore-btn-batch-{{ $mapBatchCount }}" title="探索力を最大{{ number_format($staminaCost * $mapBatchCount) }}消費して最大{{ $mapBatchCount }}回探索" class="h-full bg-sky-700 hover:bg-sky-800 disabled:bg-slate-400 disabled:cursor-not-allowed text-white font-bold px-3.5 rounded-lg shadow-md transition duration-200 text-xs sm:text-sm flex items-center justify-center gap-1.5">
                                                     <x-loading-spinner class="hidden" data-explore-spinner size="h-4 w-4" />
-                                                    <span id="explore-btn-text">×10 探索</span>
+                                                    <span id="explore-btn-text">×{{ $mapBatchCount }} 探索</span>
                                                 </button>
                                             </form>
+                                            @endforeach
                                         @endif
                                     </div>
                                     @if($usesStamina)

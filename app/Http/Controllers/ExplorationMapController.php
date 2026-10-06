@@ -83,7 +83,7 @@ class ExplorationMapController extends Controller
         $towns = City::whereBetween('id', [1, 10])->orderBy('id')->get();
         $surveyCosts = app(MapSurveyService::class)->costs();
         $publicationService = app(MapPublicationService::class);
-        $surveyedMaps = $ownedMaps->where('status', 'surveyed');
+        $surveyedMaps = $ownedMaps->whereIn('status', ['surveyed', 'published', 'withdrawn']);
         $enemyIds = $surveyedMaps
             ->flatMap(fn (ExplorationMap $map) => collect($map->normal_monster_variants_json ?? [])->pluck('base_monster_id'))
             ->filter()
@@ -91,6 +91,12 @@ class ExplorationMapController extends Controller
             ->values();
         $mapEnemies = Enemy::whereIn('id', $enemyIds)->get()->keyBy('id');
         $display = app(ExplorationMapDisplayService::class);
+        $rewardFilterOptions = $display->rewardFilterOptions(true);
+        $rewardFilter = $request->string('reward')->toString();
+        $rewardFilter = array_key_exists($rewardFilter, $rewardFilterOptions) ? $rewardFilter : 'all';
+        if ($rewardFilter !== 'all') {
+            $ownedMaps = $ownedMaps->filter(fn (ExplorationMap $map): bool => $display->rewardFilterKey($map) === $rewardFilter)->values();
+        }
         $mapDetails = $surveyedMaps
             ->mapWithKeys(fn (ExplorationMap $map) => [$map->id => $display->details($map, $mapEnemies)])
             ->all();
@@ -105,12 +111,14 @@ class ExplorationMapController extends Controller
             'ownedMapStatusFilterOptions' => $statusFilterOptions,
             'ownedMapGradeFilterOptions' => $gradeFilterOptions,
             'ownedMapSortOptions' => $sortOptions,
-            'ownedMapFiltersActive' => $statusFilter !== 'all' || $gradeFilter !== 'all' || $sort !== 'recent',
+            'ownedMapFiltersActive' => $statusFilter !== 'all' || $gradeFilter !== 'all' || $sort !== 'recent' || $rewardFilter !== 'all',
             'towns' => $towns,
             'surveyCosts' => $surveyCosts,
             'activePublicationCount' => $publicationService->activePublicationCount($character),
             'activePublicationLimit' => $publicationService->activePublicationLimit(),
             'mapDetails' => $mapDetails,
+            'rewardFilterOptions' => $rewardFilterOptions,
+            'rewardFilter' => $rewardFilter,
             'bankSummary' => app(\App\Services\BankService::class)->summary($character),
         ]);
     }
@@ -168,6 +176,10 @@ class ExplorationMapController extends Controller
             'fee_asc' => '入場料が安い順',
         ];
         $sort = array_key_exists($sort, $sortOptions) ? $sort : 'recently_entered';
+        $display = app(ExplorationMapDisplayService::class);
+        $rewardFilterOptions = $display->rewardFilterOptions();
+        $rewardFilter = request()->string('reward')->toString();
+        $rewardFilter = array_key_exists($rewardFilter, $rewardFilterOptions) ? $rewardFilter : 'all';
         $lastExploration = MapExplorationBatch::query()
             ->select('created_at')
             ->whereColumn('registration_id', 'town_map_registrations.id')
@@ -209,6 +221,9 @@ class ExplorationMapController extends Controller
         $mapEnemies = Enemy::whereIn('id', $enemyIds)->get()->keyBy('id');
         $display = app(ExplorationMapDisplayService::class);
         $mapDetails = $published->mapWithKeys(fn (TownMapRegistration $registration) => [$registration->id => $display->details($registration->map, $mapEnemies)])->all();
+        if ($rewardFilter !== 'all') {
+            $published = $published->filter(fn (TownMapRegistration $registration): bool => $display->rewardFilterKey($registration->map) === $rewardFilter);
+        }
         $published = (match ($sort) {
             'latest_published' => $published->sortByDesc('published_at'),
             'power_asc' => $published->sortBy(fn (TownMapRegistration $registration) => $mapDetails[$registration->id]['enemy_power_min'] ?: PHP_INT_MAX),
@@ -224,7 +239,11 @@ class ExplorationMapController extends Controller
             'activeRegistrationId' => (int) ($activeRegistration?->id ?? 0),
             'sort' => $sort,
             'sortOptions' => $sortOptions,
+            'mapBatchService' => app(MapExplorationBatchService::class),
+            'rewardFilterOptions' => $rewardFilterOptions,
+            'rewardFilter' => $rewardFilter,
             'bankSummary' => app(\App\Services\BankService::class)->summary($character),
+
         ]);
     }
     public function leave()
@@ -255,6 +274,7 @@ class ExplorationMapController extends Controller
             'bankSummary' => app(\App\Services\BankService::class)->summary($character),
             'isActiveMapEntry' => $isActiveMapEntry,
             'visibilityOptions' => app(MapPublicationVisibilityService::class)->optionsFor($character),
+            'exploreCounts' => app(MapExplorationBatchService::class)->repeatCounts($character, $registration),
         ]);
     }
     public function startSurvey(Request $request, ExplorationMap $map)
@@ -348,7 +368,9 @@ class ExplorationMapController extends Controller
     }
     public function explore(Request $request, TownMapRegistration $registration)
     {
-        $request->validate(['count' => ['required', 'integer', 'min:1', 'max:10'], 'request_uuid' => ['nullable', 'uuid'], 'use_bank' => ['nullable', 'boolean']]);
+        $character = $this->character();
+        $service = app(MapExplorationBatchService::class);
+        $request->validate(['count' => ['required', 'integer', 'min:1', 'max:'.$service->maxRepeatCount($character, $registration)], 'request_uuid' => ['nullable', 'uuid'], 'use_bank' => ['nullable', 'boolean']]);
         try {
             $character = $this->character();
             $service = app(MapExplorationBatchService::class);
@@ -384,6 +406,7 @@ class ExplorationMapController extends Controller
                     'map_name' => (string) $batch->map->name,
                     'can_continue' => $batch->registration->isOpen() && $batch->registration->remaining_explorations > 0,
                     'remaining_explorations' => (int) $batch->registration->remaining_explorations,
+                    'max_repeat_count' => $service->maxRepeatCount($character, $batch->registration),
                     'entry_fee' => (int) $batch->fee_per_exploration,
                     'loot_summary' => app(\App\Services\MapExplorationDefeatService::class)->currentLootSummary($character, (int) $batch->registration_id),
                 ],

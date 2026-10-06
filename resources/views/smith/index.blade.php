@@ -34,14 +34,50 @@
     $evolvableCount = $grouped->filter(fn ($group) => collect($group)->contains('can_evolve', true))->count();
 @endphp
 <x-layouts.facility :title="$title" :headerIconImage="$headerIconImage" :bgImage="$bgImage">
+    <script>{!! file_get_contents(public_path('js/equipment-browse-controls.js')) !!}</script>
     <div
         class="w-full mx-auto pb-10"
         x-data="{
+            ...equipmentBrowseControls(),
             modalOpen: false,
             helpOpen: false,
             selected: null,
             statusFilter: 'all',
             sortBy: 'default',
+            matchingEvolutionCount: {{ $candidateCount }},
+            init() {
+                ['browseQuery', 'browseStatus', 'browseQuality', 'statusFilter'].forEach((key) => this.$watch(key, () => {
+                    this.$refs.evolutionList?.querySelectorAll('[data-smith-bulk-sell-checkbox]').forEach((checkbox) => {
+                        checkbox.checked = false;
+                        checkbox.dispatchEvent(new Event('change', { bubbles: true }));
+                    });
+                    this.refreshEvolutionVisibility();
+                }));
+                this.$watch('sortBy', () => this.refreshEvolutionVisibility());
+                this.$nextTick(() => this.refreshEvolutionVisibility());
+            },
+            refreshEvolutionVisibility() {
+                const list = this.$refs.evolutionList;
+                if (!list) return;
+                const cards = [...list.querySelectorAll('[data-smith-source-card]')];
+                const compare = (a, b) => {
+                    const fallback = () => Number(a.dataset.browseOrder) - Number(b.dataset.browseOrder);
+                    if (this.sortBy === 'name') return a.dataset.browseSearch.localeCompare(b.dataset.browseSearch, 'ja') || fallback();
+                    if (this.sortBy === 'rank') return Number(b.dataset.browseRank) - Number(a.dataset.browseRank) || fallback();
+                    if (this.sortBy === 'quality') return this.equipmentQualityOrder(b.dataset.browseQuality) - this.equipmentQualityOrder(a.dataset.browseQuality) || fallback();
+                    if (this.sortBy === 'enhance') return Number(b.dataset.browseEnhance) - Number(a.dataset.browseEnhance) || fallback();
+                    if (this.sortBy === 'stats') return Number(b.dataset.browseStats) - Number(a.dataset.browseStats) || fallback();
+                    return fallback();
+                };
+                let count = 0;
+                cards.sort(compare).forEach((card) => {
+                    const visible = this.matchesEquipment(card.dataset) && (this.statusFilter === 'all' || card.dataset.browseEvolvable === '1');
+                    card.style.display = visible ? '' : 'none';
+                    if (visible) count++;
+                    list.appendChild(card);
+                });
+                this.matchingEvolutionCount = count;
+            },
             handGold: @js((int) ($goldSummary['hand_gold'] ?? 0)),
             bankGold: @js((int) ($goldSummary['bank_gold'] ?? 0)),
             srcPopup: { open: false, sources: [], label: '', required: 0 },
@@ -108,14 +144,9 @@
                 </button>
             </div>
 
-            <div class="mb-5 flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-                <label for="smith-sort" class="shrink-0 text-xs font-bold text-slate-700">並び替え</label>
-                <select id="smith-sort" x-model="sortBy" class="min-w-0 flex-1 rounded border border-slate-300 bg-white px-2.5 py-2 text-xs font-bold text-slate-700 focus:border-amber-500 focus:ring-amber-500">
-                    <option value="default">おすすめ順</option>
-                    <option value="enhance">強化値が高い順</option>
-                    <option value="stats">能力値が高い順</option>
-                </select>
-            </div>
+            <x-equipment-browse-controls sort-model="sortBy" :sort-options="['default' => 'おすすめ順', 'rank' => 'ランクが高い順', 'quality' => '品質が高い順', 'name' => '名前順', 'enhance' => '強化値が高い順', 'stats' => '能力値が高い順']" />
+            <p class="mb-3 text-xs font-bold text-slate-600">条件に合う装備：<span x-text="matchingEvolutionCount">{{ $candidateCount }}</span>件</p>
+            <p x-show="matchingEvolutionCount === 0 && {{ $candidateCount }} > 0" x-cloak class="mb-4 rounded-lg bg-slate-50 p-4 text-center text-sm text-slate-600">条件に合う装備がありません。</p>
 
             <div class="mb-5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] font-bold text-slate-600">
                 <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
@@ -171,7 +202,7 @@
                     <p>進化できる{{ $equipmentTypes[$equipmentType] }}はまだありません。</p>
                 </div>
             @else
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-2.5">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-2.5" x-ref="evolutionList">
                     @foreach($grouped as $group)
                         @php
                             $paths = $group->values()->all();
@@ -204,8 +235,15 @@
                         <div
                             data-smith-source-card
                             data-source-item-id="{{ $groupSourceItemId ?: '' }}"
-                            x-show="statusFilter === 'all' || {{ $groupHasEvolvable ? 'true' : 'false' }}"
-                            :style="sortBy === 'enhance' ? { order: -{{ $groupEnhanceLevel }} } : (sortBy === 'stats' ? { order: -{{ $groupTotalStatValue }} } : {})"
+                            data-browse-search="{{ implode(' ', [$fromDisplayName, $groupSourceOption['category'] ?? '', $first['from_rank'] ?? '']) }}"
+                            data-browse-quality="{{ $groupSourceOption['quality'] ?? 'normal' }}"
+                            data-browse-equipped="{{ $groupHasEquipped ? '1' : '0' }}"
+                            data-browse-locked="{{ ($groupSourceOption['is_locked'] ?? false) ? '1' : '0' }}"
+                            data-browse-evolvable="{{ $groupHasEvolvable ? '1' : '0' }}"
+                            data-browse-order="{{ $loop->index }}"
+                            data-browse-rank="{{ $first['rank_sort'] ?? 0 }}"
+                            data-browse-enhance="{{ $groupEnhanceLevel }}"
+                            data-browse-stats="{{ $groupTotalStatValue }}"
                             x-data="{
                                 groupOpen: false,
                                 activeTab: -1,
@@ -222,16 +260,20 @@
                             <div class="flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left">
                                 <button
                                     type="button"
-                                    class="flex min-w-0 flex-1 items-center gap-1.5 text-left text-base font-extrabold leading-tight text-slate-900"
+                                    class="flex min-w-0 flex-1 items-start gap-2 text-left text-base font-extrabold leading-snug text-slate-900"
                                     @click="groupOpen = !groupOpen"
                                 >
                                     @if($fromEquipmentIcon)
                                         <img src="{{ asset($fromEquipmentIcon) }}" alt="" class="h-6 w-6 shrink-0 object-contain">
                                     @endif
-                                    <span class="truncate">[{{ $first['from_rank'] ?? '-' }}] {{ $fromNameForRankBadge }}</span>
-                                    @if($groupHasEquipped)
-                                        <span class="shrink-0 rounded border border-sky-200 bg-sky-50 px-1.5 py-0.5 text-[10px] font-black text-sky-700">装備中</span>
-                                    @endif
+                                    <span class="min-w-0 flex-1">
+                                        <span class="block break-words">[{{ $first['from_rank'] ?? '-' }}] {{ $fromNameForRankBadge }}</span>
+                                        <span class="mt-1.5 flex flex-wrap gap-1 text-[11px] font-bold">
+                                            <span class="rounded border border-violet-200 bg-violet-50 px-2 py-0.5 text-violet-800">品質：{{ ['normal' => '通常', 'good' => '良品', 'excellent' => '逸品'][$groupSourceOption['quality'] ?? 'normal'] ?? '通常' }}</span>
+                                            @if($groupHasEquipped)<span class="rounded border border-sky-200 bg-sky-50 px-2 py-0.5 text-sky-700">装備中</span>@endif
+                                            @if($groupSourceOption['is_locked'] ?? false)<span class="rounded border border-yellow-200 bg-yellow-50 px-2 py-0.5 text-yellow-800">保護中</span>@endif
+                                        </span>
+                                    </span>
                                 </button>
                                 <span class="flex shrink-0 items-center gap-2">
                                     @if($groupSourceItemId > 0)

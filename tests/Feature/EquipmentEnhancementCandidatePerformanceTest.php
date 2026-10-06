@@ -74,6 +74,30 @@ class EquipmentEnhancementCandidatePerformanceTest extends TestCase
             ->assertViewHas('hasMoreEnhancementCandidates', true);
     }
 
+    public function test_search_and_quality_state_filters_include_instances_beyond_first_page(): void
+    {
+        $character = Character::create(['user_id' => User::factory()->create()->id, 'name' => '強化絞り込み試験']);
+        $targetItem = Item::create(['name' => '検索対象ABC剣', 'type' => 'weapon', 'weapon_rank' => 'G', 'is_active' => true]);
+        $noiseItem = Item::create(['name' => 'その他の剣', 'type' => 'weapon', 'weapon_rank' => 'G', 'is_active' => true]);
+        $target = CharacterItem::create(['character_id' => $character->id, 'item_id' => $targetItem->id, 'affix_quality' => 'excellent', 'is_equipped' => false, 'is_locked' => true]);
+        foreach (range(1, 24) as $index) {
+            CharacterItem::create(['character_id' => $character->id, 'item_id' => $noiseItem->id, 'is_equipped' => false, 'is_locked' => false]);
+        }
+        $service = app(EquipmentEnhancementService::class);
+        $this->assertNotContains($target->id, array_column($service->candidatesForType($character, 'weapon', 'recommended', 20), 'character_item_id'));
+        $filters = ['q' => '検索対象ＡＢＣ', 'quality' => 'excellent', 'status' => 'locked'];
+        $rows = $service->candidatesForType($character, 'weapon', 'recommended', 20, $filters);
+        $this->assertSame(1, $service->browseCandidateCount($character, 'weapon', $filters));
+        $this->assertCount(1, $rows);
+        $this->assertSame($target->id, $rows[0]['character_item']->id);
+        $this->assertSame(0, $service->browseCandidateCount($character, 'weapon', array_merge($filters, ['status' => 'ready'])));
+        $this->assertSame($target->id, $service->candidatesForType($character, 'weapon', 'quality_desc', 20)[0]['character_item']->id);
+        $this->actingAs($character->user)->withSession(['current_character_id' => $character->id])->withoutMiddleware()
+            ->get(route('blacksmith.index', array_merge($filters, ['type' => 'weapon'])))
+            ->assertOk()->assertViewHas('matchingEnhancementCount', 1)->assertViewHas('hasMoreEnhancementCandidates', false)
+            ->assertSee('検索対象ABC剣')->assertSee('品質：逸品')->assertDontSee('その他の剣');
+    }
+
     public function test_repeated_material_resolution_uses_the_request_cache(): void
     {
         Material::create([

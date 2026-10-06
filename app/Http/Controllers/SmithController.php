@@ -38,9 +38,15 @@ class SmithController extends Controller
             ? $requestedType
             : (array_key_first(array_filter($typeCounts)) ?? 'weapon');
         $requestedSort = (string) $request->query('sort', 'recommended');
-        $enhanceSort = in_array($requestedSort, ['recommended', 'rank_desc', 'enhance_asc', 'enhance_desc', 'name_asc'], true)
+        $enhanceSort = in_array($requestedSort, ['recommended', 'rank_desc', 'quality_desc', 'enhance_asc', 'enhance_desc', 'name_asc'], true)
             ? $requestedSort
             : 'recommended';
+        $browseFilters = [
+            'q' => mb_substr($request->string('q')->toString(), 0, 200),
+            'status' => in_array($request->query('status'), ['equipped', 'locked', 'ready'], true) ? $request->query('status') : 'all',
+            'quality' => in_array($request->query('quality'), ['normal', 'good', 'excellent'], true) ? $request->query('quality') : 'all',
+        ];
+        $matchingEnhancementCount = $this->equipmentEnhancementService->browseCandidateCount($character, $initialType, $browseFilters);
         $enhanceLimit = max(20, min(
             max(20, $typeCounts[$initialType] ?? 0),
             (int) $request->query('limit', 20),
@@ -50,9 +56,10 @@ class SmithController extends Controller
             $initialType,
             $enhanceSort,
             $enhanceLimit,
+            $browseFilters,
         );
         $candidateCount = array_sum($typeCounts);
-        $hasMoreEnhancementCandidates = count($enhancementCandidates) < ($typeCounts[$initialType] ?? 0);
+        $hasMoreEnhancementCandidates = count($enhancementCandidates) < $matchingEnhancementCount;
         $goldSummary = app(BankService::class)->summary($character);
 
         return view('smith.enhance', compact(
@@ -66,6 +73,8 @@ class SmithController extends Controller
             'enhanceLimit',
             'candidateCount',
             'hasMoreEnhancementCandidates',
+            'browseFilters',
+            'matchingEnhancementCount',
         ));
     }
 

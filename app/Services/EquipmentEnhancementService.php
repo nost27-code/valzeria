@@ -130,7 +130,7 @@ class EquipmentEnhancementService
         ];
     }
 
-    public function candidatesForType(Character $character, string $type, string $sort, int $limit): array
+    public function candidatesForType(Character $character, string $type, string $sort, int $limit, array $filters = []): array
     {
         $materials = $this->ownedMaterials($character);
         $query = CharacterItem::with(['item', 'affixPrefix', 'affixSuffix'])
@@ -139,7 +139,12 @@ class EquipmentEnhancementService
             ->where('character_items.character_id', $character->id)
             ->where('items.type', $type);
 
+        $this->applyBrowseFilters($query, $filters);
+
         match ($sort) {
+            'quality_desc' => $query
+                ->orderByRaw("CASE character_items.affix_quality WHEN 'excellent' THEN 2 WHEN 'good' THEN 1 ELSE 0 END DESC")
+                ->orderByDesc('character_items.id'),
             'rank_desc' => $query
                 ->orderByRaw("CASE UPPER(COALESCE(items.weapon_rank, items.armor_rank, items.accessory_rank, items.rarity, '')) WHEN 'SPECIAL' THEN 15 WHEN 'EPIC' THEN 14 WHEN 'SSS' THEN 13 WHEN 'SS' THEN 12 WHEN 'S' THEN 11 WHEN 'A' THEN 10 WHEN 'B' THEN 9 WHEN 'C' THEN 8 WHEN 'D' THEN 7 WHEN 'E' THEN 6 WHEN 'F' THEN 5 WHEN 'G' THEN 4 WHEN 'H' THEN 3 WHEN 'I' THEN 2 WHEN 'J' THEN 1 ELSE 0 END DESC")
                 ->orderByDesc('character_items.id'),
@@ -165,6 +170,41 @@ class EquipmentEnhancementService
             ->map(fn (CharacterItem $characterItem) => $this->candidateRow($characterItem, $materials, $character))
             ->values()
             ->all();
+    }
+
+    public function browseCandidateCount(Character $character, string $type, array $filters): int
+    {
+        $query = CharacterItem::query()->select('character_items.*')
+            ->join('items', 'items.id', '=', 'character_items.item_id')
+            ->where('character_items.character_id', $character->id)->where('items.type', $type);
+        $this->applyBrowseFilters($query, $filters);
+
+        return $query->count();
+    }
+
+    private function applyBrowseFilters(\Illuminate\Database\Eloquent\Builder $query, array $filters): void
+    {
+        match ($filters['status'] ?? 'all') {
+            'equipped' => $query->where('character_items.is_equipped', true),
+            'locked' => $query->where('character_items.is_locked', true),
+            'ready' => $query->where('character_items.is_equipped', false)->where('character_items.is_locked', false),
+            default => null,
+        };
+        $quality = $filters['quality'] ?? 'all';
+        if ($quality === 'normal') {
+            $query->where(fn ($q) => $q->whereNull('character_items.affix_quality')->orWhere('character_items.affix_quality', '')->orWhere('character_items.affix_quality', 'normal'));
+        } elseif (in_array($quality, ['good', 'excellent'], true)) {
+            $query->where('character_items.affix_quality', $quality);
+        }
+        $normalize = static fn (string $value): string => mb_strtolower(mb_convert_kana($value, 'asKV'));
+        $search = trim($normalize((string) ($filters['q'] ?? '')));
+        if ($search !== '') {
+            // 名前の判定には個体の銘も含め、重い強化候補生成は表示する件数だけ行う。
+            $ids = (clone $query)->with(['item', 'affixPrefix', 'affixSuffix'])->get()
+                ->filter(fn (CharacterItem $item): bool => str_contains($normalize($item->displayName(false).' '.app(EquipmentPermissionService::class)->categoryLabel($item->item).' '.$this->rankDisplayLabel($item->item)), $search))
+                ->modelKeys();
+            $query->whereIn('character_items.id', $ids);
+        }
     }
 
     public function enhance(Character $character, CharacterItem $characterItem, bool $useBank = false): array
@@ -507,6 +547,7 @@ class EquipmentEnhancementService
             'type_label' => $this->typeLabel((string) ($item?->type ?? '')),
             'name' => $characterItem->displayName(),
             'display_name_without_rank' => $characterItem->displayName(false),
+            'quality' => $characterItem->affix_quality ?: 'normal',
             'rank' => $this->rankDisplayLabel($item),
             'category' => $this->categoryLabel($item),
             'is_equipped' => (bool) $characterItem->is_equipped,

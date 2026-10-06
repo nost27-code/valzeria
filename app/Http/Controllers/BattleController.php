@@ -247,7 +247,7 @@ class BattleController extends Controller
                     $itemService->begin($character, $registration);
                 }
 
-                $batch = $service->reserve($character, $registration, max(1, min(10, $count)), (string) Str::uuid(), false);
+                $batch = $service->reserve($character, $registration, $count, (string) Str::uuid(), false);
 
                 return $service->execute($character, $batch);
             });
@@ -276,6 +276,7 @@ class BattleController extends Controller
                     'map_name' => (string) $batch->map->name,
                     'can_continue' => $batch->registration->isOpen() && $batch->registration->remaining_explorations > 0,
                     'remaining_explorations' => (int) $batch->registration->remaining_explorations,
+                    'max_repeat_count' => $service->maxRepeatCount($character, $batch->registration),
                     'entry_fee' => (int) $batch->fee_per_exploration,
                     'loot_summary' => app(\App\Services\MapExplorationDefeatService::class)->currentLootSummary($character, (int) $batch->registration_id),
                 ],

@@ -119,7 +119,7 @@
                     @endif
                     <p class="mt-1 text-xs font-bold text-emerald-800">薬草・回復薬・魔力水は、所持分から各10個まで持ち込めます。</p>
                     <div class="mt-3 grid grid-cols-2 gap-2">
-                        @foreach(array_unique([1, min(10, $registration->remaining_explorations)]) as $count)
+                        @foreach($exploreCounts as $count)
                             <form method="POST" action="{{ route('exploration-maps.explore', $registration) }}" @if($entryBankUsed > 0) onsubmit="return confirm(@js('入場料を手持ち' . number_format($entryHandUsed) . 'G・銀行' . number_format($entryBankUsed) . 'Gで支払います。'))" @endif>
                                 @csrf
                                 <input type="hidden" name="count" value="{{ $count }}">
