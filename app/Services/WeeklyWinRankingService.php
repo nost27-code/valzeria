@@ -8,6 +8,7 @@ use App\Models\KisekiTransaction;
 use App\Models\WeeklyWinRankingRecord;
 use App\Models\WeeklyWinRankingSeason;
 use App\Support\CharacterIconCatalog;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
@@ -689,34 +690,21 @@ class WeeklyWinRankingService
                 DB::raw('COUNT(battle_logs.id) as score'),
             ]);
 
-        $rawRows = DB::query()
-            ->fromSub($scoreQuery, 'weekly_scores')
-            ->join('characters', 'characters.id', '=', 'weekly_scores.character_id')
-            ->join('users as ranking_users', 'ranking_users.id', '=', 'characters.user_id')
-            ->where(function ($query): void {
-                $query->whereNull('ranking_users.role')
-                    ->orWhere('ranking_users.role', '!=', 'admin');
-            })
-            ->where(function ($query): void {
-                $query->whereNull('ranking_users.email')
-                    ->orWhere('ranking_users.email', 'not like', self::TESTER_EMAIL_PATTERN);
-            })
-            ->select([
-                'characters.id',
-                'characters.name',
-                'characters.icon_path',
-                'characters.level',
-                'characters.profile_comment',
-                'weekly_scores.score',
-                DB::raw(
-                    "CASE WHEN COALESCE(ranking_users.google_id, '') <> ''"
-                    ." OR COALESCE(ranking_users.password, '') <> '' THEN 1 ELSE 0 END"
-                    .' as is_account_eligible'
-                ),
-            ])
-            ->orderByDesc('score')
-            ->orderBy('characters.id')
+        $rawRows = $this->rankingCharactersQuery()
+            ->joinSub($scoreQuery, 'weekly_scores', 'characters.id', '=', 'weekly_scores.character_id')
+            ->addSelect('weekly_scores.score')
             ->get();
+
+        $ruinScores = $this->namelessRuinScoresForPeriod($period);
+        $missingIds = array_diff(array_keys($ruinScores), $rawRows->pluck('id')->all());
+        if ($missingIds) {
+            $rawRows = $rawRows->concat($this->rankingCharactersQuery()
+                ->whereIn('characters.id', $missingIds)->selectRaw('0 as score')->get());
+        }
+        foreach ($rawRows as $row) {
+            $row->score = (int) $row->score + ($ruinScores[(int) $row->id] ?? 0);
+        }
+        $rawRows = $rawRows->sort(fn (object $a, object $b): int => $b->score <=> $a->score ?: $a->id <=> $b->id)->values();
 
         $position = 0;
         $rank = 0;
@@ -756,6 +744,48 @@ class WeeklyWinRankingService
         });
     }
 
+    private function rankingCharactersQuery(): Builder
+    {
+        return DB::table('characters')
+            ->join('users as ranking_users', 'ranking_users.id', '=', 'characters.user_id')
+            ->where(fn ($query) => $query->whereNull('ranking_users.role')->orWhere('ranking_users.role', '!=', 'admin'))
+            ->where(fn ($query) => $query->whereNull('ranking_users.email')->orWhere('ranking_users.email', 'not like', self::TESTER_EMAIL_PATTERN))
+            ->select(['characters.id', 'characters.name', 'characters.icon_path', 'characters.level', 'characters.profile_comment',
+                DB::raw("CASE WHEN COALESCE(ranking_users.google_id, '') <> ''"
+                    ." OR COALESCE(ranking_users.password, '') <> '' THEN 1 ELSE 0 END as is_account_eligible"),
+            ]);
+    }
+
+    /** @return array<int, int> */
+    private function namelessRuinScoresForPeriod(array $period): array
+    {
+        // Saved operations remain authoritative even if relics are subsequently switched OFF.
+        if (! Schema::hasColumns('nameless_workshop_operations', ['id', 'character_id', 'action', 'result', 'created_at'])) {
+            return [];
+        }
+        $scores = [];
+        $operations = DB::table('nameless_workshop_operations')
+            ->where('action', 'ruin')
+            ->where('created_at', '>=', $period['start_at'])->where('created_at', '<', $period['end_at'])
+            // Retrieve compact battle summaries, never the full battle text or player assets.
+            ->select(['id', 'character_id', 'result->result as battle_result', 'result->turn_count as turns', 'result->batch_explore->runs as runs'])
+            ->lazyById(200);
+        foreach ($operations as $operation) {
+            $runs = json_decode($operation->runs ?? 'null', true);
+            $wins = is_array($runs)
+                ? count(array_filter($runs, fn ($run): bool => is_array($run)
+                    && in_array($run['result'] ?? null, BattleLog::WIN_RESULTS, true)
+                    && (int) ($run['turn_count'] ?? 0) > 0))
+                : (int) (in_array($operation->battle_result, BattleLog::WIN_RESULTS, true) && (int) $operation->turns > 0);
+            if ($wins > 0) {
+                $id = (int) $operation->character_id;
+                $scores[$id] = ($scores[$id] ?? 0) + $wins;
+            }
+        }
+
+        return $scores;
+    }
+
     /**
      * @param array{
      *   key: string,
@@ -786,11 +816,11 @@ class WeeklyWinRankingService
     }
 
     /**
-     * @param array{key: string} $period
+     * @param  array{key: string}  $period
      */
     private function liveRowsCacheKey(array $period): string
     {
-        return "weekly_win_ranking_live_rows_v2:{$period['key']}";
+        return "weekly_win_ranking_live_rows_v3:{$period['key']}";
     }
 
     /**
@@ -843,7 +873,7 @@ class WeeklyWinRankingService
     }
 
     /**
-     * @param array<string, mixed> $period
+     * @param  array<string, mixed>  $period
      * @return array{rows: array<int, array<string, mixed>>, updated_at: string}
      */
     private function widgetSnapshotForPeriod(array $period): array
@@ -855,15 +885,15 @@ class WeeklyWinRankingService
     }
 
     /**
-     * @param array{key: string} $period
+     * @param  array{key: string}  $period
      */
     private function widgetRowsCacheKey(array $period): string
     {
-        return "weekly_win_ranking_widget_rows_v1:{$period['key']}";
+        return "weekly_win_ranking_widget_rows_v2:{$period['key']}";
     }
 
     /**
-     * @param array{rows: array<int, array<string, mixed>>, updated_at: string} $snapshot
+     * @param  array{rows: array<int, array<string, mixed>>, updated_at: string}  $snapshot
      */
     private function putWidgetRowsCache(string $cacheKey, array $snapshot, ?int $staleSeconds = null): void
     {
@@ -1096,8 +1126,7 @@ class WeeklyWinRankingService
         ?Carbon $at,
         bool $preview,
         ?Carbon $minimumStart = null
-    ): array
-    {
+    ): array {
         $periodResults = $this->pendingCompletedPeriods($at, $minimumStart)
             ->map(fn (array $period): array => $preview
                 ? $this->previewPeriod($period)
@@ -1129,8 +1158,7 @@ class WeeklyWinRankingService
     private function pendingCompletedPeriods(
         ?Carbon $at = null,
         ?Carbon $minimumStart = null
-    ): Collection
-    {
+    ): Collection {
         if (! Schema::hasTable('weekly_win_ranking_seasons')) {
             throw new LogicException('週間勝利数番付のseasonテーブルが準備できていません。');
         }

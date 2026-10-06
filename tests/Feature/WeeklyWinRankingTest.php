@@ -98,8 +98,8 @@ class WeeklyWinRankingTest extends TestCase
         Carbon::setTestNow(Carbon::create(2026, 7, 27, 9, 0, 0, 'Asia/Tokyo'));
         $atBoundary = TownRankingService::cacheKey();
 
-        $this->assertSame('town_ranking_boards_v9:2026-07-20', $beforeBoundary);
-        $this->assertSame('town_ranking_boards_v9:2026-07-27', $atBoundary);
+        $this->assertSame('town_ranking_boards_v10:2026-07-20', $beforeBoundary);
+        $this->assertSame('town_ranking_boards_v10:2026-07-27', $atBoundary);
         $this->assertNotSame($beforeBoundary, $atBoundary);
     }
 
@@ -202,7 +202,7 @@ class WeeklyWinRankingTest extends TestCase
 
         $service = app(WeeklyWinRankingService::class);
         $this->assertSame(1, $service->currentRows()->first()['score']);
-        $cacheKey = 'weekly_win_ranking_live_rows_v2:2026-07-27';
+        $cacheKey = 'weekly_win_ranking_live_rows_v3:2026-07-27';
         $this->assertIsArray(Cache::get($cacheKey));
 
         Cache::put($cacheKey, collect([['score' => 999]]), now()->addMinute());
@@ -252,7 +252,7 @@ class WeeklyWinRankingTest extends TestCase
             ->expectsOutput('週間勝利数番付キャッシュを更新しました（1件）')
             ->assertSuccessful();
 
-        $snapshot = Cache::get('weekly_win_ranking_widget_rows_v1:2026-07-27');
+        $snapshot = Cache::get('weekly_win_ranking_widget_rows_v2:2026-07-27');
         $this->assertIsArray($snapshot);
         $this->assertCount(1, $snapshot['rows']);
         $this->assertSame('2026-07-27T09:10:00+09:00', $snapshot['updated_at']);
@@ -260,7 +260,7 @@ class WeeklyWinRankingTest extends TestCase
 
     public function test_home_widget_reuses_the_legacy_rows_cache_without_recalculating(): void
     {
-        $cacheKey = 'weekly_win_ranking_widget_rows_v1:2026-07-27';
+        $cacheKey = 'weekly_win_ranking_widget_rows_v2:2026-07-27';
         $createdAt = Carbon::create(2026, 7, 27, 9, 0, 0, 'Asia/Tokyo');
         Cache::put($cacheKey, [[
             'character_id' => 999,

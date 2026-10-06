@@ -106,7 +106,7 @@ class NamelessRuinDepthBossTest extends TestCase
         $this->assertSame(30, NamelessWorkshopOperation::query()->count());
         $this->assertSame(10000, $character->fresh()->money);
         $this->assertSame(500, $character->fresh()->current_mp);
-        $this->assertSame(0, (int) $character->fresh()->wins);
+        $this->assertSame(30, (int) $character->fresh()->wins);
         $this->assertSame($enemyRows, Enemy::query()->count());
         $this->assertSame($actionRows, EnemyAction::query()->count());
     }
