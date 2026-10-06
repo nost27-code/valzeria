@@ -1,0 +1,91 @@
+name: Verify nameless ruin rewards on MariaDB
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/verify-nameless-ruin-rewards-mariadb.yml'
+      - 'app/Services/NamelessRuinService.php'
+      - 'app/Services/MapExplorationRewardService.php'
+      - 'app/Services/LevelService.php'
+      - 'tests/Feature/NamelessRuinRewardsTest.php'
+      - 'tests/Feature/NamelessRuinDepthBossTest.php'
+      - 'tests/Feature/NamelessRelicPrototypeTest.php'
+      - 'tests/Support/NamelessRuinRewardReferences.php'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nameless-ruin-rewards-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  rewards:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      mariadb:
+        image: mariadb:10.5.13
+        env:
+          MARIADB_DATABASE: valzeria_nameless_ruin_rewards_ci
+          MARIADB_USER: ruin_rewards_ci
+          MARIADB_PASSWORD: ruin-rewards-ci-only
+          MARIADB_ROOT_PASSWORD: ruin-rewards-root-ci-only
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost -uroot -pruin-rewards-root-ci-only"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=12
+    env:
+      APP_ENV: testing
+      APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      APP_DEBUG: 'false'
+      LOG_CHANNEL: stderr
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_DATABASE: valzeria_nameless_ruin_rewards_ci
+      DB_USERNAME: ruin_rewards_ci
+      DB_PASSWORD: ruin-rewards-ci-only
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: pdo_mysql
+          tools: composer:v2
+          coverage: none
+      - name: Install PHP dependencies
+        run: composer install --prefer-dist --no-interaction --no-progress
+      - name: Verify reward cases sequentially in small batches
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$DB_DATABASE" = valzeria_nameless_ruin_rewards_ci
+          mkdir -p reward-evidence
+          php artisan config:clear --no-ansi
+          for filter in \
+            'test_normal_victory_persists_reference_rewards_and_replay_does_not_pay_twice$|test_repeated_exploration_totals_match_stored_growth_and_gold_ledger$' \
+            'test_boss_rewards_and_depth_progress_commit_once$|test_defeat_has_no_growth_or_gold_or_relic_reward$' \
+            'test_failed_gold_write_rolls_back_stamina_growth_and_progress$|test_gold_remains_a_chance_drop_while_experience_is_paid$' \
+            'test_level_up_is_saved_and_returned_without_healing_current_hp$|test_maximum_level_preserves_cap_and_still_awards_gold_and_job_exp$' \
+            'test_default_job_reward_uses_reference_level_instead_of_ruin_depth$'; do
+            count=$(( ${count:-0} + 1 ))
+            php -d memory_limit=128M vendor/phpunit/phpunit/phpunit --filter "$filter" --log-junit "reward-evidence/rewards-$count.xml" tests/Feature/NamelessRuinRewardsTest.php
+          done
+          php -d memory_limit=128M vendor/phpunit/phpunit/phpunit --log-junit reward-evidence/map.xml tests/Feature/MapExplorationRewardServiceTest.php
+          php -d memory_limit=128M vendor/phpunit/phpunit/phpunit --filter 'test_actual_ruin_boss_battle_awards_once_advances_only_its_zone_and_consumes_stamina$|test_fifty_ruin_battles_aggregate_relics_and_replay_without_extra_consumption$' --log-junit reward-evidence/prototype.xml tests/Feature/NamelessRelicPrototypeTest.php
+          php -d memory_limit=128M vendor/phpunit/phpunit/phpunit --filter 'test_every_boss_can_be_fought_and_replayed_without_changing_reward_or_progress_rules$' --log-junit reward-evidence/boss.xml tests/Feature/NamelessRuinDepthBossTest.php
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: nameless-ruin-reward-evidence
+          path: reward-evidence
+          retention-days: 7
+          if-no-files-found: ignore

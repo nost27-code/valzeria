@@ -12,6 +12,8 @@ use RuntimeException;
 
 class NamelessRuinService
 {
+    public function __construct(private readonly MapExplorationRewardService $rewardReference) {}
+
     public function zones(): array
     {
         $zones = (array) config('nameless_ruins');
@@ -226,17 +228,25 @@ class NamelessRuinService
         $definition = $encounter['definition'];
         $enemyBoss = $encounter['is_boss'];
         $enemy = new Enemy(['name' => $definition['name'], 'species_key' => $definition['species'], 'is_boss' => $enemyBoss, 'level' => $depth, 'max_mp' => 0, 'normal_attack_type' => $definition['profile'] === 'mage' ? 'magical' : 'physical']);
+        $enemyStats = $this->enemyStats($definition, $depth, $enemyBoss);
+        $enemy->forceFill($enemyStats);
+        $reference = $this->rewardReference->normalReferenceFor($enemy);
+        // 職業経験値のレベル差も、同程度の通常敵を基準にする。
+        $enemy->forceFill(['exp_reward' => $reference['experience'], 'gold_reward' => $reference['gold'],
+            'job_exp_reward' => $reference['job_experience'], 'level' => $reference['level']]);
         $enemy->setRelation('actions', $enemyBoss ? $this->bossActions($definition) : collect());
         $battle = app(BattleService::class)->executeBattle($locked, $enemy, 0, [
-            'prepared_enemy_stats' => $this->enemyStats($definition, $depth, $enemyBoss),
-            'rewards_enabled' => false, 'exploration_support_enabled' => false,
+            'prepared_enemy_stats' => $enemyStats,
+            'rewards_enabled' => true, 'exploration_support_enabled' => false,
             'valmon_assist_enabled' => false,
         ]);
         $drops = [];
         $advanced = false;
         $unlockedZoneName = null;
         $equipmentDrops = [];
+        $reward = [];
         if ($battle->result === 'victory') {
+            $reward = app(LevelService::class)->addRewardAndCheckLevelUp($locked, (int) $battle->exp, (int) $battle->gold, (int) $battle->jobExp);
             $dropCount = $encounter['kind'] === 'relic_goblin'
                 ? (int) config('nameless_relics.relic_goblin_drop_count')
                 : (random_int(1, 10000) <= (int) config($enemyBoss ? 'nameless_relics.boss_drop_chance_bps' : 'nameless_relics.drop_chance_bps') ? 1 : 0);
@@ -268,7 +278,9 @@ class NamelessRuinService
                 ? [['index' => 1, 'kind' => $encounter['kind'], 'name' => $definition['name'], 'result' => $battle->result, 'relic_count' => count($drops)]] : [],
             'enemy_stat_display' => $battle->enemyStatDisplay, 'enemy_hp_after' => $battle->enemyHpAfter,
             'enemy_max_hp' => $battle->enemyMaxHp, 'job_art_v2_hud' => $battle->jobArtV2Hud,
-            'exp_gained' => 0, 'gold_gained' => 0, 'job_exp_gained' => 0, 'level_up_count' => 0,
+            'exp_gained' => (int) $battle->exp, 'gold_gained' => (int) $battle->gold, 'job_exp_gained' => (int) $battle->jobExp,
+            'level_up_count' => $reward['level_up_count'] ?? 0, 'level_up_details' => $reward['details'] ?? [],
+            'progression' => $reward['progression'] ?? null, 'job_result' => $reward['job_result'] ?? null,
             'equipment_drops' => [], 'material_drop' => [], 'exploration_stamina' => $stamina->summary($locked),
         ];
         $drop = $drops[0] ?? null;

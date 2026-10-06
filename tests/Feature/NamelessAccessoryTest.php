@@ -32,6 +32,7 @@ use Tests\TestCase;
 class NamelessAccessoryTest extends TestCase
 {
     use RefreshDatabase;
+    use \Tests\Support\NamelessRuinRewardReferences;
 
     private const TARGETS = [
         '指輪' => ['str' => 4000, 'mag' => 4000],
@@ -44,6 +45,8 @@ class NamelessAccessoryTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        $this->installRuinRewardReference();
+        config(['gold.battle.normal_drop_rate' => 0, 'gold.battle.boss_drop_rate' => 0]);
         config(['nameless_relics.enabled' => true, 'app.key' => 'base64:'.base64_encode(str_repeat('a', 32)),
             'nameless_relics.equipment_drop_chance_bps' => 0, 'nameless_relics.drop_chance_bps' => 0,
             'nameless_relics.cleared_boss_encounter_bps' => 0, 'nameless_relics.relic_goblin_encounter_bps' => 0]);

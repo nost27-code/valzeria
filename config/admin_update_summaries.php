@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-10-07-nameless-ruin-growth-rewards',
+        'date' => '2026-10-07',
+        'category' => 'fixed',
+        'title' => '遺跡でも経験値・Gold・職業経験値を獲得',
+        'detail' => '通常報酬を停止していた試作処理を変更。同程度の通常敵を基準に成長報酬を付与します。地図の追加倍率なし、Goldは通常探索と同じ確率抽選。単発・連続・ボスの保存と表示、失敗rollback、再送の二重付与防止を維持。通常ドロップ・遺物抽選・DB変更なし。保存済み結果への遡及付与なし。',
+    ],
+    [
         'id' => '2026-10-06-nameless-schema-catalog-performance',
         'date' => '2026-10-06',
         'category' => 'internal',

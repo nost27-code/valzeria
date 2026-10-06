@@ -25,10 +25,13 @@ use Tests\TestCase;
 class NamelessRuinDepthBossTest extends TestCase
 {
     use RefreshDatabase;
+    use \Tests\Support\NamelessRuinRewardReferences;
 
     protected function setUp(): void
     {
         parent::setUp();
+        $this->installRuinRewardReference();
+        config(['gold.battle.normal_drop_rate' => 0, 'gold.battle.boss_drop_rate' => 0]);
         config(['nameless_relics.enabled' => true, 'nameless_relics.equipment_drop_chance_bps' => 0,
             'nameless_relics.relic_goblin_encounter_bps' => 0, 'nameless_relics.cleared_boss_encounter_bps' => 0]);
         GameSetting::query()->updateOrCreate(['setting_key' => 'exploration.mode'], ['value' => 'stamina', 'value_type' => 'string']);
@@ -94,7 +97,7 @@ class NamelessRuinDepthBossTest extends TestCase
                 $this->assertSame(min(100, $depth + 1), (int) $progress->fresh()->unlocked_depth);
                 $this->assertSame($result, $service->fight($character, $key, $depth, true, $uuid));
                 $this->assertNotEmpty($result['boss_guide']['counter']);
-                $this->assertSame([0, 0, 0], [$result['exp_gained'], $result['job_exp_gained'], $result['gold_gained']]);
+                $this->assertSame([17, 2, 0], [$result['exp_gained'], $result['job_exp_gained'], $result['gold_gained']]);
                 $this->assertSame($depth === 50 ? $zone['next_zone_name'] : null, $result['unlocked_zone_name']);
             }
         }
