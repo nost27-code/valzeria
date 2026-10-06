@@ -1,5 +1,11 @@
 # DATA_MODEL.md
 
+## 倉庫の素材まとめ売り（2026-10-06、ローカル実装）
+
+- DBスキーマ変更なし。`gold_transactions` の既存 `material_sale` 行を素材ごとに保存し、`metadata` に `bulk_sale_uuid`、正規化した素材ID/個数の `bulk_sale_hash`、`sale_name`、`remaining_quantity` を追加する。既存の `material_id`、`quantity`、`unit_price`、`source_id`、素材ごとの `balance_after` は維持する。
+- 一括処理は Character、同UUIDの台帳、素材ID昇順の在庫をlockし、全件を同じtransactionで確定する。保存済みUUIDを再送した場合は台帳から結果を返し、二重減算・二重加算しない。異なる内容を同UUIDで送ると拒否。台帳保存失敗・重要素材・他人の在庫・在庫不足・価格0は全件rollbackする。単品売却も共通の重要素材判定をロック後に実行する。
+- 装備一覧の `relics_exists` は一覧クエリだけで取得する表示用値。永続化せず、売却実行は従来の最新DB照会を維持する。MariaDBのJSON検索・実並行操作は未確認、本番未反映。
+
 ## 遺物のOFF準備・レイドsnapshot（2026-10-05）
 
 2026-10-06の整合性修正（25c5cfe6で本番OFF配備済み、対象5本の本番DB準備・工房街登録は未実施）: 新規テーブル/カラムは追加しない。`nation_raid_events.ruleset_snapshot.nameless_relic_combat` はmodel/version・enabled・戦闘設定・効果定義を承認hashへ固定する。予約時に `nation_raid_battle_results.summary.admission.relic_rules` へ複製し、能力capture・戦闘・共闘精算で同じ契約を使う。旧OFF開催のhash/JSONは書換えず、契約なしをlegacy-offとして扱う。契約なし旧ON出撃は既存返却経路へ回す。実行時/準備判定は対象5本の移行記録と `NamelessSchemaService::COLUMNS` の全列・型・制約を共通確認し、検査で所有行を変更しない。

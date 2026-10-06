@@ -38,20 +38,14 @@
             ];
         @endphp
 
+        <script src="{{ asset('js/inventory-material-sales.js') }}?v=20261006"></script>
         <script>
         (() => {
             const registerInventoryAlpine = () => {
                 if (window.inventoryAlpineRegistered) return;
                 window.inventoryAlpineRegistered = true;
 
-                Alpine.store('matSales', {
-                    items: {},
-                    set(id, qty, price) { this.items[id] = { qty, price }; },
-                    remove(id) { delete this.items[id]; },
-                    get total() { return Object.values(this.items).reduce((s, i) => s + i.qty * i.price, 0); },
-                    get count() { return Object.keys(this.items).length; },
-                    clear() { this.items = {}; }
-                });
+                Alpine.store('matSales', window.createMaterialSalesStore(@js((string) \Illuminate\Support\Str::uuid())));
 
                 Alpine.store('equipSales', {
                     items: {},
@@ -136,6 +130,8 @@
                     equipmentSort: 'rank_desc',
                     materialStorageTotal: {{ (int) ($storageSummary['material_storage_total'] ?? 0) }},
                     materialStorageTypes: {{ (int) ($storageSummary['material_storage_types'] ?? 0) }},
+                    assetTotal: {{ (int) ($storageSummary['total'] ?? 0) }},
+                    handGold: {{ (int) ($character->money ?? 0) }},
                     expandConfirm: null,
                     submittingExpand: false,
                     supportConfirm: null,
@@ -235,13 +231,14 @@
                         this.$watch('equipmentSort', () => this.$nextTick(() => this.sortEquipmentCards()));
                     }
                 }"
-                @material-discarded="materialStorageTotal = Math.max(0, materialStorageTotal - Number($event.detail.quantity || 0)); if ($event.detail.removed) materialStorageTypes = Math.max(0, materialStorageTypes - 1); $nextTick(() => sortMaterialCards());"
+                @material-discarded="materialStorageTotal = Math.max(0, materialStorageTotal - Number($event.detail.quantity || 0)); assetTotal = Math.max(0, assetTotal - Number($event.detail.quantity || 0)); if ($event.detail.removed) materialStorageTypes = Math.max(0, materialStorageTypes - 1); $nextTick(() => sortMaterialCards());"
+                @materials-sold.window="handGold = Number($event.detail.money); materialStorageTotal = Math.max(0, materialStorageTotal - Number($event.detail.quantity || 0)); assetTotal = Math.max(0, assetTotal - Number($event.detail.quantity || 0)); materialStorageTypes = Math.max(0, materialStorageTypes - $event.detail.sales.filter(sale => sale.remaining_quantity <= 0).length); $nextTick(() => sortMaterialCards());"
             >
                 <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                         <div class="text-xs font-bold text-slate-500">帰還後に安全保管された資産</div>
-                        <h2 class="text-2xl font-extrabold text-slate-800 tracking-wider">保有資産 合計 {{ number_format($storageSummary['total']) }} 個</h2>
-                        <div class="mt-1 text-sm font-black text-amber-700">所持Gold {{ number_format((int) ($character->money ?? 0)) }}G</div>
+                        <h2 class="text-2xl font-extrabold text-slate-800 tracking-wider">保有資産 合計 <span x-text="assetTotal.toLocaleString()">{{ number_format($storageSummary['total']) }}</span> 個</h2>
+                        <div class="mt-1 text-sm font-black text-amber-700">所持Gold <span x-text="handGold.toLocaleString()">{{ number_format((int) ($character->money ?? 0)) }}</span>G</div>
                     </div>
                     <div class="flex flex-wrap gap-2">
                         <a href="{{ route('material-exchange.index') }}" class="inline-flex items-center justify-center rounded-md bg-emerald-600 px-4 py-2 text-sm font-bold text-white shadow-sm transition-colors hover:bg-emerald-700">
@@ -260,6 +257,10 @@
                         {{ session('error') }}
                     </div>
                 @endif
+
+                <div x-show="$store.matSales.message" x-cloak role="status" aria-live="polite"
+                    :class="$store.matSales.messageType === 'error' ? 'border-red-200 bg-red-50 text-red-700' : 'border-amber-200 bg-amber-50 text-amber-800'"
+                    class="mb-4 rounded-lg border px-4 py-3 text-sm font-bold" x-text="$store.matSales.message"></div>
 
                 <div class="mb-5 grid grid-cols-1 gap-3 lg:grid-cols-3">
                     <div
@@ -452,6 +453,9 @@
                                     <div
                                         class="bg-white border border-slate-200 rounded-lg p-2.5 shadow-sm"
                                         data-material-card
+                                        data-material-id="{{ (int) $cm->id }}"
+                                        :inert="$store.matSales.busy"
+                                        @materials-sold.window="const sale = $event.detail.sales.find(sale => sale.character_material_id === {{ (int) $cm->id }}); if (sale) { remainingQty = sale.remaining_quantity; unitPrice = sale.unit_price; maxQty = Math.max(1, remainingQty); saleQty = 0; discardQty = 1; }"
                                         data-material-name="{{ $materialBrowseMeta['name'] }}"
                                         data-material-search="{{ $materialBrowseMeta['search_text'] }}"
                                         data-material-purposes="{{ implode(',', $materialBrowseMeta['purposes']) }}"
@@ -474,6 +478,7 @@
                                             maxQty: {{ max(1, (int) $cm->quantity) }},
                                             unitPrice: {{ $unitSalePrice }},
                                             setSaleQty(v, allowEmpty = false) {
+                                                if (this.$store.matSales.busy) return;
                                                 const raw = String(v ?? '').trim();
                                                 if (allowEmpty && raw === '') {
                                                     this.saleQty = '';
@@ -488,8 +493,9 @@
                                             increase() { this.discardQty = Math.min(this.maxQty, this.discardQty + 1); },
                                             setQty(v) { this.discardQty = Math.max(1, Math.min(this.maxQty, parseInt(v) || 1)); },
                                             async submitDiscard() {
-                                                if (this.submitting) return;
+                                                if (this.submitting || this.$store.matSales.busy) return;
                                                 this.submitting = true;
+                                                this.$store.matSales.discarding++;
                                                 this.inlineMessage = '';
                                                 const formData = new FormData(this.$refs.discardForm);
                                                 formData.set('quantity', this.discardQty);
@@ -514,7 +520,7 @@
                                                     this.inlineMessage = data.message || '素材を捨てました。';
                                                     this.$dispatch('material-discarded', { quantity: discarded, removed: remaining <= 0 });
                                                 } catch { this.inlineMessage = '通信に失敗しました。もう一度お試しください。'; }
-                                                finally { this.submitting = false; }
+                                                finally { this.submitting = false; this.$store.matSales.discarding--; }
                                             }
                                         }"
                                     >
@@ -569,7 +575,7 @@
                                                         売却数 <strong class="font-black text-slate-900 tabular-nums" x-text="saleQty || 0">0</strong>個
                                                     </span>
                                                     <span class="text-right text-[11px] text-slate-400">
-                                                        単価 {{ number_format($unitSalePrice) }}G
+                                                        単価 <span x-text="unitPrice.toLocaleString()">{{ number_format($unitSalePrice) }}</span>G
                                                         <template x-if="saleQty > 0">
                                                             <span> → 合計 <span class="font-bold text-amber-700" x-text="(saleQty * unitPrice).toLocaleString()"></span>G</span>
                                                         </template>
@@ -596,12 +602,13 @@
                                                         :disabled="saleQty >= remainingQty"
                                                         class="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-slate-300 bg-slate-50 text-lg font-black text-slate-700 hover:bg-slate-100 disabled:opacity-30"
                                                         aria-label="売却数を1個増やす">＋</button>
-                                                    <form method="POST" action="{{ route('inventory.sell') }}" class="shrink-0">
+                                                    <form method="POST" action="{{ route('inventory.sell') }}" class="shrink-0"
+                                                        @submit="if ($store.matSales.busy) $event.preventDefault(); else $store.matSales.submitting = true">
                                                         @csrf
                                                         <input type="hidden" name="character_material_id" value="{{ $cm->id }}">
                                                         <input type="hidden" name="quantity" :value="saleQty || 0">
                                                         <button type="submit"
-                                                            :disabled="saleQty <= 0"
+                                                            :disabled="saleQty <= 0 || $store.matSales.busy"
                                                             class="h-11 rounded-lg bg-amber-600 px-3 text-xs font-extrabold text-white shadow-sm hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-30">売る</button>
                                                     </form>
                                                 </div>
@@ -1178,7 +1185,7 @@
 {{-- まとめて売るフローティングボタン（2種以上調整時に出現） --}}
 <div
     x-data
-    x-show="$store.matSales.count >= 2"
+    x-show="$store.matSales.count >= 2 || $store.matSales.message"
     x-cloak
     x-transition:enter="transition ease-out duration-200"
     x-transition:enter-start="opacity-0 translate-y-3"
@@ -1186,14 +1193,24 @@
     x-transition:leave="transition ease-in duration-150"
     x-transition:leave-start="opacity-100 translate-y-0"
     x-transition:leave-end="opacity-0 translate-y-3"
-    class="fixed bottom-6 inset-x-0 z-50 flex justify-center pointer-events-none px-4"
+    class="fixed bottom-6 inset-x-0 z-50 flex flex-col items-center gap-2 pointer-events-none px-4"
 >
+    <div x-show="$store.matSales.message" x-cloak role="status" aria-live="polite"
+        :class="$store.matSales.messageType === 'error' ? 'border-red-200 bg-red-50 text-red-700' : 'border-amber-200 bg-amber-50 text-amber-800'"
+        class="pointer-events-auto flex w-full max-w-sm items-start gap-2 rounded-lg border px-3 py-2 text-xs font-bold">
+        <span class="min-w-0 flex-1" x-text="$store.matSales.message"></span>
+        <button type="button" x-show="!$store.matSales.uncertain" @click="$store.matSales.message = ''" aria-label="売却結果の案内を閉じる" class="shrink-0 px-2 py-1">×</button>
+    </div>
     <button
         type="button"
-        @click="bulkSellMaterials('{{ csrf_token() }}', '{{ route('inventory.sell') }}')"
-        class="pointer-events-auto flex items-center gap-3 rounded-full bg-amber-600 px-5 py-3 text-sm font-extrabold text-white shadow-2xl ring-2 ring-amber-400/40 hover:bg-amber-700 active:scale-95 transition-transform"
+        x-show="$store.matSales.count >= 2"
+        @click="bulkSellMaterials(@js(csrf_token()), @js(route('inventory.bulk-sell')))"
+        :disabled="$store.matSales.submitting || $store.matSales.discarding > 0"
+        :aria-busy="$store.matSales.submitting"
+        class="pointer-events-auto flex items-center gap-3 rounded-full bg-amber-600 px-5 py-3 text-sm font-extrabold text-white shadow-2xl ring-2 ring-amber-400/40 hover:bg-amber-700 active:scale-95 transition-transform disabled:cursor-wait disabled:opacity-60"
     >
-        <span>まとめて売る</span>
+        <x-loading-spinner x-show="$store.matSales.submitting" style="display: none;" />
+        <span x-text="$store.matSales.submitting ? '処理中...' : ($store.matSales.uncertain ? '結果を確認する' : 'まとめて売る')"></span>
         <span class="rounded-full bg-amber-800/30 px-2 py-0.5 text-xs tabular-nums">
             <span x-text="$store.matSales.count"></span>種
         </span>
@@ -1280,28 +1297,6 @@
 </div>
 
 <script>
-async function bulkSellMaterials(csrfToken, sellUrl) {
-    const items = { ...Alpine.store('matSales').items };
-    const ids = Object.keys(items);
-    if (ids.length < 2) return;
-
-    for (const id of ids) {
-        const fd = new FormData();
-        fd.append('_token', csrfToken);
-        fd.append('character_material_id', id);
-        fd.append('quantity', items[id].qty);
-        try {
-            await fetch(sellUrl, {
-                method: 'POST',
-                headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-                body: fd
-            });
-        } catch(e) {}
-    }
-    Alpine.store('matSales').clear();
-    window.location.reload();
-}
-
 async function bulkSellEquipment(csrfToken, sellUrl) {
     const store = Alpine.store('equipSales');
     const items = { ...store.items };

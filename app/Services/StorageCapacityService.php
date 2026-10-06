@@ -6,6 +6,7 @@ use App\Models\Character;
 use App\Models\CharacterItem;
 use App\Models\CharacterMaterial;
 use RuntimeException;
+use App\Support\MaterialInventoryRules;
 
 class StorageCapacityService
 {
@@ -143,28 +144,7 @@ class StorageCapacityService
 
     private function isKeyMaterial(?object $material): bool
     {
-        if (!$material) {
-            return false;
-        }
-
-        $name = (string) ($material->name ?? '');
-        $category = (string) ($material->category ?? '');
-        $mainUse = (string) ($material->main_use ?? '');
-        $materialType = (string) ($material->material_type ?? '');
-        $categoryId = (string) ($material->category_id ?? '');
-
-        return $materialType === 'boss_unique'
-            || $materialType === 'key_item'
-            || $materialType === 'weapon_unlock_key'
-            || $categoryId === 'boss_unique'
-            || str_contains($category, '進化解放キー')
-            || str_contains($category, '討伐証')
-            || str_contains($category, 'ボス特異素材')
-            || str_contains($mainUse, 'レシピ解放キー')
-            || str_contains($mainUse, '解放キー')
-            || str_ends_with($name, 'の刻印')
-            || str_ends_with($name, 'の王印')
-            || str_ends_with($name, 'の神印');
+        return MaterialInventoryRules::isKeyMaterial($material);
     }
 
     private function isKeyItem(CharacterItem $characterItem): bool

@@ -35,9 +35,16 @@ class EquipmentController extends Controller
         if (app(\App\Services\NamelessRelicEquipmentService::class)->storedRelicsSchemaReady()) {
             $equipmentRelations[] = 'relics';
         }
-        $characterItems = $character->characterItems()->with($equipmentRelations)->get()
+        $equipmentQuery = $character->characterItems()->with($equipmentRelations);
+        if (app(\App\Services\NamelessRelicEquipmentService::class)->storedRelicsSchemaReady()) {
+            $equipmentQuery->withExists('relics');
+        } else {
+            $equipmentQuery->selectRaw('character_items.*, 0 as relics_exists');
+        }
+        $characterItems = $equipmentQuery->get()
             ->filter(fn($ci) => $ci->item)
             ->map(fn($ci) => $this->attachSortValues($ci, $equipmentService));
+        $equipmentComparisons = app(\App\Services\EquipmentComparisonService::class)->forDisplay($character, $characterItems);
 
         $weapons = $characterItems->filter(fn($ci) => $ci->item->type === 'weapon')->sortByDesc('sort_recommend')->values();
         $armors = $characterItems->filter(fn($ci) => $ci->item->type === 'armor')->sortByDesc('sort_recommend')->values();
@@ -52,6 +59,7 @@ class EquipmentController extends Controller
         return view('equipment.index', compact(
             'character',
             'permissionService',
+            'equipmentComparisons',
             'weapons',
             'armors',
             'accessories',
@@ -481,7 +489,7 @@ class EquipmentController extends Controller
         $characterItem->sort_new = $characterItem->created_at?->timestamp ?? $characterItem->id;
         $goldService = app(GoldService::class);
         $characterItem->sell_price = $goldService->equipmentSalePrice($item);
-        $characterItem->can_sell = $goldService->canSellEquipment($characterItem);
+        $characterItem->can_sell = $goldService->canSellEquipmentForDisplay($characterItem);
 
         return $characterItem;
     }

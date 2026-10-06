@@ -17,6 +17,10 @@ use App\Services\StorageCapacityService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
+use App\Services\NamelessRelicEquipmentService;
+use App\Support\MaterialInventoryRules;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 
 class InventoryController extends Controller
 {
@@ -69,10 +73,15 @@ class InventoryController extends Controller
             ->sortBy(fn ($row) => (string) ($row->monsterMark?->mark_name ?? ''))
             ->values();
 
-        $allEquipmentItems = $character->characterItems()
+        $equipmentQuery = $character->characterItems()
             ->whereHas('item', fn ($query) => $query->whereIn('type', ['weapon', 'armor', 'accessory']))
-            ->with('item')
-            ->get()
+            ->with(['item', 'affixPrefix', 'affixSuffix']);
+        if (app(NamelessRelicEquipmentService::class)->storedRelicsSchemaReady()) {
+            $equipmentQuery->withExists('relics');
+        } else {
+            $equipmentQuery->selectRaw('character_items.*, 0 as relics_exists');
+        }
+        $allEquipmentItems = $equipmentQuery->get()
             ->sort(fn (CharacterItem $a, CharacterItem $b) => [
                 (string) ($a->item?->type ?? ''),
                 -1 * $this->itemRankSort($a),
@@ -84,7 +93,7 @@ class InventoryController extends Controller
             ])
             ->map(function (CharacterItem $row) use ($goldService) {
                 $row->sell_price = $goldService->equipmentSalePrice($row->item);
-                $row->can_sell = $goldService->canSellEquipment($row);
+                $row->can_sell = $goldService->canSellEquipmentForDisplay($row);
 
                 return $row;
             })
@@ -369,28 +378,7 @@ class InventoryController extends Controller
 
     private function isKeyMaterial(?object $material): bool
     {
-        if (!$material) {
-            return false;
-        }
-
-        $name = (string) ($material->name ?? '');
-        $category = (string) ($material->category ?? '');
-        $mainUse = (string) ($material->main_use ?? '');
-        $materialType = (string) ($material->material_type ?? '');
-        $categoryId = (string) ($material->category_id ?? '');
-
-        return $materialType === 'boss_unique'
-            || $materialType === 'key_item'
-            || $materialType === 'weapon_unlock_key'
-            || $categoryId === 'boss_unique'
-            || str_contains($category, '進化解放キー')
-            || str_contains($category, '討伐証')
-            || str_contains($category, 'ボス特異素材')
-            || str_contains($mainUse, 'レシピ解放キー')
-            || str_contains($mainUse, '解放キー')
-            || str_ends_with($name, 'の刻印')
-            || str_ends_with($name, 'の王印')
-            || str_ends_with($name, 'の神印');
+        return MaterialInventoryRules::isKeyMaterial($material);
     }
 
     private function keyMaterialIcon(?object $material): string
@@ -472,6 +460,57 @@ class InventoryController extends Controller
         return redirect()
             ->route('inventory.index')
             ->with('status', "{$result['name']}を{$result['quantity']}個売却し、" . number_format($result['amount']) . 'Gを得ました。');
+    }
+
+    public function bulkSell(Request $request, GoldService $goldService)
+    {
+        $character = Auth::user()->currentCharacter();
+        if (!$character) {
+            return response()->json(['success' => false, 'message' => 'キャラクターが見つかりません。'], 404);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'request_uuid' => ['required', 'uuid'],
+            'sales' => ['required', 'array', 'min:1'],
+            'sales.*' => ['required', 'array:character_material_id,quantity'],
+            'sales.*.character_material_id' => ['required', 'integer', 'min:1', 'distinct'],
+            'sales.*.quantity' => ['required', 'integer', 'min:1'],
+        ], [
+            'request_uuid.required' => '倉庫を開き直してから売却してください。',
+            'request_uuid.uuid' => '倉庫を開き直してから売却してください。',
+            'sales.required' => '売却する素材を選択してください。',
+            'sales.array' => '売却する素材を選び直してください。',
+            'sales.min' => '売却する素材を選択してください。',
+            'sales.*.array' => '売却する素材と個数を確認してください。',
+            'sales.*.character_material_id.required' => '売却する素材を選び直してください。',
+            'sales.*.character_material_id.integer' => '売却する素材を選び直してください。',
+            'sales.*.character_material_id.min' => '売却する素材を選び直してください。',
+            'sales.*.character_material_id.distinct' => '同じ素材が重複しています。選び直してください。',
+            'sales.*.quantity.required' => '売却する個数を指定してください。',
+            'sales.*.quantity.integer' => '売却する個数は整数で指定してください。',
+            'sales.*.quantity.min' => '売却する個数は1個以上で指定してください。',
+        ]);
+        if ($validator->fails()) {
+            return response()->json(['success' => false, 'message' => $validator->errors()->first(), 'errors' => $validator->errors()->toArray()], 422);
+        }
+        $validated = $validator->validated();
+
+        try {
+            $result = $goldService->sellMaterialsBulk($character, $validated['sales'], $validated['request_uuid']);
+        } catch (\RuntimeException $e) {
+            if ($e instanceof \Illuminate\Database\QueryException) {
+                report($e);
+                return response()->json(['success' => false, 'message' => '売却処理を完了できませんでした。時間をおいて結果を確認してください。'], 503);
+            }
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => "素材{$result['count']}種類・{$result['quantity']}個を売却し、" . number_format($result['amount']) . 'Gを得ました。',
+            ...$result,
+            'next_request_uuid' => (string) Str::uuid(),
+        ]);
     }
 
     public function discardMaterial(Request $request, CharacterMaterial $characterMaterial)

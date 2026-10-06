@@ -50,6 +50,9 @@ class CheckCharacterSelected
             && !in_array($request->method(), ['GET', 'HEAD'], true)
             && !$isMapContinuation
             && !in_array($routeName, $allowedDuringMapExploration, true)) {
+            if ($routeName === 'inventory.bulk-sell' && $request->expectsJson()) {
+                return response()->json(['success' => false, 'message' => '探索中の地図を切り上げてから行ってください。'], 422);
+            }
             return redirect()
                 ->route('exploration-maps.published')
                 ->with('error', '探索中の地図を切り上げてから行ってください。');

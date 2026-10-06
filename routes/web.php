@@ -395,6 +395,7 @@ Route::middleware('auth')->group(function () {
         // 持ち物
         Route::get('/inventory', [App\Http\Controllers\InventoryController::class, 'index'])->name('inventory.index');
         Route::post('/inventory/sell', [App\Http\Controllers\InventoryController::class, 'sell'])->name('inventory.sell');
+        Route::post('/inventory/bulk-sell', [App\Http\Controllers\InventoryController::class, 'bulkSell'])->name('inventory.bulk-sell');
         Route::post('/inventory/support-items/{itemKey}/use', [App\Http\Controllers\InventoryController::class, 'useSupportItem'])->name('inventory.support-items.use');
         Route::delete('/inventory/materials/{characterMaterial}', [App\Http\Controllers\InventoryController::class, 'discardMaterial'])->name('inventory.materials.discard');
 

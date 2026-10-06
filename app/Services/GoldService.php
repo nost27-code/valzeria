@@ -10,6 +10,8 @@ use App\Models\Item;
 use App\Models\Material;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
+use App\Support\MaterialInventoryRules;
+use Illuminate\Support\Str;
 
 class GoldService
 {
@@ -33,13 +35,28 @@ class GoldService
 
     public function canSellEquipment(CharacterItem $characterItem): bool
     {
+        return $this->equipmentSaleAllowed($characterItem)
+            && !app(NamelessRelicEquipmentService::class)->hasAttachedRelics($characterItem);
+    }
+
+    /** 一覧の先読み結果だけを使う。更新処理では canSellEquipment() で再検証する。 */
+    public function canSellEquipmentForDisplay(CharacterItem $characterItem): bool
+    {
+        if (!array_key_exists('relics_exists', $characterItem->getAttributes())) {
+            return $this->canSellEquipment($characterItem);
+        }
+
+        return $this->equipmentSaleAllowed($characterItem) && !(bool) $characterItem->relics_exists;
+    }
+
+    private function equipmentSaleAllowed(CharacterItem $characterItem): bool
+    {
         $item = $characterItem->item;
 
         return $item
             && !$characterItem->is_equipped
             && !$characterItem->is_locked
             && !$characterItem->isMarketListed()
-            && !app(NamelessRelicEquipmentService::class)->hasAttachedRelics($characterItem)
             && $this->equipmentSalePrice($item) > 0
             && !$this->isProtectedEquipment($item);
     }
@@ -81,7 +98,123 @@ class GoldService
 
     public function sellMaterial(Character $character, CharacterMaterial $characterMaterial, int $quantity): array
     {
+        $result = DB::transaction(function () use ($character, $characterMaterial, $quantity): array {
+            // Use the same Character -> inventory lock order as banking and the market.
+            $lockedCharacter = Character::whereKey($character->id)->lockForUpdate()->firstOrFail();
+            $lockedMaterial = CharacterMaterial::query()
+                ->whereKey($characterMaterial->id)
+                ->where('character_id', $lockedCharacter->id)
+                ->with('material')
+                ->lockForUpdate()
+                ->first();
+
+            if (! $lockedMaterial) {
+                throw new RuntimeException('売却する素材の状態が変わりました。持ち物を開き直してください。');
+            }
+
+            return $this->sellLockedMaterial($lockedCharacter, $lockedMaterial, $quantity);
+        });
+
+        $character->refresh();
+
+        return $result;
+    }
+
+    public function sellMaterialsBulk(Character $character, array $sales, string $requestUuid): array
+    {
+        if (!Str::isUuid($requestUuid) || $sales === []) {
+            throw new RuntimeException('売却する素材を選び直してください。');
+        }
+        $requestUuid = strtolower($requestUuid);
+
+        $sales = collect($sales)->map(fn (array $sale): array => [
+            'character_material_id' => (int) ($sale['character_material_id'] ?? 0),
+            'quantity' => (int) ($sale['quantity'] ?? 0),
+        ])->sortBy('character_material_id')->values();
+
+        if ($sales->contains(fn (array $sale): bool => $sale['character_material_id'] <= 0 || $sale['quantity'] <= 0)
+            || $sales->pluck('character_material_id')->unique()->count() !== $sales->count()) {
+            throw new RuntimeException('売却する素材と個数を確認してください。');
+        }
+
+        $payloadHash = hash('sha256', json_encode($sales->all(), JSON_THROW_ON_ERROR));
+        $result = DB::transaction(function () use ($character, $sales, $requestUuid, $payloadHash): array {
+            // 単品売却・銀行・市場と同じ Character -> inventory の順でロックする。
+            $lockedCharacter = Character::whereKey($character->id)->lockForUpdate()->firstOrFail();
+            $previous = GoldTransaction::query()
+                ->where('character_id', $lockedCharacter->id)
+                ->where('type', 'material_sale')
+                ->where('metadata->bulk_sale_uuid', $requestUuid)
+                ->orderBy('id')
+                ->lockForUpdate()
+                ->get();
+
+            if ($previous->isNotEmpty()) {
+                if ($previous->contains(fn (GoldTransaction $log): bool => ($log->metadata['bulk_sale_hash'] ?? '') !== $payloadHash)) {
+                    throw new RuntimeException('前回と売却内容が変わっています。倉庫を開き直してください。');
+                }
+
+                return $this->materialBulkSaleResult($previous->map(fn (GoldTransaction $log): array => [
+                    'character_material_id' => (int) $log->source_id,
+                    'name' => $log->metadata['sale_name'],
+                    'quantity' => (int) $log->metadata['quantity'],
+                    'unit_price' => (int) $log->metadata['unit_price'],
+                    'amount' => (int) $log->amount,
+                    'remaining_quantity' => (int) $log->metadata['remaining_quantity'],
+                ])->all(), (int) $lockedCharacter->money);
+            }
+
+            $stock = CharacterMaterial::query()
+                ->where('character_id', $lockedCharacter->id)
+                ->whereIn('id', $sales->pluck('character_material_id'))
+                ->orderBy('id')
+                ->with('material')
+                ->lockForUpdate()
+                ->get()->keyBy('id');
+
+            if ($stock->count() !== $sales->count()) {
+                throw new RuntimeException('選択した素材の状態が変わりました。倉庫を開き直してください。');
+            }
+
+            $results = [];
+            foreach ($sales as $sale) {
+                $row = $stock->get($sale['character_material_id']);
+                $results[] = [
+                    'character_material_id' => (int) $row->id,
+                    ...$this->sellLockedMaterial($lockedCharacter, $row, $sale['quantity'], [
+                        'bulk_sale_uuid' => $requestUuid,
+                        'bulk_sale_hash' => $payloadHash,
+                        'sale_name' => (string) ($row->material?->displayName() ?? '素材'),
+                        'remaining_quantity' => (int) $row->quantity - $sale['quantity'],
+                    ]),
+                ];
+            }
+
+            return $this->materialBulkSaleResult($results, (int) $lockedCharacter->money);
+        }, 3);
+
+        $character->refresh();
+
+        return $result;
+    }
+
+    private function materialBulkSaleResult(array $sales, int $money): array
+    {
+        return [
+            'count' => count($sales),
+            'quantity' => array_sum(array_column($sales, 'quantity')),
+            'amount' => array_sum(array_column($sales, 'amount')),
+            'money' => $money,
+            'sales' => $sales,
+        ];
+    }
+
+    private function sellLockedMaterial(Character $character, CharacterMaterial $characterMaterial, int $quantity, array $metadata = []): array
+    {
         $characterMaterial->loadMissing('material');
+        if (MaterialInventoryRules::isKeyMaterial($characterMaterial->material)) {
+            throw new RuntimeException('大事なものは売却できません。');
+        }
         $unitPrice = $this->materialSalePrice($characterMaterial->material);
         if ($unitPrice <= 0) {
             throw new RuntimeException('この素材は売却できません。');
@@ -103,6 +236,7 @@ class GoldService
         $materialName = (string) ($characterMaterial->material?->displayName() ?? '素材');
 
         $this->add($character, $amount, 'material_sale', "{$materialName} x{$quantity} を売却", CharacterMaterial::class, $characterMaterial->id, [
+            ...$metadata,
             'material_id' => $characterMaterial->material_id,
             'quantity' => $quantity,
             'unit_price' => $unitPrice,

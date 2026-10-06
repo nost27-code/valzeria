@@ -21,7 +21,7 @@
     $statusService = app(\App\Services\CharacterStatusService::class);
     $affixLines = $ci->affixEffectLines($equipmentEffectRate);
     $isMarketListed = $ci->isMarketListed();
-    $hasAttachedRelics = $ci->relationLoaded('relics') && $ci->relics->isNotEmpty();
+    $hasAttachedRelics = (bool) ($ci->relics_exists ?? false) || ($ci->relationLoaded('relics') && $ci->relics->isNotEmpty());
     $totalStats = $currentCharacter
         ? $statusService->equipmentStatsFor($currentCharacter, $ci)
         : \App\Services\EquipmentEnhancementService::enhancedStatTotalsForItem($ci->item, (int) ($ci->enhance_level ?? 0));
@@ -60,27 +60,11 @@
     // 現在装備中の同スロット装備と比較した場合の実際の増減（このアイテムを装備したら何が変わるか）。
     $equipDelta = null;
     if (!$ci->is_equipped && $currentCharacter && ($isWeapon || $isArmor)) {
-        $equippedSameSlot = $currentCharacter->characterItems()
-            ->where('is_equipped', true)
-            ->where('equipped_slot', $ci->item->type)
-            ->with('item')
-            ->first();
-
-        if ($equippedSameSlot && $equippedSameSlot->item) {
-            $equippedPreview = $isWeapon
-                ? $statusService->weaponEffectivePreview($currentCharacter, $equippedSameSlot)
-                : $statusService->armorEffectivePreview($currentCharacter, $equippedSameSlot);
-            $equippedStr = $equippedPreview['str'] ?? 0;
-            $equippedMag = $equippedPreview['mag'] ?? 0;
-            $equippedDef = $equippedPreview['def'] ?? 0;
-            $equippedSpr = $equippedPreview['spr'] ?? 0;
-        } else {
-            $unarmedStats = $statusService->getFinalStats($currentCharacter);
-            $equippedStr = (int) ($unarmedStats['str'] ?? 0);
-            $equippedMag = (int) ($unarmedStats['mag'] ?? 0);
-            $equippedDef = (int) ($unarmedStats['def'] ?? 0);
-            $equippedSpr = (int) ($unarmedStats['spr'] ?? 0);
-        }
+        $equippedPreview = $equipmentComparisons[$ci->item->type] ?? $statusService->getFinalStats($currentCharacter);
+        $equippedStr = (int) ($equippedPreview['str'] ?? 0);
+        $equippedMag = (int) ($equippedPreview['mag'] ?? 0);
+        $equippedDef = (int) ($equippedPreview['def'] ?? 0);
+        $equippedSpr = (int) ($equippedPreview['spr'] ?? 0);
 
         $deltaStr = $candidateStr - $equippedStr;
         $deltaMag = $candidateMag - $equippedMag;
