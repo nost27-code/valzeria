@@ -250,6 +250,15 @@ trait NationRaidPhase4MariaDbRewardScenarios
         return preg_match('/\sfor update(?:\s+nowait)?\s*$/i', $sql) === 1;
     }
 
+    private function rewardTimeoutCause(DomainException $exception): ?QueryException
+    {
+        if ($exception->getMessage() !== 'ほかの操作を処理中です。完了してから、もう一度報酬を受け取ってください。') {
+            return null;
+        }
+        $cause = $exception->getPrevious();
+        return $cause instanceof QueryException && (int) ($cause->errorInfo[1] ?? 0) === 1205 ? $cause : null;
+    }
+
     private function rewardWorker(array $job, string $directory): array
     {
         if ($job['op'] === 'reward_finalize') {
@@ -334,6 +343,13 @@ trait NationRaidPhase4MariaDbRewardScenarios
             return ['outcome' => 'lock_timeout', 'database_error' => 1205, 'attempts' => $observed->attempts,
                 'timeouts' => $observed->timeouts, 'wait_levels' => $observed->waitLevels];
         } catch (DomainException $exception) {
+            // Production translates exhausted NOWAIT retries into a busy message, preserving the SQL cause.
+            if ($job['op'] === 'reward_claim_timeout' && $this->rewardTimeoutCause($exception) !== null) {
+                $this->check(DB::transactionLevel() === 0 && $observed->errors === [1205, 1205, 1205],
+                    'Reward busy refusal must follow three real rolled-back lock errors.');
+                return ['outcome' => 'lock_timeout', 'database_error' => 1205, 'attempts' => $observed->attempts,
+                    'timeouts' => $observed->timeouts, 'wait_levels' => $observed->waitLevels, 'refusal' => 'busy_after_retries'];
+            }
             if ($job['op'] === 'reward_claim_after_inventory_staged'
                 && $exception->getMessage() === '素材倉庫がいっぱいです。整理してから受け取ってください。報酬は保管されています。') {
                 return ['outcome' => 'storage_full', 'owner_read_barrier_reached' => $ownerBarrierReached];
