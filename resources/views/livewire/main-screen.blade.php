@@ -125,7 +125,7 @@
                 @if($isNamelessTown && $currentLocation === 'town')
                     <section class="mb-4 overflow-hidden rounded-xl border border-amber-300 bg-white shadow">
                         <img src="{{ asset(\App\Services\NamelessTownService::IMAGE) }}" alt="無もなき工房街の街並み" class="w-full object-cover" style="height:180px">
-                        <div class="p-3"><h2 class="text-lg font-black text-amber-900">遺物を拾い、武具を育て、さらに深く。</h2><p class="mt-1 text-sm text-slate-600">探索タブから6つの遺跡へ。帰還したら工房で遺物を宿し、宿屋で次の探索に備えましょう。</p></div>
+                        <div class="p-3"><h2 class="text-lg font-black text-amber-900">遺物を拾い、武具を育て、さらに深く。</h2><p class="mt-1 text-sm text-slate-600">探索タブから遺跡へ。帰還したら工房で遺物を宿し、宿屋で次の探索に備えましょう。</p></div>
                     </section>
                 @endif
                 @if($currentLocation === 'dungeon' && !empty($hasActiveValmonEgg))
