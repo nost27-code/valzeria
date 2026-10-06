@@ -394,7 +394,7 @@ class NamelessRelicPrototypeTest extends TestCase
         $this->assertSame(1, PlayerRelic::query()->count());
         $this->assertSame(97, $character->fresh()->explore_stamina);
         $this->assertSame(10000, $character->fresh()->money);
-        $this->assertSame(0, (int) $character->fresh()->wins);
+        $this->assertSame(1, (int) $character->fresh()->wins);
         $this->assertSame(2, (int) NamelessRuinProgress::query()->where('zone_key', 'sand')->value('unlocked_depth'));
         $this->assertSame(1, NamelessRuinProgress::query()->count());
         $this->assertSame(1, NamelessWorkshopOperation::query()->where('action', 'ruin')->count());
@@ -823,6 +823,7 @@ class NamelessRelicPrototypeTest extends TestCase
         $this->assertSame(100, $result['batch_explore']['total_job_exp']);
         $this->assertSame(1, (int) $result['unlocked_depth']);
         $this->assertSame($result, $service->fight($character, 'sand', 1, false, $uuid, 50));
+        $this->assertSame(50, (int) $character->fresh()->wins);
         $this->assertSame(50, PlayerRelic::query()->count());
         $this->assertSame(1, NamelessWorkshopOperation::query()->where('action', 'ruin')->count());
         $this->reject(fn () => $service->fight($character, 'sand', 1, false, $uuid, 10), '内容を変更');
@@ -987,7 +988,7 @@ class NamelessRelicPrototypeTest extends TestCase
         $this->assertSame('normal', $frontier['encounter_kind']);
         $this->assertSame('normal', $otherZone['encounter_kind']);
         $this->assertSame(10000, (int) $character->fresh()->money);
-        $this->assertSame(0, (int) $character->fresh()->wins);
+        $this->assertSame(5, (int) $character->fresh()->wins);
     }
 
     public function test_final_depth_requires_actual_boss_clear_record_and_does_not_advance(): void
