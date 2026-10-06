@@ -4,12 +4,26 @@ namespace App\Services;
 
 use App\Exceptions\ChampBattleStateChangedException;
 use Illuminate\Database\DeadlockException;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\MySqlConnection;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class ChampBattleTransactionRunner
 {
+    public function lock(Builder $query, bool $shared = false): Builder
+    {
+        $connection = $query->getConnection();
+        // Xserver's mysql connection also serves MariaDB. Check the actual
+        // server before using its shared-lock NOWAIT syntax.
+        if ($connection instanceof MySqlConnection && $connection->isMaria()) {
+            return $query->lock($shared ? 'lock in share mode nowait' : 'for update nowait');
+        }
+
+        return $shared ? $query->sharedLock() : $query->lockForUpdate();
+    }
+
     public function run(int $challengerId, callable $callback): array
     {
         $connection = DB::connection();
@@ -75,8 +89,8 @@ class ChampBattleTransactionRunner
 
     protected function shouldStopRetrying(int $attempt, int $elapsedMs, string $phase, bool $stateChanged): bool
     {
-        // An incumbent reference wait occurs before gameplay locks/writes. MariaDB
-        // timeout rounding must not consume all three attempts on the first wait.
+        // Fallback blocking reference locks occur before gameplay locks/writes.
+        // Timeout rounding must not consume all three attempts on the first wait.
         // Later failures retain the shorter budget and rollback before retrying.
         $earlyReferenceWait = ! $stateChanged && $phase === 'champ_character_lock';
 
@@ -85,7 +99,9 @@ class ChampBattleTransactionRunner
 
     protected function waitBeforeRetry(int $attempt): void
     {
+        // NOWAIT must still allow a short operation to finish, without sitting
+        // in InnoDB's wait queue and retaining previously acquired row locks.
         // Back off only after releasing all locks held by this attempt.
-        usleep(($attempt * 50 + random_int(0, 25)) * 1000);
+        usleep(($attempt * 250 + random_int(0, 50)) * 1000);
     }
 }

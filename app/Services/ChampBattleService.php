@@ -251,7 +251,8 @@ class ChampBattleService
         ?int $expectedChampAppointedAt = null
     ): array
     {
-        $result = app(ChampBattleTransactionRunner::class)->run((int) $challenger->id, function (string &$phase) use ($challenger, $expectedChampCharacterId, $expectedChampAppointedAt) {
+        $runner = app(ChampBattleTransactionRunner::class);
+        $result = $runner->run((int) $challenger->id, function (string &$phase) use ($runner, $challenger, $expectedChampCharacterId, $expectedChampAppointedAt) {
             $phase = 'champ_snapshot';
             $champ = ChampState::query()->first();
             if (! $champ) {
@@ -268,18 +269,16 @@ class ChampBattleService
             }
 
             // The log/history FKs need this reference lock even though battle stats are
-            // snapshots. Wait before locking the challenger or calculating a battle:
-            // the incumbent may be finishing an exploration request of their own.
+            // snapshots. Acquire it before locking the challenger or calculating
+            // a battle; MariaDB NOWAIT avoids queuing behind their exploration.
             $phase = 'champ_character_lock';
             if ($champ->character_id && (int) $champ->character_id !== (int) $challenger->id) {
-                if (! Character::query()->whereKey($champ->character_id)->sharedLock()->first()) {
+                if (! $runner->lock(Character::query()->whereKey($champ->character_id), shared: true)->first()) {
                     throw new ChampBattleStateChangedException;
                 }
             }
             $phase = 'challenger_lock';
-            $challenger = Character::query()
-                ->with(['jobClass', 'user'])
-                ->lockForUpdate()
+            $challenger = $runner->lock(Character::query()->with(['jobClass', 'user']))
                 ->findOrFail($challenger->id);
             $isAdminTester = $challenger->isAdminTester();
 
@@ -315,7 +314,7 @@ class ChampBattleService
             $battle = $this->runBattle($challenger, $champ);
 
             $phase = 'champ_state_lock';
-            $currentChamp = ChampState::query()->whereKey($champ->id)->lockForUpdate()->first();
+            $currentChamp = $runner->lock(ChampState::query()->whereKey($champ->id))->first();
             // A locking read sees the latest committed row even under REPEATABLE READ.
             // Compare HP/SP, defenses and stats too, not just appointment identity.
             if (! $currentChamp || $currentChamp->getRawOriginal() !== $champ->getRawOriginal()) {
