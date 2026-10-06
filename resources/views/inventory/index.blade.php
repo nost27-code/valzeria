@@ -38,7 +38,7 @@
             ];
         @endphp
 
-        <script src="{{ asset('js/inventory-material-sales.js') }}?v=20261006"></script>
+        <script src="{{ asset('js/inventory/inventory-material-sales.js') }}?v=20261006"></script>
         <script>
         (() => {
             const registerInventoryAlpine = () => {

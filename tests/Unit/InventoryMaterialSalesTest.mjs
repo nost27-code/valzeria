@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 
-const script = fs.readFileSync(new URL('../../public/js/inventory-material-sales.js', import.meta.url), 'utf8');
+const script = fs.readFileSync(new URL('../../public/js/inventory/inventory-material-sales.js', import.meta.url), 'utf8');
 function setup(fetch) {
     const events = [];
     const context = { window: { dispatchEvent: event => events.push(event) }, fetch,
