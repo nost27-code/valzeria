@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-10-07-smith-type-loading-feedback',
+        'date' => '2026-10-07',
+        'category' => 'changed',
+        'title' => '合成屋の種類選択に読み込み表示を追加',
+        'detail' => '武器・防具・装飾品を選ぶと、押したボタンに読み込み中のスピナーを表示し、画面が切り替わるまで種類ボタンの連打を防ぎます。ブラウザーの戻る操作後は再び選択できます。DB変更なし。',
+    ],
+    [
         'id' => '2026-10-07-champ-lock-nowait',
         'date' => '2026-10-07',
         'category' => 'internal',

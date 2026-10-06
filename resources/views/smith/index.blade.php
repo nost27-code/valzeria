@@ -124,12 +124,34 @@
                 </a>
             </div>
 
-            <div class="grid grid-cols-3 gap-2 mb-5" aria-label="合成する装備の種類">
+            <div class="grid grid-cols-3 gap-2 mb-5" aria-label="合成する装備の種類"
+                 x-data="{
+                     loadingType: null,
+                     selectType(event, type) {
+                         if (this.loadingType !== null) {
+                             event.preventDefault();
+                             return;
+                         }
+                         if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+                         event.preventDefault();
+                         this.loadingType = type;
+                         const href = event.currentTarget.href;
+                         setTimeout(() => window.location.assign(href), 80);
+                     }
+                 }"
+                 @pageshow.window="loadingType = null"
+                 :aria-busy="loadingType !== null ? 'true' : 'false'">
                 @foreach($equipmentTypes as $type => $label)
                     <a href="{{ route('smith.index', ['type' => $type]) }}"
                        @if($equipmentType === $type) aria-current="page" @endif
-                       class="rounded-lg px-2 py-3 text-center text-sm font-bold transition {{ $equipmentType === $type ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200' }}">
-                        {{ $label }}
+                       @click="selectType($event, '{{ $type }}')"
+                       :aria-disabled="loadingType !== null ? 'true' : 'false'"
+                       :aria-busy="loadingType === '{{ $type }}' ? 'true' : 'false'"
+                       :tabindex="loadingType !== null ? -1 : 0"
+                       :class="loadingType !== null ? 'cursor-wait opacity-70' : ''"
+                       class="inline-flex items-center justify-center gap-1.5 rounded-lg px-2 py-3 text-center text-sm font-bold transition {{ $equipmentType === $type ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200' }}">
+                        <x-loading-spinner x-show="loadingType === '{{ $type }}'" style="display: none;" class="shrink-0" />
+                        <span>{{ $label }}</span>
                     </a>
                 @endforeach
             </div>
