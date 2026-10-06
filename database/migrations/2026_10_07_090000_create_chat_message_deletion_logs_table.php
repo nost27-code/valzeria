@@ -21,8 +21,8 @@ return new class extends Migration
             $table->unsignedBigInteger('receiver_user_id')->nullable();
             $table->string('receiver_name')->nullable();
             $table->text('message');
-            $table->timestamp('sent_at')->nullable();
-            $table->timestamp('deleted_at');
+            $table->dateTime('sent_at')->nullable();
+            $table->dateTime('deleted_at');
             $table->index(['deleted_at', 'id']);
             $table->index(['character_id', 'deleted_at']);
             $table->index(['user_id', 'deleted_at']);
