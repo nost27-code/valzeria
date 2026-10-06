@@ -39,13 +39,14 @@ function assets(): array
 }
 function schemaFault(string $name, string $fault, string $restore, string $problem): void
 {
-    global $checks, $current;
+    global $checks, $current, $inspector;
     $current = $name;
     $before = assets();
     DB::statement($fault);
     try {
         $status = app(NamelessPreparationService::class)->status();
         schemaRequire(! $status['ready'] && in_array($problem, $status['schema_problems'], true), 'Missing concrete schema diagnostic: '.$problem);
+        schemaRequire(in_array($problem, $inspector->problems(), true), 'Reused inspector retained a stale healthy schema.');
         config(['nameless_relics.enabled' => true]);
         schemaRequire(! app(NamelessWorkshopService::class)->ready(), 'Malformed DB opened the feature.');
     } finally {
@@ -54,6 +55,7 @@ function schemaFault(string $name, string $fault, string $restore, string $probl
     }
     schemaRequire(assets() === $before, 'Schema inspection/refusal lost assets.');
     schemaRequire(app(NamelessPreparationService::class)->status()['ready'], 'Restored DB did not become ready.');
+    schemaRequire($inspector->problems() === [], 'Reused inspector retained a stale schema fault.');
     $checks[$name] = ['pass' => true, 'assets_unchanged' => true, 'diagnostic' => $problem];
 }
 try {
@@ -71,7 +73,22 @@ try {
     PlayerRelic::create(['character_id' => $character->id, 'effect_key' => 'stat_str', 'rank' => 9, 'growth_progress' => 1, 'nameless_equipment_id' => $body->id, 'slot_number' => 1, 'is_locked' => true]);
     DB::table('nameless_workshop_operations')->insert(['character_id' => $character->id, 'request_uuid' => '123e4567-e89b-42d3-a456-426614174000', 'action' => 'fixture', 'payload_hash' => str_repeat('a', 64), 'result' => '{"retained":true}']);
     $before = assets();
-    schemaRequire(app(NamelessSchemaService::class)->problems() === [], 'Normal asset DB rejected.');
+    $inspector = app(NamelessSchemaService::class);
+    DB::flushQueryLog();
+    DB::enableQueryLog();
+    try {
+        schemaRequire($inspector->problems() === [], 'Normal asset DB rejected.');
+        $queries = DB::getQueryLog();
+        schemaRequire(count($queries) === 6, 'Full native inspection must use five metadata queries and one migration query.');
+        schemaRequire(count(array_filter($queries, fn ($query) => str_contains(strtolower($query['query']), 'information_schema.'))) === 5, 'Metadata query budget exceeded.');
+        schemaRequire($inspector->problems() === [] && count(DB::getQueryLog()) === 12, 'Repeated inspection must re-read schema and history.');
+        DB::flushQueryLog();
+        schemaRequire(! app(NamelessWorkshopService::class)->ready() && DB::getQueryLog() === [], 'OFF runtime gate must not inspect the DB.');
+    } finally {
+        DB::disableQueryLog();
+        DB::flushQueryLog();
+    }
+    $checks['fresh_batched_inspection_query_budget'] = ['pass' => true, 'queries_per_inspection' => 6, 'metadata_queries' => 5, 'off_gate_queries' => 0];
     schemaRequire(assets() === $before, 'Read-only normal inspection changed assets.');
     $checks['normal_assets_read_only'] = ['pass' => true];
 

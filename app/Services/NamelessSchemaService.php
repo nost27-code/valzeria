@@ -47,30 +47,32 @@ final class NamelessSchemaService
     public function problems(): array
     {
         $problems = [];
-        if (! Schema::hasTable('migrations')) {
+        $maria = in_array(DB::getDriverName(), ['mysql', 'mariadb'], true);
+        // A fresh snapshot belongs to this inspection only, never to a request/worker/cache.
+        $metadata = $this->metadata($maria);
+        if (! isset($metadata['migrations'])) {
             $problems[] = 'migrations:table_missing';
-        } elseif (! Schema::hasColumn('migrations', 'migration')) {
+        } elseif (! isset($metadata['migrations']['columns']['migration'])) {
             $problems[] = 'migrations:column_missing:migration';
         } else {
-            $applied = DB::table('migrations')->pluck('migration')->all();
+            $applied = DB::table('migrations')->useWritePdo()->whereIn('migration', NamelessPreparationService::MIGRATIONS)->pluck('migration')->all();
             foreach (array_diff(NamelessPreparationService::MIGRATIONS, $applied) as $migration) {
                 $problems[] = 'migrations:pending:'.$migration;
             }
         }
-        $maria = in_array(DB::getDriverName(), ['mysql', 'mariadb'], true);
         foreach ([...self::COLUMNS, ...self::REFERENCES] as $table => $required) {
-            if (! Schema::hasTable($table)) {
+            if (! isset($metadata[$table])) {
                 $problems[] = $table.':table_missing';
                 continue;
             }
-            $columns = collect(Schema::getColumns($table))->keyBy('name');
+            $columns = $metadata[$table]['columns'];
             foreach ($required as $name => [$type, $nullable]) {
-                $column = $columns->get($name);
+                $column = $columns[$name] ?? null;
                 if (! $column) {
                     $problems[] = $table.':column_missing:'.$name;
                     continue;
                 }
-                if (! $this->typeMatches($table, $name, $column, $type, $maria)) {
+                if (! $this->typeMatches($table, $name, $column, $type, $maria, $metadata[$table]['checks'])) {
                     $problems[] = $table.':type:'.$name.':expected='.$type.':actual='.$column['type'];
                 }
                 if ($type !== 'id' && $column['nullable'] !== $nullable) {
@@ -83,18 +85,67 @@ final class NamelessSchemaService
                     $problems[] = $table.':generated_column:'.$name;
                 }
             }
-            $indexes = Schema::getIndexes($table);
+            $indexes = $metadata[$table]['indexes'];
             if (! collect($indexes)->contains(fn ($index) => $index['primary'] && $index['columns'] === ['id'])) {
                 $problems[] = $table.':primary:id';
             }
-            if ($maria && strtolower((string) DB::scalar('SELECT ENGINE FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=?', [$table])) !== 'innodb') {
+            if ($maria && strtolower((string) $metadata[$table]['engine']) !== 'innodb') {
                 $problems[] = $table.':engine:expected=InnoDB';
             }
         }
-        return [...$problems, ...$this->constraintProblems()];
+        return [...$problems, ...$this->constraintProblems($metadata)];
     }
 
-    private function typeMatches(string $table, string $name, array $column, string $expected, bool $maria): bool
+    /** Batch MariaDB metadata; keep Laravel's column/index/FK normalization and write PDO. */
+    private function metadata(bool $maria): array
+    {
+        $tables = ['migrations', ...array_keys(self::COLUMNS), ...array_keys(self::REFERENCES)];
+        $metadata = [];
+        if (! $maria) {
+            foreach ($tables as $table) {
+                if (! Schema::hasTable($table)) { continue; }
+                $metadata[$table] = [
+                    'columns' => array_column(Schema::getColumns($table), null, 'name'),
+                    'indexes' => $table === 'migrations' ? [] : Schema::getIndexes($table),
+                    'foreign_keys' => isset(self::COLUMNS[$table]) ? Schema::getForeignKeys($table) : [],
+                    'engine' => null, 'checks' => [],
+                ];
+            }
+            return $metadata;
+        }
+
+        $connection = DB::connection();
+        $processor = $connection->getPostProcessor();
+        $physical = array_map(fn ($table) => $connection->getTablePrefix().$table, $tables);
+        $logical = array_combine($physical, $tables);
+        $in = implode(', ', array_fill(0, count($physical), '?'));
+        $select = fn (string $sql) => $connection->selectFromWriteConnection($sql, $physical);
+        foreach ($select("SELECT TABLE_NAME AS table_name, ENGINE AS engine FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME IN ($in) AND TABLE_TYPE IN ('BASE TABLE', 'SYSTEM VERSIONED')") as $row) {
+            $metadata[$logical[$row->table_name]] = ['columns' => [], 'indexes' => [], 'foreign_keys' => [], 'checks' => [], 'engine' => $row->engine];
+        }
+        $columns = $select("SELECT TABLE_NAME AS table_name, COLUMN_NAME AS name, DATA_TYPE AS type_name, COLUMN_TYPE AS type, COLLATION_NAME AS collation, IS_NULLABLE AS nullable, COLUMN_DEFAULT AS `default`, COLUMN_COMMENT AS comment, GENERATION_EXPRESSION AS expression, EXTRA AS extra FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME IN ($in) ORDER BY TABLE_NAME, ORDINAL_POSITION");
+        $indexes = $select("SELECT TABLE_NAME AS table_name, INDEX_NAME AS name, GROUP_CONCAT(COLUMN_NAME ORDER BY SEQ_IN_INDEX) AS `columns`, INDEX_TYPE AS type, NOT NON_UNIQUE AS `unique` FROM information_schema.STATISTICS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME IN ($in) GROUP BY TABLE_NAME, INDEX_NAME, INDEX_TYPE, NON_UNIQUE");
+        $keys = $select("SELECT kc.TABLE_NAME AS table_name, kc.CONSTRAINT_NAME AS name, GROUP_CONCAT(kc.COLUMN_NAME ORDER BY kc.ORDINAL_POSITION) AS `columns`, kc.REFERENCED_TABLE_SCHEMA AS foreign_schema, kc.REFERENCED_TABLE_NAME AS foreign_table, GROUP_CONCAT(kc.REFERENCED_COLUMN_NAME ORDER BY kc.ORDINAL_POSITION) AS foreign_columns, rc.UPDATE_RULE AS on_update, rc.DELETE_RULE AS on_delete FROM information_schema.KEY_COLUMN_USAGE kc JOIN information_schema.REFERENTIAL_CONSTRAINTS rc ON kc.CONSTRAINT_SCHEMA=rc.CONSTRAINT_SCHEMA AND kc.CONSTRAINT_NAME=rc.CONSTRAINT_NAME AND kc.TABLE_NAME=rc.TABLE_NAME WHERE kc.TABLE_SCHEMA=DATABASE() AND kc.TABLE_NAME IN ($in) AND kc.REFERENCED_TABLE_NAME IS NOT NULL GROUP BY kc.TABLE_NAME, kc.CONSTRAINT_NAME, kc.REFERENCED_TABLE_SCHEMA, kc.REFERENCED_TABLE_NAME, rc.UPDATE_RULE, rc.DELETE_RULE");
+        // MariaDB represents JSON as LONGTEXT + CHECK. Native JSON needs no CHECK query.
+        $needsJsonChecks = collect($columns)->contains(fn ($column) => $column->type_name === 'longtext'
+            && (self::COLUMNS[$logical[$column->table_name]][$column->name][0] ?? null) === 'json');
+        $checks = $needsJsonChecks ? $select("SELECT tc.TABLE_NAME AS table_name, cc.CHECK_CLAUSE AS clause FROM information_schema.CHECK_CONSTRAINTS cc JOIN information_schema.TABLE_CONSTRAINTS tc ON tc.CONSTRAINT_SCHEMA=cc.CONSTRAINT_SCHEMA AND tc.CONSTRAINT_NAME=cc.CONSTRAINT_NAME AND tc.TABLE_NAME=cc.TABLE_NAME WHERE tc.TABLE_SCHEMA=DATABASE() AND tc.TABLE_NAME IN ($in)") : [];
+        foreach (['columns' => $columns, 'indexes' => $indexes, 'foreign_keys' => $keys, 'checks' => $checks] as $kind => $rows) {
+            foreach (collect($rows)->groupBy('table_name') as $table => $group) {
+                $name = $logical[$table];
+                if (! isset($metadata[$name])) { continue; }
+                $metadata[$name][$kind] = match ($kind) {
+                    'columns' => array_column($processor->processColumns($group->all()), null, 'name'),
+                    'indexes' => $processor->processIndexes($group->all()),
+                    'foreign_keys' => $processor->processForeignKeys($group->all()),
+                    'checks' => $group->all(),
+                };
+            }
+        }
+        return $metadata;
+    }
+
+    private function typeMatches(string $table, string $name, array $column, string $expected, bool $maria, array $checks): bool
     {
         $type = strtolower($column['type_name']);
         $raw = strtolower($column['type']);
@@ -110,7 +161,6 @@ final class NamelessSchemaService
                 return true;
             }
             if ($maria && $type === 'longtext') {
-                $checks = DB::select('SELECT cc.CHECK_CLAUSE AS clause FROM information_schema.CHECK_CONSTRAINTS cc JOIN information_schema.TABLE_CONSTRAINTS tc ON tc.CONSTRAINT_SCHEMA=cc.CONSTRAINT_SCHEMA AND tc.CONSTRAINT_NAME=cc.CONSTRAINT_NAME AND tc.TABLE_NAME=cc.TABLE_NAME WHERE tc.TABLE_SCHEMA=DATABASE() AND tc.TABLE_NAME=?', [$table]);
                 return collect($checks)->contains(fn ($check) => preg_match('/\A\s*(?:\(\s*)*json_valid\s*\(\s*`?'.preg_quote($name, '/').'`?\s*\)(?:\s*\))*\s*\z/i', $check->clause) === 1);
             }
             return false;
@@ -135,7 +185,7 @@ final class NamelessSchemaService
             && str_contains($raw, 'unsigned') && ($expected !== 'id' || $column['auto_increment']);
     }
 
-    private function constraintProblems(): array
+    private function constraintProblems(array $metadata): array
     {
         $problems = [];
         $groups = [
@@ -145,15 +195,15 @@ final class NamelessSchemaService
             'nameless_ruin_progress' => [['character_id', 'zone_key']],
         ];
         foreach ($groups as $table => $required) {
-            if (! Schema::hasTable($table)) { continue; }
-            $indexes = Schema::getIndexes($table);
+            if (! isset($metadata[$table])) { continue; }
+            $indexes = $metadata[$table]['indexes'];
             foreach ($required as $columns) {
                 if (! collect($indexes)->contains(fn ($index) => $index['unique'] && $index['columns'] === $columns)) {
                     $problems[] = $table.':unique:'.implode(',', $columns);
                 }
             }
         }
-        if (Schema::hasTable('player_nameless_equipments') && collect(Schema::getIndexes('player_nameless_equipments'))->contains(fn ($index) => $index['unique'] && $index['columns'] === ['character_id', 'kind'])) {
+        if (isset($metadata['player_nameless_equipments']) && collect($metadata['player_nameless_equipments']['indexes'])->contains(fn ($index) => $index['unique'] && $index['columns'] === ['character_id', 'kind'])) {
             $problems[] = 'player_nameless_equipments:obsolete_owner_kind_unique';
         }
         foreach ([
@@ -163,8 +213,8 @@ final class NamelessSchemaService
             'nameless_equipment_discoveries' => ['character_id' => ['characters', 'cascade']],
             'nameless_ruin_progress' => ['character_id' => ['characters', 'cascade']],
         ] as $table => $references) {
-            if (! Schema::hasTable($table)) { continue; }
-            $foreignKeys = Schema::getForeignKeys($table);
+            if (! isset($metadata[$table])) { continue; }
+            $foreignKeys = $metadata[$table]['foreign_keys'];
             foreach ($references as $column => [$target, $delete]) {
                 if (! collect($foreignKeys)->contains(fn ($key) => $key['columns'] === [$column] && $key['foreign_table'] === $target && $key['foreign_columns'] === ['id'] && strtolower($key['on_delete']) === $delete)) {
                     $problems[] = $table.':foreign:'.$column.':expected='.$target.'.id/'.$delete;

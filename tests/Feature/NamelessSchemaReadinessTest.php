@@ -27,6 +27,35 @@ class NamelessSchemaReadinessTest extends TestCase
         $this->assertSame($before, $body->fresh()->getRawOriginal());
     }
 
+    public function test_same_inspector_detects_ddl_changes_and_restoration_without_cached_success(): void
+    {
+        $inspector = app(NamelessSchemaService::class);
+        $this->assertSame([], $inspector->problems());
+        Schema::table('nameless_workshop_operations', fn ($table) => $table->renameColumn('action', 'retained_action'));
+        $this->assertContains('nameless_workshop_operations:column_missing:action', $inspector->problems());
+        config(['nameless_relics.enabled' => true]);
+        $this->assertFalse(app(NamelessWorkshopService::class)->ready());
+        Schema::table('nameless_workshop_operations', fn ($table) => $table->renameColumn('retained_action', 'action'));
+        $this->assertSame([], $inspector->problems());
+        $this->assertTrue(app(NamelessWorkshopService::class)->ready());
+        config(['nameless_relics.enabled' => false]);
+        $this->assertFalse(app(NamelessWorkshopService::class)->ready());
+    }
+
+    public function test_same_inspector_rechecks_migration_history_after_rollback(): void
+    {
+        $inspector = app(NamelessSchemaService::class);
+        $this->assertSame([], $inspector->problems());
+        DB::beginTransaction();
+        try {
+            DB::table('migrations')->where('migration', NamelessPreparationService::MIGRATIONS[0])->delete();
+            $this->assertContains('migrations:pending:'.NamelessPreparationService::MIGRATIONS[0], $inspector->problems());
+        } finally {
+            DB::rollBack();
+        }
+        $this->assertSame([], $inspector->problems());
+    }
+
     #[DataProvider('requiredColumns')]
     public function test_missing_required_column_blocks_runtime_and_preparation(string $table, string $column): void
     {

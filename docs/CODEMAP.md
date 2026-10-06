@@ -1,12 +1,12 @@
 # CODEMAP.md
 
-## Relic approval and schema integrity (2026-10-06, unreleased)
+## Relic approval, schema integrity and batched inspection (2026-10-06)
 
-- `NamelessSchemaService`: canonical read-only tables/columns/types/defaults/constraints and migration ledger checks shared by `NamelessWorkshopService` and `NamelessPreparationService`.
+- `NamelessSchemaService`: canonical read-only tables/columns/types/defaults/constraints and migration ledger checks shared by `NamelessWorkshopService` and `NamelessPreparationService`. MariaDB metadata is batched on the write PDO (five metadata queries plus targeted migration history for a healthy DB). Each inspection re-reads the DB; no request/worker/persistent readiness cache.
 - `Nation/Raid/NationRaidRelicRules`, `NationRaidRules`, event/sortie/preparation/combat/settlement services: approved relic contract, hash, frozen actor capture and replay-safe combat.
 - Raid simulation builder/validator/projector: contract-bearing artifacts and profile model v2; outdated artifacts rejected.
 - `NationRaidAdmissionBusyException`, `scripts/verify/support/NationRaidPhase4MariaDbHarness.php`: typed NOWAIT refusal, strict race outcomes, resource/ledger/reward invariants.
-- `scripts/verify/nameless-schema-mariadb.php`, `NamelessSchemaReadinessTest`, `NationRaidRelicRulesIntegrationTest`, `NationRaidAdmissionOutcomeTest`, `.github/workflows/verify-nation-raid-phase4-mariadb.yml`: serial isolated verification; no production deployment.
+- `scripts/verify/nameless-schema-mariadb.php`, `NamelessSchemaReadinessTest`, `NationRaidRelicRulesIntegrationTest`, `NationRaidAdmissionOutcomeTest`, `.github/workflows/verify-nation-raid-phase4-mariadb.yml`: serial isolated verification, including native metadata query budget, OFF gate zero queries, and same-inspector DDL fault/restoration. These verification scripts never prepare production DBs. The integrity fixes are deployed with the production feature OFF; DB preparation and formal activation remain separate.
 
 ## Silver Week exploration stamina
 
