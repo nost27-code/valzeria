@@ -77,7 +77,7 @@ class NamelessRuinDepthBossTest extends TestCase
         }
     }
 
-    public function test_every_boss_can_be_fought_and_replayed_without_changing_reward_or_progress_rules(): void
+    public function test_every_boss_can_be_fought_and_replayed_with_depth_experience_and_existing_progress_rules(): void
     {
         config(['nameless_relics.boss_drop_chance_bps' => 10000]);
         $character = $this->character();
@@ -97,7 +97,7 @@ class NamelessRuinDepthBossTest extends TestCase
                 $this->assertSame(min(100, $depth + 1), (int) $progress->fresh()->unlocked_depth);
                 $this->assertSame($result, $service->fight($character, $key, $depth, true, $uuid));
                 $this->assertNotEmpty($result['boss_guide']['counter']);
-                $this->assertSame([17, 2, 0], [$result['exp_gained'], $result['job_exp_gained'], $result['gold_gained']]);
+                $this->assertSame([17 + $depth - 1, 2, 0], [$result['exp_gained'], $result['job_exp_gained'], $result['gold_gained']]);
                 $this->assertSame($depth === 50 ? $zone['next_zone_name'] : null, $result['unlocked_zone_name']);
             }
         }

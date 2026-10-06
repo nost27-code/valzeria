@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-10-07-nameless-ruin-depth-experience',
+        'date' => '2026-10-07',
+        'category' => 'balance',
+        'title' => '遺跡の経験値を深度とともに増えるよう調整',
+        'detail' => '深度1の報酬を維持し、深い所ほど通常EXPが増加。深度100は従来の約1.5倍を目標とし、途中の報酬を減らさないため一部の敵は少し上回ります。通常・ボス・再遭遇・遺物ゴブリンに適用。職業EXP・Gold・探索力・抽選・DBは変更せず、保存済み結果への遡及付与なし。',
+    ],
+    [
         'id' => '2026-10-07-smith-type-loading-feedback',
         'date' => '2026-10-07',
         'category' => 'changed',
