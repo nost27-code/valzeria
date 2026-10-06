@@ -605,12 +605,7 @@ class ExplorationSupportService
 
     private function consumeOwnedItem(Character $character, int $itemId): bool
     {
-        $owned = CharacterItem::query()
-            ->where('character_id', $character->id)
-            ->where('item_id', $itemId)
-            ->where('is_equipped', false)
-            ->lockForUpdate()
-            ->first();
+        $owned = app(OwnedConsumableService::class)->lockFirst((int) $character->id, $itemId);
         if (!$owned) {
             return false;
         }

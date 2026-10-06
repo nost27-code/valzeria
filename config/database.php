@@ -61,6 +61,8 @@ return [
             'engine' => null,
             'options' => extension_loaded('pdo_mysql') ? array_filter([
                 Mysql::ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
+                // 接続ごとの待機だけを制限。サーバー全体の設定・自動再試行は変更しない。
+                Mysql::ATTR_INIT_COMMAND => 'SET SESSION innodb_lock_wait_timeout = '.max(1, (int) env('DB_LOCK_WAIT_TIMEOUT', 3)),
             ]) : [],
         ],
 
@@ -81,6 +83,7 @@ return [
             'engine' => null,
             'options' => extension_loaded('pdo_mysql') ? array_filter([
                 Mysql::ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
+                Mysql::ATTR_INIT_COMMAND => 'SET SESSION innodb_lock_wait_timeout = '.max(1, (int) env('DB_LOCK_WAIT_TIMEOUT', 3)),
             ]) : [],
         ],
 

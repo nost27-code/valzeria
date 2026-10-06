@@ -121,6 +121,8 @@ class MapExplorationItemService
         }
 
         return DB::transaction(function () use ($character, $item, $registrationId, $config) {
+            // 通常探索・帰還・回復と同じ順序でCharacterを先にロックする。
+            $character = Character::query()->lockForUpdate()->findOrFail($character->id);
             $carry = MapExplorationItemCarry::query()
                 ->where('character_id', $character->id)
                 ->where('registration_id', $registrationId)
@@ -136,19 +138,12 @@ class MapExplorationItemService
                 return ['success' => false, 'message' => "{$item->name}の持ち込み分を使い切っています。"];
             }
 
-            $owned = CharacterItem::query()
-                ->where('character_id', $character->id)
-                ->where('item_id', $item->id)
-                ->where('is_equipped', false)
-                ->oldest()
-                ->lockForUpdate()
-                ->first();
+            $owned = app(OwnedConsumableService::class)->lockFirst((int) $character->id, (int) $item->id, 'created_at');
 
             if (!$owned) {
                 return ['success' => false, 'message' => "{$item->name}を所持していません。"];
             }
 
-            $character = Character::query()->lockForUpdate()->findOrFail($character->id);
             $stats = app(CharacterStatusService::class)->getFinalStats($character);
             $target = $config['target'];
             $max = $target === 'hp' ? (int) ($stats['max_hp'] ?? $character->hp_base) : (int) ($stats['max_mp'] ?? $character->mp_base);
