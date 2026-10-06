@@ -6,6 +6,18 @@ on:
     paths:
       - '.github/workflows/verify-nameless-ruin-rewards-mariadb.yml'
       - 'app/Services/NamelessRuinService.php'
+      - 'app/Services/NamelessBattleHistoryService.php'
+      - 'app/Services/NamelessRuinCompensationService.php'
+      - 'tests/Feature/NamelessRuinCompensationTest.php'
+      - 'scripts/maintenance/compensate-nameless-ruins.php'
+      - 'app/Livewire/CityHeader.php'
+      - 'app/Services/Admin/SecurityLoginRetentionService.php'
+      - 'app/Services/Admin/SecurityAnomalyDetectionService.php'
+      - 'app/Services/SecurityLoginRetentionBusyException.php'
+      - 'app/Console/Commands/DetectSecurityAnomalies.php'
+      - 'tests/Feature/SecurityLoginRetentionTest.php'
+      - 'tests/Feature/AdventurerCardAdventureRecordsCacheTest.php'
+      - 'scripts/verify/security-retention-concurrency.php'
       - 'app/Services/MapExplorationRewardService.php'
       - 'app/Services/LevelService.php'
       - 'tests/Feature/NamelessRuinRewardsTest.php'
@@ -108,6 +120,26 @@ jobs:
           php -d memory_limit=128M vendor/phpunit/phpunit/phpunit --filter 'test_actual_ruin_boss_battle_awards_once_advances_only_its_zone_and_consumes_stamina$|test_fifty_ruin_battles_aggregate_relics_and_replay_without_extra_consumption$' --log-junit reward-evidence/prototype.xml tests/Feature/NamelessRelicPrototypeTest.php
           php -d memory_limit=128M vendor/phpunit/phpunit/phpunit --filter 'test_actual_ruin_defeat_has_no_drop_or_progress_and_persists_standard_defeat_resources$|test_boss_reappears_only_at_cleared_depth_without_unlocking_or_extra_stamina_cost$' --log-junit reward-evidence/ruin-encounters.xml tests/Feature/NamelessRelicPrototypeTest.php
           php -d memory_limit=128M vendor/phpunit/phpunit/phpunit --filter 'test_every_boss_can_be_fought_and_replayed_without_changing_reward_or_progress_rules$' --log-junit reward-evidence/boss.xml tests/Feature/NamelessRuinDepthBossTest.php
+      - name: Verify historical compensation sequentially
+        shell: bash
+        run: |
+          set -euo pipefail
+          for filter in \
+            'test_plan_is_readonly_and_fixed_batch_rewards_replay_without_duplicate_history$|test_level_growth_preserves_hp_and_pays_the_current_job$' \
+            'test_capped_level_and_mastered_job_keep_caps_but_receive_gold_and_wins$|test_failed_gold_ledger_rolls_back_all_growth_and_can_retry_the_fixed_plan$' \
+            'test_changed_source_and_changed_receipt_payload_are_rejected$|test_counter_only_history_does_not_pay_existing_rewards_again$|test_active_map_defers_repair_without_creating_a_receipt$|test_fallback_job_reward_uses_reference_level_and_fixed_draws_with_no_gold$'; do
+            count=$(( ${count:-0} + 1 ))
+            php -d memory_limit=128M vendor/phpunit/phpunit/phpunit --filter "$filter" --log-junit "reward-evidence/compensation-$count.xml" tests/Feature/NamelessRuinCompensationTest.php
+          done
+      - name: Verify card and security retention regressions sequentially
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$DB_DATABASE" = valzeria_nameless_ruin_rewards_ci
+          php -d memory_limit=128M vendor/phpunit/phpunit/phpunit --log-junit reward-evidence/card.xml tests/Feature/AdventurerCardAdventureRecordsCacheTest.php
+          php -d memory_limit=128M vendor/phpunit/phpunit/phpunit --log-junit reward-evidence/retention.xml tests/Feature/SecurityLoginRetentionTest.php
+          php -d memory_limit=128M vendor/phpunit/phpunit/phpunit --filter 'test_scan_detects_rapid_battles_and_unexpected_job_exp_without_duplicate_cases$|test_scan_detects_abnormal_gold_and_shared_ip_without_storing_plain_ip$|test_busy_character_keeps_baseline_while_other_characters_are_scanned_and_next_scan_catches_growth$' --log-junit reward-evidence/security.xml tests/Feature/AdminSecurityAnomalyDetectionTest.php
+          php -d memory_limit=128M scripts/verify/security-retention-concurrency.php > reward-evidence/retention-concurrency.json
       - uses: actions/upload-artifact@v4
         if: always()
         with:

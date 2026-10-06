@@ -5,9 +5,12 @@ namespace App\Services\Admin;
 use App\Models\Character;
 use App\Models\SecurityAnomalyCase;
 use App\Models\SecurityInventorySnapshot;
+use App\Support\DatabaseContention;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Throwable;
 use Illuminate\Support\Facades\Schema;
 
 class SecurityAnomalyDetectionService
@@ -15,10 +18,10 @@ class SecurityAnomalyDetectionService
     /** @var array<int, Character|null> */
     private array $characterCache = [];
 
-    /** @return array{created:int,updated:int,rules:array<string,int>,skipped:bool} */
+    /** @return array{created:int,updated:int,rules:array<string,int>,skipped:bool,retention_pruned:int,retention_deferred:int} */
     public function scan(): array
     {
-        $result = ['created' => 0, 'updated' => 0, 'rules' => [], 'skipped' => false];
+        $result = ['created' => 0, 'updated' => 0, 'rules' => [], 'skipped' => false, 'retention_pruned' => 0, 'retention_deferred' => 0];
 
         if (! $this->schemaReady()) {
             return $result;
@@ -31,24 +34,40 @@ class SecurityAnomalyDetectionService
             return $result;
         }
 
+        $phase = 'retention';
         try {
-            DB::table('security_login_observations')
-                ->where('last_observed_at', '<', now()->subDays((int) config('security_anomaly_detection.retention_days', 90)))
-                ->delete();
+            $retention = app(SecurityLoginRetentionService::class)->prune();
+            $result['retention_pruned'] = $retention['pruned'];
+            $result['retention_deferred'] = $retention['deferred'];
+            if ($retention['deferred'] > 0) {
+                Log::warning('Security login retention postponed.', ['records' => $retention['deferred']]);
+            }
 
             if (! config('security_anomaly_detection.enabled', true)) {
                 return $result;
             }
 
+            $phase = 'rapid_battles';
             $this->detectRapidBattles($result);
+            $phase = 'gold_changes';
             $this->detectCurrencyChanges('gold_transactions', 'gold_change', 'Gold', $result);
+            $phase = 'kiseki_changes';
             $this->detectCurrencyChanges('kiseki_transactions', 'kiseki_change', '輝石', $result);
+            $phase = 'job_exp';
             $this->detectUnexpectedJobExp($result);
+            $phase = 'shared_ip';
             $this->detectSharedIps($result);
+            $phase = 'inventory_growth';
             $this->detectInventoryGrowth($result);
+            $phase = 'admin_grant_trade';
             $this->detectAdminGrantTrades($result);
 
             return $result;
+        } catch (Throwable $exception) {
+            if ($details = DatabaseContention::details($exception)) {
+                Log::warning('Security anomaly scan interrupted.', $details + ['phase' => $phase]);
+            }
+            throw $exception;
         } finally {
             $lock->release();
         }

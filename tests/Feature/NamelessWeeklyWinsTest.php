@@ -62,6 +62,11 @@ class NamelessWeeklyWinsTest extends TestCase
         $this->assertSame(3, NamelessWorkshopOperation::query()->count());
         $this->assertSame(5, $this->score($character));
         $this->assertSame(0, BattleLog::query()->count());
+        $records = (new \ReflectionMethod(\App\Livewire\CityHeader::class, 'buildAdventureRecords'))->invoke(new \App\Livewire\CityHeader(), $character->fresh());
+        $values = array_column($records, 'value', 'label');
+        $this->assertSame('5', $values['戦闘回数']);
+        $this->assertSame('5', $values['勝利数']);
+        $this->assertSame('1', $values['ボス討伐数']);
     }
 
     public function test_actual_defeat_increments_losses_once_and_is_not_a_weekly_win(): void
@@ -77,6 +82,10 @@ class NamelessWeeklyWinsTest extends TestCase
         $this->assertSame(0, (int) $character->fresh()->wins);
         $this->assertSame(1, (int) $character->fresh()->losses);
         $this->assertSame(0, $this->score($character));
+        $records = (new \ReflectionMethod(\App\Livewire\CityHeader::class, 'buildAdventureRecords'))->invoke(new \App\Livewire\CityHeader(), $character->fresh());
+        $values = array_column($records, 'value', 'label');
+        $this->assertSame('1', $values['戦闘回数']);
+        $this->assertSame('1', $values['敗北数']);
     }
 
     public function test_saved_zero_exp_wins_and_partial_batch_use_original_week_even_when_off(): void
