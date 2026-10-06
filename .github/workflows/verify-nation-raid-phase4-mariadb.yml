@@ -122,6 +122,7 @@ jobs:
           php vendor/bin/phpunit tests/Unit/Services/Nation/Raid/Simulation/NationRaidSimulationRunnerTest.php --colors=never
           php vendor/bin/phpunit tests/Feature/NationRaidPhase2SnapshotTest.php --filter test_builder_uses_final_stats --colors=never
           php vendor/bin/phpunit tests/Feature/NamelessPreparationTest.php --filter 'test_(off_preparation|default_command|prepare_refuses)' --colors=never
+          php vendor/bin/phpunit tests/Feature/EquipmentRelicPreviewBatchTest.php --colors=never
           php vendor/bin/phpunit tests/Feature/NamelessBattleIntegrationTest.php --colors=never
           php vendor/bin/phpunit tests/Feature/NationRaidLifecycleTest.php --colors=never
           php vendor/bin/phpunit tests/Feature/NationRaidSortieTest.php --filter 'test_(official_sortie|error_refunds|started_retry|snapshot_only|coordination_settlement|preparation_|retry_rolls|exhausted_settlement|lost_settlement|runtime_job)' --colors=never

@@ -44,7 +44,9 @@ class EquipmentController extends Controller
         $characterItems = $equipmentQuery->get()
             ->filter(fn($ci) => $ci->item)
             ->map(fn($ci) => $this->attachSortValues($ci, $equipmentService));
-        $equipmentComparisons = app(\App\Services\EquipmentComparisonService::class)->forDisplay($character, $characterItems);
+        $comparisonService = app(\App\Services\EquipmentComparisonService::class);
+        $equipmentRelicRates = $comparisonService->relicRatesForDisplay($character, $characterItems);
+        $equipmentComparisons = $comparisonService->forDisplay($character, $characterItems, $equipmentRelicRates);
 
         $weapons = $characterItems->filter(fn($ci) => $ci->item->type === 'weapon')->sortByDesc('sort_recommend')->values();
         $armors = $characterItems->filter(fn($ci) => $ci->item->type === 'armor')->sortByDesc('sort_recommend')->values();
@@ -60,6 +62,7 @@ class EquipmentController extends Controller
             'character',
             'permissionService',
             'equipmentComparisons',
+            'equipmentRelicRates',
             'weapons',
             'armors',
             'accessories',

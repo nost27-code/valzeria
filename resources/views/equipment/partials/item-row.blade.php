@@ -26,9 +26,9 @@
         ? $statusService->equipmentStatsFor($currentCharacter, $ci)
         : \App\Services\EquipmentEnhancementService::enhancedStatTotalsForItem($ci->item, (int) ($ci->enhance_level ?? 0));
     $candidateEffective = $isWeapon && $currentCharacter
-        ? $statusService->weaponEffectivePreview($currentCharacter, $ci)
+        ? $statusService->weaponEffectivePreview($currentCharacter, $ci, $equipmentRelicRates[$ci->id] ?? null)
         : ($isArmor && $currentCharacter
-            ? $statusService->armorEffectivePreview($currentCharacter, $ci)
+            ? $statusService->armorEffectivePreview($currentCharacter, $ci, $equipmentRelicRates[$ci->id] ?? null)
             : ['str' => 0, 'mag' => 0, 'def' => 0, 'spr' => 0]);
     $candidateStr = $candidateEffective['str'] ?? 0;
     $candidateMag = $candidateEffective['mag'] ?? 0;
