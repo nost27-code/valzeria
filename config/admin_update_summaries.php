@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-10-07-warehouse-helper-loading-delay',
+        'date' => '2026-10-07',
+        'category' => 'fixed',
+        'title' => '倉庫の補助ファイルの通信待ちを解消',
+        'detail' => '表示条件の保存用ファイルを非同期で読み込み、通信が保留された場合も倉庫の基本操作を開始できます。初期化に間に合わない場合は既定条件で表示し、後から入力や選択を上書きしません。DB・価格・所持枠・取引処理の変更なし。',
+    ],
+    [
         'id' => '2026-10-07-warehouse-material-action-loading',
         'date' => '2026-10-07',
         'category' => 'fixed',

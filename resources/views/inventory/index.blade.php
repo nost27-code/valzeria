@@ -40,7 +40,7 @@
 
         @include('inventory.material-sales')
         @include('inventory.browse-feedback')
-        <script src="{{ asset('js/facilities/facility-page-state.js') }}?v=20261006-feedback1"></script>
+        <script async src="{{ asset('js/facilities/facility-page-state.js') }}?v=20261006-feedback1"></script>
         <script>
         (() => {
             const registerInventoryAlpine = () => {
