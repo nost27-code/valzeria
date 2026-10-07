@@ -85,7 +85,8 @@ class WebPushDispatchService
                             $character,
                         );
 
-                    if ($this->adminNotifications->isRecipient($character)) {
+                    if ((bool) config('web_push.admin_enabled', true)
+                        && $this->adminNotifications->isRecipient($character)) {
                         $adminNotificationQuery = (clone $notificationQuery)
                             ->whereIn('type', AdminWebPushNotificationService::types());
                         $adminNotificationCount = (clone $adminNotificationQuery)->count();

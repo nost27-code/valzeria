@@ -15,6 +15,7 @@ $isProduction = strtolower(trim((string) env('APP_ENV', 'production'))) === 'pro
 
 return [
     'mode' => strtolower(trim((string) env('WEB_PUSH_MODE', 'off'))),
+    'admin_enabled' => (bool) env('ADMIN_WEB_PUSH_ENABLED', true),
     'allowed_character_ids' => $allowedCharacterIds,
     'admin_recipient_character_id' => $isProduction
         ? 5
