@@ -169,6 +169,7 @@ cat > "$PUBLIC_DIR/index.php.next" <<PHP
 <?php
 declare(strict_types=1);
 
+clearstatcache(true);
 \$releaseRoot = realpath('${escaped_current_link}');
 if (\$releaseRoot === false || !is_file(\$releaseRoot . '/public/index.php')) {
     http_response_code(503);

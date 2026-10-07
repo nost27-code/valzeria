@@ -61,3 +61,10 @@ dotのブラウザはユーザーのブラウザとセッションが別であ�
 - `AdminReadOnlyViewerTest` / `DotAdminMonitorTest` / `AdminLivewireAuthorizationTest`: 28テスト・283 assertions成功（認証引継ぎ防止・認証失効・更新メソッド拒否・公開チャットの範囲・HTMLエスケープ・閲覧時の業務データ書込なし・新着依頼判定・既読不変・ページ送り・既存管理画面の認可回帰）。
 - 隔離SQLiteの実テンプレート6画面を375px iframeで確認し、横はみ出しなし。HTMLは `storage/app/dot-admin-20261007/preview/` のテスト用データ。
 - DB schema変更・本番公開・本番認証情報設定はなし。dot自身のブラウザーによる接続・実機Safari・MariaDBの実行計画は未確認。
+
+## 本番公開（2026-10-07）
+
+- ステージングと同一SHA 782902d0cc247dd92f396b273fe7b9e129aed885 を本番公開。対象26ファイル、対象外14,935項目保持、migration mode: none。
+- 専用ID/パスワードを設定済み。本番のHTTPS実ログイン、6画面の閲覧、通常管理者権限拒否、更新POST拒否、ログアウトを11項目で確認。MariaDB 10.5.26のREAD ONLY transactionで実在キャラ制作依頼の詳細も確認。
+- ヘルス6項目正常、failed_jobs 0、migration 524件保持、新規重大ログ0、他の環境設定を保持。公開入口にはcurrentリンクの解決キャッシュクリアを追加。初回切替の404は自動切戻し後に修正し、再公開後の入口200を確認。
+- dot自身による接続、実機Safari操作は未確認。専用ログイン情報はGit対象外のローカルファイルで管理し、公開ソースへパスワードは保存しない。

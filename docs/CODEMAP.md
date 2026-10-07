@@ -1,10 +1,10 @@
 # CODEMAP.md
 
-## dot用の閲覧専用管理画面（2026-10-07、ローカル実装）
+## dot用の閲覧専用管理画面（2026-10-07、本番公開782902d0）
 
 - `AdminViewerController` / `AdminViewerAccess` / `config/admin_viewer.php`: `/admin/readonly/login` の専用認証と許可リスト。通常の管理者ログインを付与せず、閲覧用ログイン時に既存のweb認証を解除。
 - `DotAdminController` / `DotAdminReadService` / `resources/views/admin/dot/`: 運用概要・プレイヤー・公開チャット・報告・キャラ制作の新着問い合わせと詳細をSELECTだけで表示。既読化しない。
-- `docs/ADMIN_READ_ONLY_VIEWER.md`: URL・認証情報設定・閲覧範囲・検証限界。DB変更・本番公開なし。
+- `docs/ADMIN_READ_ONLY_VIEWER.md`: URL・認証情報設定・閲覧範囲・検証限界。DB変更なし、782902d0を本番公開。
 
 
 ## Relic approval, schema integrity and batched inspection (2026-10-06)
