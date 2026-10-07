@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-10-07-admin-web-push-toggle',
+        'date' => '2026-10-07',
+        'category' => 'internal',
+        'title' => '管理者向けプッシュ通知の一時停止に対応',
+        'detail' => '不具合報告・新着メール・キャラ画像依頼の端末通知だけを停止できます。管理画面と通知ベルの記録、端末登録、通常のゲーム通知は保持します。DB変更なし。',
+    ],
+    [
         'id' => '2026-10-07-nameless-stamina-recovery',
         'date' => '2026-10-07',
         'category' => 'changed',

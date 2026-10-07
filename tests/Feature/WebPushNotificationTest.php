@@ -450,6 +450,78 @@ class WebPushNotificationTest extends TestCase
         $this->assertSame($regularNotification->id, $subscription->fresh()->last_notification_id);
     }
 
+    public function test_disabled_admin_push_keeps_bell_entries_and_subscriptions(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $recipient = $this->createCharacter($admin, 'ヴァル');
+        $this->configureWebPush('all', []);
+        config()->set('web_push.admin_recipient_character_id', $recipient->id);
+        config()->set('web_push.admin_enabled', false);
+        $subscription = app(WebPushSubscriptionService::class)->subscribe(
+            $recipient, 'https://push.example.test/admin-disabled', 'publicKey', 'authToken',
+        );
+        $notification = CharacterNotification::query()->create([
+            'character_id' => $recipient->id,
+            'category' => 'admin',
+            'type' => AdminWebPushNotificationService::TYPE_BUG_REPORT,
+            'title' => '新しい不具合報告があります',
+            'url' => route('admin.bug-reports'),
+        ]);
+        $sender = Mockery::mock(WebPushSender::class);
+        $sender->shouldNotReceive('send');
+        $result = (new WebPushDispatchService(
+            app(WebPushEligibilityService::class), app(WebPushPreferenceService::class),
+            $sender, app(AdminWebPushNotificationService::class),
+        ))->dispatch();
+        $this->assertSame(0, $result['sent']);
+        $this->assertDatabaseHas('character_notifications', ['id' => $notification->id]);
+        $this->assertDatabaseHas('web_push_subscriptions', ['id' => $subscription->id]);
+        $this->assertSame($notification->id, $subscription->fresh()->last_notification_id);
+    }
+
+    public function test_disabled_admin_push_preserves_regular_delivery_to_admin_and_players(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $recipient = $this->createCharacter($admin, 'ヴァル');
+        $player = $this->createCharacter(User::factory()->create(), '通常プレイヤー');
+        $this->configureWebPush('all', []);
+        config()->set('web_push.admin_recipient_character_id', $recipient->id);
+        config()->set('web_push.admin_enabled', false);
+        foreach ([$recipient, $player] as $character) {
+            app(WebPushSubscriptionService::class)->subscribe(
+                $character, 'https://push.example.test/regular-'.$character->id, 'publicKey', 'authToken',
+            );
+            app(WebPushPreferenceService::class)->save($character, ['market_material_sold']);
+        }
+        CharacterNotification::query()->create([
+            'character_id' => $recipient->id, 'category' => 'admin',
+            'type' => AdminWebPushNotificationService::TYPE_CONTACT_MESSAGE,
+            'title' => '新着メールがあります', 'url' => route('admin.contact-messages'),
+        ]);
+        $regularIds = [];
+        foreach ([$recipient, $player] as $character) {
+            $regularIds[] = CharacterNotification::query()->create([
+                'character_id' => $character->id, 'category' => 'market',
+                'type' => 'market_material_sold', 'title' => '市場で素材が売れました',
+            ])->id;
+        }
+        $sender = Mockery::mock(WebPushSender::class);
+        $sender->shouldReceive('send')->twice()
+            ->with(Mockery::type(WebPushSubscription::class), Mockery::on(
+                fn (array $payload): bool => $payload['tag'] === 'valzeria-bell'
+                    && $payload['body'] === '通知ベルに新着があります。'
+                    && in_array($payload['data']['notificationId'], $regularIds, true),
+            ))->andReturn(['success' => true, 'expired' => false]);
+        $result = (new WebPushDispatchService(
+            app(WebPushEligibilityService::class), app(WebPushPreferenceService::class),
+            $sender, app(AdminWebPushNotificationService::class),
+        ))->dispatch();
+        $this->assertSame(2, $result['sent']);
+        $this->assertSame(0, $result['failed']);
+        $this->assertDatabaseCount('character_notifications', 3);
+        $this->assertDatabaseCount('web_push_subscriptions', 2);
+    }
+
     private function configureWebPush(string $mode, array $characterIds): void
     {
         config()->set('web_push.mode', $mode);
