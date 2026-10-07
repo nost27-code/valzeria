@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\IsAdmin;
 use App\Support\DatabaseContention;
+use App\Support\DatabaseConnectionCooldown;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -20,6 +21,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ])
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->redirectGuestsTo('/');
+        $middleware->web(prepend: [App\Http\Middleware\RejectDuringDatabaseConnectionCooldown::class]);
         $middleware->web(replace: [
             StartSession::class => App\Http\Middleware\StartSession::class,
         ]);
@@ -34,6 +36,9 @@ return Application::configure(basePath: dirname(__DIR__))
         // 混雑だけを簡潔な記録と503へ変換。他のSQLエラーは通常どおり報告する。
         $exceptions->report(function (Throwable $exception) {
             if ($details = DatabaseContention::details($exception)) {
+                if ($details['reason'] === 'connection_limit') {
+                    app(DatabaseConnectionCooldown::class)->recordConnectionLimit();
+                }
                 Log::warning('Database contention handled.', $details + [
                     'route' => app()->runningInConsole() ? null : request()->route()?->getName(),
                 ]);
@@ -46,15 +51,7 @@ return Application::configure(basePath: dirname(__DIR__))
                 return null;
             }
 
-            $headers = ['Retry-After' => '3', 'Cache-Control' => 'no-store'];
-            if ($request->expectsJson() || $request->is('api/*')) {
-                return response()->json([
-                    'success' => false,
-                    'message' => DatabaseContention::MESSAGE,
-                ], 503, $headers);
-            }
-
-            return response()->view('errors.database-busy', [], 503, $headers);
+            return DatabaseContention::response($request);
         });
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*'),

@@ -9,7 +9,8 @@
 
 ## Relic approval, schema integrity and batched inspection (2026-10-06)
 
-- `NamelessSchemaService`: canonical read-only tables/columns/types/defaults/constraints and migration ledger checks shared by `NamelessWorkshopService` and `NamelessPreparationService`. MariaDB metadata is batched on the write PDO (five metadata queries plus targeted migration history for a healthy DB). Each inspection re-reads the DB; no request/worker/persistent readiness cache.
+- `NamelessSchemaService`: canonical read-only tables/columns/types/defaults/constraints and migration ledger checks shared by `NamelessWorkshopService` and `NamelessPreparationService`. MariaDB metadata is batched on the write PDO. `withSnapshot()` shares a fresh inspection only inside one synchronous read operation (final-stat calculation or arena list); nesting reuses it and `finally` discards it. Direct inspection, subsequent operations and preparation checks always re-read the DB; no persistent readiness cache.
+- `DatabaseConnectionCooldown` / `RejectDuringDatabaseConnectionCooldown`: connection-limit errors create a best-effort filesystem marker for the existing three-second retry period. The first web-group middleware returns the existing static/JSON 503 before DB sessions or actions; expiration allows the next user request without replaying the blocked operation. Row-lock errors do not activate it, and payment webhooks retain their existing path.
 - `Nation/Raid/NationRaidRelicRules`, `NationRaidRules`, event/sortie/preparation/combat/settlement services: approved relic contract, hash, frozen actor capture and replay-safe combat.
 - Raid simulation builder/validator/projector: contract-bearing artifacts and profile model v2; outdated artifacts rejected.
 - `NationRaidAdmissionBusyException`, `scripts/verify/support/NationRaidPhase4MariaDbHarness.php`: typed NOWAIT refusal, strict race outcomes, resource/ledger/reward invariants.

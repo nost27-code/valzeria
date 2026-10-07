@@ -8,6 +8,26 @@ use Illuminate\Support\Facades\Schema;
 /** Read-only, shared by the runtime gate and the OFF preparation command. */
 final class NamelessSchemaService
 {
+    private bool $snapshotActive = false;
+
+    private ?array $snapshot = null;
+
+    /** Share one fresh inspection only inside a synchronous read operation. */
+    public function withSnapshot(callable $operation): mixed
+    {
+        if ($this->snapshotActive) {
+            return $operation();
+        }
+
+        $this->snapshotActive = true;
+        try {
+            return $operation();
+        } finally {
+            $this->snapshot = null;
+            $this->snapshotActive = false;
+        }
+    }
+
     /** type, nullable, default (where writes rely on one). Integer types are minimum widths. */
     public const COLUMNS = [
         'player_nameless_equipments' => [
@@ -46,9 +66,16 @@ final class NamelessSchemaService
 
     public function problems(): array
     {
+        return $this->snapshotActive
+            ? ($this->snapshot ??= $this->inspectProblems())
+            : $this->inspectProblems();
+    }
+
+    private function inspectProblems(): array
+    {
         $problems = [];
         $maria = in_array(DB::getDriverName(), ['mysql', 'mariadb'], true);
-        // A fresh snapshot belongs to this inspection only, never to a request/worker/cache.
+        // Outside an explicit read operation, every inspection stays fresh.
         $metadata = $this->metadata($maria);
         if (! isset($metadata['migrations'])) {
             $problems[] = 'migrations:table_missing';

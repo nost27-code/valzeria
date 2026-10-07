@@ -132,11 +132,28 @@ class ArenaNpcRankingService
             return collect();
         }
 
-        return $this->combinedEntries()
-            ->filter(fn (array $entry): bool => $entry['rank'] < (int) $myRanking->rank)
-            ->sortByDesc('rank')
-            ->take($range)
-            ->values();
+        $this->ensureRankings();
+
+        return app(NamelessSchemaService::class)->withSnapshot(function () use ($myRanking, $range): Collection {
+            $players = ArenaRanking::with(['character.jobClass', 'character.iconEntitlements'])
+                ->whereHas('character', fn ($query) => $query->visibleToPublic())
+                ->where('rank', '<', (int) $myRanking->rank)
+                ->orderByDesc('rank')->limit($range)->get();
+            $npcs = Schema::hasTable('arena_npc_rankings')
+                ? ArenaNpcRanking::with('npc')->where('is_active', true)
+                    ->where('rank', '<', (int) $myRanking->rank)
+                    ->orderByDesc('rank')->limit($range)->get()
+                : collect();
+
+            // Select the combined candidates before calculating any character's
+            // equipment/stats. A challenge needs three opponents, not every ranker.
+            return $players->map(fn ($ranking) => ['type' => 'player', 'rank' => (int) $ranking->rank, 'ranking' => $ranking])
+                ->concat($npcs->map(fn ($ranking) => ['type' => 'npc', 'rank' => (int) $ranking->rank, 'ranking' => $ranking]))
+                ->sortByDesc('rank')->take($range)->values()
+                ->map(fn (array $entry): array => $entry['type'] === 'player'
+                    ? $this->mapPlayerEntries(collect([$entry['ranking']]))->first()
+                    : $this->mapNpcEntries(collect([$entry['ranking']]))->first());
+        });
     }
 
     /**
@@ -145,6 +162,14 @@ class ArenaNpcRankingService
     public function screenEntries(ArenaRanking $myRanking, int $topLimit = 6, int $targetRange = 3): array
     {
         $this->ensureRankings();
+
+        return app(NamelessSchemaService::class)->withSnapshot(
+            fn () => $this->screenEntriesUsingSnapshot($myRanking, $topLimit, $targetRange),
+        );
+    }
+
+    private function screenEntriesUsingSnapshot(ArenaRanking $myRanking, int $topLimit, int $targetRange): array
+    {
         $hasNpcRankings = Schema::hasTable('arena_npc_rankings');
 
         $topPlayers = ArenaRanking::with(['character.jobClass', 'character.iconEntitlements'])
@@ -169,26 +194,7 @@ class ArenaNpcRankingService
             return ['top' => $top, 'targets' => collect()];
         }
 
-        $targetPlayers = ArenaRanking::with(['character.jobClass', 'character.iconEntitlements'])
-            ->whereHas('character', fn ($query) => $query->visibleToPublic())
-            ->where('rank', '<', (int) $myRanking->rank)
-            ->orderByDesc('rank')
-            ->limit($targetRange)
-            ->get();
-        $targetNpcs = $hasNpcRankings
-            ? ArenaNpcRanking::with('npc')
-                ->where('is_active', true)
-                ->where('rank', '<', (int) $myRanking->rank)
-                ->orderByDesc('rank')
-                ->limit($targetRange)
-                ->get()
-            : collect();
-
-        $targets = $this->mapPlayerEntries($targetPlayers)
-            ->concat($this->mapNpcEntries($targetNpcs))
-            ->sortByDesc('rank')
-            ->take($targetRange)
-            ->values();
+        $targets = $this->targetEntries($myRanking, $targetRange);
 
         return ['top' => $top, 'targets' => $targets];
     }
@@ -303,49 +309,57 @@ class ArenaNpcRankingService
             return;
         }
 
-        DB::transaction(function () use ($players, $hiddenPlayers, $activeNpcs, $inactiveNpcs, $npcStartRank): void {
-            foreach ($players as $player) {
-                ArenaRanking::query()
-                    ->whereKey($player->id)
-                    ->update(['rank' => -2000000 - (int) $player->id]);
+        $playerTemporary = $playerFinal = $npcTemporary = $npcFinal = $inactiveFinal = [];
+        foreach ($players->values() as $index => $player) {
+            if ((int) $player->rank !== $index + 1) {
+                $playerTemporary[(int) $player->id] = -2000000 - (int) $player->id;
+                $playerFinal[(int) $player->id] = $index + 1;
             }
+        }
+        foreach ($hiddenPlayers->values() as $index => $player) {
+            $rank = self::HIDDEN_TESTER_RANK_BASE + $index + 1;
+            if ((int) $player->rank !== $rank) {
+                $playerTemporary[(int) $player->id] = -3000000 - (int) $player->id;
+                $playerFinal[(int) $player->id] = $rank;
+            }
+        }
+        foreach ($activeNpcs->values() as $index => $npc) {
+            $rank = $npcStartRank + $index;
+            if ((int) $npc->rank !== $rank) {
+                $npcTemporary[(int) $npc->id] = -1000000 - (int) $npc->id;
+                $npcFinal[(int) $npc->id] = $rank;
+            }
+        }
+        foreach ($inactiveNpcs as $npc) {
+            $rank = 900000 + (int) $npc->id;
+            if ((int) $npc->rank !== $rank) {
+                $inactiveFinal[(int) $npc->id] = $rank;
+            }
+        }
 
-            foreach ($hiddenPlayers as $player) {
-                ArenaRanking::query()
-                    ->whereKey($player->id)
-                    ->update(['rank' => -3000000 - (int) $player->id]);
-            }
-
-            foreach ($activeNpcs as $npc) {
-                ArenaNpcRanking::query()
-                    ->whereKey($npc->id)
-                    ->update(['rank' => -1000000 - (int) $npc->id]);
-            }
-
-            foreach ($inactiveNpcs as $npc) {
-                ArenaNpcRanking::query()
-                    ->whereKey($npc->id)
-                    ->update(['rank' => 900000 + (int) $npc->id]);
-            }
-
-            foreach ($players->values() as $index => $player) {
-                ArenaRanking::query()
-                    ->whereKey($player->id)
-                    ->update(['rank' => $index + 1]);
-            }
-
-            foreach ($hiddenPlayers->values() as $index => $player) {
-                ArenaRanking::query()
-                    ->whereKey($player->id)
-                    ->update(['rank' => self::HIDDEN_TESTER_RANK_BASE + $index + 1]);
-            }
-
-            foreach ($activeNpcs->values() as $index => $npc) {
-                ArenaNpcRanking::query()
-                    ->whereKey($npc->id)
-                    ->update(['rank' => $npcStartRank + $index]);
-            }
+        DB::transaction(function () use ($playerTemporary, $playerFinal, $npcTemporary, $npcFinal, $inactiveFinal): void {
+            // Move affected rows out of the unique-rank range before restoring
+            // the same dense ranks. Unchanged rows need neither writes nor locks.
+            $this->updateRanksInBatches(ArenaRanking::class, $playerTemporary);
+            $this->updateRanksInBatches(ArenaNpcRanking::class, $npcTemporary);
+            $this->updateRanksInBatches(ArenaNpcRanking::class, $inactiveFinal);
+            $this->updateRanksInBatches(ArenaRanking::class, $playerFinal);
+            $this->updateRanksInBatches(ArenaNpcRanking::class, $npcFinal);
         });
+    }
+
+    /** @param array<int, int> $ranks */
+    private function updateRanksInBatches(string $modelClass, array $ranks): void
+    {
+        foreach (array_chunk($ranks, 200, true) as $batch) {
+            $cases = [];
+            foreach ($batch as $id => $rank) {
+                $cases[] = 'WHEN '.(int) $id.' THEN '.(int) $rank;
+            }
+            $modelClass::query()->whereIn('id', array_keys($batch))->update([
+                'rank' => DB::raw('CASE `id` '.implode(' ', $cases).' ELSE `rank` END'),
+            ]);
+        }
     }
 
     public function shiftCombinedRanksDown(

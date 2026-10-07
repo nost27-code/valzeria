@@ -28,7 +28,9 @@ class CharacterStatusService
         if (isset(self::$requestCache[$character->id])) {
             return self::$requestCache[$character->id];
         }
-        return self::$requestCache[$character->id] = $this->computeFinalStats($character, $reuseLoadedRelations);
+        return self::$requestCache[$character->id] = app(NamelessSchemaService::class)->withSnapshot(
+            fn () => $this->computeFinalStats($character, $reuseLoadedRelations),
+        );
     }
 
     private function computeFinalStats(Character $character, bool $reuseLoadedRelations): array
