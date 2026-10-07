@@ -24,6 +24,7 @@ on:
       - 'app/Services/MapExplorationRewardService.php'
       - 'app/Services/LevelService.php'
       - 'tests/Feature/NamelessRuinRewardsTest.php'
+      - 'tests/Feature/NamelessNextBossChallengeTest.php'
       - 'app/Services/WeeklyWinRankingService.php'
       - 'app/Services/TownRankingService.php'
       - 'tests/Feature/NamelessWeeklyWinsTest.php'
@@ -130,6 +131,12 @@ jobs:
           php -d memory_limit=128M vendor/phpunit/phpunit/phpunit --log-junit reward-evidence/depth-curve-unit.xml tests/Unit/NamelessRuinExperienceCurveTest.php tests/Unit/NamelessRuinDepthExperienceTest.php
           php -d memory_limit=128M vendor/phpunit/phpunit/phpunit --filter 'test_deep_repeated_victories_increase_only_experience_and_replay_once$|test_deep_boss_challenge_and_reencounter_use_the_same_experience$' --log-junit reward-evidence/depth-battle.xml tests/Feature/NamelessRuinRewardsTest.php
           php -d memory_limit=128M vendor/phpunit/phpunit/phpunit --filter 'test_deep_goblin_uses_the_depth_curve_and_preserves_job_experience$' --log-junit reward-evidence/depth-goblin.xml tests/Feature/NamelessRuinRewardsTest.php
+      - name: Verify preserved next boss challenge sequentially
+        shell: bash
+        run: |
+          set -euo pipefail
+          php -d memory_limit=128M vendor/phpunit/phpunit/phpunit --filter 'test_result_links_to_the_next_depth_and_post_replay_fights_only_once$|test_only_a_current_advancing_boss_victory_offers_the_next_boss$' --log-junit reward-evidence/next-boss-result.xml tests/Feature/NamelessNextBossChallengeTest.php
+          php -d memory_limit=128M vendor/phpunit/phpunit/phpunit --filter 'test_unavailable_next_challenge_is_disabled_and_server_rejects_insufficient_stamina$|test_full_relic_inventory_blocks_next_boss_without_consuming_stamina$' --log-junit reward-evidence/next-boss-guards.xml tests/Feature/NamelessNextBossChallengeTest.php
       - name: Verify historical compensation sequentially
         shell: bash
         run: |

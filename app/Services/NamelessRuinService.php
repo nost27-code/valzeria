@@ -164,6 +164,37 @@ class NamelessRuinService
         return $this->experienceCurves[$key][$depth];
     }
 
+    /** 勝利で解放した直後の深度だけを、結果画面の次の挑戦先にする。 */
+    public function nextBossChallenge(Character $character, array $result): ?array
+    {
+        $depth = (int) ($result['depth'] ?? 0);
+        $zoneKey = (string) ($result['zone_key'] ?? '');
+        if (! ($result['boss'] ?? false) || ! ($result['advanced'] ?? false)
+            || ($result['battle_result'] ?? null) !== 'victory'
+            || $depth < 1 || $depth >= (int) config('nameless_relics.max_depth')) {
+            return null;
+        }
+        $town = app(NamelessTownService::class)->availableTown();
+        if (! $town || (int) $character->current_city_id !== (int) $town->id) {
+            return null;
+        }
+        $zone = $this->availableZones($character)[$zoneKey] ?? null;
+        $unlocked = NamelessRuinProgress::query()->where('character_id', $character->id)
+            ->where('zone_key', $zoneKey)->value('unlocked_depth');
+        if (! $zone || (int) $unlocked !== $depth + 1) {
+            return null;
+        }
+        $blockedReason = match (true) {
+            (bool) $character->is_frozen => '凍結中は探索できません。',
+            $character->current_hp <= 0 => '街で回復してから挑戦してください。',
+            (bool) $character->exploration_cooldown_until?->isFuture() => '休息が必要です。街で回復してください。',
+            default => app(NamelessWorkshopService::class)->inventoryBlockReason($character),
+        };
+
+        return ['zone' => $zoneKey, 'zone_name' => $zone['name'], 'depth' => $depth + 1,
+            'cost' => (int) config('nameless_relics.boss_stamina_cost'), 'blocked_reason' => $blockedReason];
+    }
+
     public function fight(Character $character, string $zoneKey, int $depth, bool $boss, string $uuid, int $count = 1): array
     {
         $zone = $this->zones()[$zoneKey] ?? throw new RuntimeException('未知の遺跡です。');
