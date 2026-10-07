@@ -1166,7 +1166,7 @@ class NamelessRelicPrototypeTest extends TestCase
         $this->assertSame(5, $this->workshop()->equippedBonuses($character)['str']);
         $this->workshop()->changeEquipment($character, $second->id, true, $this->uuid());
         $this->assertFalse($first->fresh()->is_equipped);
-        $this->assertSame(0, $this->workshop()->equippedBonuses($character)['str']);
+        $this->assertSame(5, $this->workshop()->equippedBonuses($character)['str']);
         $this->assertSame(5, $this->workshop()->equippedBonuses($character)['mag']);
         $this->reject(fn () => $this->workshop()->changeEquipment($character, $armor->id, true, $this->uuid()), '一つまで');
         $this->assertFalse($armor->fresh()->is_equipped);
@@ -1843,6 +1843,138 @@ class NamelessRelicPrototypeTest extends TestCase
                 break;
             }
             NamelessRuinProgress::query()->updateOrCreate(['character_id' => $character->id, 'zone_key' => $key], ['unlocked_depth' => 51]);
+        }
+    }
+
+    public function test_dual_weapon_curves_preserve_owned_data_and_grow_both_stats_for_all_nine_types(): void
+    {
+        $character = $this->character();
+        $body = $this->body($character);
+        $body->update(['forge_level' => 99, 'custom_name' => '星巡り', 'growth_exp' => 17, 'is_locked' => true]);
+        $this->workshop()->attach($character, $body->id, 1, $this->relic($character, 'stat_mag', 9)->id, $this->uuid());
+        $body->refresh();
+        $before = $body->getAttributes();
+        $relicBefore = $body->relics()->first()->getAttributes();
+        $targetsByType = [
+            '剣' => [12500, 3800], '短剣' => [12500, 3800], '槍' => [12500, 3800],
+            '斧' => [12500, 3800], '弓' => [12500, 3800], '拳具' => [12500, 3800],
+            '杖' => [1950, 12500], '魔導書' => [1950, 12500], '銃' => [10000, 10000],
+        ];
+        $options = \App\Services\NamelessEquipmentService::statOptionsFor('weapon');
+        foreach ($targetsByType as $type => [$str, $mag]) {
+            $copy = clone $body;
+            $copy->equipment_type = $type;
+            $this->assertSame(['str' => $str, 'mag' => $mag], $copy->performanceStats());
+            $primary = \App\Services\NamelessEquipmentService::statFor('weapon', $type)['key'];
+            $this->assertSame($type === '銃' ? 10000 : 12500, $copy->power());
+            $this->assertSame($copy->performanceStats()[$primary], $copy->power());
+            $focus = $type === '銃' ? '両立型' : (in_array($type, ['杖', '魔導書'], true) ? '魔力重視' : '攻撃重視');
+            $this->assertSame('攻撃・魔力／'.$focus, $options[$type]['label']);
+            $this->assertSame(['str' => 5, 'mag' => 5], $copy->performanceStatsAt(0));
+            foreach (range(1, 99) as $level) {
+                foreach (['str', 'mag'] as $stat) {
+                    $this->assertGreaterThan($copy->performanceStatsAt($level - 1)[$stat], $copy->performanceStatsAt($level)[$stat]);
+                }
+            }
+            config(['nameless_relics.enabled' => false]);
+            $this->assertSame([$primary => 500], $copy->performanceStats());
+            config(['nameless_relics.enabled' => true]);
+        }
+        $this->assertSame($before, $body->fresh()->getAttributes());
+        $this->assertSame($relicBefore, $body->relics()->first()->getAttributes());
+    }
+
+    public function test_dual_weapon_equipped_stats_and_normal_swap_preview_include_both_abilities_without_bench_or_double_addition(): void
+    {
+        foreach (['剣' => [51667, 22667, 26067], '杖' => [16500, 51667, 59417], '銃' => [43333, 43333, 49832]] as $type => [$str, $mag, $magWithRelic]) {
+            $character = $this->character();
+            $body = $this->body($character);
+            $body->update(['forge_level' => 99, 'equipment_type' => $type]);
+            $bench = $this->droppedBody($character, 'weapon', '銃');
+            $bench->update(['forge_level' => 99]);
+            $this->workshop()->changeEquipment($character, $body->id, true, $this->uuid());
+            $stats = app(CharacterStatusService::class)->getFinalStats($character->fresh());
+            $this->assertSame($body->performanceStats(), $stats['weapon_offense']);
+            $this->assertSame(['str' => 10000, 'mag' => 10000], $stats['weapon_base']);
+            $this->assertSame($str, $stats['str']);
+            $this->assertSame($mag, $stats['mag']);
+            $this->assertSame(0, $this->workshop()->equippedFixedBonuses($character)['str']);
+            $this->assertSame(0, $this->workshop()->equippedFixedBonuses($character)['mag']);
+            $this->assertFalse($bench->fresh()->is_equipped);
+            $relic = $this->relic($character, 'stat_mag', 9);
+            $this->workshop()->attach($character, $body->id, 1, $relic->id, $this->uuid());
+            $withRelic = app(CharacterStatusService::class)->getFinalStats($character->fresh());
+            $this->assertSame($str, $withRelic['str']);
+            $this->assertSame($magWithRelic, $withRelic['mag']);
+
+            $item = Item::query()->create(['name' => '二能力の比較用魔剣', 'type' => 'weapon', 'weapon_rank' => 'SSS', 'str_bonus' => 1368, 'mag_bonus' => 416, 'is_active' => true]);
+            $owned = CharacterItem::query()->create(['character_id' => $character->id, 'item_id' => $item->id]);
+            $preview = app(CharacterStatusService::class)->equipmentSwapPreviewForItem($character->fresh(), $item);
+            $this->assertTrue(app(EquipmentService::class)->equip($character, $owned)['success']);
+            $actual = app(CharacterStatusService::class)->getFinalStats($character->fresh());
+            foreach (['str', 'mag'] as $stat) {
+                $this->assertSame($actual[$stat], $preview['after_stats'][$stat]);
+            }
+            $this->assertFalse($body->fresh()->is_equipped);
+            $this->assertSame(0, $actual['relic_stat_bonuses']['mag']);
+            $this->assertSame($body->id, $relic->fresh()->nameless_equipment_id);
+        }
+    }
+
+    public function test_dual_weapon_shape_change_preserves_growth_and_relics_and_switches_both_performances(): void
+    {
+        $character = $this->character();
+        $body = $this->body($character);
+        $body->update(['forge_level' => 99, 'growth_exp' => 17, 'custom_name' => '星巡り']);
+        $relic = $this->relic($character, 'stat_mag', 9);
+        $this->workshop()->attach($character, $body->id, 1, $relic->id, $this->uuid());
+        $this->workshop()->changeEquipment($character, $body->id, true, $this->uuid());
+        $relicBefore = $relic->fresh()->getAttributes();
+        foreach (['杖' => ['str' => 1950, 'mag' => 12500], '銃' => ['str' => 10000, 'mag' => 10000], '剣' => ['str' => 12500, 'mag' => 3800]] as $type => $targets) {
+            $this->workshop()->configure($character, $body->id, $type, '星巡り', $this->uuid());
+            $current = $body->fresh();
+            $this->assertSame($targets, $current->performanceStats());
+            $this->assertSame($targets, app(CharacterStatusService::class)->getFinalStats($character->fresh())['weapon_offense']);
+            $this->assertSame(99, $current->forge_level);
+            $this->assertSame(17, $current->growth_exp);
+            $this->assertSame('星巡り', $current->custom_name);
+            $this->assertSame($relicBefore, $relic->fresh()->getAttributes());
+        }
+    }
+
+    public function test_dual_weapon_forge_confirmation_shows_both_stats_and_rejects_secondary_target_changes_without_spending(): void
+    {
+        foreach (['剣', '杖', '銃'] as $type) {
+            $character = $this->character();
+            $character->update(['money' => 1000000]);
+            $body = $this->body($character);
+            $body->update(['forge_level' => 98, 'equipment_type' => $type, 'growth_exp' => 1980]);
+            NamelessRuinProgress::query()->create(['character_id' => $character->id, 'zone_key' => 'sand', 'unlocked_depth' => 100]);
+            $preview = $this->workshop()->previewForge($character, $body->id, $body->revision, [], [], true, false);
+            $input = ['equipment_id' => $body->id, 'revision' => $body->revision, 'protect_best' => 1, 'request_uuid' => $this->uuid()];
+            $this->actingAs($character->user)->withSession(['current_character_id' => $character->id])->withoutMiddleware(CheckCharacterSelected::class);
+            $this->get(route('nameless-workshop.index', ['equipment' => $body->id]))->assertOk()->assertSee($body->performanceLabel(99));
+            $this->post(route('nameless-workshop.act', 'preview-forge'), $input)->assertOk()->assertSee($preview['performance_label']);
+            $this->assertSame($body->performanceStatsAt(98), $preview['performance_before']);
+            $this->assertSame($body->performanceStatsAt(99), $preview['performance_after']);
+            $this->assertSame(99000, $preview['gold']);
+            $this->assertSame(1980, $preview['spent_exp']);
+            $before = $body->fresh()->getAttributes();
+            $money = $character->fresh()->money;
+            $secondary = in_array($type, ['杖', '魔導書'], true) ? 'str' : 'mag';
+            $key = 'nameless_relics.weapon_stat_targets_at_max.'.$type.'.'.$secondary;
+            $target = config($key);
+            config([$key => $target + 1]);
+            $this->reject(fn () => $this->workshop()->forgeCombined($character, $body->id, $body->revision, [], [], true, false, $preview['confirmation_hash'], $this->uuid()), '確認');
+            $this->assertSame($before, $body->fresh()->getAttributes());
+            $this->assertSame($money, $character->fresh()->money);
+            config([$key => $target]);
+            $uuid = $this->uuid();
+            $result = $this->workshop()->forgeCombined($character, $body->id, $body->revision, [], [], true, false, $preview['confirmation_hash'], $uuid);
+            $this->assertSame($result, $this->workshop()->forgeCombined($character, $body->id, $body->revision, [], [], true, false, $preview['confirmation_hash'], $uuid));
+            $this->assertSame($preview['performance_after'], $body->fresh()->performanceStats());
+            $this->assertSame(0, $body->fresh()->growth_exp);
+            $this->assertSame(901000, (int) $character->fresh()->money);
         }
     }
 

@@ -81,6 +81,12 @@ class NamelessEquipmentService
     {
         return collect(self::STAT_KEYS[$kind] ?? [])->map(function (string $key, string $type) use ($kind): array {
             $label = PlayerStatLabel::for($key);
+            $weaponTargets = config('nameless_relics.weapon_stat_targets_at_max.'.$type);
+            if ($kind === 'weapon' && app(NamelessWorkshopService::class)->enabled() && is_array($weaponTargets)) {
+                $focus = $weaponTargets['str'] === $weaponTargets['mag'] ? '両立型' : ($weaponTargets['str'] > $weaponTargets['mag'] ? '攻撃重視' : '魔力重視');
+                $label = '攻撃・魔力／'.$focus;
+            }
+
             $targets = config('nameless_relics.armor_stat_targets_at_max.'.$type);
             if ($kind === 'armor' && app(NamelessWorkshopService::class)->enabled() && is_array($targets)) {
                 $focus = $targets['def'] === $targets['spr'] ? '均等' : ($targets['def'] > $targets['spr'] ? '防御重視' : '精神重視');

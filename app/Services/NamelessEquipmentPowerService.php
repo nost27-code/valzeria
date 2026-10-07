@@ -7,7 +7,7 @@ use App\Support\PlayerStatLabel;
 
 class NamelessEquipmentPowerService
 {
-    /** 既存APIの単一値は従来の主能力を返す。防具の装備計算にはstatsAtを使う。 */
+    /** 既存APIの単一値は従来の主能力を返す。武具の装備計算にはstatsAtを使う。 */
     public function powerAt(PlayerNamelessEquipment $equipment, int $level): int
     {
         $stats = $this->statsAt($equipment, $level);
@@ -24,7 +24,7 @@ class NamelessEquipmentPowerService
             return [$primary => $this->curvePower($equipment, $level, null)];
         }
 
-        $targets = in_array($equipment->kind, ['armor', 'accessory'], true)
+        $targets = in_array($equipment->kind, NamelessEquipmentService::KINDS, true)
             ? config('nameless_relics.'.$equipment->kind.'_stat_targets_at_max.'.$equipment->equipment_type)
             : null;
         if (is_array($targets)) {

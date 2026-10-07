@@ -92,7 +92,7 @@ class NamelessAccessoryTest extends TestCase
         $this->assertSame(['str' => 5000, 'mag' => 5000], $stats['weapon_base']);
         $this->assertSame(25833, $stats['relic_baseline']['str']);
         $this->assertSame(29707, $stats['str']);
-        $this->assertSame(5000, $stats['mag']);
+        $this->assertSame(11333, $stats['mag']);
         $this->assertSame(4333, $stats['def']);
         $this->assertSame(2792, $stats['spr']);
 

@@ -48,7 +48,7 @@ class NamelessActivationTest extends TestCase
             $claimed = $workshop->claim($character, 'weapon', '剣', (string) Str::uuid());
             $body = $character->namelessEquipments()->firstOrFail();
             $body->update(['forge_level' => 99]);
-            $this->assertSame(['str' => 12500], app(NamelessEquipmentPowerService::class)->statsAt($body, 99));
+            $this->assertSame(['str' => 12500, 'mag' => 3800], app(NamelessEquipmentPowerService::class)->statsAt($body, 99));
             $workshop->changeEquipment($character, $body->id, true, (string) Str::uuid());
             $relic = PlayerRelic::query()->create(['character_id' => $character->id, 'effect_key' => 'special_opener', 'rank' => 9]);
             $workshop->attach($character, $body->id, 1, $relic->id, (string) Str::uuid());

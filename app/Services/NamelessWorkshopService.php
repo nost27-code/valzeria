@@ -624,8 +624,9 @@ class NamelessWorkshopService
             return $offense;
         }
         foreach (PlayerNamelessEquipment::query()->where('character_id', $character->id)->where('kind', 'weapon')->where('is_equipped', true)->get() as $equipment) {
-            $stat = NamelessEquipmentService::statFor('weapon', $equipment->equipment_type)['key'];
-            $offense[$stat] += $equipment->power();
+            foreach ($equipment->performanceStats() as $stat => $power) {
+                $offense[$stat] += $power;
+            }
         }
 
         return $offense;
