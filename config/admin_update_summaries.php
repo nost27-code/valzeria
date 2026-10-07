@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-10-07-warehouse-initialization-recovery',
+        'date' => '2026-10-07',
+        'category' => 'fixed',
+        'title' => '倉庫の一部読み込み失敗時も基本操作を維持',
+        'detail' => '倉庫の表示処理を画面と一緒に届け、補助ファイルの読み込み失敗でもタブ・枠拡張・所持品の確認を維持します。表示条件を保存できない場合は既定条件で表示し、素材売却を読み込めない場合は売却・破棄だけを停止して案内します。DB・価格・所持枠の変更なし。実機Safariは未確認。',
+    ],
+    [
         'id' => '2026-10-07-nameless-weapon-forge-appearance',
         'date' => '2026-10-07',
         'category' => 'changed',

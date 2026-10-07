@@ -2,11 +2,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
-const source = fs.readFileSync(new URL('../../public/js/inventory/inventory-browse-feedback.js', import.meta.url), 'utf8');
-function fixture() {
+const source = fs.readFileSync(new URL('../../resources/views/inventory/browse-feedback.blade.php', import.meta.url), 'utf8')
+    .match(/<script>([\s\S]*?)<\/script>/)[1];
+const legacySource = fs.readFileSync(new URL('../../public/js/inventory/inventory-browse-feedback.js', import.meta.url), 'utf8');
+function fixture(script = source) {
     const window = {}; const materials = [{ name: '鉄片', remainingQty: 1 }, { name: '魔物の欠片', remainingQty: 2 }];
     const equipment = { weapon: [{ name: '確認の剣', locked: false, equipped: false }], armor: [] };
-    vm.runInNewContext(source, { window, Alpine: { $data: card => card } });
+    vm.runInNewContext(script, { window, Alpine: { $data: card => card } });
     const component = { ...window.inventoryBrowseFeedback(), browseReady: true,
         storageTab: 'material', activeEquipmentTab: 'weapon', materialQuery: '', materialPurpose: 'all', materialCategory: 'all', materialRarity: 'all', materialSort: 'quantity_desc',
         equipmentQuery: '', equipmentStatus: 'all', equipmentQuality: 'all', equipmentTrait: 'all', equipmentSort: 'rank_desc', saleSelections: { 1: true },
@@ -45,4 +47,14 @@ test('all material filters are cleared, and an empty unfiltered inventory remain
     assert.equal(c.hasMaterialFilters(), true); c.clearMaterialFilters(); assert.equal(c.hasMaterialFilters(), false);
     materials.forEach(card => card.remainingQty = 0); assert.equal(c.visibleMaterialCount(), 0);
     c.browseReady = false; assert.equal(c.visibleEquipmentCount('weapon'), 0);
+});
+test('the previous asset remains usable by cached warehouse HTML', () => {
+    const { component: c, materials } = fixture(legacySource);
+    c.materialQuery = '鉄片';
+    assert.equal(c.visibleMaterialCount(), 1);
+    materials[0].remainingQty = 0;
+    assert.equal(c.visibleMaterialCount(), 0);
+    c.clearMaterialFilters();
+    assert.equal(c.visibleMaterialCount(), 1);
+    assert.equal(c.visibleEquipmentCount('weapon'), 1);
 });

@@ -39,15 +39,23 @@
         @endphp
 
         <script src="{{ asset('js/inventory/inventory-material-sales.js') }}?v=20261006"></script>
-        <script src="{{ asset('js/inventory/inventory-browse-feedback.js') }}?v=20261006"></script>
+        @include('inventory.browse-feedback')
         <script src="{{ asset('js/facilities/facility-page-state.js') }}?v=20261006-feedback1"></script>
         <script>
         (() => {
             const registerInventoryAlpine = () => {
                 if (window.inventoryAlpineRegistered) return;
-                window.inventoryAlpineRegistered = true;
-
-                Alpine.store('matSales', window.createMaterialSalesStore(@js((string) \Illuminate\Support\Str::uuid())));
+                Alpine.store('matSales', typeof window.createMaterialSalesStore === 'function'
+                    ? window.createMaterialSalesStore(@js((string) \Illuminate\Support\Str::uuid()))
+                    : {
+                        items: {}, submitting: false, uncertain: false, discarding: 0,
+                        pending: null, messageType: 'error', loadFailed: true,
+                        message: '素材の売却・破棄を読み込めませんでした。倉庫を開き直してください。',
+                        get busy() { return true; },
+                        get count() { return 0; },
+                        get total() { return 0; },
+                        set() {}, remove() {}, clear() {}
+                    });
 
                 Alpine.store('equipSales', {
                     items: {},
@@ -103,6 +111,7 @@
                         }
                     }
                 }));
+                window.inventoryAlpineRegistered = true;
             };
 
             if (window.Alpine) {
@@ -216,7 +225,12 @@
                         });
                     },
                     init() {
-                        this.disposeBrowseState = window.attachFacilityPageState(this, 'inventory', @js($character->id), {
+                        const initializeBrowse = () => {
+                            this.sortMaterialCards();
+                            this.sortEquipmentCards();
+                            this.browseReady = true;
+                        };
+                        const rules = {
                             storageTab: ['material', 'equipment', 'key'],
                             activeMaterialTab: ['material'],
                             activeEquipmentTab: ['weapon', 'armor', 'accessory'],
@@ -230,11 +244,12 @@
                             equipmentQuality: ['all', 'normal', 'good', 'excellent'],
                             equipmentTrait: ['all', 'prefix', 'suffix', 'none'],
                             equipmentSort: ['rank_desc', 'name_asc', 'newest', 'rank_asc', 'price_desc', 'price_asc', 'quality_desc', 'prefix_desc', 'suffix_desc', 'enhance_desc'],
-                        }, () => {
-                            this.sortMaterialCards();
-                            this.sortEquipmentCards();
-                            this.browseReady = true;
-                        });
+                        };
+                        if (typeof window.attachFacilityPageState === 'function') {
+                            this.disposeBrowseState = window.attachFacilityPageState(this, 'inventory', @js($character->id), rules, initializeBrowse);
+                        } else {
+                            this.$nextTick(initializeBrowse);
+                        }
                         this.$watch('materialSort', () => this.$nextTick(() => this.sortMaterialCards()));
                         this.$watch('equipmentSort', () => this.$nextTick(() => this.sortEquipmentCards()));
                     },
@@ -1196,7 +1211,7 @@
 {{-- まとめて売るフローティングボタン（2種以上調整時に出現） --}}
 <div
     x-data
-    x-show="$store.matSales.count >= 2 || $store.matSales.message"
+    x-show="$store.matSales.count >= 2 || ($store.matSales.message && !$store.matSales.loadFailed)"
     x-cloak
     x-transition:enter="transition ease-out duration-200"
     x-transition:enter-start="opacity-0 translate-y-3"
