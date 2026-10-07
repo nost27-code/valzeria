@@ -260,7 +260,7 @@ class NamelessWorkshopController extends Controller
         return $response;
     }
 
-    public function result(Request $request, string $uuid, NamelessWorkshopService $workshop)
+    public function result(Request $request, string $uuid, NamelessWorkshopService $workshop, NamelessRuinService $ruins)
     {
         abort_unless($workshop->ready(), 404);
         $character = $request->user()->currentCharacter();
@@ -276,6 +276,7 @@ class NamelessWorkshopController extends Controller
         \App\Livewire\MainScreen::clearHomeCache((int) $character->id);
         return response()->view('battle.result', [
             'character' => $character, 'result' => $result, 'namelessRuins' => $namelessRuins,
+            'nextBossChallenge' => $ruins->nextBossChallenge($character, $namelessRuins),
             'finalStats' => $finalStats, 'jobLevel' => $history?->job_level ?? 1, 'areaId' => 0,
             'equippedItems' => app(\App\Services\BattleEquipmentSummaryService::class)->forEnemy($character, (string) ($result['enemy']->species_key ?? '')),
             'isBoss' => (bool) ($result['enemy']->is_boss ?? $namelessRuins['boss']), 'areaName' => $namelessRuins['zone_name'].' 深度'.$namelessRuins['depth'],
