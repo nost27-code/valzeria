@@ -572,6 +572,23 @@ Route::middleware('auth')->group(function () {
         ->name('kiseki.cancel');
 });
 
+// dot用の閲覧専用入口。通常のweb/admin guardを認証しない。
+Route::get('/admin/readonly/login', [\App\Http\Controllers\Admin\AdminViewerController::class, 'loginForm'])->name('admin.viewer.login');
+Route::post('/admin/readonly/login', [\App\Http\Controllers\Admin\AdminViewerController::class, 'login'])
+    ->middleware('throttle:auth-admin-viewer')->name('admin.viewer.login.submit');
+Route::post('/admin/readonly/logout', [\App\Http\Controllers\Admin\AdminViewerController::class, 'logout'])->name('admin.viewer.logout');
+Route::prefix('/admin/readonly')->middleware(\App\Http\Middleware\AdminViewerAccess::class)->group(function () {
+    Route::get('/', [\App\Http\Controllers\Admin\AdminViewerController::class, 'index'])->name('admin.viewer.index');
+    Route::get('/monitor/{section?}', [\App\Http\Controllers\Admin\DotAdminController::class, 'show'])
+        ->where('section', 'overview|players|chat|reports|icon-design')->name('admin.viewer.monitor');
+    Route::get('/icon-design/{id}', [\App\Http\Controllers\Admin\DotAdminController::class, 'iconDesign'])
+        ->whereNumber('id')->name('admin.viewer.icon-design');
+    Route::get('/data/{table}', [\App\Http\Controllers\Admin\AdminViewerController::class, 'table'])->where('table', '[a-z_]+')->name('admin.viewer.table');
+    Route::get('/settings/{setting}', [\App\Http\Controllers\Admin\AdminViewerController::class, 'settings'])->where('setting', '[a-z_]+')->name('admin.viewer.settings');
+    Route::get('/attachments/{kind}/{id}', [\App\Http\Controllers\Admin\AdminViewerController::class, 'attachment'])->whereNumber('id')->name('admin.viewer.attachment');
+    Route::get('/reports/dashboard/{format}', [\App\Http\Controllers\Admin\AdminViewerController::class, 'dashboardReport'])->where('format', 'txt|csv')->name('admin.viewer.dashboard-report');
+});
+
 // 管理者ルート
 use App\Http\Controllers\AdminAuthController;
 

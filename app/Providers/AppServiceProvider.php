@@ -23,7 +23,7 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         // 同一IP全体とメールアドレス+IPの両方で制限。共有回線の他アカウントを恒久ロックしない。
-        foreach (['auth-login' => 10, 'auth-admin' => 5] as $name => $attempts) {
+        foreach (['auth-login' => 10, 'auth-admin' => 5, 'auth-admin-viewer' => 5] as $name => $attempts) {
             \Illuminate\Support\Facades\RateLimiter::for($name, function (\Illuminate\Http\Request $request) use ($name, $attempts) {
                 $ip = hash('sha256', (string) $request->ip());
                 $email = $request->input('email');
