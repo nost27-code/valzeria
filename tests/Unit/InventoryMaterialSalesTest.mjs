@@ -3,13 +3,14 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 
-const script = fs.readFileSync(new URL('../../public/js/inventory/inventory-material-sales.js', import.meta.url), 'utf8');
-function setup(fetch) {
+const script = fs.readFileSync(new URL('../../resources/views/inventory/material-sales.blade.php', import.meta.url), 'utf8')
+    .match(/<script>([\s\S]*?)<\/script>/)[1];
+function setup(fetch, source = script) {
     const events = [];
     const context = { window: { dispatchEvent: event => events.push(event) }, fetch,
         CustomEvent: class { constructor(type, options) { this.type = type; this.detail = options.detail; } } };
     vm.createContext(context);
-    vm.runInContext(script, context);
+    vm.runInContext(source, context);
     const store = context.window.createMaterialSalesStore('first-uuid');
     context.Alpine = { store: () => store };
     store.set(1, 2, 10);
@@ -20,6 +21,16 @@ const success = { ok: true, status: 200, json: async () => ({ success: true, mes
     money: 1080, quantity: 5, next_request_uuid: 'next-uuid', sales: [
         { character_material_id: 1, remaining_quantity: 8 }, { character_material_id: 2, remaining_quantity: 0 },
     ] }) };
+
+test('the previous external asset remains usable by cached warehouse HTML', async () => {
+    const legacy = fs.readFileSync(new URL('../../public/js/inventory/inventory-material-sales.js', import.meta.url), 'utf8');
+    let calls = 0;
+    const { store, sell } = setup(async () => { calls++; return success; }, legacy);
+    await sell();
+    assert.equal(calls, 1);
+    assert.equal(store.count, 0);
+    assert.equal(store.requestUuid, 'next-uuid');
+});
 
 test('one request sells all selected types and updates the page without reloading', async () => {
     const calls = [];

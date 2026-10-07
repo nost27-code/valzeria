@@ -38,13 +38,14 @@
             ];
         @endphp
 
-        <script src="{{ asset('js/inventory/inventory-material-sales.js') }}?v=20261006"></script>
+        @include('inventory.material-sales')
         @include('inventory.browse-feedback')
         <script src="{{ asset('js/facilities/facility-page-state.js') }}?v=20261006-feedback1"></script>
         <script>
         (() => {
             const registerInventoryAlpine = () => {
-                if (window.inventoryAlpineRegistered) return;
+                const currentSales = Alpine.store('matSales');
+                if (window.inventoryAlpineRegistered && currentSales && !currentSales.loadFailed) return;
                 Alpine.store('matSales', typeof window.createMaterialSalesStore === 'function'
                     ? window.createMaterialSalesStore(@js((string) \Illuminate\Support\Str::uuid()))
                     : {
@@ -56,6 +57,7 @@
                         get total() { return 0; },
                         set() {}, remove() {}, clear() {}
                     });
+                if (window.inventoryAlpineRegistered) return;
 
                 Alpine.store('equipSales', {
                     items: {},

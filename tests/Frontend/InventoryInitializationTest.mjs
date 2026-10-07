@@ -6,7 +6,8 @@ import vm from 'node:vm';
 const template = fs.readFileSync(new URL('../../resources/views/inventory/index.blade.php', import.meta.url), 'utf8');
 const feedback = fs.readFileSync(new URL('../../resources/views/inventory/browse-feedback.blade.php', import.meta.url), 'utf8')
     .match(/<script>([\s\S]*?)<\/script>/)[1];
-const sales = fs.readFileSync(new URL('../../public/js/inventory/inventory-material-sales.js', import.meta.url), 'utf8');
+const sales = fs.readFileSync(new URL('../../resources/views/inventory/material-sales.blade.php', import.meta.url), 'utf8')
+    .match(/<script>([\s\S]*?)<\/script>/)[1];
 const pageState = fs.readFileSync(new URL('../../public/js/facilities/facility-page-state.js', import.meta.url), 'utf8');
 
 function warehouse({ missingSales = false, missingPageState = false, deniedStorage = false } = {}) {
@@ -39,7 +40,7 @@ function warehouse({ missingSales = false, missingPageState = false, deniedStora
     const component = vm.runInContext(`(${expression})`, context);
     Object.assign(component, { $refs: {}, $el: { querySelectorAll: () => [] }, $nextTick: fn => fn(), $watch() {} });
     component.init();
-    return { component, stores, factories, window };
+    return { component, stores, factories, window, context, register };
 }
 
 test('warehouse core and empty-state methods initialize with only the inline scripts', () => {
@@ -91,4 +92,34 @@ test('normal scripts and denied browser storage keep the warehouse usable', () =
         assert.equal(stores.get('matSales').total, 200);
         assert.doesNotThrow(() => component.destroy());
     }
+});
+
+test('a failed store is recovered after the material functions become available', () => {
+    const { stores, context, register } = warehouse({ missingSales: true });
+    const failed = stores.get('matSales');
+    const equipment = stores.get('equipSales');
+    assert.equal(failed.loadFailed, true);
+    vm.runInContext(sales, context);
+    vm.runInContext(register, context);
+    const recovered = stores.get('matSales');
+    assert.notEqual(recovered, failed);
+    assert.equal(recovered.busy, false);
+    assert.equal(recovered.message, '');
+    recovered.set(1, 2, 100);
+    assert.equal(recovered.total, 200);
+    assert.equal(stores.get('equipSales'), equipment);
+});
+
+test('reinitialization never replaces a valid store or loses an unresolved sale', () => {
+    const { stores, context, register } = warehouse();
+    const current = stores.get('matSales');
+    current.set(1, 2, 100);
+    current.pending = { request_uuid: current.requestUuid, sales: [{ character_material_id: 1, quantity: 2 }] };
+    current.uncertain = true;
+    const pending = current.pending;
+    vm.runInContext(register, context);
+    assert.equal(stores.get('matSales'), current);
+    assert.equal(current.pending, pending);
+    assert.equal(current.uncertain, true);
+    assert.equal(current.count, 1);
 });

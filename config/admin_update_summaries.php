@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-10-07-warehouse-material-action-loading',
+        'date' => '2026-10-07',
+        'category' => 'fixed',
+        'title' => '倉庫の素材操作を画面と一緒に読み込み',
+        'detail' => '素材売却・破棄の操作も外部ファイルの取得に依存せず読み込みます。一度読み込みに失敗した状態だけを再初期化で復旧し、選択中の素材や結果未確認の売却内容・操作番号は保持します。DB・価格・所持枠・取引処理の変更なし。実機Safariは未確認。',
+    ],
+    [
         'id' => '2026-10-07-warehouse-initialization-recovery',
         'date' => '2026-10-07',
         'category' => 'fixed',
