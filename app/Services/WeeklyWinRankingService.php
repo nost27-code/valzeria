@@ -759,31 +759,7 @@ class WeeklyWinRankingService
     /** @return array<int, int> */
     private function namelessRuinScoresForPeriod(array $period): array
     {
-        // Saved operations remain authoritative even if relics are subsequently switched OFF.
-        if (! Schema::hasColumns('nameless_workshop_operations', ['id', 'character_id', 'action', 'result', 'created_at'])) {
-            return [];
-        }
-        $scores = [];
-        $operations = DB::table('nameless_workshop_operations')
-            ->where('action', 'ruin')
-            ->where('created_at', '>=', $period['start_at'])->where('created_at', '<', $period['end_at'])
-            // Retrieve compact battle summaries, never the full battle text or player assets.
-            ->select(['id', 'character_id', 'result->result as battle_result', 'result->turn_count as turns', 'result->batch_explore->runs as runs'])
-            ->lazyById(200);
-        foreach ($operations as $operation) {
-            $runs = json_decode($operation->runs ?? 'null', true);
-            $wins = is_array($runs)
-                ? count(array_filter($runs, fn ($run): bool => is_array($run)
-                    && in_array($run['result'] ?? null, BattleLog::WIN_RESULTS, true)
-                    && (int) ($run['turn_count'] ?? 0) > 0))
-                : (int) (in_array($operation->battle_result, BattleLog::WIN_RESULTS, true) && (int) $operation->turns > 0);
-            if ($wins > 0) {
-                $id = (int) $operation->character_id;
-                $scores[$id] = ($scores[$id] ?? 0) + $wins;
-            }
-        }
-
-        return $scores;
+        return app(NamelessBattleHistoryService::class)->scoresForPeriod($period);
     }
 
     /**

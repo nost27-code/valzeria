@@ -25,6 +25,9 @@ class DetectSecurityAnomalies extends Command
 
             return self::SUCCESS;
         }
+        if ($result['retention_deferred'] > 0) {
+            $this->warn("期限切れログイン記録の整理を {$result['retention_deferred']}件延期しました。記録は保持し、次回に再確認します。");
+        }
         $this->info("異常検知完了: 新規 {$result['created']}件 / 更新 {$result['updated']}件");
 
         return self::SUCCESS;

@@ -782,7 +782,7 @@ class CityHeader extends Component
     private function adventureRecords(Character $character): array
     {
         return Cache::remember(
-            "adventurer_card_adventure_records_v2:{$character->id}",
+            "adventurer_card_adventure_records_v3:{$character->id}",
             now()->addMinutes(self::ADVENTURE_RECORDS_CACHE_MINUTES),
             fn (): array => $this->buildAdventureRecords($character)
         );
@@ -800,11 +800,12 @@ class CityHeader extends Component
                 ...BattleLog::WIN_RESULTS,
             ])
             ->first();
-        $winCount = (int) ($battleSummary?->win_count ?? 0);
-        $lossCount = (int) ($battleSummary?->loss_count ?? 0);
+        $ruinSummary = app(\App\Services\NamelessBattleHistoryService::class)->totalsForCharacter((int) $character->id);
+        $winCount = (int) ($battleSummary?->win_count ?? 0) + $ruinSummary['wins'];
+        $lossCount = (int) ($battleSummary?->loss_count ?? 0) + $ruinSummary['losses'];
         $battleCount = $winCount + $lossCount;
         $winRate = $battleCount > 0 ? (int) floor(($winCount / $battleCount) * 100) : 0;
-        $bossWinCount = (int) ($battleSummary?->boss_win_count ?? 0);
+        $bossWinCount = (int) ($battleSummary?->boss_win_count ?? 0) + $ruinSummary['boss_wins'];
         $masteredJobCount = $character->jobHistories()
             ->where('is_mastered', true)
             ->count();
