@@ -57,6 +57,16 @@ class PlayerNamelessEquipment extends Model
 
     public function imagePath(): ?string
     {
+        if ($this->kind === 'weapon') {
+            $stages = (array) config('nameless_equipment_images.weapon_forge_stages.'.$this->equipment_type, []);
+            krsort($stages, SORT_NUMERIC);
+            foreach ($stages as $minimumLevel => $path) {
+                if ((int) $this->forge_level >= (int) $minimumLevel && is_string($path) && $path !== '') {
+                    return $path;
+                }
+            }
+        }
+
         return config('nameless_equipment_images.'.$this->kind.'.'.$this->equipment_type);
     }
 
