@@ -117,6 +117,7 @@ class WorkerDatabaseConnectionTest extends TestCase
 
     public function test_worker_connection_limit_does_not_pause_web_account(): void
     {
+        $this->freezeTime();
         $this->configureWorker();
         $cooldown = new DatabaseConnectionCooldown;
         app(WorkerDatabaseConnection::class)->apply(true, 'worker');

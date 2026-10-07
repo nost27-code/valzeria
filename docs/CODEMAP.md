@@ -1,4 +1,5 @@
 # CODEMAP.md
+- `app/Support/WebDatabaseConnection.php`: AppServiceProviderのregisterで通常HTTPの接続ユーザーを一度選択。既存defaultまたは `web_secondary` を使い、primary明示のsession/cache/queue参照も同じ接続へ揃える。HTTP/CLIのcache安全性は `tests/Feature/WebDatabaseConnectionTest.php` で検証。
 - `app/Support/WorkerDatabaseConnection.php`: AppServiceProviderのregisterでCLI workerの接続ユーザーを選択。`scripts/run_current_schedule.php` がworker指定を子プロセスへ継承。`db:connection-role --probe` は接続先をREAD ONLYで確認。
 
 ## dot用の閲覧専用管理画面（2026-10-07、本番公開782902d0）

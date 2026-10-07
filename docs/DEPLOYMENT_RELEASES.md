@@ -67,3 +67,13 @@ DBの復元、migrationの巻き戻し、プレイヤーデータに触れる補
 - worker指定を付けたままconfig:cache/optimize/migrate/db:seedは実行しない。共有設定キャッシュをworker専用設定で上書きしないため、起動時に拒否する。
 - 戻す場合は `DB_WORKER_ENABLED=false` にして、worker指定なしでconfig:cacheを再作成。次のcronから従来ユーザーを使用する。既存データと新しいユーザーは削除しない。
 - 分離するのはユーザー単位の接続枠。DBサーバー全体の接続数、CPU、行ロックは共通。総接続数が減るとは限らない。
+
+## 通常HTTPの2ユーザー分散
+
+- 既存DBユーザーに加え、同じDBだけに権限を持つ追加ユーザーを作成し、CURRENT_USER/DATABASE/権限範囲をREAD ONLYで事前照合する。
+- shared .envの `DB_WEB_POOL_ENABLED=true`, `DB_WEB_SECONDARY_USERNAME`, `DB_WEB_SECONDARY_PASSWORD` を非公開で保存。通常の配備でconfig cacheを再作成する。
+- AppServiceProviderはHTTPの起動時に既存/追加ユーザーをrandom_int(0,1)で選択。1つのリクエストは最後まで同じ接続を使い、途中の失敗でユーザーを切り替えて操作を再実行しない。平均的な分散であり、常に等しい接続数や200接続の成功を保証しない。
+- HTTPセッション/認証より前に選択。既存defaultを明示するDB session/cache/queue参照を選択先へ揃え、別用途を明示した接続は保持。通常CLIは既存ユーザー、worker CLIは定期処理用ユーザーのまま。
+- 不完全な設定、primary/workerと同じユーザー、DB_URL/read-write分割はHTTPの起動を拒否する。導入前に両方のユーザーから同じDBへ接続できることを確認する。
+- OFFに戻すには `DB_WEB_POOL_ENABLED=false` とし、通常CLIでconfig:cacheを再作成。既存データ・追加ユーザーは削除不要。
+- 本番検証ではcached configで両選択先のCURRENT_USER/DATABASEをREAD ONLY照合し、HTTP health/TOP/admin認証境界、セッション・取引テスト、ログ差分を確認する。DBサーバーのCPU/ロックは共通で、処理能力の増加や負荷軽減を意味しない。

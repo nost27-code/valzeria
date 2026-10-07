@@ -19,6 +19,12 @@ return [
 
     'default' => env('DB_CONNECTION', 'sqlite'),
 
+    'web_pool' => [
+        'enabled' => (bool) env('DB_WEB_POOL_ENABLED', false),
+        'username' => env('DB_WEB_SECONDARY_USERNAME', ''),
+        'password' => env('DB_WEB_SECONDARY_PASSWORD', ''),
+    ],
+
     'worker' => [
         'enabled' => (bool) env('DB_WORKER_ENABLED', false),
         'username' => env('DB_WORKER_USERNAME', ''),

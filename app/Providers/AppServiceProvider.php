@@ -14,6 +14,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+        $this->app->make(\App\Support\WebDatabaseConnection::class)->apply($this->app->runningInConsole());
         $this->app->make(\App\Support\WorkerDatabaseConnection::class)->apply(
             $this->app->runningInConsole(),
             getenv('VALZERIA_DB_ROLE') ?: 'web',
