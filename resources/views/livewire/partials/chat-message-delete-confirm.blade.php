@@ -37,6 +37,7 @@
             <div x-show="!deleting">
                 <p class="text-base font-black">このメッセージを削除しますか？</p>
                 <p class="mt-2 text-xs font-bold text-slate-600">削除すると元に戻せません。{{ $pendingDeletionIsPrivate ? '相手の会話画面からも消えます。' : '全体チャットから消えます。' }}</p>
+                <p class="mt-2 text-xs text-slate-600">荒らし対策のため、削除した本文は管理者の確認用履歴に残ります。</p>
                 <div class="mt-3 max-h-48 overflow-y-auto whitespace-pre-wrap break-words rounded-lg bg-slate-50 p-3 text-sm">{{ $pendingDeletionMessage }}</div>
                 <p x-show="error" x-text="error" role="alert" class="mt-3 text-xs font-bold text-red-700"></p>
                 <div class="mt-4 flex gap-3">

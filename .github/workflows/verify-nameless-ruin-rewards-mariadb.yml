@@ -42,7 +42,7 @@ concurrency:
 jobs:
   rewards:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 35
     services:
       mariadb:
         image: mariadb:10.5.13
