@@ -13,6 +13,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Livewire\Component;
+use Livewire\Attributes\Locked;
 
 class AdminDashboard extends Component
 {
@@ -27,6 +28,14 @@ class AdminDashboard extends Component
     public int $characterIconUsagePage = 1;
 
     public string $updateDate = '';
+
+    #[Locked]
+    public ?array $loadedDungeonLosses = null;
+
+    public function loadDungeonLosses(): void
+    {
+        $this->loadedDungeonLosses = $this->dungeonLosses();
+    }
 
     public function render()
     {
@@ -68,7 +77,7 @@ class AdminDashboard extends Component
 
     public function downloadAiText()
     {
-        $data = $this->dashboardData();
+        $data = $this->dashboardData(includeDungeonLosses: true);
         $content = $this->formatAiText($data);
         $filename = 'valzeria-admin-analytics-' . now()->format('Ymd-His') . '.txt';
 
@@ -81,7 +90,7 @@ class AdminDashboard extends Component
 
     public function downloadCsv()
     {
-        $data = $this->dashboardData();
+        $data = $this->dashboardData(includeDungeonLosses: true);
         $content = $this->formatCsv($data);
         $filename = 'valzeria-admin-analytics-' . now()->format('Ymd-His') . '.csv';
 
@@ -92,7 +101,7 @@ class AdminDashboard extends Component
         ]);
     }
 
-    private function dashboardData(): array
+    private function dashboardData(bool $includeDungeonLosses = false): array
     {
         $now = now();
         $todayStart = $now->copy()->startOfDay();
@@ -137,7 +146,7 @@ class AdminDashboard extends Component
                 ['label' => 'チャンプ挑戦数', 'value' => number_format($this->champChallengeCount()), 'note' => '累計挑戦ログ'],
             ],
             'cityDistribution' => $this->cityDistribution($totalCharacters),
-            'dungeonLosses' => $this->dungeonLosses(),
+            'dungeonLosses' => $includeDungeonLosses ? $this->dungeonLosses() : $this->loadedDungeonLosses,
             'popularJobs' => $this->popularJobs($totalCharacters),
             'popularWeapons' => $this->popularWeapons(),
             'dropOffPoints' => $lifecycle['ready'] ? $lifecycle['drop_offs'] : [],
@@ -537,12 +546,18 @@ class AdminDashboard extends Component
             return [];
         }
 
-        return DB::table('battle_logs')
-            ->join('areas', 'battle_logs.area_id', '=', 'areas.id')
+        // Aggregate the covering index before joining names; never join every battle row.
+        $totals = DB::table('battle_logs')
+            ->select('area_id')
+            ->selectRaw('COUNT(*) as total_count, SUM(CASE WHEN result = ? THEN 0 ELSE 1 END) as loss_count', ['win'])
+            ->groupBy('area_id')
+            ->havingRaw('SUM(CASE WHEN result = ? THEN 0 ELSE 1 END) > 0', ['win']);
+
+        return DB::query()
+            ->fromSub($totals, 'totals')
+            ->join('areas', 'totals.area_id', '=', 'areas.id')
             ->leftJoin('cities', 'areas.city_id', '=', 'cities.id')
-            ->selectRaw('areas.name as area_name, cities.name as city_name, COUNT(*) as total_count, SUM(CASE WHEN battle_logs.result = ? THEN 0 ELSE 1 END) as loss_count', ['win'])
-            ->groupBy('areas.id', 'areas.name', 'cities.name')
-            ->havingRaw('SUM(CASE WHEN battle_logs.result = ? THEN 0 ELSE 1 END) > 0', ['win'])
+            ->select('areas.name as area_name', 'cities.name as city_name', 'totals.total_count', 'totals.loss_count')
             ->orderByDesc('loss_count')
             ->orderByDesc('total_count')
             ->limit(10)

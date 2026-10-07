@@ -418,8 +418,16 @@
             <div class="border-b border-slate-100 px-5 py-4">
                 <h2 class="text-lg font-black text-slate-950">敗北が多いダンジョン</h2>
                 <p class="mt-1 text-xs font-bold text-slate-400">敗北数順。難度・導線の詰まり候補です。</p>
+                <button type="button" wire:click="loadDungeonLosses" wire:loading.attr="disabled" wire:target="loadDungeonLosses"
+                        class="mt-3 rounded-md border border-slate-300 bg-white px-4 py-2 text-xs font-black text-slate-700 disabled:cursor-wait disabled:opacity-60">
+                    <span wire:loading.remove wire:target="loadDungeonLosses">{{ $dungeonLosses === null ? '敗北分析を集計する' : '敗北分析を更新する' }}</span>
+                    <span wire:loading wire:target="loadDungeonLosses">集計中...</span>
+                </button>
             </div>
             <div class="divide-y divide-slate-100">
+                @if($dungeonLosses === null)
+                    <div class="p-6 text-sm font-bold text-slate-500">ボタンを押すと全期間の戦闘ログを集計します。集計には時間がかかる場合があります。</div>
+                @else
                 @forelse($dungeonLosses as $row)
                     <div class="flex items-center justify-between gap-4 px-5 py-3">
                         <div class="min-w-0">
@@ -434,6 +442,7 @@
                 @empty
                     <div class="p-6 text-sm font-bold text-slate-500">敗北ログはまだありません。</div>
                 @endforelse
+                @endif
             </div>
         </section>
 
