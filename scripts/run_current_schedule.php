@@ -20,7 +20,9 @@ if (in_array('--check', $argv, true)) {
 }
 
 $command = [PHP_BINARY, $releaseRoot . '/artisan', 'schedule:run', '--no-interaction'];
-$process = proc_open($command, [STDIN, STDOUT, STDERR], $pipes, $releaseRoot);
+$environment = getenv();
+$environment['VALZERIA_DB_ROLE'] = 'worker';
+$process = proc_open($command, [STDIN, STDOUT, STDERR], $pipes, $releaseRoot, $environment);
 if (!is_resource($process)) {
     fwrite(STDERR, "schedule:run を開始できません。\n");
     exit(1);

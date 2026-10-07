@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-10-08-worker-database-account',
+        'date' => '2026-10-08',
+        'category' => 'internal',
+        'title' => '定期処理のDB接続を専用ユーザーへ分離',
+        'detail' => '通常プレイと定期処理が同じDBを別の接続ユーザーで利用できる設定を追加。定期処理の接続上限が通常プレイへ集中するのを抑えます。テーブル・データ・ゲーム仕様は変更しません。DBサーバー全体の負荷とロックは共通です。',
+    ],
+    [
         'id' => '2026-10-07-arena-database-pressure',
         'date' => '2026-10-07',
         'category' => 'fixed',

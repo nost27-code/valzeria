@@ -1,4 +1,5 @@
 # DATA_MODEL.md
+- 接続ユーザー分離: workerは既存defaultのホスト・DB・オプションを継承し認証情報だけ変更。データ複製・migrationなし。接続開始後の切替は禁止。DB_URL/read-write分割は未対応として起動を拒否。
 
 ## Deleted chat evidence (2026-10-07)
 

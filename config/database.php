@@ -19,6 +19,12 @@ return [
 
     'default' => env('DB_CONNECTION', 'sqlite'),
 
+    'worker' => [
+        'enabled' => (bool) env('DB_WORKER_ENABLED', false),
+        'username' => env('DB_WORKER_USERNAME', ''),
+        'password' => env('DB_WORKER_PASSWORD', ''),
+    ],
+
     /*
     |--------------------------------------------------------------------------
     | Database Connections

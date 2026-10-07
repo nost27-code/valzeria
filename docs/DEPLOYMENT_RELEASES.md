@@ -57,3 +57,13 @@ DBの復元、migrationの巻き戻し、プレイヤーデータに触れる補
 - `releases` を自動削除しない。世代整理はDBバックアップと復旧可能性を確認してから手動で行う。
 - cronは `scripts/run_current_schedule.php` を使い、開始時に `valzeria_current` の実体パスを固定してから `schedule:run` を実行する。切替前は同ファイルへ `--check` を付け、現在のリリース実体を解決できることだけを副作用なしで確認する。常駐処理も同じ方式へ移す前にXserverの設定を確認する。
 - デプロイAPIのIP制限、秘密鍵、共有領域の権限はサーバー側の運用設定であり、リポジトリへ保存しない。
+
+## 通常プレイと定期処理のDBユーザー分離
+
+- 新しいユーザーを対象DBだけに追加し、同じDBへ接続できることを先に確認する。既存ユーザーや所有データは変更しない。
+- shared `.env` の `DB_WORKER_ENABLED=true`, `DB_WORKER_USERNAME`, `DB_WORKER_PASSWORD` を保護して保存する。認証情報をGit/チャット/公開領域へ置かない。通常の配備でconfig cacheを更新する。
+- 毎分の `scripts/run_current_schedule.php` は子Artisanに `VALZERIA_DB_ROLE=worker` を渡す。schedule内の子コマンドも継承する。常駐queueを追加する場合もこの環境変数を起動時に指定し、設定変更後に再起動する。
+- `php artisan db:connection-role --probe` と `VALZERIA_DB_ROLE=worker php artisan db:connection-role --probe` で同じDB・異なるCURRENT_USERをREAD ONLYで確認する。パスワードは出力しない。
+- worker指定を付けたままconfig:cache/optimize/migrate/db:seedは実行しない。共有設定キャッシュをworker専用設定で上書きしないため、起動時に拒否する。
+- 戻す場合は `DB_WORKER_ENABLED=false` にして、worker指定なしでconfig:cacheを再作成。次のcronから従来ユーザーを使用する。既存データと新しいユーザーは削除しない。
+- 分離するのはユーザー単位の接続枠。DBサーバー全体の接続数、CPU、行ロックは共通。総接続数が減るとは限らない。

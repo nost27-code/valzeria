@@ -14,6 +14,11 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+        $this->app->make(\App\Support\WorkerDatabaseConnection::class)->apply(
+            $this->app->runningInConsole(),
+            getenv('VALZERIA_DB_ROLE') ?: 'web',
+            $_SERVER['argv'] ?? [],
+        );
         $this->app->scoped(SchemaStateService::class);
         $this->app->scoped(NamelessSchemaService::class);
         $this->app->scoped(GameSettingService::class);
