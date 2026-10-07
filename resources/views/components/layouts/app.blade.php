@@ -41,6 +41,7 @@
         @if (file_exists(public_path('build/manifest.json')) || file_exists(public_path('hot')))
             @vite(['resources/css/app.css', 'resources/js/app.js'])
         @endif
+        <script src="{{ asset('js/exploration-stamina-recovery.js') }}?v={{ filemtime(public_path('js/exploration-stamina-recovery.js')) }}" defer></script>
         @livewireStyles
         @php
             $cityId = null;

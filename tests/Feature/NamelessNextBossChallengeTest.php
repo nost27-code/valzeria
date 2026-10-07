@@ -114,6 +114,55 @@ class NamelessNextBossChallengeTest extends TestCase
         $this->assertSame(1, NamelessWorkshopOperation::query()->count());
     }
 
+    public function test_recovery_items_are_available_on_normal_and_boss_results_and_allow_the_next_boss(): void
+    {
+        foreach ([false, true] as $boss) {
+            $character = $this->character();
+            $uuid = (string) Str::uuid();
+            app(NamelessRuinService::class)->fight($character, 'sand', 1, $boss, $uuid);
+            $character->refresh()->update(['explore_stamina' => 0, 'explore_stamina_updated_at' => now()]);
+            \App\Models\CharacterConsumableItem::query()->create([
+                'character_id' => $character->id, 'item_key' => 'explore_stamina_small_bottle', 'quantity' => 1,
+            ]);
+            $this->actingAs($character->user)->withSession(['current_character_id' => $character->id])
+                ->withoutMiddleware(CheckCharacterSelected::class);
+            $url = route('nameless-workshop.result', ['uuid' => $uuid]);
+            $response = $this->get($url)->assertOk()->assertSee('探索力を回復する')
+                ->assertSee('探索力の小瓶')->assertSee('探索力の薬')->assertSee('輝石で購入して使う');
+            $this->assertSame(1, substr_count($response->getContent(), 'id="batch-stamina-modal"'));
+            $this->assertMatchesRegularExpression('/data-item-key="explore_stamina_small_bottle"\s+data-use-url="[^"]+"\s+data-quantity="1"/', $response->getContent());
+            $this->postJson(route('inventory.support-items.use', ['itemKey' => 'explore_stamina_small_bottle']))
+                ->assertOk()->assertJsonPath('success', true)->assertJsonPath('stamina.current', 50);
+            $this->assertSame(0, (int) \App\Models\CharacterConsumableItem::query()->where('character_id', $character->id)
+                ->where('item_key', 'explore_stamina_small_bottle')->value('quantity'));
+            $this->assertSame(1 + (int) $boss, (int) NamelessRuinProgress::query()->where('character_id', $character->id)->value('unlocked_depth'));
+            $this->postJson(route('inventory.support-items.use', ['itemKey' => 'explore_stamina_small_bottle']))
+                ->assertStatus(422)->assertJsonPath('success', false);
+            $this->assertSame(50, $character->fresh()->explore_stamina);
+            if ($boss) {
+                $response = $this->get($url)->assertOk()->assertSee('次のボスに挑む');
+                $this->assertSame(1, preg_match('/<form[^>]*data-next-nameless-boss.*?<\/form>/s', $response->getContent(), $matches));
+                $this->assertDoesNotMatchRegularExpression('/\sdisabled(?:\s|=|>)/', $matches[0]);
+            }
+        }
+    }
+
+    public function test_multiple_ruin_cards_share_one_recovery_modal_with_owned_counts(): void
+    {
+        $character = $this->character();
+        \App\Models\CharacterConsumableItem::query()->create([
+            'character_id' => $character->id, 'item_key' => 'explore_stamina_potion', 'quantity' => 2,
+        ]);
+        $html = \Illuminate\Support\Facades\Blade::render(
+            "@foreach(['sand', 'water'] as \$zoneKey) @include('nameless-workshop.explore-form') @endforeach",
+            ['character' => $character, 'zoneName' => '検証遺跡', 'unlocked' => 1]
+        );
+        $this->assertSame(2, substr_count($html, '>探索力を回復する</button>'));
+        $this->assertSame(1, substr_count($html, 'id="batch-stamina-modal"'));
+        $this->assertMatchesRegularExpression('/data-item-key="explore_stamina_potion"\s+data-use-url="[^"]+"\s+data-quantity="2"/', $html);
+        $this->assertStringContainsString('valzeria-stamina-recovery-open', $html);
+    }
+
     private function character(): Character
     {
         $town = app(NamelessTownService::class)->installLocalTown();

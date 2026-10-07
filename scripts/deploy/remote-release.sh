@@ -202,11 +202,12 @@ for directory in images tools contact_images js/field js/inventory js/facilities
     link_public_directory "$directory"
 done
 
-for file in favicon.ico robots.txt sw.js; do
+for file in favicon.ico robots.txt sw.js js/exploration-stamina-recovery.js; do
     if [[ -f "$release_dir/public/$file" ]]; then
         if [[ -e "$PUBLIC_DIR/$file" && "$release_dir/public/$file" -ef "$PUBLIC_DIR/$file" ]]; then
             continue
         fi
+        mkdir -p "$(dirname "$PUBLIC_DIR/$file")"
         cp "$release_dir/public/$file" "$PUBLIC_DIR/$file"
     fi
 done

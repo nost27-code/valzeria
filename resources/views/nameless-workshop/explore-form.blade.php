@@ -60,4 +60,10 @@
         <span x-show="!submitting || !bossAttempt">ボスに挑む</span>
         <span x-show="submitting && bossAttempt" style="display: none;">準備中...</span>
     </button>
+    @if($exploreStamina['enabled'] ?? false)
+        <button type="button" @click="$dispatch('valzeria-stamina-recovery-open', { current: staminaCurrent, required: requiredStamina })" x-bind:disabled="submitting" class="mt-2 min-h-11 w-full rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-xs font-bold text-sky-800 disabled:opacity-50">探索力を回復する</button>
+    @endif
 </form>
+@if($exploreStamina['enabled'] ?? false)
+    @include('partials.exploration-stamina-recovery', ['stamina' => $exploreStamina])
+@endif

@@ -20,9 +20,15 @@
         @elseif(!($stamina['enabled'] ?? false))
             <p class="mt-2 text-xs font-bold text-red-700" role="alert">遺跡探索には探索力モードが必要です。</p>
         @else
-            <p x-show="staminaCurrent < {{ $nextBossChallenge['cost'] }}" @if((int) ($stamina['current'] ?? 0) >= $nextBossChallenge['cost']) style="display: none;" @endif class="mt-2 text-xs font-bold text-red-700" role="alert">探索力が足りません。回復を待ってください。</p>
+            <p x-show="staminaCurrent < {{ $nextBossChallenge['cost'] }}" @if((int) ($stamina['current'] ?? 0) >= $nextBossChallenge['cost']) style="display: none;" @endif class="mt-2 text-xs font-bold text-red-700" role="alert">探索力が足りません。探索力を回復してください。</p>
         @endif
     </form>
+@endif
+@if($stamina['enabled'] ?? false)
+    <div class="mb-3 w-full" x-data="{ staminaCurrent: {{ (int) ($stamina['current'] ?? 0) }} }" @valzeria-stamina-sync.window="staminaCurrent = Math.max(0, Number($event.detail.current || 0))">
+        <button type="button" @click="$dispatch('valzeria-stamina-recovery-open', { current: staminaCurrent, required: {{ (int) ($nextBossChallenge['cost'] ?? config('nameless_relics.stamina_cost')) }} })" class="min-h-11 w-full rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-sm font-bold text-sky-800">探索力を回復する</button>
+    </div>
+    @include('partials.exploration-stamina-recovery')
 @endif
 <div class="flex flex-wrap justify-center gap-2">
     <a href="{{ route('nameless-workshop.return', ['tab' => 'dungeon']) }}" class="rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm font-bold text-slate-700">探索タブへ</a>
