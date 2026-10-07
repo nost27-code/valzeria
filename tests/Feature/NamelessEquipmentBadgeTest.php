@@ -47,6 +47,24 @@ class NamelessEquipmentBadgeTest extends TestCase
         $this->assertSame('名もなき鎧', $armor->displayName());
     }
 
+    public function test_workshop_inventory_and_battle_summary_follow_forge_appearance_without_persisting_get_changes(): void
+    {
+        $character = $this->character();
+        $weapon = $this->body($character, customName: '星巡りの剣', equipped: true);
+        $this->login($character);
+        foreach ([19, 20, 39, 40, 59, 60, 79, 80, 98, 99] as $level) {
+            $weapon->forceFill(['forge_level' => $level])->save();
+            $before = $weapon->fresh()->getAttributes();
+            $expected = asset($weapon->imagePath());
+            $this->get(route('equipment.index'))->assertOk()->assertSee($expected, false);
+            $this->get(route('nameless-workshop.index', ['equipment' => $weapon->id]))
+                ->assertOk()->assertSee($expected, false)->assertSee('星巡りの剣 +'.$level);
+            $summary = app(BattleEquipmentSummaryService::class)->forEnemy($character, 'dragon');
+            $this->assertSame($weapon->imagePath(), $summary[0]['icon']);
+            $this->assertSame($before, $weapon->fresh()->getAttributes());
+        }
+    }
+
     public function test_sidebar_shows_equipped_nameless_body_and_preserves_ordinary_grade(): void
     {
         $character = $this->character();

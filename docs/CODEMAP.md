@@ -267,6 +267,7 @@ Weekly ranking catch-up: the daily 09:05 finalizer runs in automatic mode, walks
 
 ## 名もなき鍛冶屋のOFF配備
 
+- 武器個体の強化段階画像: `PlayerNamelessEquipment::imagePath()` / `config/nameless_equipment_images.php` の `weapon_forge_stages` / `public/images/weapon/nameless-*-forge-{20,40,60,80,99}.webp`（45枚）。工房・装備一覧・戦闘装備要約で共用。初回選択と図鑑の種別画像は基礎画像を維持。
 - 環境停止条件・操作台帳: `app/Services/NamelessWorkshopService.php`。街とMAP導線: `NamelessTownService`。
 - OFF準備: `NamelessPreparationService` / `nameless:prepare` / `nameless:install-town --prepare-off`。隔離MariaDB検証: `scripts/verify/nameless-mariadb.php`。
 - 塔・レイド遺物: `NamelessRelicBattleService`、`TowerBattleService`、`NationRaidPlayerPreparationService`、`NationRaidExistingPlayerDefenseApplier`。
