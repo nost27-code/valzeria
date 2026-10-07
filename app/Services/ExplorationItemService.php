@@ -6,8 +6,6 @@ use App\Models\Character;
 use App\Models\CharacterItem;
 use App\Models\ExplorationItemCarry;
 use App\Models\Item;
-use Illuminate\Database\DeadlockException;
-use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 
 class ExplorationItemService
@@ -57,87 +55,76 @@ class ExplorationItemService
             return ['success' => false, 'message' => '探索中のみ使用できます。'];
         }
 
-        try {
-            return DB::transaction(function () use ($character, $item, $areaId, $config): array {
-                $lockedCharacter = Character::query()
-                    ->whereKey($character->id)
-                    ->lockForUpdate()
-                    ->firstOrFail();
-                $ownedCount = CharacterItem::query()
-                    ->where('character_id', $lockedCharacter->id)
-                    ->where('item_id', $item->id)
-                    ->where('is_equipped', false)
-                    ->count();
-                $owned = app(OwnedConsumableService::class)->lockFirst((int) $lockedCharacter->id, (int) $item->id);
+        $runner = app(ExplorationItemTransactionRunner::class);
 
-                $carry = ExplorationItemCarry::query()
-                    ->where('character_id', $lockedCharacter->id)
-                    ->where('item_id', $item->id)
-                    ->lockForUpdate()
-                    ->first();
+        return $runner->run((int) $character->id, function (string &$phase) use ($runner, $character, $item, $areaId, $config): array {
+            $lockedCharacter = $runner->lock(Character::query()->whereKey($character->id))->firstOrFail();
+            $phase = 'owned_item_lock';
+            $ownedCount = CharacterItem::query()
+                ->where('character_id', $lockedCharacter->id)
+                ->where('item_id', $item->id)
+                ->where('is_equipped', false)
+                ->count();
+            $owned = app(OwnedConsumableService::class)->lockFirst((int) $lockedCharacter->id, (int) $item->id);
 
-                if (! $carry) {
-                    $carry = ExplorationItemCarry::query()->create([
-                        'character_id' => $lockedCharacter->id,
-                        'item_id' => $item->id,
-                        'area_id' => $areaId,
-                        'carried_count' => $this->initialCarryCount($ownedCount),
-                        'used_count' => 0,
-                    ]);
-                } elseif ((int) $carry->area_id !== $areaId) {
-                    $carry->forceFill([
-                        'area_id' => $areaId,
-                        'carried_count' => $this->initialCarryCount($ownedCount),
-                        'used_count' => 0,
-                    ])->save();
-                }
+            $phase = 'carry_lock';
+            $carry = $runner->lock(ExplorationItemCarry::query()
+                ->where('character_id', $lockedCharacter->id)
+                ->where('item_id', $item->id))
+                ->first();
 
-                if (((int) $carry->carried_count - (int) $carry->used_count) <= 0) {
-                    return ['success' => false, 'message' => "{$item->name}の持ち込み分を使い切っています。"];
-                }
-
-                if (! $owned) {
-                    return ['success' => false, 'message' => "{$item->name}を所持していません。"];
-                }
-
-                $stats = app(CharacterStatusService::class)->getFinalStats($lockedCharacter);
-                $target = $config['target'];
-                $max = $target === 'hp'
-                    ? (int) ($stats['max_hp'] ?? $lockedCharacter->hp_base)
-                    : (int) ($stats['max_mp'] ?? $lockedCharacter->mp_base);
-                $currentColumn = $target === 'hp' ? 'current_hp' : 'current_mp';
-                $current = (int) ($lockedCharacter->{$currentColumn} ?? 0);
-
-                if ($max <= 0 || $current >= $max) {
-                    return ['success' => false, 'message' => $target === 'hp' ? 'HPはすでに全快です。' : 'SPはすでに全快です。'];
-                }
-
-                $recover = max(1, (int) ceil($max * ($config['percent'] / 100)));
-                $after = min($max, $current + $recover);
-                $lockedCharacter->{$currentColumn} = $after;
-                $lockedCharacter->save();
-                $owned->delete();
-                $carry->increment('used_count');
-
-                $label = $target === 'hp' ? 'HP' : 'SP';
-
-                return [
-                    'success' => true,
-                    'message' => "{$item->name}を使用し、{$label}が{$after}/{$max}まで回復しました。",
-                ];
-            }, 3);
-        } catch (DeadlockException|QueryException $exception) {
-            if (! $this->isDatabaseContention($exception)) {
-                throw $exception;
+            if (! $carry) {
+                $carry = ExplorationItemCarry::query()->create([
+                    'character_id' => $lockedCharacter->id,
+                    'item_id' => $item->id,
+                    'area_id' => $areaId,
+                    'carried_count' => $this->initialCarryCount($ownedCount),
+                    'used_count' => 0,
+                ]);
+            } elseif ((int) $carry->area_id !== $areaId) {
+                $carry->forceFill([
+                    'area_id' => $areaId,
+                    'carried_count' => $this->initialCarryCount($ownedCount),
+                    'used_count' => 0,
+                ])->save();
             }
 
-            report($exception);
+            if (((int) $carry->carried_count - (int) $carry->used_count) <= 0) {
+                return ['success' => false, 'message' => "{$item->name}の持ち込み分を使い切っています。"];
+            }
+
+            if (! $owned) {
+                return ['success' => false, 'message' => "{$item->name}を所持していません。"];
+            }
+
+            $phase = 'recovery_calculation';
+            $stats = app(CharacterStatusService::class)->getFinalStats($lockedCharacter);
+            $target = $config['target'];
+            $max = $target === 'hp'
+                ? (int) ($stats['max_hp'] ?? $lockedCharacter->hp_base)
+                : (int) ($stats['max_mp'] ?? $lockedCharacter->mp_base);
+            $currentColumn = $target === 'hp' ? 'current_hp' : 'current_mp';
+            $current = (int) ($lockedCharacter->{$currentColumn} ?? 0);
+
+            if ($max <= 0 || $current >= $max) {
+                return ['success' => false, 'message' => $target === 'hp' ? 'HPはすでに全快です。' : 'SPはすでに全快です。'];
+            }
+
+            $recover = max(1, (int) ceil($max * ($config['percent'] / 100)));
+            $after = min($max, $current + $recover);
+            $phase = 'recovery_save';
+            $lockedCharacter->{$currentColumn} = $after;
+            $lockedCharacter->save();
+            $owned->delete();
+            $carry->increment('used_count');
+
+            $label = $target === 'hp' ? 'HP' : 'SP';
 
             return [
-                'success' => false,
-                'message' => '回復アイテムの処理が混み合っています。少し待ってから、もう一度お試しください。',
+                'success' => true,
+                'message' => "{$item->name}を使用し、{$label}が{$after}/{$max}まで回復しました。",
             ];
-        }
+        });
     }
 
     public function useInTown(Character $character, Item $item): array
@@ -294,14 +281,6 @@ class ExplorationItemService
     private function initialCarryCount(int $ownedCount): int
     {
         return min(self::CARRY_LIMIT, max(0, $ownedCount));
-    }
-
-    private function isDatabaseContention(DeadlockException|QueryException $exception): bool
-    {
-        $error = $exception->errorInfo ?? [];
-
-        return in_array((int) ($error[1] ?? 0), [1205, 1213, 3572], true)
-            || (string) ($error[0] ?? $exception->getCode()) === '40001';
     }
 
     private function resolveAreaId(Character $character, ?int $areaId): int

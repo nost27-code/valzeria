@@ -27,6 +27,7 @@ class ChampBattleTransactionRunner
     public function run(int $challengerId, callable $callback): array
     {
         $connection = DB::connection();
+        $outerLevel = $connection->transactionLevel();
         $previousTimeout = null;
         $startedAt = hrtime(true);
         if (in_array($connection->getDriverName(), ['mysql', 'mariadb'], true)) {
@@ -36,7 +37,7 @@ class ChampBattleTransactionRunner
         }
 
         try {
-            for ($attempt = 1; $attempt <= 3; $attempt++) {
+            for ($attempt = 1; $attempt <= 8; $attempt++) {
                 $phase = 'challenger_lock';
                 CharacterStatusService::clearRequestCache($challengerId);
                 try {
@@ -46,7 +47,7 @@ class ChampBattleTransactionRunner
                 } catch (ChampBattleStateChangedException|DeadlockException|QueryException $exception) {
                     // A deadlock inside an outer transaction invalidates that caller's work.
                     // Let the owner roll it back instead of continuing in a broken savepoint.
-                    if ($exception instanceof DeadlockException) {
+                    if ($outerLevel > 0 || $exception instanceof DeadlockException) {
                         throw $exception;
                     }
                     $stateChanged = $exception instanceof ChampBattleStateChangedException;
@@ -94,7 +95,12 @@ class ChampBattleTransactionRunner
         // Later failures retain the shorter budget and rollback before retrying.
         $earlyReferenceWait = ! $stateChanged && $phase === 'champ_character_lock';
 
-        return $attempt >= 3 || (! $earlyReferenceWait && $elapsedMs >= 2000);
+        // A normal exploration can hold the incumbent FK row beyond the old
+        // ~0.8 second retry window. Only extend this read-only entry phase;
+        // failed calculations/writes retain the original three-attempt budget.
+        return $earlyReferenceWait
+            ? $attempt >= 8 || $elapsedMs >= 3000
+            : $attempt >= 3 || $elapsedMs >= 2000;
     }
 
     protected function waitBeforeRetry(int $attempt): void
@@ -102,6 +108,6 @@ class ChampBattleTransactionRunner
         // NOWAIT must still allow a short operation to finish, without sitting
         // in InnoDB's wait queue and retaining previously acquired row locks.
         // Back off only after releasing all locks held by this attempt.
-        usleep(($attempt * 250 + random_int(0, 50)) * 1000);
+        usleep((min($attempt, 2) * 250 + random_int(0, 50)) * 1000);
     }
 }

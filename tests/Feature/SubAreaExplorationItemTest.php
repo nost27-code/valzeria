@@ -11,11 +11,9 @@ use App\Models\ExplorationItemCarry;
 use App\Models\Item;
 use App\Models\User;
 use App\Services\ExplorationItemService;
+use App\Services\ExplorationItemTransactionRunner;
 use App\Services\ExplorationStateService;
-use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\DB;
-use PDOException;
 use Tests\TestCase;
 
 class SubAreaExplorationItemTest extends TestCase
@@ -91,10 +89,11 @@ class SubAreaExplorationItemTest extends TestCase
         $area = $this->createArea();
         $character = $this->createCharacterWithHerbs(1);
         $herb = Item::query()->where('type', 'consumable')->where('name', '薬草')->firstOrFail();
-        $driverException = new PDOException('deadlock');
-        $driverException->errorInfo = ['40001', 1213, 'deadlock'];
-        $exception = new QueryException('mysql', 'update', [], $driverException);
-        DB::shouldReceive('transaction')->once()->andThrow($exception);
+        $this->mock(ExplorationItemTransactionRunner::class)
+            ->shouldReceive('run')->once()->andReturn([
+                'success' => false,
+                'message' => '回復アイテムの処理が混み合っています。少し待ってから、もう一度お試しください。',
+            ]);
 
         $result = app(ExplorationItemService::class)->use($character, $herb, $area->id);
 

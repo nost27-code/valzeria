@@ -280,15 +280,17 @@ foreach (['blocking-reference', 'reference-wait'] as $mode) {
     $probe->query('SELECT id FROM characters WHERE id='.(int) $waitingActor->id.' FOR UPDATE NOWAIT')->fetch();
     $probe->rollBack();
     check(true, 'incumbent wait does not lock the challenger: '.$mode);
-    usleep(150_000);
+    // Cross the previously deployed ~0.8 second NOWAIT retry window.
+    usleep(1_200_000);
     $holder->rollBack();
     $waitingResult = finish($waiting);
     check($waitingResult['ok'] && rewardsMatch($waitingActor)
         && ChampBattleLog::where('challenger_character_id', $waitingActor->id)->count() === 1,
         'short incumbent lock commits one battle: '.$mode);
 }
-// Compare a persistently busy incumbent against the deployed blocking behavior.
-foreach (['blocking-reference', 'reference-wait'] as $mode) {
+// Verify the actual MariaDB NOWAIT path against a persistently busy incumbent.
+// The obsolete blocking control is covered above only with an explicit release.
+foreach (['reference-wait'] as $mode) {
     $blockedActor = actor();
     $characterBefore = $blockedActor->fresh()->getRawOriginal();
     $champBefore = $champ->fresh()->getRawOriginal();
@@ -297,7 +299,7 @@ foreach (['blocking-reference', 'reference-wait'] as $mode) {
     $blocked = worker($blockedActor, $mode);
     $blockedResult = finish($blocked);
     $holder->rollBack();
-    check(! $blockedResult['ok'] && $blockedResult['seconds'] < ($mode === 'reference-wait' ? 2 : 9)
+    check(! $blockedResult['ok'] && $blockedResult['seconds'] < ($mode === 'reference-wait' ? 4 : 9)
         && unchanged($blockedActor) && $characterBefore === $blockedActor->fresh()->getRawOriginal()
         && $champBefore === $champ->fresh()->getRawOriginal(),
         'busy incumbent returns bounded feedback without consuming rewards or cooldown: '.$mode.' '.json_encode($blockedResult, JSON_UNESCAPED_UNICODE));

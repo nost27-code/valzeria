@@ -116,21 +116,23 @@ class MapExplorationItemService
     public function use(Character $character, Item $item, int $registrationId): array
     {
         $config = $this->configFor($item);
-        if (!$config) {
+        if (! $config) {
             return ['success' => false, 'message' => 'このアイテムは探索中に使用できません。'];
         }
 
-        return DB::transaction(function () use ($character, $item, $registrationId, $config) {
+        $runner = app(ExplorationItemTransactionRunner::class);
+
+        return $runner->run((int) $character->id, function (string &$phase) use ($runner, $character, $item, $registrationId, $config) {
             // 通常探索・帰還・回復と同じ順序でCharacterを先にロックする。
-            $character = Character::query()->lockForUpdate()->findOrFail($character->id);
-            $carry = MapExplorationItemCarry::query()
+            $character = $runner->lock(Character::query())->findOrFail($character->id);
+            $phase = 'carry_lock';
+            $carry = $runner->lock(MapExplorationItemCarry::query()
                 ->where('character_id', $character->id)
                 ->where('registration_id', $registrationId)
-                ->where('item_id', $item->id)
-                ->lockForUpdate()
+                ->where('item_id', $item->id))
                 ->first();
 
-            if (!$carry) {
+            if (! $carry) {
                 return ['success' => false, 'message' => 'この地図には回復アイテムを持ち込んでいません。'];
             }
 
@@ -138,12 +140,14 @@ class MapExplorationItemService
                 return ['success' => false, 'message' => "{$item->name}の持ち込み分を使い切っています。"];
             }
 
+            $phase = 'owned_item_lock';
             $owned = app(OwnedConsumableService::class)->lockFirst((int) $character->id, (int) $item->id, 'created_at');
 
-            if (!$owned) {
+            if (! $owned) {
                 return ['success' => false, 'message' => "{$item->name}を所持していません。"];
             }
 
+            $phase = 'recovery_calculation';
             $stats = app(CharacterStatusService::class)->getFinalStats($character);
             $target = $config['target'];
             $max = $target === 'hp' ? (int) ($stats['max_hp'] ?? $character->hp_base) : (int) ($stats['max_mp'] ?? $character->mp_base);
@@ -156,6 +160,7 @@ class MapExplorationItemService
 
             $recover = max(1, (int) ceil($max * ($config['percent'] / 100)));
             $after = min($max, $current + $recover);
+            $phase = 'recovery_save';
 
             $character->{$currentColumn} = $after;
             $character->save();
