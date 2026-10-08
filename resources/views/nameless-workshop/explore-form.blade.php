@@ -1,7 +1,7 @@
 @php
     $exploreStats = $stats ?? $finalStats ?? app(\App\Services\CharacterStatusService::class)->getFinalStats($character);
     $exploreStamina = $stamina ?? app(\App\Services\ExplorationStaminaService::class)->summary($character);
-    $initialCount = (int) ($selectedCount ?? 1);
+    $initialCount = \App\Services\ExplorationService::normalizeRepeatCount($selectedCount ?? session('nameless_exploration_selected_count.'.$character->id, 1));
     $runCost = (int) config('nameless_relics.stamina_cost');
     $bossCost = (int) config('nameless_relics.boss_stamina_cost');
     $inventoryBlockReason = ($inventoryCapacityChecked ?? false) ? ($inventoryBlockReason ?? null) : app(\App\Services\NamelessWorkshopService::class)->inventoryBlockReason($character);

@@ -668,6 +668,7 @@ class BattleController extends Controller
                 return $eggs;
             });
             $this->forgetExploreCount($character);
+            session()->forget('nameless_exploration_selected_count.'.$character->id);
         }
 
         session()->forget(['lastBattleData', 'active_map_exploration']);

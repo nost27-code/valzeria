@@ -886,11 +886,12 @@ class NamelessRelicPrototypeTest extends TestCase
         $payload = ['zone' => 'water', 'depth' => 1, 'boss' => 0, 'batch_count' => 10, 'request_uuid' => $uuid];
         $url = route('nameless-workshop.result', ['uuid' => $uuid]);
         $this->post(route('nameless-workshop.act', 'fight'), $payload)->assertRedirect($url);
-        $response = $this->get($url)->assertOk()->assertViewIs('battle.result')->assertSee('沈水の水路 深度1')->assertSee('data-nameless-relic-rewards', false)->assertSee('探索タブへ')->assertSee('簡易表示');
-        $response->assertSee(route('nameless-workshop.return', ['tab' => 'dungeon']), false)
+        $response = $this->get($url)->assertOk()->assertViewIs('battle.result')->assertSee('沈水の水路 深度1')->assertSee('data-nameless-relic-rewards', false)->assertSee('戦利品を持って帰る')->assertSee('簡易表示');
+        $response->assertSee(route('nameless-workshop.return', ['tab' => 'town']), false)
             ->assertSee('data-equipment-rank="nameless"', false)->assertSee('表示確認の剣 +0')
             ->assertSee('color:#1d4ed8', false)
-            ->assertDontSee('action="'.route('nameless-workshop.act', 'fight').'"', false);
+            ->assertSee('data-nameless-repeat-form', false)
+            ->assertSee('action="'.route('nameless-workshop.act', 'fight').'"', false);
         $response->assertDontSee('action="'.route('battle.explore', ['area' => 0]).'"', false);
         $operation = NamelessWorkshopOperation::query()->where('request_uuid', $uuid)->sole();
         $snapshot = $operation->result;
@@ -1834,6 +1835,102 @@ class NamelessRelicPrototypeTest extends TestCase
         $this->assertFalse($body->fresh()->isRenamed());
         $this->assertFalse($foreign->fresh()->isRenamed());
         $this->assertSame(0, $body->fresh()->revision);
+    }
+
+    public function test_ng_names_are_rejected_by_all_naming_paths_without_changing_assets(): void
+    {
+        $character = $this->character();
+        $weapon = $this->body($character);
+        $armor = $this->body($character, 'armor');
+        $accessory = PlayerNamelessEquipment::query()->create(['character_id' => $character->id,
+            'kind' => 'accessory', 'equipment_type' => '指輪', 'acquisition_source' => 'ruin',
+            'forge_level' => 4, 'growth_exp' => 42, 'is_locked' => true]);
+        $weapon->update(['custom_name' => '星巡りの剣', 'forge_level' => 4, 'growth_exp' => 42]);
+        $relic = $this->relic($character);
+        $this->workshop()->attach($character, $weapon->id, 1, $relic->id, $this->uuid());
+        $material = $this->material($character);
+        $characterBefore = $character->fresh()->getAttributes();
+        $relicBefore = $relic->fresh()->getAttributes();
+        $operationsBefore = NamelessWorkshopOperation::query()->count();
+
+        foreach ([$weapon, $armor, $accessory] as $body) {
+            $before = $body->fresh()->getAttributes();
+            $this->reject(fn () => $this->workshop()->rename($character, $body->id, 'チ・ン・コ', $this->uuid()), '使用できない言葉');
+            $this->reject(fn () => $this->workshop()->configure($character, $body->id, $body->equipment_type, 'ＦＵＣＫ', $this->uuid()), '使用できない言葉');
+            if ($body->kind !== 'accessory') {
+                $this->reject(fn () => app(\App\Services\NamelessEquipmentService::class)->forge($character, $body->kind, 'セックス', $body->equipment_type), '使用できない言葉');
+            }
+            $this->assertSame($before, $body->fresh()->getAttributes());
+        }
+        $this->assertSame($characterBefore, $character->fresh()->getAttributes());
+        $this->assertSame($relicBefore, $relic->fresh()->getAttributes());
+        $this->assertSame(100, $material->fresh()->quantity);
+        $this->assertSame($operationsBefore, NamelessWorkshopOperation::query()->count());
+    }
+
+    public function test_http_ng_name_errors_preserve_selection_and_allow_a_corrected_name(): void
+    {
+        $character = $this->character();
+        $body = $this->body($character);
+        $this->actingAs($character->user)->withSession(['current_character_id' => $character->id])->withoutMiddleware(CheckCharacterSelected::class);
+        $uuid = $this->uuid();
+        $input = ['equipment_id' => $body->id, 'type' => '杖', 'name' => 'チンコ',
+            'workshop_tab' => 'workshop', 'gear_type' => '剣', 'request_uuid' => $uuid];
+        $back = route('nameless-workshop.index', ['gear_type' => '剣', 'tab' => 'workshop', 'equipment' => $body->id]);
+        $before = $body->getAttributes();
+        foreach (['rename', 'configure'] as $action) {
+            $this->post(route('nameless-workshop.act', $action), $input)->assertRedirect($back)
+                ->assertSessionHas('error', 'この名前には使用できない言葉が含まれています。別の名前にしてください。');
+            $this->assertSame($before, $body->fresh()->getAttributes());
+            $this->assertDatabaseMissing('nameless_workshop_operations', ['request_uuid' => $uuid]);
+            $this->get($back)->assertOk()->assertSee('使用できない言葉')->assertSee('卑猥な言葉や不適切な言葉は使えません。');
+        }
+        $this->post(route('nameless-workshop.act', 'rename'), array_replace($input, ['name' => '  Ｓｔａｒの剣  ']))->assertRedirect($back)->assertSessionHas('status');
+        $this->assertSame('Ｓｔａｒの剣', $body->fresh()->custom_name);
+        $this->post(route('nameless-workshop.act', 'rename'), array_replace($input, ['name' => '', 'request_uuid' => $this->uuid()]))->assertRedirect($back);
+        $this->assertNull($body->fresh()->custom_name);
+    }
+
+    public function test_existing_ng_name_is_allowed_only_while_the_same_equipment_keeps_it(): void
+    {
+        $character = $this->character();
+        $body = $this->body($character);
+        $body->update(['custom_name' => 'チンコ', 'forge_level' => 4, 'growth_exp' => 42]);
+        $relic = $this->relic($character);
+        $this->workshop()->attach($character, $body->id, 1, $relic->id, $this->uuid());
+        $this->actingAs($character->user)->withSession(['current_character_id' => $character->id])->withoutMiddleware(CheckCharacterSelected::class);
+        $input = ['equipment_id' => $body->id, 'type' => '杖', 'name' => 'チンコ', 'request_uuid' => $this->uuid()];
+        $this->post(route('nameless-workshop.act', 'configure'), $input)->assertSessionHas('status')->assertSessionMissing('error');
+        $this->post(route('nameless-workshop.act', 'configure'), $input)->assertSessionHas('status');
+        $this->assertSame('杖', $body->fresh()->equipment_type);
+        $this->post(route('nameless-workshop.act', 'rename'), array_replace($input, ['request_uuid' => $this->uuid()]))->assertSessionHas('status');
+        $this->assertSame('チンコ', $body->fresh()->custom_name);
+        $this->assertSame(4, $body->fresh()->forge_level);
+        $this->assertSame(42, $body->fresh()->growth_exp);
+        $this->assertSame($body->id, $relic->fresh()->nameless_equipment_id);
+        $this->reject(fn () => $this->workshop()->rename($character, $body->id, 'ﾁﾝｺ', $this->uuid()), '使用できない言葉');
+        $other = $this->body($character, 'armor');
+        $this->reject(fn () => $this->workshop()->rename($character, $other->id, 'チンコ', $this->uuid()), '使用できない言葉');
+        $this->workshop()->rename($character, $body->id, '星巡り', $this->uuid());
+        $this->reject(fn () => $this->workshop()->rename($character, $body->id, 'チンコ', $this->uuid()), '使用できない言葉');
+        $this->assertSame('星巡り', $body->fresh()->custom_name);
+    }
+
+    public function test_legacy_forge_preserves_existing_ng_name_and_uses_normal_costs(): void
+    {
+        $character = $this->character();
+        $body = $this->body($character);
+        $body->update(['custom_name' => 'チンコ']);
+        foreach (['MAT_COMMON_MONSTER_FRAGMENT', 'WEV0023', 'MAT_REGION_ARKREA_RAW'] as $code) {
+            $material = Material::query()->firstOrCreate(['material_code' => $code], ['name' => '試験素材',
+                'category' => '素材', 'rarity' => 'N', 'material_type' => 'common_drop']);
+            CharacterMaterial::query()->create(['character_id' => $character->id, 'material_id' => $material->id, 'quantity' => 10]);
+        }
+        app(\App\Services\NamelessEquipmentService::class)->forge($character, 'weapon', 'チンコ', '剣');
+        $this->assertSame('チンコ', $body->fresh()->custom_name);
+        $this->assertSame(1, $body->fresh()->forge_level);
+        $this->assertSame(9000, $character->fresh()->money);
+        $this->assertSame([9, 9, 9], CharacterMaterial::query()->where('character_id', $character->id)->orderBy('id')->pluck('quantity')->all());
     }
 
     private function unlockThrough(Character $character, string $zone): void

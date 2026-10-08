@@ -1,6 +1,12 @@
 # DATA_MODEL.md
 
 第3段階の通常連続探索（2026-10-08、ローカル・既定OFF）は既存の`characters`/`character_jobs`/`character_exploration_states`の許可列UPDATEだけを所有者lock付きtransaction内で集約する。各BattleLog実IDとGold台帳の増減/balance_after、資産行は個別保存。対象表を直接読む前にflushし、操作UUID/暗号化結果の保存前に全pendingを確定、例外は外側transactionまでrollbackする。schema/制約/マスタID変更なし。詳細は`docs/experiments/EXPLORATION_BATCH_STATE_2026-10-08.md`。
+
+## 名もなき武具の名前検証（2026-10-08、公開対象）
+
+- `player_nameless_equipments.custom_name` は従来の32文字・nullableを維持。命名・形変更・旧鍛冶の保存前に `NamelessEquipmentNameService` が設定ファイルのNGワードを検証する。比較用の正規化を保存値へ反映しない。
+- 既存名の許容はロック済みの所有個体の現在名と入力の一致で判定する（従来の前後空白除去後）。既存名をそのまま使う形変更・旧鍛冶を妨げず、許容用カラム・全件snapshot・データ更新は追加しない。
+- 拒否時は既存の所有行・育成・遺物・素材・Gold・操作台帳を保持する。既存名の再保存や一括更新は行わず、migration不要。公開結果は同一SHAのActionsと独立読戻し記録を参照。
 - HTTP性能計測（private JSONL、DB変更なし）: POST battle.exploreのserver側committed_exploration_data.resultがある成功応答に任意exploration_count={requested:int 1..50, completed:int 0..requested}を追加。本文/個人ID/能力値/結果全文は保存しない。旧記録・再送・早期拒否は回数不明として扱い、1回へ補完しない。
 - 通常HTTPの2〜3ユーザー分散は同じDBの認証情報のみ変更。セッション・cache・ユーザー・所持資産・各台帳の保存先は共通で、schema/migration変更なし。リクエスト途中の接続切替を拒否し、行ロックと取引は選択された同一PDO上で実行。
 - 接続ユーザー分離: workerは既存defaultのホスト・DB・オプションを継承し認証情報だけ変更。データ複製・migrationなし。接続開始後の切替は禁止。DB_URL/read-write分割は未対応として起動を拒否。

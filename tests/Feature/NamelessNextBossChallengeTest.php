@@ -84,7 +84,8 @@ class NamelessNextBossChallengeTest extends TestCase
         $this->actingAs($character->user)->withSession(['current_character_id' => $character->id])->withoutMiddleware(CheckCharacterSelected::class);
         $response = $this->get(route('nameless-workshop.result', ['uuid' => $uuid]));
         $response->assertOk()->assertSee('探索力が足りません');
-        $this->assertMatchesRegularExpression('/<button[^>]*type="submit"[^>]*\sdisabled/s', $response->getContent());
+        $this->assertDoesNotMatchRegularExpression('/<button[^>]*type="submit"[^>]*\sdisabled(?:\s|=|>)/s', $response->getContent());
+        $response->assertSee('探索力不足');
         $this->post(route('nameless-workshop.act', 'fight'), ['zone' => 'sand', 'depth' => 2, 'boss' => 1, 'request_uuid' => (string) Str::uuid()])
             ->assertSessionHas('error');
         $this->assertSame(2, $character->fresh()->explore_stamina);
@@ -127,7 +128,7 @@ class NamelessNextBossChallengeTest extends TestCase
             $this->actingAs($character->user)->withSession(['current_character_id' => $character->id])
                 ->withoutMiddleware(CheckCharacterSelected::class);
             $url = route('nameless-workshop.result', ['uuid' => $uuid]);
-            $response = $this->get($url)->assertOk()->assertSee('探索力を回復する')
+            $response = $this->get($url)->assertOk()->assertSee('探索力不足')->assertDontSee('>探索力を回復する</button>', false)
                 ->assertSee('探索力の小瓶')->assertSee('探索力の薬')->assertSee('輝石で購入して使う');
             $this->assertSame(1, substr_count($response->getContent(), 'id="batch-stamina-modal"'));
             $this->assertMatchesRegularExpression('/data-item-key="explore_stamina_small_bottle"\s+data-use-url="[^"]+"\s+data-quantity="1"/', $response->getContent());
