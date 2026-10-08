@@ -117,7 +117,9 @@ class ExplorationSupportService
         }
 
         return DB::transaction(function () use ($character, $enemy): ?array {
-            Character::query()->whereKey($character->id)->lockForUpdate()->first();
+            if (! app(ExplorationBatchStateContext::class)->activeFor($character)) {
+                Character::query()->whereKey($character->id)->lockForUpdate()->first();
+            }
             $effect = PlayerExplorationSupportEffect::query()
                 ->where('character_id', $character->id)
                 ->lockForUpdate()
@@ -166,7 +168,9 @@ class ExplorationSupportService
         }
 
         return DB::transaction(function () use ($character, $battleLog, $snapshot): array {
-            Character::query()->whereKey($character->id)->lockForUpdate()->first();
+            if (! app(ExplorationBatchStateContext::class)->activeFor($character)) {
+                Character::query()->whereKey($character->id)->lockForUpdate()->first();
+            }
             $effect = PlayerExplorationSupportEffect::query()
                 ->where('character_id', $character->id)
                 ->lockForUpdate()

@@ -95,7 +95,7 @@ class ExplorationService
     {
         try {
             return DB::transaction(function () use ($character, $areaId, $isBossBattle, $forcedEvent, $skipBattleCooldown) {
-                $locked = Character::whereKey($character->id)->lockForUpdate()->firstOrFail();
+                $locked = app(ExplorationBatchStateContext::class)->lockedCharacter($character);
                 $character->setRawAttributes($locked->getAttributes(), true);
                 $character->unsetRelations();
                 CharacterStatusService::clearRequestCache(discardBatchRead: false);
@@ -104,7 +104,7 @@ class ExplorationService
                 );
             });
         } finally {
-            $character->refresh();
+            app(ExplorationBatchStateContext::class)->refreshCharacter($character);
             CharacterStatusService::clearRequestCache(discardBatchRead: false);
         }
     }
@@ -249,7 +249,7 @@ class ExplorationService
 
         $lastBattleAtBefore = $character->last_battle_at?->copy();
         $character->last_battle_at = now();
-        $character->save();
+        app(ExplorationBatchStateContext::class)->save($character);
         $state = !$isBossBattle ? $explorationStateService->getOrStart($character, $areaId) : null;
 
         // 挑戦・見送りのいずれでも案内を一度だけ消費する。失敗時は外側のtransactionで戻る。
@@ -264,6 +264,10 @@ class ExplorationService
             if (($specialEvent['enemy'] ?? null) instanceof Enemy) {
                 $targetEnemy = $specialEvent['enemy'];
             }
+        }
+
+        if ($specialEvent !== null && app(ExplorationBatchStateContext::class)->activeFor($character)) {
+            app(ExplorationBatchStateContext::class)->fallback();
         }
 
         $enemyImagePath = null;
@@ -298,7 +302,7 @@ class ExplorationService
             $refundResult = $staminaService->refundForExplore($character, $consumedStamina, $staminaUpdatedAtBeforeConsume);
             $staminaSummary = $refundResult['stamina'] ?? $staminaService->summary($character);
             $character->last_battle_at = $lastBattleAtBefore;
-            $character->save();
+            app(ExplorationBatchStateContext::class)->save($character);
         }
 
         $expGained = 0;
@@ -854,7 +858,7 @@ class ExplorationService
             $statusService = new \App\Services\CharacterStatusService();
             $finalStats = $statusService->getFinalStats($character);
             $character->current_hp = max(1, (int)(($finalStats['max_hp'] ?? $character->hp_base) * 0.3));
-            $character->save();
+            app(ExplorationBatchStateContext::class)->save($character);
         }
 
         if (!$isBossBattle) {
@@ -1072,7 +1076,7 @@ class ExplorationService
         $stopReason = null;
 
         for ($i = 1; $i <= $requestedCount; $i++) {
-            $character->refresh();
+            app(ExplorationBatchStateContext::class)->refreshCharacter($character);
             $staminaSummary = $staminaService->summary($character);
             if ((int) ($staminaSummary['current'] ?? 0) < (int) ($staminaSummary['cost'] ?? 1)) {
                 $stopReason = 'stamina_empty';

@@ -1,5 +1,7 @@
 # 通常連続探索の読取再利用・第1段階
 
+追記：第2段階は `EXPLORATION_BATCH_AUDIT_2026-10-08.md`、第3段階の冒険者/職業/探索state管理は `EXPLORATION_BATCH_STATE_2026-10-08.md`。本資料の「未実装」は第1段階当時の範囲で、各段階とも既定OFF・本番未反映。
+
 後続の任意の図鑑集約と監査整合性確認は [第2段階の記録](EXPLORATION_BATCH_AUDIT_2026-10-08.md)。この文書の個別保存維持は第1段階についての記録。
 
 2026-10-08。ローカル実装済み・既定OFF・本番未反映。基準ソースは `fbb4e4e79dbfe81f418c2d8ee06fd2583b3281c6`。作業ブランチは `codex/exploration-batch-read-context-20261008`。元FFAの未コミット作業とGEAR ABYSSには変更しない。

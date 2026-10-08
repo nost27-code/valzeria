@@ -28,17 +28,23 @@ class GameplayMetricService
         ?int $subAreaRouteId = null,
     ): array {
         try {
-            $dangerRate = match ($context) {
-                'normal' => $areaId === null || ! app(SchemaStateService::class)->hasTable('character_exploration_states') ? null : CharacterExplorationState::query()
-                    ->where('character_id', $character->id)
-                    ->where('area_id', $areaId)
-                    ->value('danger_rate'),
-                'sub_area' => $subAreaRouteId === null || ! app(SchemaStateService::class)->hasTable('character_sub_area_exploration_states') ? null : CharacterSubAreaExplorationState::query()
-                    ->where('character_id', $character->id)
-                    ->where('sub_area_route_id', $subAreaRouteId)
-                    ->value('danger_rate'),
-                default => null,
-            };
+            $batch = app(ExplorationBatchStateContext::class);
+            if ($context === 'normal' && $areaId !== null && $batch->activeFor($character)) {
+                $state = $batch->stateFor($character);
+                $dangerRate = $state && (int) $state->area_id === $areaId ? $state->danger_rate : null;
+            } else {
+                $dangerRate = match ($context) {
+                    'normal' => $areaId === null || ! app(SchemaStateService::class)->hasTable('character_exploration_states') ? null : CharacterExplorationState::query()
+                        ->where('character_id', $character->id)
+                        ->where('area_id', $areaId)
+                        ->value('danger_rate'),
+                    'sub_area' => $subAreaRouteId === null || ! app(SchemaStateService::class)->hasTable('character_sub_area_exploration_states') ? null : CharacterSubAreaExplorationState::query()
+                        ->where('character_id', $character->id)
+                        ->where('sub_area_route_id', $subAreaRouteId)
+                        ->value('danger_rate'),
+                    default => null,
+                };
+            }
         } catch (Throwable) {
             $dangerRate = null;
         }

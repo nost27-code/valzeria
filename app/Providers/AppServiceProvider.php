@@ -26,6 +26,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->scoped(GameSettingService::class);
         $this->app->scoped(\App\Services\ExplorationBatchReadContext::class);
         $this->app->scoped(\App\Services\ExplorationBatchWriteContext::class);
+        $this->app->scoped(\App\Services\ExplorationBatchStateContext::class);
     }
 
     /**
@@ -33,9 +34,16 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        \Illuminate\Support\Facades\Event::listen(\Illuminate\Database\Events\ConnectionEstablished::class,
+            fn ($event) => \App\Services\ExplorationBatchStateContext::wire($event->connection),
+        );
+        foreach (\Illuminate\Support\Facades\DB::getConnections() as $connection) {
+            \App\Services\ExplorationBatchStateContext::wire($connection);
+        }
         // Include query-builder writes as well as Eloquent writes; never retain state after a mutation.
         \Illuminate\Support\Facades\DB::listen(function (\Illuminate\Database\Events\QueryExecuted $query): void {
             app(\App\Services\ExplorationBatchReadContext::class)->invalidateSql($query->sql, $query->connection->getTablePrefix());
+            app(\App\Services\ExplorationBatchStateContext::class)->afterSql($query->sql, $query->connection);
             if (str_contains($query->sql, 'character_exploration_states')
                 && preg_match('/^\\s*(insert|update|delete|replace)\\b/i', $query->sql)) {
                 app(\App\Services\ExplorationStateService::class)->invalidate();
@@ -52,6 +60,9 @@ class AppServiceProvider extends ServiceProvider
             \Illuminate\Database\Events\TransactionRolledBack::class => 'transactionRolledBack'] as $event => $method) {
             \Illuminate\Support\Facades\Event::listen($event,
                 fn ($transaction) => app(\App\Services\ExplorationBatchWriteContext::class)->{$method}($transaction->connection),
+            );
+            \Illuminate\Support\Facades\Event::listen($event,
+                fn ($transaction) => app(\App\Services\ExplorationBatchStateContext::class)->{$method}($transaction->connection),
             );
         }
 

@@ -252,12 +252,13 @@ class BattleService
             if ($autoUnequipInvalidItems) {
                 app(EquipmentAutoUnequipService::class)->unequipInvalidItems($character);
             }
-            $character->refresh();
+            app(ExplorationBatchStateContext::class)->refreshCharacter($character);
 
             $stats = $this->statusService->getFinalStats($character);
-            $currentJob = $character->relationLoaded('currentJob')
+            $state = app(ExplorationBatchStateContext::class);
+            $currentJob = $state->activeFor($character) ? $state->jobClassFor($character->current_job_id) : ($character->relationLoaded('currentJob')
                 ? $character->currentJob
-                : $character->currentJob()->first();
+                : $character->currentJob()->first());
             $equippedWeapon = $character->characterItems()
                 ->where('is_equipped', true)
                 ->whereHas('item', fn ($query) => $query->where('type', 'weapon'))
@@ -556,7 +557,7 @@ class BattleService
             // キャラクターのHP/SPを更新
             $character->current_hp = $playerActor->hp;
             $character->current_mp = $playerActor->mp;
-            $character->save();
+            app(ExplorationBatchStateContext::class)->save($character);
         }
 
         return $result;

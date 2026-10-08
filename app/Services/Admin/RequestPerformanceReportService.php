@@ -12,7 +12,7 @@ final class RequestPerformanceReportService
         'duplicate_avg' => '重複読み取り', 'contention' => 'DB競合'];
 
     public const EXPLORATION_MODES = ['legacy' => '通常処理', 'batch_reads' => 'まとめ読取',
-        'batch_discoveries' => 'まとめ読取＋図鑑記録', 'unknown' => '方式未記録'];
+        'batch_discoveries' => 'まとめ読取＋図鑑記録', 'batch_state' => '操作内状態管理', 'unknown' => '方式未記録'];
 
     public function __construct(private RequestPerformanceStore $store) {}
 

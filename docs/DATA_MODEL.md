@@ -1,4 +1,6 @@
 # DATA_MODEL.md
+
+第3段階の通常連続探索（2026-10-08、ローカル・既定OFF）は既存の`characters`/`character_jobs`/`character_exploration_states`の許可列UPDATEだけを所有者lock付きtransaction内で集約する。各BattleLog実IDとGold台帳の増減/balance_after、資産行は個別保存。対象表を直接読む前にflushし、操作UUID/暗号化結果の保存前に全pendingを確定、例外は外側transactionまでrollbackする。schema/制約/マスタID変更なし。詳細は`docs/experiments/EXPLORATION_BATCH_STATE_2026-10-08.md`。
 - HTTP性能計測（private JSONL、DB変更なし）: POST battle.exploreのserver側committed_exploration_data.resultがある成功応答に任意exploration_count={requested:int 1..50, completed:int 0..requested}を追加。本文/個人ID/能力値/結果全文は保存しない。旧記録・再送・早期拒否は回数不明として扱い、1回へ補完しない。
 - 通常HTTPの2〜3ユーザー分散は同じDBの認証情報のみ変更。セッション・cache・ユーザー・所持資産・各台帳の保存先は共通で、schema/migration変更なし。リクエスト途中の接続切替を拒否し、行ロックと取引は選択された同一PDO上で実行。
 - 接続ユーザー分離: workerは既存defaultのホスト・DB・オプションを継承し認証情報だけ変更。データ複製・migrationなし。接続開始後の切替は禁止。DB_URL/read-write分割は未対応として起動を拒否。

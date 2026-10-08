@@ -181,7 +181,8 @@ class JobService
             return ['level_up' => false, 'mastered' => false];
         }
 
-        $characterJob = CharacterJob::firstOrCreate(
+        $batch = app(ExplorationBatchStateContext::class);
+        $characterJob = ($batch->activeFor($character) ? $batch->currentJobFor($character) : null) ?? CharacterJob::firstOrCreate(
             ['character_id' => $character->id, 'job_class_id' => $currentJobId],
             ['job_level' => 1, 'job_exp' => 0]
         );
@@ -190,7 +191,7 @@ class JobService
             return ['level_up' => false, 'mastered' => false]; // 既にマスター済み
         }
 
-        $jobClass = $characterJob->jobClass;
+        $jobClass = $batch->activeFor($character) ? $batch->jobClassFor((int) $currentJobId) : $characterJob->jobClass;
         $maxLevel = self::MASTER_JOB_LEVEL;
         $oldLevel = $characterJob->job_level; // 追加: 以前のレベルを保持
         
@@ -228,7 +229,7 @@ class JobService
             $mastered = true;
         }
 
-        $characterJob->save();
+        $batch->save($characterJob);
 
         if ($levelUp || $mastered) {
             CharacterStatusService::clearRequestCache((int) $character->id);
@@ -333,7 +334,12 @@ class JobService
         //   現在職の bonus_* は CharacterStatusService で「職業Lvボーナス (bonus_* × jobLevel × 0.5)」として加算されるため、
         //   ここで加算すると二重カウントになる。
         $currentJobId = $character->current_job_id;
-        if ($reuseLoadedRelations && $character->relationLoaded('jobHistories')) {
+        if (app(ExplorationBatchStateContext::class)->activeFor($character)) {
+            $batch = app(ExplorationBatchStateContext::class);
+            $masteredJobs = $batch->jobsFor($character)
+                ->filter(fn ($history) => $history->is_mastered && (int) $history->job_class_id !== (int) $currentJobId)
+                ->map(fn ($history) => $batch->jobClassFor((int) $history->job_class_id))->filter();
+        } elseif ($reuseLoadedRelations && $character->relationLoaded('jobHistories')) {
             $masteredJobs = $character->jobHistories
                 ->filter(fn ($history): bool => (bool) $history->is_mastered
                     && (! $currentJobId || (int) $history->job_class_id !== (int) $currentJobId))

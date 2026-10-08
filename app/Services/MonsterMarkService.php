@@ -55,7 +55,7 @@ class MonsterMarkService
         }
 
         return DB::transaction(function () use ($character, $mark) {
-            Character::query()->whereKey($character->id)->lockForUpdate()->firstOrFail();
+            app(ExplorationBatchStateContext::class)->lockedCharacter($character);
 
             $equivalentMarkIds = $this->equivalentMarkIds($mark);
             $currentQuantity = $this->ownedQuantity($character, $equivalentMarkIds);

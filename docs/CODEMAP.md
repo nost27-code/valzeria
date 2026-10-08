@@ -318,3 +318,14 @@ Weekly ranking catch-up: the daily 09:05 finalizer runs in automatic mode, walks
 - `AppServiceProvider`: transaction開始/commit/rollbackイベントとwrite scopeの登録。
 - `ExplorationBatchWriteContextTest`, `ExplorationBatchAuditParityTest`: 台帳/結果/停止/再送/故障注入/rollback/複数敵。
 - 計測方式 `batch_discoveries` とQA/未確認は `docs/experiments/EXPLORATION_BATCH_AUDIT_2026-10-08.md`。全状態の一括保存は未実装。
+
+## 通常連続探索の操作内状態管理（第3段階、2026-10-08、既定OFF・本番未反映）
+
+- `ExplorationBatchStateContext`: 対象3モデルの許可列、最新値配列/dirty merge、明示save/refresh/lockedCharacter、SQL前flush、DML失効、savepoint復元、observer/特殊イベントfallback。全Eloquentのoverrideはしない。
+- `NormalExplorationBatchService`, `config/exploration_performance.php`: 前2段階＋`EXPLORATION_BATCH_STATE_ENABLED`＋確定middlewareのPOST/UUID属性/外側transactionを要求。直接service呼出元は第2段階まで。
+- `ExplorationService`, `BattleService`, `GoldService`, `LevelService`, `JobService`, `ExplorationStaminaService`, `ExplorationStateService`: 明示helperで最新状態を反映。各Gold台帳/BattleLog/資産は個別保存。
+- `CharacterStatusService`, `ExplorationBatchReadContext`, `JobArtService`, `TitleUnlockService`: 最新job history/classと能力cacheのEXP/段階変更境界。
+- `ExplorationSupportService`, `AdventureSupportService`, `GameplayMetricService`, `MonsterMarkService`: 同一所有者の重複lock/状態読取のみ置換。支援購入や所持品保存は従来経路。
+- `AppServiceProvider`: connection-established/beforeExecutingとquery/transactionイベント。計測方式は`batch_state`。
+- `ExplorationBatchStateContextTest`, `ExplorationBatchAuditParityTest`, `ExplorationBatchWriteContextTest`, `RequestPerformanceTest`: 集約/最新SQL/owner/新規行/observer/rollback/停止/再送/500/方式比較。
+- 比較と適用限界は `docs/experiments/EXPLORATION_BATCH_STATE_2026-10-08.md`。第1/2段階の未実装記述は当時の範囲であり、全資産/全履歴の一括化は引き続き対象外。

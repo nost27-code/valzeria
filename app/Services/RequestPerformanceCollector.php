@@ -192,7 +192,7 @@ final class RequestPerformanceCollector
             'open_transactions' => count($this->transactions)];
         // Counts come from the server result, never arbitrary request values or player data.
         $processingMode = $request->attributes->get('exploration_processing_mode');
-        if ($operation === 'POST battle.explore' && in_array($processingMode, ['batch_reads', 'batch_discoveries'], true)) {
+        if ($operation === 'POST battle.explore' && in_array($processingMode, ['batch_reads', 'batch_discoveries', 'batch_state'], true)) {
             $profile['exploration_processing_mode'] = $processingMode;
         }
         if ($operation === 'POST battle.explore' && $status >= 200 && $status < 400) {
@@ -204,7 +204,7 @@ final class RequestPerformanceCollector
                 if (is_int($requested) && is_int($completed) && $requested >= 1 && $requested <= 50
                     && $completed >= 0 && $completed <= $requested) {
                     $profile['exploration_count'] = ['requested' => $requested, 'completed' => $completed];
-                    $profile['exploration_processing_mode'] = in_array($processingMode, ['batch_reads', 'batch_discoveries'], true)
+                    $profile['exploration_processing_mode'] = in_array($processingMode, ['batch_reads', 'batch_discoveries', 'batch_state'], true)
                         ? $processingMode : 'legacy';
                 }
             }

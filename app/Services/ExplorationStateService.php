@@ -96,6 +96,9 @@ class ExplorationStateService
 
     public function currentFor(Character $character): ?CharacterExplorationState
     {
+        if (app(ExplorationBatchStateContext::class)->activeFor($character)) {
+            return app(ExplorationBatchStateContext::class)->stateFor($character);
+        }
         if ($this->lockedCharacterId !== (int) $character->id
             || DB::transactionLevel() === 0) {
             return CharacterExplorationState::where('character_id', $character->id)->first();
@@ -135,7 +138,7 @@ class ExplorationStateService
         $state->exploration_point = $afterPoint;
         $state->chain_count = $beforeChain + 1;
         $state->danger_rate = $dangerResult['after'];
-        $state->save();
+        app(ExplorationBatchStateContext::class)->save($state);
 
         // 深度到達の告知は「これから提示できるゲート（引き返し等で確定ブロックされていない階層）」にのみ絞る。
         // 生の探索度/危険度の閾値だけで判定すると、一度引き返した階層より先の層に対しても
@@ -152,7 +155,7 @@ class ExplorationStateService
         }
 
         return [
-            'state' => $state->fresh(),
+            'state' => app(ExplorationBatchStateContext::class)->freshState($state),
             'added_point' => $addedPoint,
             'before_point' => $beforePoint,
             'before_chain' => $beforeChain,
@@ -180,7 +183,7 @@ class ExplorationStateService
 
         $afterDanger = (int) $state->danger_rate;
         return [
-            'state' => $state->fresh(),
+            'state' => app(ExplorationBatchStateContext::class)->freshState($state),
             'danger' => [
                 'before' => $beforeDanger,
                 'after' => $afterDanger,
@@ -492,7 +495,7 @@ class ExplorationStateService
 
         app(ExplorationItemService::class)->reset($character);
 
-        return $state->fresh();
+        return app(ExplorationBatchStateContext::class)->freshState($state);
     }
 
     public function resetDangerForDepthEntrance(Character $character, int $areaId): void

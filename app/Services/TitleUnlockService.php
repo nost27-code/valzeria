@@ -185,7 +185,10 @@ class TitleUnlockService
         $titles = Title::whereIn('target_type', ['job_name', 'rank', 'count', 'all_jobs'])->get();
 
         // 転職履歴・マスター状況を取得
-        $jobHistories = $character->jobHistories()->with('jobClass')->get();
+        $state = app(ExplorationBatchStateContext::class);
+        $jobHistories = $state->activeFor($character) ? $state->jobsFor($character)->map(function ($history) use ($state) {
+            return $history->setRelation('jobClass', $state->jobClassFor((int) $history->job_class_id));
+        }) : $character->jobHistories()->with('jobClass')->get();
         $masteredJobNames = [];
         $experiencedRanks = [];
         $masteredCount = 0;

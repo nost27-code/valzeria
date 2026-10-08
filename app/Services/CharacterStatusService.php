@@ -56,13 +56,14 @@ class CharacterStatusService
         $jobStats = $jobService->calculateFinalStats($character, $reuseLoadedRelations); // [hp, atk, def, mag, spd, luck] (基礎値 + マスターボーナス)
 
         $jobLevel = 1;
-        $jobClass = $reuseLoadedRelations && $character->relationLoaded('jobClass')
+        $state = app(ExplorationBatchStateContext::class);
+        $jobClass = $state->activeFor($character) ? $state->jobClassFor($character->current_job_id) : ($reuseLoadedRelations && $character->relationLoaded('jobClass')
             ? $character->jobClass
-            : $character->jobClass()->first();
+            : $character->jobClass()->first());
         if ($character->current_job_id) {
-            $history = $reuseLoadedRelations && $character->relationLoaded('jobHistories')
+            $history = $state->activeFor($character) ? $state->currentJobFor($character) : ($reuseLoadedRelations && $character->relationLoaded('jobHistories')
                 ? $character->jobHistories->firstWhere('job_class_id', $character->current_job_id)
-                : $character->jobHistories()->where('job_class_id', $character->current_job_id)->first();
+                : $character->jobHistories()->where('job_class_id', $character->current_job_id)->first());
             if ($history) {
                 $jobLevel = $history->job_level;
             }

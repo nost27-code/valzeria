@@ -103,6 +103,22 @@ class ExplorationBatchReadContext
         unset($this->values[$key], $this->dependencies[$key]);
     }
 
+    public function invalidateStateWrite(string $table, array $changedFields): void
+    {
+        if ($table !== 'character_jobs' || array_diff($changedFields, ['job_exp', 'updated_at']) !== []) {
+            $this->invalidateSql('update '.$table);
+
+            return;
+        }
+        // EXP alone is not an ability input; other consumers still observe this logical mutation.
+        $this->revision++;
+        foreach ($this->dependencies as $key => $tables) {
+            if (in_array($table, $tables, true) && ! str_starts_with($key, 'final-stats:')) {
+                unset($this->values[$key], $this->dependencies[$key]);
+            }
+        }
+    }
+
     public function forgetFinalStats(?int $characterId = null): void
     {
         if ($characterId !== null && $characterId !== $this->characterId) {

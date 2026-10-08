@@ -75,7 +75,7 @@ class GoldService
         }
 
         $character->money = max(0, (int) $character->money) + $amount;
-        $character->save();
+        app(ExplorationBatchStateContext::class)->save($character);
 
         return $this->record($character, $type, $amount, $note, $sourceType, $sourceId, $metadata);
     }
@@ -91,7 +91,7 @@ class GoldService
         }
 
         $character->money = (int) $character->money - $amount;
-        $character->save();
+        app(ExplorationBatchStateContext::class)->save($character);
 
         return $this->record($character, $type, -$amount, $note, $sourceType, $sourceId, $metadata);
     }

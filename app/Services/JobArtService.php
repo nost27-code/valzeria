@@ -336,6 +336,13 @@ class JobArtService
 
     public function availableArts(Character $character, string $context = 'pve'): Collection
     {
+        $state = app(ExplorationBatchStateContext::class);
+        if ($state->activeFor($character)) {
+            $character->setRelation('jobHistories', $state->jobsFor($character)->map(function ($history) use ($state) {
+                return $history->setRelation('jobClass', $state->jobClassFor((int) $history->job_class_id));
+            }));
+            $character->setRelation('currentJob', $state->jobClassFor($character->current_job_id));
+        }
         $character->loadMissing(['jobHistories.jobClass', 'currentJob']);
         $histories = $character->jobHistories->keyBy('job_class_id');
         $currentJobId = (int) $character->current_job_id;

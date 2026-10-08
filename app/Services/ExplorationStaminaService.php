@@ -128,7 +128,7 @@ class ExplorationStaminaService
         $cost = max(1, $cost);
 
         return DB::transaction(function () use ($character, $cost, $errorMessage) {
-            $locked = Character::query()->whereKey($character->id)->lockForUpdate()->firstOrFail();
+            $locked = app(ExplorationBatchStateContext::class)->lockedCharacter($character);
             $this->recover($locked);
 
             $current = (int) ($locked->explore_stamina ?? 0);
@@ -146,7 +146,7 @@ class ExplorationStaminaService
 
             $locked->explore_stamina = $current - $cost;
             $locked->explore_stamina_updated_at = now();
-            $locked->save();
+            app(ExplorationBatchStateContext::class)->save($locked);
 
             $character->setRawAttributes($locked->getAttributes(), true);
 
@@ -188,7 +188,7 @@ class ExplorationStaminaService
         }
 
         return DB::transaction(function () use ($character, $amount, $updatedAt) {
-            $locked = Character::query()->whereKey($character->id)->lockForUpdate()->firstOrFail();
+            $locked = app(ExplorationBatchStateContext::class)->lockedCharacter($character);
             $this->recover($locked);
 
             $max = $this->maxForCharacter($locked);
@@ -200,7 +200,7 @@ class ExplorationStaminaService
                 $locked->explore_stamina = $after;
                 $locked->explore_stamina_max = $max;
                 $locked->explore_stamina_updated_at = $updatedAt ?: now();
-                $locked->save();
+                app(ExplorationBatchStateContext::class)->save($locked);
             }
 
             $character->setRawAttributes($locked->getAttributes(), true);
@@ -232,7 +232,7 @@ class ExplorationStaminaService
         $character->explore_stamina_updated_at = $after >= $max
             ? now()
             : ($character->explore_stamina_updated_at ?: now());
-        $character->save();
+        app(ExplorationBatchStateContext::class)->save($character);
 
         return [
             'ok' => true,
@@ -321,7 +321,7 @@ class ExplorationStaminaService
         $character->explore_stamina = $after;
         $character->explore_stamina_max = $max;
         $character->explore_stamina_updated_at = $updatedAt;
-        $character->save();
+        app(ExplorationBatchStateContext::class)->save($character);
 
         return $character;
     }

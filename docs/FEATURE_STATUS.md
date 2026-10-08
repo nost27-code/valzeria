@@ -1,4 +1,5 @@
 # FEATURE_STATUS.md
+- 通常連続探索の操作内状態管理（第3段階）: ローカル実装、別切替の既定OFF、本番未反映。確定POSTの冒険者/職業/探索stateを最新値で逐次判定し、安全なUPDATEだけ集約。Gold台帳/BattleLog/資産は各戦闘で保存、特殊イベントは従来経路へ。成長50回SQL8,976→5,529、同条件の結果/保存状態一致。時間改善は全条件で一貫せず、MariaDBの並行確認は未実施。docs/experiments/EXPLORATION_BATCH_STATE_2026-10-08.md。下記第1/2段階の未実装記述は当時の範囲。
 - 通常連続探索の図鑑集約と初戦確認再利用: ローカル実装、別切替の既定OFF。本番未反映。敵図鑑だけを操作末尾へ集約し、報酬/資産/BattleLogは逐次保存。全状態一括保存は未実装。図鑑flush失敗は全体rollback、既存の図鑑読取はflush後に最新値を取得。比較/再送/例外QAはdocs/experiments/EXPLORATION_BATCH_AUDIT_2026-10-08.md。
 - 通常連続探索のまとめ読取: ローカル実装、既定OFF、本番未反映。初回対象はNAM機能ONの通常連続探索。NAM機能OFFは旧経路。新旧切替・更新失効・値配列共有・探索処理方式による性能ページ絞込を追加。DB/マスタ/報酬/成長/停止ルール変更なし。全状態のメモリ計算と一括保存は未実装。証拠と未確認はdocs/experiments/EXPLORATION_BATCH_READ_CONTEXT_2026-10-08.md。
 - 探索50回の遺物読取/Area取得軽量化: 公開対象、公開結果は同一SHAのActionsと独立読戻し記録を参照。正式構造検査は同期read内1回、次操作/書込前はfresh。通常/ボス探索は同一area_idのAreaを一戦内で共有。DB変更なし。比較/QA/未確認はdocs/experiments/EXPLORATION_RELIC_READ_PERFORMANCE_2026-10-08.md。

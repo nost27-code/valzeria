@@ -274,7 +274,9 @@ class AdventureSupportService
 
     public function insuranceEnabled(Character $character): bool
     {
-        $state = CharacterExplorationState::where('character_id', $character->id)->first();
+        $batch = app(ExplorationBatchStateContext::class);
+        $state = $batch->activeFor($character) ? $batch->stateFor($character)
+            : CharacterExplorationState::where('character_id', $character->id)->first();
 
         return (bool) ($state?->rescue_insurance_enabled ?? false);
     }
@@ -704,7 +706,9 @@ class AdventureSupportService
 
     private function isExploring(Character $character): bool
     {
-        $state = CharacterExplorationState::where('character_id', $character->id)->first();
+        $batch = app(ExplorationBatchStateContext::class);
+        $state = $batch->activeFor($character) ? $batch->stateFor($character)
+            : CharacterExplorationState::where('character_id', $character->id)->first();
 
         return (bool) ($state && $state->area_id && $state->started_at);
     }

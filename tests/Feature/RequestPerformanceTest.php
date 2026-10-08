@@ -65,9 +65,12 @@ final class RequestPerformanceTest extends TestCase
         $request->attributes->set('exploration_processing_mode', 'batch_discoveries');
         $collector->begin(false);
         $this->assertSame('batch_discoveries', $collector->finish($request, 302)['exploration_processing_mode']);
+        $request->attributes->set('exploration_processing_mode', 'batch_state');
+        $collector->begin(false);
+        $this->assertSame('batch_state', $collector->finish($request, 302)['exploration_processing_mode']);
         $collector->begin(false);
         $failed = $collector->finish($request, 500);
-        $this->assertSame('batch_discoveries', $failed['exploration_processing_mode']);
+        $this->assertSame('batch_state', $failed['exploration_processing_mode']);
         $this->assertArrayNotHasKey('exploration_count', $failed);
         $request->attributes->remove('exploration_processing_mode');
         $this->assertStringNotContainsString('private-', json_encode($profile));
@@ -184,8 +187,9 @@ final class RequestPerformanceTest extends TestCase
         $store->write($this->record('POST battle.explore', $now - 3, 30));
         $store->write($this->record('POST battle.explore', $now - 5, 50) + ['exploration_processing_mode' => 'batch_discoveries']);
         $store->write($this->record('GET home', $now - 4, 40));
+        $store->write($this->record('POST battle.explore', $now - 6, 60) + ['exploration_processing_mode' => 'batch_state']);
         $reports = app(\App\Services\Admin\RequestPerformanceReportService::class);
-        foreach (['legacy' => 10, 'batch_reads' => 20, 'unknown' => 30, 'batch_discoveries' => 50] as $mode => $expectedMs) {
+        foreach (['legacy' => 10, 'batch_reads' => 20, 'unknown' => 30, 'batch_discoveries' => 50, 'batch_state' => 60] as $mode => $expectedMs) {
             $report = $reports->read(15, $now + 1, 'db_ms', explorationMode: $mode);
             $this->assertSame(1, $report['totalRequests']);
             $this->assertSame((float) $expectedMs, $report['selected']['db_avg']);

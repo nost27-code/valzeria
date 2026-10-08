@@ -28,6 +28,8 @@ class ExplorationBatchAuditParityTest extends TestCase
     {
         Carbon::setTestNow('2026-10-08 12:00:00');
         config(['exploration_performance.batch_reads_enabled' => true, 'nameless_relics.enabled' => true]);
+        request()->setMethod('POST');
+        request()->attributes->set('committed_exploration_token', '00000000-0000-4000-8000-000000000003');
         $hero = Character::create(['user_id' => User::factory()->create(['role' => 'user'])->id,
             'name' => 'Synthetic sequential explorer', 'level' => 1, 'current_hp' => 100, 'hp_base' => 100,
             'current_mp' => 100, 'mp_base' => 100, 'money' => 100, 'explore_stamina' => 50,
@@ -49,8 +51,9 @@ class ExplorationBatchAuditParityTest extends TestCase
         try {
             foreach ($cases as $case => [$completed, $stop]) {
                 $variants = [];
-                foreach ([false, true] as $batched) {
-                    config(['exploration_performance.batch_discoveries_enabled' => $batched]);
+                foreach ([false, true, 'state'] as $batched) {
+                    config(['exploration_performance.batch_discoveries_enabled' => (bool) $batched,
+                        'exploration_performance.batch_state_enabled' => $batched === 'state']);
                     DB::beginTransaction();
                     try {
                         $character = $hero->fresh();
@@ -84,6 +87,7 @@ class ExplorationBatchAuditParityTest extends TestCase
                     }
                 }
                 $this->assertEquals($variants[0], $variants[1], $case);
+                $this->assertEquals($variants[0], $variants[2], $case);
             }
         } finally {
             Carbon::setTestNow();

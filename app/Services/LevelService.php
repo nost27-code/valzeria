@@ -159,7 +159,7 @@ class LevelService
             }
         }
 
-        $character->save();
+        app(ExplorationBatchStateContext::class)->save($character);
 
         return [
             'level_up_count' => $levelUpCount,
@@ -183,10 +183,14 @@ class LevelService
 
         $currentJob = null;
         if ($character->current_job_id) {
-            $currentJob = $character->jobHistories()
+            $batch = app(ExplorationBatchStateContext::class);
+            $currentJob = $batch->activeFor($character) ? $batch->currentJobFor($character) : $character->jobHistories()
                 ->with('jobClass')
                 ->where('job_class_id', $character->current_job_id)
                 ->first();
+            if ($currentJob && $batch->activeFor($character)) {
+                $currentJob->setRelation('jobClass', $batch->jobClassFor((int) $currentJob->job_class_id));
+            }
         }
 
         $jobProgress = null;

@@ -140,7 +140,7 @@ final class RequestPerformanceStore
             }
         }
         if (isset($row['exploration_processing_mode'])
-            && ! in_array($row['exploration_processing_mode'], ['legacy', 'batch_reads', 'batch_discoveries'], true)) {
+            && ! in_array($row['exploration_processing_mode'], ['legacy', 'batch_reads', 'batch_discoveries', 'batch_state'], true)) {
             return false;
         }
         foreach (['categories', 'errors', 'phases'] as $field) {

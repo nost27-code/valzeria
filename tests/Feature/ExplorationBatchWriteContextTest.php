@@ -264,7 +264,7 @@ class ExplorationBatchWriteContextTest extends TestCase
         $saved = Crypt::decrypt(DB::table('exploration_requests')->value('battle_data'));
         $this->assertSame(2, $saved['result']['batch_explore']['completed']);
         $this->assertSame('hp_pinch', $saved['result']['batch_explore']['stop_reason']);
-        $this->assertSame('batch_discoveries', $request->attributes->get('exploration_processing_mode'));
+        $this->assertSame(config('exploration_performance.batch_state_enabled') ? 'batch_state' : 'batch_discoveries', $request->attributes->get('exploration_processing_mode'));
         $response = $middleware->handle($this->request($hero, $token), fn () => $this->fail('Replay ran exploration'));
         $this->assertSame(url('/synthetic-result'), $response->getTargetUrl());
         $this->assertEquals($before, $this->snapshot($hero));
