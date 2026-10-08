@@ -243,7 +243,7 @@
         </div>
 
         @if($pasturePageCount > 1)
-            <div class="absolute left-1/2 top-2 z-[60] flex -translate-x-1/2 items-center gap-1 rounded-xl bg-black/45 p-1 text-white shadow-lg backdrop-blur-sm"
+            <div class="absolute left-1/2 top-11 md:top-2 z-[60] flex -translate-x-1/2 items-center gap-1 rounded-xl bg-black/45 p-1 text-white shadow-lg backdrop-blur-sm"
                  data-pasture-pagination
                  data-pasture-page-count="{{ $pasturePageCount }}">
                 <button type="button"

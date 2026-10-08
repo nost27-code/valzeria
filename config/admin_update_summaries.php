@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-10-08-valmon-ranch-pagination',
+        'date' => '2026-10-08',
+        'category' => 'changed',
+        'title' => 'ヴァルモン牧場のページ切り替え位置を調整',
+        'detail' => '牧場は一度に10体ずつ表示し、11体以上もページ切り替えで全員を見られます。スマホの切り替えボタンを「街へ戻る」「仲間数」から離して押しやすくしました。相棒優先・所持数・育成・DBは従来どおりです。',
+    ],
+    [
         'id' => '2026-10-08-exploration-batch-performance',
         'date' => '2026-10-08',
         'category' => 'fixed',

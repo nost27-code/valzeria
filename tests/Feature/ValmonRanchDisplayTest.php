@@ -59,7 +59,24 @@ class ValmonRanchDisplayTest extends TestCase
         );
     }
 
-    private function createCharacterWithValmons(int $count): array
+    public function test_all_thirty_five_valmons_are_available_over_four_pages_and_partner_is_on_first_page(): void
+    {
+        [$user, $character] = $this->createCharacterWithValmons(35, 35);
+        $response = $this->actingAs($user)->withSession(['current_character_id' => $character->id])
+            ->get(route('valmons.index'))->assertOk()->assertSeeText('仲間 35体');
+        $html = (string) $response->getContent();
+        foreach ([1 => 10, 2 => 10, 3 => 10, 4 => 5] as $page => $count) {
+            $this->assertSame($count, substr_count($html, 'data-pasture-entry-page="'.$page.'"'));
+        }
+        $this->assertStringContainsString('data-pasture-page-count="4"', $html);
+        $this->assertStringNotContainsString('data-pasture-page="5"', $html);
+        preg_match('~data-pasture-entry-page="1"[^>]*>.*?alt="([^"]+)"~s', $html, $first);
+        $this->assertSame('牧場ヴァルモン35', $first[1]);
+        preg_match_all('~data-pasture-entry-page="[1-4]"[^>]*>.*?alt="([^"]+)"~s', $html, $entries);
+        $this->assertCount(35, array_unique($entries[1]));
+    }
+
+    private function createCharacterWithValmons(int $count, int $partnerNumber = 1): array
     {
         $user = User::factory()->create();
         $character = Character::create([
@@ -71,7 +88,7 @@ class ValmonRanchDisplayTest extends TestCase
             $master = ValmonMaster::create([
                 'valmon_key' => 'ranch-display-' . $number,
                 'name' => '牧場ヴァルモン' . $number,
-                'image_path' => 'images/valmon/valmon' . str_pad((string) $number, 2, '0', STR_PAD_LEFT) . '.webp',
+                'image_path' => 'images/valmon/valmon' . str_pad((string) (($number - 1) % 21) + 1, 2, '0', STR_PAD_LEFT) . '.webp',
                 'rarity' => 'normal',
                 'is_active' => true,
                 'sort_order' => $number,
@@ -81,7 +98,7 @@ class ValmonRanchDisplayTest extends TestCase
                 'character_id' => $character->id,
                 'valmon_master_id' => $master->id,
                 'level' => 1,
-                'is_partner' => $number === 1,
+                'is_partner' => $number === $partnerNumber,
                 'obtained_at' => now(),
             ]);
         }
