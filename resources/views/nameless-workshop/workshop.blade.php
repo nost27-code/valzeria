@@ -16,7 +16,7 @@
                     <form method="post" action="{{ route('nameless-workshop.act', 'rename') }}" class="stack">
                         @include('nameless-workshop.token')<input type="hidden" name="equipment_id" value="{{ $body->id }}">
                         <label>武具の名前<input class="full" name="name" maxlength="32" value="{{ $body->custom_name }}" autocomplete="off" placeholder="{{ '名もなき'.$body->equipment_type }}"></label>
-                        <small>32文字まで。空欄で元の名前に戻せます。</small><button class="secondary full">名前を保存する</button>
+                        <small>32文字まで。空欄で元の名前に戻せます。卑猥な言葉や不適切な言葉は使えません。現在の名前はそのまま使えます。</small><button class="secondary full">名前を保存する</button>
                     </form>
                 </details>
                 <div class="row"><span class="badge {{ $body->is_equipped ? 'gold' : '' }}">{{ $body->is_equipped ? '装備中' : '控え' }}</span><span class="stats">{{ $body->kindLabel().'性能 ' }}{{ $body->performanceLabel() }}</span></div>

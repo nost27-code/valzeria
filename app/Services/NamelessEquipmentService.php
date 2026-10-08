@@ -124,7 +124,7 @@ class NamelessEquipmentService
                 throw new RuntimeException("現在の冒険進行では、これ以上鍛えることはできません。\n新たな地へ進むことで、さらなる鍛冶が解放されます。");
             }
 
-            $normalizedName = $this->normalizeName($newName);
+            $normalizedName = $this->normalizeName($newName, $equipment->custom_name);
             $resolvedType = $this->validateType($kind, $newType ?: $equipment->equipment_type);
             $requirements = $this->requirementsFor($kind, $nextLevel);
             foreach ($requirements['materials'] as $requirement) {
@@ -205,6 +205,13 @@ class NamelessEquipmentService
         if (isset(self::MILESTONES[$nextLevel])) { $codes[] = $kind === 'weapon' ? 'MAT_ENHANCE_FRAGMENT' : '5007'; $quantities[] = self::MILESTONES[$nextLevel]; }
         return ['gold' => self::goldCostForNextLevel($nextLevel), 'materials' => collect($codes)->map(fn (string $code, int $i) => ['material' => Material::query()->where('material_code', $code)->firstOrFail(), 'required' => $quantities[$i]])->all()];
     }
-    private function normalizeName(?string $name): ?string { $name = trim((string) $name); if ($name === '') return null; if (mb_strlen($name) > 32 || preg_match('/[<>]/u', $name)) throw new RuntimeException('この名前は使用できません。'); return $name; }
+    private function normalizeName(?string $name, ?string $existingName = null): ?string
+    {
+        $name = trim((string) $name);
+        if ($name === '') return null;
+        if (mb_strlen($name) > 32 || preg_match('/[<>]/u', $name)) throw new RuntimeException('この名前は使用できません。');
+        app(NamelessEquipmentNameService::class)->assertAllowed($name, $existingName);
+        return $name;
+    }
     private function validateType(string $kind, string $type): string { self::statFor($kind, $type); return $type; }
 }

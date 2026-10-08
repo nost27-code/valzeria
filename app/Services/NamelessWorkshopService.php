@@ -125,6 +125,7 @@ class NamelessWorkshopService
 
         return $this->operation($character, $uuid, 'configure', compact('equipmentId', 'type', 'name'), function ($locked) use ($equipmentId, $type, $name) {
             $equipment = $this->ownedEquipment($locked, $equipmentId);
+            app(NamelessEquipmentNameService::class)->assertAllowed($name, $equipment->custom_name);
             NamelessEquipmentService::statFor($equipment->kind, $type);
             if ($equipment->acquisition_source !== 'starter' && $equipment->equipment_type !== $type) {
                 throw new RuntimeException('遺跡で拾った武具の種類は変更できません。名前は自由に変更できます。');
@@ -141,6 +142,7 @@ class NamelessWorkshopService
         $name = $this->normalizeEquipmentName($name);
         return $this->operation($character, $uuid, 'rename', compact('equipmentId', 'name'), function ($locked) use ($equipmentId, $name) {
             $equipment = $this->ownedEquipment($locked, $equipmentId);
+            app(NamelessEquipmentNameService::class)->assertAllowed($name, $equipment->custom_name);
             $equipment->forceFill(['custom_name' => $name !== '' ? $name : null, 'revision' => $equipment->revision + 1])->save();
             return ['message' => $equipment->displayName().'の名前を変更しました。'];
         });
