@@ -250,6 +250,9 @@ class NamelessWorkshopController extends Controller
         }
 
         if ($action === 'fight') {
+            if (! $request->boolean('boss')) {
+                $request->session()->put('nameless_exploration_selected_count.'.$character->id, (int) ($data['batch_count'] ?? 1));
+            }
             \App\Livewire\MainScreen::clearHomeCache((int) $character->id);
             return redirect()->route('nameless-workshop.result', ['uuid' => $uuid]);
         }
@@ -277,6 +280,8 @@ class NamelessWorkshopController extends Controller
         return response()->view('battle.result', [
             'character' => $character, 'result' => $result, 'namelessRuins' => $namelessRuins,
             'nextBossChallenge' => $ruins->nextBossChallenge($character, $namelessRuins),
+            'repeatExploration' => $ruins->repeatExploration($character, $namelessRuins),
+            'selectedNamelessExploreCount' => \App\Services\ExplorationService::normalizeRepeatCount($request->session()->get('nameless_exploration_selected_count.'.$character->id, 1)),
             'finalStats' => $finalStats, 'jobLevel' => $history?->job_level ?? 1, 'areaId' => 0,
             'equippedItems' => app(\App\Services\BattleEquipmentSummaryService::class)->forEnemy($character, (string) ($result['enemy']->species_key ?? '')),
             'isBoss' => (bool) ($result['enemy']->is_boss ?? $namelessRuins['boss']), 'areaName' => $namelessRuins['zone_name'].' 深度'.$namelessRuins['depth'],
@@ -294,6 +299,9 @@ class NamelessWorkshopController extends Controller
         $town = app(\App\Services\NamelessTownService::class)->availableTown();
         abort_unless($town && (int) $request->user()->currentCharacter()->current_city_id === (int) $town->id, 404);
         session(['current_location' => $tab]);
+        if ($tab === 'town') {
+            $request->session()->forget('nameless_exploration_selected_count.'.$request->user()->currentCharacter()->id);
+        }
         return redirect()->route('home', ['skip_resume' => 1]);
     }
 

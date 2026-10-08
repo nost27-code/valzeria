@@ -886,11 +886,12 @@ class NamelessRelicPrototypeTest extends TestCase
         $payload = ['zone' => 'water', 'depth' => 1, 'boss' => 0, 'batch_count' => 10, 'request_uuid' => $uuid];
         $url = route('nameless-workshop.result', ['uuid' => $uuid]);
         $this->post(route('nameless-workshop.act', 'fight'), $payload)->assertRedirect($url);
-        $response = $this->get($url)->assertOk()->assertViewIs('battle.result')->assertSee('沈水の水路 深度1')->assertSee('data-nameless-relic-rewards', false)->assertSee('探索タブへ')->assertSee('簡易表示');
-        $response->assertSee(route('nameless-workshop.return', ['tab' => 'dungeon']), false)
+        $response = $this->get($url)->assertOk()->assertViewIs('battle.result')->assertSee('沈水の水路 深度1')->assertSee('data-nameless-relic-rewards', false)->assertSee('戦利品を持って帰る')->assertSee('簡易表示');
+        $response->assertSee(route('nameless-workshop.return', ['tab' => 'town']), false)
             ->assertSee('data-equipment-rank="nameless"', false)->assertSee('表示確認の剣 +0')
             ->assertSee('color:#1d4ed8', false)
-            ->assertDontSee('action="'.route('nameless-workshop.act', 'fight').'"', false);
+            ->assertSee('data-nameless-repeat-form', false)
+            ->assertSee('action="'.route('nameless-workshop.act', 'fight').'"', false);
         $response->assertDontSee('action="'.route('battle.explore', ['area' => 0]).'"', false);
         $operation = NamelessWorkshopOperation::query()->where('request_uuid', $uuid)->sole();
         $snapshot = $operation->result;
