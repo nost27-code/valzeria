@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-10-08-exploration-batch-performance',
+        'date' => '2026-10-08',
+        'category' => 'fixed',
+        'title' => '連続探索の状態読取と印ボーナス計算を軽量化',
+        'detail' => '連続探索中の重複読取と印ボーナス計算を削減。更新後は最新の状態を読み直し、報酬・成長・途中停止・再送の扱いを維持します。DB構造変更なし。検証結果と公開状況はリリース記録を参照。',
+    ],
+    [
         'id' => '2026-10-08-exploration-read-overhead',
         'date' => '2026-10-08',
         'category' => 'fixed',

@@ -219,35 +219,42 @@ class MonsterMarkService
             'luk' => 0,
         ];
 
+        // Read current quantities each time; avoid hydrating hundreds of Eloquent models.
         $rows = MonsterMark::query()
             ->join('character_monster_marks', 'character_monster_marks.monster_mark_id', '=', 'monster_marks.id')
             ->join('enemies', 'enemies.id', '=', 'monster_marks.enemy_id')
             ->where('character_monster_marks.character_id', $character->id)
-            ->select('monster_marks.*', 'character_monster_marks.quantity as owned_quantity',
+            ->select('monster_marks.id', 'monster_marks.is_active', 'monster_marks.mark_name',
+                'monster_marks.bonus_stat', 'monster_marks.bonus_per_level', 'monster_marks.max_level',
+                'character_monster_marks.quantity as owned_quantity',
                 'enemies.area_id as enemy_area_id', 'enemies.name as enemy_name',
                 'enemies.is_boss as enemy_is_boss', 'enemies.role as enemy_role')
-            ->get();
+            ->toBase()->get();
 
-        $rowsByMark = $rows
-            ->filter(fn (MonsterMark $mark): bool => (bool) $mark->is_active
-                && ! (bool) $mark->enemy_is_boss && ! str_contains((string) $mark->enemy_role, 'ダンジョン主'))
-            ->groupBy(fn (MonsterMark $mark): string => $this->signatureForAreaAndEnemy(
-                (int) $mark->enemy_area_id, (string) ($mark->enemy_name ?? $mark->mark_name),
-            ));
-
-        foreach ($rowsByMark as $duplicateRows) {
-            $mark = $duplicateRows
-                ->sort(function (MonsterMark $a, MonsterMark $b): int {
-                    return ((int) $a->id) <=> ((int) $b->id);
-                })
-                ->first();
-            if (! $mark || ! $mark->is_active || ! array_key_exists((string) $mark->bonus_stat, $bonuses)) {
+        $groups = [];
+        foreach ($rows as $row) {
+            if (! (bool) $row->is_active || (bool) $row->enemy_is_boss
+                || str_contains((string) $row->enemy_role, 'ダンジョン主')) {
                 continue;
             }
-
-            $quantity = $duplicateRows->sum(fn (MonsterMark $mark): int => (int) $mark->owned_quantity);
-            $level = $this->unlockedLevel($quantity, $mark);
-            $bonuses[(string) $mark->bonus_stat] += $this->totalBonus($level, $mark);
+            $key = $this->signatureForAreaAndEnemy(
+                (int) $row->enemy_area_id, (string) ($row->enemy_name ?? $row->mark_name),
+            );
+            if (! isset($groups[$key])) {
+                $groups[$key] = ['mark' => $row, 'quantity' => 0];
+            } elseif ((int) $row->id < (int) $groups[$key]['mark']->id) {
+                $groups[$key]['mark'] = $row;
+            }
+            $groups[$key]['quantity'] += (int) $row->owned_quantity;
+        }
+        foreach ($groups as $group) {
+            $mark = $group['mark'];
+            $stat = (string) $mark->bonus_stat;
+            if (! array_key_exists($stat, $bonuses)) {
+                continue;
+            }
+            $level = $this->unlockedLevelFor($group['quantity'], (int) $mark->max_level);
+            $bonuses[$stat] += $level * $this->bonusPerLevelFor($stat, (int) $mark->bonus_per_level);
         }
 
         return $bonuses;
@@ -606,7 +613,12 @@ class MonsterMarkService
 
     public function unlockedLevel(int $quantity, MonsterMark $mark): int
     {
-        $max = $this->maxUnlockLevel($mark);
+        return $this->unlockedLevelFor($quantity, (int) $mark->max_level);
+    }
+
+    private function unlockedLevelFor(int $quantity, int $maxLevel): int
+    {
+        $max = min(count(self::UNLOCK_THRESHOLDS), max(0, $maxLevel));
         $level = 0;
 
         foreach (array_slice(self::UNLOCK_THRESHOLDS, 0, $max) as $threshold) {
@@ -663,9 +675,14 @@ class MonsterMarkService
 
     private function effectiveBonusPerLevel(MonsterMark $mark): int
     {
-        $base = max(1, (int) $mark->bonus_per_level);
+        return $this->bonusPerLevelFor((string) $mark->bonus_stat, (int) $mark->bonus_per_level);
+    }
 
-        return in_array((string) $mark->bonus_stat, ['hp', 'mp'], true)
+    private function bonusPerLevelFor(string $stat, int $bonusPerLevel): int
+    {
+        $base = max(1, $bonusPerLevel);
+
+        return in_array($stat, ['hp', 'mp'], true)
             ? $base * 5
             : $base;
     }

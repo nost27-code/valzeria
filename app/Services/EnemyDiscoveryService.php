@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 
 class EnemyDiscoveryService
 {
@@ -11,7 +10,7 @@ class EnemyDiscoveryService
 
     public function recordBattle(int $characterId, int $enemyId, string $result): void
     {
-        if (! Schema::hasTable(self::TABLE) || $characterId <= 0 || $enemyId <= 0) {
+        if (! app(SchemaStateService::class)->hasTable(self::TABLE) || $characterId <= 0 || $enemyId <= 0) {
             return;
         }
 

@@ -5,7 +5,6 @@ namespace App\Services;
 use App\Models\Character;
 use App\Models\Item;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 
 class EquipmentDiscoveryService
 {
@@ -13,7 +12,7 @@ class EquipmentDiscoveryService
 
     public function record(int $characterId, int $itemId): void
     {
-        if (!Schema::hasTable(self::TABLE) || !$this->isBookEquipment($itemId)) {
+        if (!app(SchemaStateService::class)->hasTable(self::TABLE) || !$this->isBookEquipment($itemId)) {
             return;
         }
 
@@ -28,7 +27,7 @@ class EquipmentDiscoveryService
 
     public function syncFor(Character $character): array
     {
-        if (!Schema::hasTable(self::TABLE)) {
+        if (!app(SchemaStateService::class)->hasTable(self::TABLE)) {
             return [];
         }
 
@@ -40,7 +39,7 @@ class EquipmentDiscoveryService
             ->map(fn ($itemId): int => (int) $itemId)
             ->all();
 
-        if (Schema::hasTable('equipment_evolution_logs')) {
+        if (app(SchemaStateService::class)->hasTable('equipment_evolution_logs')) {
             $evolvedItemIds = DB::table('equipment_evolution_logs')
                 ->where('character_id', $character->id)
                 ->get(['before_equipment_id', 'after_equipment_id'])

@@ -10,13 +10,12 @@ use App\Models\CharacterRegionDungeonRun;
 use App\Models\Material;
 use App\Models\RegionDepthDungeon;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 
 class RegionDepthDungeonService
 {
     public function definition(string $dungeonKey): array
     {
-        if (Schema::hasTable('region_depth_dungeons')) {
+        if (app(SchemaStateService::class)->hasTable('region_depth_dungeons')) {
             $dungeon = RegionDepthDungeon::query()->where('key', $dungeonKey)->first();
             if ($dungeon) {
                 return [
@@ -67,7 +66,7 @@ class RegionDepthDungeonService
 
     public function enabledForCity(int $cityId): array
     {
-        if (Schema::hasTable('region_depth_dungeons')) {
+        if (app(SchemaStateService::class)->hasTable('region_depth_dungeons')) {
             return RegionDepthDungeon::query()
                 ->where('city_id', $cityId)
                 ->where('is_enabled', true)
@@ -131,7 +130,7 @@ class RegionDepthDungeonService
     public function keyForArea(Area|int $area): ?string
     {
         $areaId = $area instanceof Area ? (int) $area->id : $area;
-        if (Schema::hasTable('region_depth_dungeons')) {
+        if (app(SchemaStateService::class)->hasTable('region_depth_dungeons')) {
             return RegionDepthDungeon::query()->where('area_id', $areaId)->value('key');
         }
 

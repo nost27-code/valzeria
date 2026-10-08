@@ -190,6 +190,19 @@ final class RequestPerformanceCollector
         $profile = $this->profile + ['operation' => mb_substr($operation, 0, 240),
             'status' => $status, 'response_ms' => round((hrtime(true) - $this->started) / 1000000, 3),
             'open_transactions' => count($this->transactions)];
+        // Counts come from the server result, never arbitrary request values or player data.
+        if ($operation === 'POST battle.explore' && $status >= 200 && $status < 400) {
+            $result = data_get($request->attributes->get('committed_exploration_data'), 'result');
+            if (is_array($result) && ! isset($result['error'])) {
+                $batch = $result['batch_explore'] ?? null;
+                $requested = is_array($batch) ? ($batch['requested'] ?? null) : 1;
+                $completed = is_array($batch) ? ($batch['completed'] ?? null) : (isset($result['result']) ? 1 : null);
+                if (is_int($requested) && is_int($completed) && $requested >= 1 && $requested <= 50
+                    && $completed >= 0 && $completed <= $requested) {
+                    $profile['exploration_count'] = ['requested' => $requested, 'completed' => $completed];
+                }
+            }
+        }
         $saved = [];
         foreach (['ms', 'count', 'duplicates', 'failed'] as $sort) {
             $queries = $this->queries;

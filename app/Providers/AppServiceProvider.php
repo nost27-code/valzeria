@@ -20,6 +20,7 @@ class AppServiceProvider extends ServiceProvider
             getenv('VALZERIA_DB_ROLE') ?: 'web',
             $_SERVER['argv'] ?? [],
         );
+        $this->app->scoped(\App\Services\ExplorationStateService::class);
         $this->app->scoped(SchemaStateService::class);
         $this->app->scoped(NamelessSchemaService::class);
         $this->app->scoped(GameSettingService::class);
@@ -30,6 +31,17 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Include query-builder writes as well as Eloquent writes; never retain state after a mutation.
+        \Illuminate\Support\Facades\DB::listen(function (\Illuminate\Database\Events\QueryExecuted $query): void {
+            if (str_contains($query->sql, 'character_exploration_states')
+                && preg_match('/^\\s*(insert|update|delete|replace)\\b/i', $query->sql)) {
+                app(\App\Services\ExplorationStateService::class)->invalidate();
+            }
+        });
+        \Illuminate\Support\Facades\Event::listen(\Illuminate\Database\Events\TransactionRolledBack::class,
+            fn () => app(\App\Services\ExplorationStateService::class)->invalidate(),
+        );
+
         // 同一IP全体とメールアドレス+IPの両方で制限。共有回線の他アカウントを恒久ロックしない。
         foreach (['auth-login' => 10, 'auth-admin' => 5, 'auth-admin-viewer' => 5] as $name => $attempts) {
             \Illuminate\Support\Facades\RateLimiter::for($name, function (\Illuminate\Http\Request $request) use ($name, $attempts) {

@@ -10,12 +10,47 @@ use App\Models\CharacterItem;
 use App\Models\Enemy;
 use App\Models\ExplorationLootLog;
 use App\Models\Material;
+use Illuminate\Support\Facades\DB;
+use LogicException;
 
 class ExplorationStateService
 {
+    private ?int $lockedCharacterId = null;
+
+    private bool $stateLoaded = false;
+
+    private ?CharacterExplorationState $loadedState = null;
+
+    /** The caller must already hold the character row lock. Never span separate battles. */
+    public function withLockedState(Character $character, callable $operation): mixed
+    {
+        if ($this->lockedCharacterId !== null) {
+            return $operation();
+        }
+        if (DB::transactionLevel() === 0) {
+            throw new LogicException('Exploration state reuse requires the character transaction.');
+        }
+        $this->lockedCharacterId = (int) $character->id;
+        try {
+            return $operation();
+        } finally {
+            $this->invalidate();
+            $this->lockedCharacterId = null;
+        }
+    }
+
+    /** Model writes and transaction rollback invalidate the cached read, including a missing row. */
+    public function invalidate(?int $characterId = null): void
+    {
+        if ($characterId === null || $characterId === $this->lockedCharacterId) {
+            $this->loadedState = null;
+            $this->stateLoaded = false;
+        }
+    }
+
     public function getOrStart(Character $character, int $areaId): CharacterExplorationState
     {
-        $state = CharacterExplorationState::firstOrCreate(
+        $state = $this->currentFor($character) ?? CharacterExplorationState::firstOrCreate(
             ['character_id' => $character->id],
             [
                 'area_id' => $areaId,
@@ -61,7 +96,16 @@ class ExplorationStateService
 
     public function currentFor(Character $character): ?CharacterExplorationState
     {
-        return CharacterExplorationState::where('character_id', $character->id)->first();
+        if ($this->lockedCharacterId !== (int) $character->id
+            || DB::transactionLevel() === 0) {
+            return CharacterExplorationState::where('character_id', $character->id)->first();
+        }
+        if (! $this->stateLoaded) {
+            $this->loadedState = CharacterExplorationState::where('character_id', $character->id)->first();
+            $this->stateLoaded = true;
+        }
+        // Unsaved changes by a reader must not leak to another reader.
+        return $this->loadedState === null ? null : clone $this->loadedState;
     }
 
     public function hasActiveExploration(Character $character): bool

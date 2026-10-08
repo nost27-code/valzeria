@@ -1,4 +1,5 @@
 # AI_CONTEXT.md
+- 探索の追加軽量化（2026-10-08、公開対象。公開結果は同一SHAのActionsと独立読戻し記録を参照）: 戦技/地域ダンジョン/図鑑/地図dropの一般schema存在確認をrequest-scoped SchemaStateServiceへ共有。ExplorationStateServiceは冒険者ロック後の一戦内だけ読取を共有し、SQL更新/削除/追加とrollbackで破棄、返却modelはclone。印ボーナスは最新JOINの必要列をraw取得しPHP同名集計/能力式を維持。正式NAM schema gateはfreshを維持。計測へserver結果の要求/完了回数だけを追加。検証/比較はdocs/experiments/EXPLORATION_BATCH_PERFORMANCE_2026-10-08.md。
 - 探索の読取負荷削減（2026-10-08、公開対象、公開結果は同一SHAのActionsと読戻し記録を参照）: Discovery/StorageCapacity/MonsterMarkAlchemyのテーブル・列確認は既存request-scoped SchemaStateServiceで共有。所持数/進行/印ボーナスは毎回取得。MonsterMarkService::permanentBonusesは所持印・印・敵判定項目をJOINで1照会にまとめ、同エリア/同名の集計と能力式を維持。NAMの正式なschema準備/ready検査、報酬/戦績/探索力/再送防止は変更しない。確認範囲はdocs/experiments/EXPLORATION_READ_PERFORMANCE_2026-10-08.md。
 - ホーム闘技場ウィジェットの軽量化（2026-10-08、公開対象）: `ArenaNpcRankingService::rankingEntries(limit)` は正のlimitで順位を先に絞り、統合上位だけ職業/画像/戦力を生成。同期操作内のschema snapshotを共有。表示値・順位・対戦・報酬は維持。読取専用比較/確認範囲はdocs/experiments/ARENA_WIDGET_PERFORMANCE_2026-10-08.md。
 - 管理者の処理負荷ページ（2026-10-08、公開対象）: 検証→処理負荷・DB分析。HTTP概要と抽出SQL詳細をprivateファイルに保存し、②重複取得、③表示用キャッシュ、④遅いSQL、⑤transaction/競合段階の調査候補を提示。欠測・標本数・前期間/公開版の差を明示。DB変更なし。詳細はdocs/ADMIN_REQUEST_PERFORMANCE.md。

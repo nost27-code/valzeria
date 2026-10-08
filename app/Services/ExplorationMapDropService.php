@@ -7,7 +7,6 @@ use App\Models\Area;
 use App\Models\Character;
 use App\Models\Enemy;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
 class ExplorationMapDropService
@@ -16,7 +15,7 @@ class ExplorationMapDropService
 
     public function tryDrop(Character $character, Area $area, Enemy $enemy, bool $isBoss = false, bool $isMap = false): ?array
     {
-        if (!config('exploration_maps.enabled') || !Schema::hasTable('exploration_maps')) return null;
+        if (!config('exploration_maps.enabled') || !app(SchemaStateService::class)->hasTable('exploration_maps')) return null;
         $key = $isMap ? ((bool) ($enemy->is_elite ?? false) ? 'map_elite' : 'map_normal') : ($isBoss ? 'boss' : ((bool) ($enemy->is_elite ?? false) ? 'elite' : 'normal'));
         if (random_int(1, 10000) > $this->dropRateBasisPoints($key)) return null;
         try {

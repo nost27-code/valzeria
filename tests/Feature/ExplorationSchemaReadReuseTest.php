@@ -72,6 +72,27 @@ class ExplorationSchemaReadReuseTest extends TestCase
         $this->assertSame(1, $storage->summaryFromOwnedTotals($character, 0, 0)['relic_total']);
     }
 
+    public function test_battle_strategy_schema_is_shared_but_saved_strategy_is_read_fresh(): void
+    {
+        $hero = $this->character();
+        $service = app(\App\Services\JobArtService::class);
+        $this->app->forgetInstance(SchemaStateService::class);
+        $service->saveContextSpPolicy($hero, 'normal', 'aggressive');
+        DB::enableQueryLog();
+        $first = null;
+        for ($run = 1; $run <= 50; $run++) {
+            if ($run === 25) {
+                $service->saveContextSpPolicy($hero, 'normal', 'conserve');
+            }
+            $this->assertSame($run >= 25 ? 'conserve' : 'aggressive', $service->contextSpPolicy($hero, 'normal'));
+            if ($run === 1) {
+                $first = $this->schemaReadCount();
+            }
+        }
+        $this->assertSame($first, $this->schemaReadCount());
+        DB::disableQueryLog();
+    }
+
     private function schemaReadCount(): int
     {
         return count(array_filter(DB::getQueryLog(), fn ($row) => str_contains($row['query'], 'sqlite_master')

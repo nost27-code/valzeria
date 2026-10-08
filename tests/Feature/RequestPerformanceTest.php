@@ -48,6 +48,36 @@ final class RequestPerformanceTest extends TestCase
         return $request;
     }
 
+    public function test_exploration_counts_use_server_results_and_do_not_record_private_payloads(): void
+    {
+        $request = Request::create('/battle/areas/1/explore', 'POST', ['batch_count' => 'private-input']);
+        $request->setRouteResolver(fn () => (new \Illuminate\Routing\Route('POST', 'battle/areas/{id}/explore', fn () => null))->name('battle.explore'));
+        $request->attributes->set('committed_exploration_data', ['character_id' => 999, 'private' => 'private-value',
+            'result' => ['result' => 'victory', 'batch_explore' => ['requested' => 50, 'completed' => 17]]]);
+        $collector = app(RequestPerformanceCollector::class);
+        $collector->begin(false);
+        $profile = $collector->finish($request, 302);
+        $this->assertSame(['requested' => 50, 'completed' => 17], $profile['exploration_count']);
+        $this->assertStringNotContainsString('private-', json_encode($profile));
+        $this->assertArrayNotHasKey('character_id', $profile);
+        app(RequestPerformanceStore::class)->write($profile);
+        $rows = app(RequestPerformanceStore::class)->read(time() - 60, time() + 1)['rows'];
+        $this->assertSame($profile['exploration_count'], $rows[0]['exploration_count']);
+        // Replay/early rejection has no fresh server result and is not a zero-cost 50-run sample.
+        $request->attributes->remove('committed_exploration_data');
+        $collector->begin(false);
+        $this->assertArrayNotHasKey('exploration_count', $collector->finish($request, 302));
+        $request->attributes->set('committed_exploration_data', ['result' => ['result' => 'victory']]);
+        $collector->begin(false);
+        $this->assertSame(['requested' => 1, 'completed' => 1], $collector->finish($request, 302)['exploration_count']);
+        $request->attributes->set('committed_exploration_data', ['result' => ['batch_explore' => ['requested' => 5000, 'completed' => 50]]]);
+        $collector->begin(false);
+        $this->assertArrayNotHasKey('exploration_count', $collector->finish($request, 302));
+        $request->attributes->set('committed_exploration_data', ['result' => ['result' => 'victory']]);
+        $collector->begin(false);
+        $this->assertArrayNotHasKey('exploration_count', $collector->finish($request, 500));
+    }
+
     private function record(string $operation, int $time, float $ms, int $queries = 4): array
     {
         return ['time' => $time, 'operation' => $operation, 'status' => 200, 'queries' => $queries,

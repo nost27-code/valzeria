@@ -99,7 +99,9 @@ class ExplorationService
                 $character->setRawAttributes($locked->getAttributes(), true);
                 $character->unsetRelations();
                 CharacterStatusService::clearRequestCache();
-                return $this->exploreLocked($character, $areaId, $isBossBattle, $forcedEvent, $skipBattleCooldown);
+                return app(ExplorationStateService::class)->withLockedState($character,
+                    fn () => $this->exploreLocked($character, $areaId, $isBossBattle, $forcedEvent, $skipBattleCooldown),
+                );
             });
         } finally {
             $character->refresh();

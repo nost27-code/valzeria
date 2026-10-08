@@ -7,7 +7,6 @@ use App\Models\CharacterJobArtSlot;
 use App\Models\Skill;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
 
 class JobArtService
@@ -173,7 +172,7 @@ class JobArtService
         }
 
         $slotContext = $this->normalizeSlotContext($slotContext);
-        if (! Schema::hasTable('character_job_art_context_settings')) {
+        if (! app(SchemaStateService::class)->hasTable('character_job_art_context_settings')) {
             return $this->strategyService->resolve(
                 JobArtV2StrategyService::MODE_CUSTOM,
                 ['sp_output' => JobArtV2StrategyService::OUTPUT_NONE],
@@ -185,8 +184,8 @@ class JobArtService
             ->where('battle_context', $slotContext)
             ->first();
         $spPolicy = $this->normalizeActivationPolicy((string) ($setting?->sp_policy ?: 'aggressive'));
-        $hasStrategyColumns = Schema::hasColumn('character_job_art_context_settings', 'strategy_mode')
-            && Schema::hasColumn('character_job_art_context_settings', 'strategy_settings');
+        $hasStrategyColumns = app(SchemaStateService::class)->hasColumn('character_job_art_context_settings', 'strategy_mode')
+            && app(SchemaStateService::class)->hasColumn('character_job_art_context_settings', 'strategy_settings');
         $detailedStrategyEnabled = $this->featureGate->usesDetailedStrategyForCurrentJob(
             $character->current_job_id !== null ? (int) $character->current_job_id : null,
         );
@@ -227,14 +226,14 @@ class JobArtService
     {
         $slotContext = $this->normalizeSlotContext($slotContext);
         $policy = $this->normalizeActivationPolicyStrict($policy);
-        if (! Schema::hasTable('character_job_art_context_settings')) {
+        if (! app(SchemaStateService::class)->hasTable('character_job_art_context_settings')) {
             throw ValidationException::withMessages([
                 'sp_policy' => 'SP方針を保存する準備が完了していません。',
             ]);
         }
 
         $values = ['sp_policy' => $policy];
-        if (Schema::hasColumn('character_job_art_context_settings', 'strategy_mode')) {
+        if (app(SchemaStateService::class)->hasColumn('character_job_art_context_settings', 'strategy_mode')) {
             // The legacy SP-policy control is still an explicit player choice,
             // so it must not be hidden by the automatic strategy defaults.
             $values['strategy_mode'] = JobArtV2StrategyService::MODE_CUSTOM;
@@ -255,8 +254,8 @@ class JobArtService
 
         $slotContext = $this->normalizeSlotContext($slotContext);
         $output = $this->strategyService->validateOutput($output);
-        if (! Schema::hasTable('character_job_art_context_settings')
-            || ! Schema::hasColumn('character_job_art_context_settings', 'strategy_settings')
+        if (! app(SchemaStateService::class)->hasTable('character_job_art_context_settings')
+            || ! app(SchemaStateService::class)->hasColumn('character_job_art_context_settings', 'strategy_settings')
         ) {
             throw ValidationException::withMessages([
                 'sp_output' => 'SP出力を保存する準備が完了していません。',
@@ -297,9 +296,9 @@ class JobArtService
         $mode = $this->strategyService->validateMode($mode);
         $spPolicy = $this->normalizeActivationPolicyStrict($spPolicy);
         $validated = $this->strategyService->validateCustomSettings($settings);
-        if (! Schema::hasTable('character_job_art_context_settings')
-            || ! Schema::hasColumn('character_job_art_context_settings', 'strategy_mode')
-            || ! Schema::hasColumn('character_job_art_context_settings', 'strategy_settings')
+        if (! app(SchemaStateService::class)->hasTable('character_job_art_context_settings')
+            || ! app(SchemaStateService::class)->hasColumn('character_job_art_context_settings', 'strategy_mode')
+            || ! app(SchemaStateService::class)->hasColumn('character_job_art_context_settings', 'strategy_settings')
         ) {
             throw ValidationException::withMessages([
                 'strategy_mode' => '戦略設定を保存する準備が完了していません。',
@@ -1004,12 +1003,12 @@ class JobArtService
 
     private function hasActivationPolicyColumn(): bool
     {
-        return Schema::hasColumn('character_job_art_slots', 'activation_policy');
+        return app(SchemaStateService::class)->hasColumn('character_job_art_slots', 'activation_policy');
     }
 
     private function hasConditionKeyColumn(): bool
     {
-        return Schema::hasColumn('character_job_art_slots', 'condition_key');
+        return app(SchemaStateService::class)->hasColumn('character_job_art_slots', 'condition_key');
     }
 
     private function availabilityFor(Skill $skill, Character $character, Collection $histories, int $currentJobId, int $currentRank, string $context): array

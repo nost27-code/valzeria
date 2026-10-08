@@ -1,4 +1,5 @@
 # FEATURE_STATUS.md
+- 探索追加改善: 2026-10-08公開対象。公開結果は同一SHAのActionsと独立読戻し記録を参照。構造確認共有/一戦内状態読取の更新失効/raw印集計/探索要求・完了回数の計測を実装。DB/報酬/成長/停止/再送/正式NAM gate変更なし。123テスト1043 assertions成功。比較と未確認範囲はdocs/experiments/EXPLORATION_BATCH_PERFORMANCE_2026-10-08.md。
 
 Legend: D=done, P=partial, N=not implemented, ?=unverified, X=removed
 
