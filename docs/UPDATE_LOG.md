@@ -1,5 +1,10 @@
 # UPDATE_LOG.md
 
+## 2026-10-08 管理者向け処理負荷・DB分析（実装のみ・未公開）
+
+- 管理者の「検証」へ処理負荷ページを追加。画面/操作の回数、SQL数/重複、DB時間、応答中央値/p95、読取/書込、遅いSQLの代表呼出元、transaction/競合段階を比較し、②〜⑤の対策候補を調べられる。
+- 期間/終了時刻/公開版、直前の同期間比較、標本数と欠測を表示。DBへの計測書込みは追加せず、匿名化した容量制限付きprivateファイルを使用。本番未公開。
+
 Purpose: player-facing and operator-facing update notes for Valzeria.
 This file records meaningful changes only.
 Do not record tiny refactors, formatting-only changes, or AI docs-only edits.

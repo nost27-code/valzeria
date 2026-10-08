@@ -45,6 +45,7 @@ class ChampBattleTransactionRunner
                         return $callback($phase);
                     }, 1);
                 } catch (ChampBattleStateChangedException|DeadlockException|QueryException $exception) {
+                    app(RequestPerformanceCollector::class)->exception($exception, $phase);
                     // A deadlock inside an outer transaction invalidates that caller's work.
                     // Let the owner roll it back instead of continuing in a broken savepoint.
                     if ($outerLevel > 0 || $exception instanceof DeadlockException) {

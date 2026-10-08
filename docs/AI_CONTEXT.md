@@ -1,4 +1,5 @@
 # AI_CONTEXT.md
+- 管理者の処理負荷ページ（2026-10-08、公開対象）: 検証→処理負荷・DB分析。HTTP概要と抽出SQL詳細をprivateファイルに保存し、②重複取得、③表示用キャッシュ、④遅いSQL、⑤transaction/競合段階の調査候補を提示。欠測・標本数・前期間/公開版の差を明示。DB変更なし。詳細はdocs/ADMIN_REQUEST_PERFORMANCE.md。
 - 通常HTTPの接続分散: `DB_WEB_POOL_ENABLED=true` と `DB_WEB_SECONDARY_USERNAME/PASSWORD` により2ユーザー分散。任意の `DB_WEB_TERTIARY_USERNAME/PASSWORD` を両方設定すると、接続開始前に3ユーザーから等確率でランダム選択。同じDBを1処理1ユーザーで使い、セッション/キャッシュを共有。定期処理用workerと配備CLIは従来どおり。OFFで既存ユーザーへ戻る。
 - DB接続ユーザー分離: `DB_WORKER_ENABLED` と専用認証情報を設定すると、cron wrapperが指定するCLIの `VALZERIA_DB_ROLE=worker` だけ同じDBを専用ユーザーで利用。通常HTTPはweb pool設定に従い、配備CLIは従来ユーザー。設定不足はfallbackせず停止。DB構造・データ変更なし。
 

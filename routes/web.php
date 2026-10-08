@@ -607,6 +607,7 @@ Route::get('/admin/tools/{asset}', function (string $asset) {
 })->where('asset', 'style\.css|script\.js')->name('admin.tools.asset');
 
 Route::middleware(['auth', 'admin'])->group(function () {
+    Route::get('/admin/request-performance', [\App\Http\Controllers\Admin\RequestPerformanceController::class, 'index'])->name('admin.request-performance');
     Route::get('/admin', \App\Livewire\Admin\AdminDashboard::class)->name('admin.dashboard');
     Route::get('/admin/field', [\App\Http\Controllers\Admin\FieldSpectatorController::class, 'show'])->name('admin.field.show');
     Route::post('/admin/field/presence', [\App\Http\Controllers\Admin\FieldSpectatorController::class, 'presence'])

@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-10-08-admin-request-performance',
+        'date' => '2026-10-08',
+        'category' => 'internal',
+        'title' => '管理画面に処理負荷とDB分析ページを追加',
+        'detail' => '通信ごとの回数・応答時間・SQL・重複取得・トランザクションと競合を集計。期間と公開版を比較し、キャッシュ・索引・処理統合の調査候補を確認できます。詳細抽出20%、欠測と標本数を表示。SQLの値や個人IDは保存せず、DB構造とゲーム仕様の変更なし。',
+    ],
+    [
         'id' => '2026-10-08-web-database-third-account',
         'date' => '2026-10-08',
         'category' => 'internal',

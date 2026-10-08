@@ -133,6 +133,7 @@
                     ['route' => 'admin.balance-battle-lab', 'label' => '仮想バランス検証', 'abbr' => 'S'],
                     ['route' => 'admin.skill-effect-lab', 'label' => '技効果検証', 'abbr' => 'K'],
                     ['route' => 'admin.route-health', 'label' => '正常性チェック', 'abbr' => 'H'],
+                    ['route' => 'admin.request-performance', 'label' => '処理負荷・DB分析', 'abbr' => 'DB'],
                     ['route' => 'admin.testers', 'label' => 'テストキャラ管理', 'abbr' => 'T'],
                 ],
             ],

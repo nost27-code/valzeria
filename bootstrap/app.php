@@ -21,6 +21,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ])
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->redirectGuestsTo('/');
+        $middleware->prepend(App\Http\Middleware\RecordRequestPerformance::class);
         $middleware->web(prepend: [App\Http\Middleware\RejectDuringDatabaseConnectionCooldown::class]);
         $middleware->web(replace: [
             StartSession::class => App\Http\Middleware\StartSession::class,
@@ -35,6 +36,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withExceptions(function (Exceptions $exceptions): void {
         // 混雑だけを簡潔な記録と503へ変換。他のSQLエラーは通常どおり報告する。
         $exceptions->report(function (Throwable $exception) {
+            app(App\Services\RequestPerformanceCollector::class)->exception($exception);
             if ($details = DatabaseContention::details($exception)) {
                 if ($details['reason'] === 'connection_limit') {
                     app(DatabaseConnectionCooldown::class)->recordConnectionLimit();
