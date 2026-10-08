@@ -1,4 +1,5 @@
 # CODEMAP.md
+- 探索の読取負荷: `DiscoveryService::isAvailable`, `StorageCapacityService::namelessOwnedTotals`, `MonsterMarkAlchemyService::schemaReady`は既存`SchemaStateService`へ存在確認を委譲。`MonsterMarkService::permanentBonuses`は所持印/印/敵判定情報をJOIN取得。回帰は`ExplorationSchemaReadReuseTest`, `MonsterMarkServiceTest`、詳細は`docs/experiments/EXPLORATION_READ_PERFORMANCE_2026-10-08.md`（公開対象、公開結果は同一SHAのActionsと読戻し記録を参照）。
 - `StarTreeTowerRankingWidget::loadArenaEntries` → `ArenaNpcRankingService::rankingEntries(5)`: 表示前に全参加者の戦力を計算しない。正のlimitで順位選択後に従来の表示情報を生成。追加回帰は`ArenaRankCompactionPerformanceTest`。公開結果は同一SHAのリリース記録を参照。詳細は`docs/experiments/ARENA_WIDGET_PERFORMANCE_2026-10-08.md`。
 - `RequestPerformanceCollector` / `RequestPerformanceStore` / `Admin\\RequestPerformanceReportService`: HTTPのSQL・応答・transaction・競合を容量制限付きprivateファイルで収集し、`/admin/request-performance`で比較。SQL値・IDは保存しない。仕様と検証限界は`docs/ADMIN_REQUEST_PERFORMANCE.md`（公開対象）。
 - `app/Support/WebDatabaseConnection.php`: AppServiceProviderのregisterで通常HTTPの接続ユーザーを一度選択。既存default、`web_secondary`、任意の `web_tertiary` を等確率で選び、primary明示のsession/cache/queue参照も同じ接続へ揃える。HTTP/CLIのcache安全性は `tests/Feature/WebDatabaseConnectionTest.php` で検証。

@@ -8,7 +8,6 @@ use App\Models\CharacterMaterial;
 use RuntimeException;
 use App\Support\MaterialInventoryRules;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 
 class StorageCapacityService
 {
@@ -65,8 +64,9 @@ class StorageCapacityService
     private function namelessOwnedTotals(Character $character): array
     {
         $totals = [];
+        $schema = app(SchemaStateService::class);
         foreach (['player_nameless_equipments' => 'nameless_equipment_total', 'player_relics' => 'relic_total'] as $table => $key) {
-            $totals[$key] = Schema::hasColumn($table, 'character_id')
+            $totals[$key] = $schema->hasColumn($table, 'character_id')
                 ? DB::table($table)->where('character_id', $character->id)->count() : 0;
         }
 

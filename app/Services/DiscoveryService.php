@@ -9,7 +9,6 @@ use App\Models\CharacterAreaProgress;
 use App\Models\CharacterCityDiscovery;
 use App\Models\City;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Schema;
 
 class DiscoveryService
 {
@@ -463,10 +462,12 @@ class DiscoveryService
 
     private function isAvailable(): bool
     {
-        return Schema::hasTable('area_discovery_links')
-            && Schema::hasTable('character_city_discoveries')
-            && Schema::hasColumn('character_area_progresses', 'discovery_state')
-            && Schema::hasColumn('character_area_progresses', 'development_point')
-            && Schema::hasColumn('areas', 'area_kind');
+        $schema = app(SchemaStateService::class);
+
+        return $schema->hasTable('area_discovery_links')
+            && $schema->hasTable('character_city_discoveries')
+            && $schema->hasColumn('character_area_progresses', 'discovery_state')
+            && $schema->hasColumn('character_area_progresses', 'development_point')
+            && $schema->hasColumn('areas', 'area_kind');
     }
 }

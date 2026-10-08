@@ -219,27 +219,33 @@ class MonsterMarkService
             'luk' => 0,
         ];
 
-        $rows = CharacterMonsterMark::with('monsterMark.enemy.area')
-            ->where('character_id', $character->id)
+        $rows = MonsterMark::query()
+            ->join('character_monster_marks', 'character_monster_marks.monster_mark_id', '=', 'monster_marks.id')
+            ->join('enemies', 'enemies.id', '=', 'monster_marks.enemy_id')
+            ->where('character_monster_marks.character_id', $character->id)
+            ->select('monster_marks.*', 'character_monster_marks.quantity as owned_quantity',
+                'enemies.area_id as enemy_area_id', 'enemies.name as enemy_name',
+                'enemies.is_boss as enemy_is_boss', 'enemies.role as enemy_role')
             ->get();
 
         $rowsByMark = $rows
-            ->filter(fn (CharacterMonsterMark $row): bool => (bool) ($row->monsterMark?->is_active ?? false)
-                && $this->isEligibleEnemy($row->monsterMark?->enemy))
-            ->groupBy(fn (CharacterMonsterMark $row): string => $this->markSignature($row->monsterMark));
+            ->filter(fn (MonsterMark $mark): bool => (bool) $mark->is_active
+                && ! (bool) $mark->enemy_is_boss && ! str_contains((string) $mark->enemy_role, 'ダンジョン主'))
+            ->groupBy(fn (MonsterMark $mark): string => $this->signatureForAreaAndEnemy(
+                (int) $mark->enemy_area_id, (string) ($mark->enemy_name ?? $mark->mark_name),
+            ));
 
         foreach ($rowsByMark as $duplicateRows) {
             $mark = $duplicateRows
-                ->sort(function (CharacterMonsterMark $a, CharacterMonsterMark $b): int {
-                    return ((int) $a->monster_mark_id) <=> ((int) $b->monster_mark_id);
+                ->sort(function (MonsterMark $a, MonsterMark $b): int {
+                    return ((int) $a->id) <=> ((int) $b->id);
                 })
-                ->first()
-                ?->monsterMark;
+                ->first();
             if (! $mark || ! $mark->is_active || ! array_key_exists((string) $mark->bonus_stat, $bonuses)) {
                 continue;
             }
 
-            $quantity = $duplicateRows->sum(fn (CharacterMonsterMark $row): int => (int) $row->quantity);
+            $quantity = $duplicateRows->sum(fn (MonsterMark $mark): int => (int) $mark->owned_quantity);
             $level = $this->unlockedLevel($quantity, $mark);
             $bonuses[(string) $mark->bonus_stat] += $this->totalBonus($level, $mark);
         }

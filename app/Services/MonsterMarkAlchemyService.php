@@ -8,7 +8,6 @@ use App\Models\MonsterMarkRefinement;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 use InvalidArgumentException;
 use RuntimeException;
 
@@ -330,8 +329,10 @@ class MonsterMarkAlchemyService
 
     private function schemaReady(): bool
     {
-        return Schema::hasTable('monster_mark_refinements')
-            && Schema::hasTable('character_monster_marks')
-            && Schema::hasColumn('character_monster_marks', 'spent_quantity');
+        $schema = app(SchemaStateService::class);
+
+        return $schema->hasTable('monster_mark_refinements')
+            && $schema->hasTable('character_monster_marks')
+            && $schema->hasColumn('character_monster_marks', 'spent_quantity');
     }
 }

@@ -273,6 +273,40 @@ class MonsterMarkServiceTest extends TestCase
         $this->assertTrue($curseKnight['is_complete']);
     }
 
+    public function test_permanent_bonuses_stay_fresh_and_do_not_load_enemy_combat_details(): void
+    {
+        $fixture = $this->duplicateMarkFixture(8);
+        $service = new MonsterMarkService;
+        DB::enableQueryLog();
+        $this->assertSame(9, $service->permanentBonuses($fixture['character'])['def']);
+        $enemyReads = array_values(array_filter(DB::getQueryLog(), fn ($row) => str_contains($row['query'], 'join "enemies"')));
+        $this->assertCount(1, $enemyReads);
+        $this->assertStringNotContainsString('select *', $enemyReads[0]['query']);
+        $this->assertStringContainsString('"area_id"', $enemyReads[0]['query']);
+        DB::disableQueryLog();
+        CharacterMonsterMark::create(['character_id' => $fixture['character']->id,
+            'monster_mark_id' => $fixture['canonical_mark']->id, 'quantity' => 7, 'unlocked_level' => 0]);
+        $this->assertSame(12, $service->permanentBonuses($fixture['character'])['def']);
+        $fixture['canonical_enemy']->update(['is_boss' => true]);
+        $fixture['duplicate_enemy']->update(['role' => 'ダンジョン主']);
+        $this->assertSame(0, $service->permanentBonuses($fixture['character'])['def']);
+    }
+
+    public function test_permanent_bonuses_keep_same_name_marks_in_different_areas_separate_and_ignore_inactive_marks(): void
+    {
+        $fixture = $this->duplicateMarkFixture(8);
+        $enemy = Enemy::create(['area_id' => 52, 'name' => '呪い騎士', 'role' => '通常', 'is_boss' => false]);
+        $mark = MonsterMark::create(['enemy_id' => $enemy->id, 'mark_name' => '呪い騎士の印', 'bonus_stat' => 'def',
+            'bonus_per_level' => 3, 'required_per_level' => 10, 'max_level' => 4, 'drop_rate' => 8, 'is_active' => true]);
+        CharacterMonsterMark::create(['character_id' => $fixture['character']->id, 'monster_mark_id' => $mark->id, 'quantity' => 1]);
+        $service = new MonsterMarkService;
+        $this->assertSame(12, $service->permanentBonuses($fixture['character'])['def']);
+        CharacterMonsterMark::create(['character_id' => $fixture['character']->id,
+            'monster_mark_id' => $fixture['canonical_mark']->id, 'quantity' => 15]);
+        $fixture['canonical_mark']->update(['is_active' => false]);
+        $this->assertSame(12, $service->permanentBonuses($fixture['character'])['def']);
+    }
+
     private function entry(MonsterMark $mark, Enemy $enemy, Area $area, int $quantity): array
     {
         return [
