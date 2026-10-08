@@ -72,6 +72,64 @@ class ArenaRankCompactionPerformanceTest extends TestCase
         $this->assertSame([1, 3, 2], $targets->pluck('id')->all());
     }
 
+    public function test_widget_calculates_only_the_five_displayed_players_among_five_hundred(): void
+    {
+        $this->players(500, 0);
+        DB::table('arena_npc_rankings')->insert(['id' => 1, 'npc_id' => 1, 'rank' => 900001, 'is_active' => 0]);
+        $calculated = [];
+        $this->mock(CharacterStatusService::class)->shouldReceive('getFinalStats')->times(5)
+            ->andReturnUsing(function (Character $character) use (&$calculated): array {
+                $calculated[] = (int) $character->id;
+
+                return [];
+            });
+        $this->mock(CharacterPowerService::class)->shouldReceive('fromFinalStats')->times(5)->andReturn(1234);
+        DB::enableQueryLog();
+        $entries = (new ArenaNpcRankingService)->rankingEntries(5);
+        $this->assertSame([1, 2, 3, 4, 5], $entries->pluck('rank')->all());
+        $this->assertSame([1, 2, 3, 4, 5], $calculated);
+        $this->assertSame([1234, 1234, 1234, 1234, 1234], $entries->pluck('power')->all());
+        $this->assertArrayHasKey('job', $entries->first());
+        $this->assertArrayHasKey('image_path', $entries->first());
+        $this->assertCount(0, $this->updates());
+        $service = $this->mock(ArenaNpcRankingService::class);
+        $service->shouldReceive('rankingEntries')->once()->with(5)->andReturn($entries);
+        $widget = new \App\Livewire\StarTreeTowerRankingWidget;
+        $widget->loadArenaEntries($service);
+        $widget->loadArenaEntries($service);
+        $this->assertTrue($widget->arenaEntriesLoaded);
+        $this->assertSame($entries->all(), $widget->arenaEntries);
+    }
+
+    public function test_widget_selects_combined_ranks_before_calculating_and_excludes_hidden_and_inactive_entries(): void
+    {
+        $this->players(8, 0);
+        DB::table('users')->where('id', 1)->update(['email' => 'tester_probe@valzeria.local']);
+        DB::table('arena_rankings')->where('id', 2)->update(['rank' => 10]);
+        DB::table('arena_npc_rankings')->insert([
+            ['id' => 1, 'npc_id' => 1, 'rank' => 1, 'is_active' => 1],
+            ['id' => 2, 'npc_id' => 2, 'rank' => 2, 'is_active' => 0],
+        ]);
+        $calculated = [];
+        $this->mock(CharacterStatusService::class)->shouldReceive('getFinalStats')->times(4)
+            ->andReturnUsing(function (Character $character) use (&$calculated): array {
+                $calculated[] = (int) $character->id;
+
+                return [];
+            });
+        $power = $this->mock(CharacterPowerService::class);
+        $power->shouldReceive('fromFinalStats')->times(4)->andReturn(1234);
+        $power->shouldReceive('recommendedRangeForLevels')->once()->andReturn(['min' => 1000]);
+        $service = new ArenaNpcRankingService;
+        // Preserve the deliberately interleaved ranks to exercise selection.
+        (new \ReflectionProperty($service, 'rankingsEnsured'))->setValue($service, true);
+        $entries = $service->rankingEntries(5);
+        $this->assertSame([1, 3, 4, 5, 6], $entries->pluck('rank')->all());
+        $this->assertSame(['npc', 'player', 'player', 'player', 'player'], $entries->pluck('type')->all());
+        $this->assertSame([3, 4, 5, 6], $calculated);
+        $this->assertSame(1000, $entries->first()['power']);
+    }
+
     public function test_five_hundred_displaced_players_are_repaired_with_six_updates_and_same_order(): void
     {
         $this->players(500, 1);

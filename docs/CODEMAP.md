@@ -1,4 +1,5 @@
 # CODEMAP.md
+- `StarTreeTowerRankingWidget::loadArenaEntries` → `ArenaNpcRankingService::rankingEntries(5)`: 表示前に全参加者の戦力を計算しない。正のlimitで順位選択後に従来の表示情報を生成。追加回帰は`ArenaRankCompactionPerformanceTest`。公開結果は同一SHAのリリース記録を参照。詳細は`docs/experiments/ARENA_WIDGET_PERFORMANCE_2026-10-08.md`。
 - `RequestPerformanceCollector` / `RequestPerformanceStore` / `Admin\\RequestPerformanceReportService`: HTTPのSQL・応答・transaction・競合を容量制限付きprivateファイルで収集し、`/admin/request-performance`で比較。SQL値・IDは保存しない。仕様と検証限界は`docs/ADMIN_REQUEST_PERFORMANCE.md`（公開対象）。
 - `app/Support/WebDatabaseConnection.php`: AppServiceProviderのregisterで通常HTTPの接続ユーザーを一度選択。既存default、`web_secondary`、任意の `web_tertiary` を等確率で選び、primary明示のsession/cache/queue参照も同じ接続へ揃える。HTTP/CLIのcache安全性は `tests/Feature/WebDatabaseConnectionTest.php` で検証。
 - `app/Support/WorkerDatabaseConnection.php`: AppServiceProviderのregisterでCLI workerの接続ユーザーを選択。`scripts/run_current_schedule.php` がworker指定を子プロセスへ継承。`db:connection-role --probe` は接続先をREAD ONLYで確認。

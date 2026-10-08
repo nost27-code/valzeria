@@ -201,10 +201,29 @@ class ArenaNpcRankingService
 
     public function rankingEntries(int $limit = 100): Collection
     {
-        return $this->combinedEntries()
-            ->sortBy('rank')
-            ->take($limit)
-            ->values();
+        if ($limit <= 0) {
+            return $this->combinedEntries()->sortBy('rank')->take($limit)->values();
+        }
+
+        $this->ensureRankings();
+
+        return app(NamelessSchemaService::class)->withSnapshot(function () use ($limit): Collection {
+            $players = ArenaRanking::with(['character.jobClass', 'character.iconEntitlements'])
+                ->whereHas('character', fn ($query) => $query->visibleToPublic())
+                ->orderBy('rank')->limit($limit)->get();
+            $npcs = Schema::hasTable('arena_npc_rankings')
+                ? ArenaNpcRanking::with('npc')->where('is_active', true)
+                    ->orderBy('rank')->limit($limit)->get()
+                : collect();
+
+            // Choose the displayed ranks before computing equipment and power.
+            return $players->map(fn ($ranking) => ['type' => 'player', 'rank' => (int) $ranking->rank, 'ranking' => $ranking])
+                ->concat($npcs->map(fn ($ranking) => ['type' => 'npc', 'rank' => (int) $ranking->rank, 'ranking' => $ranking]))
+                ->sortBy('rank')->take($limit)->values()
+                ->map(fn (array $entry): array => $entry['type'] === 'player'
+                    ? $this->mapPlayerEntries(collect([$entry['ranking']]))->first()
+                    : $this->mapNpcEntries(collect([$entry['ranking']]))->first());
+        });
     }
 
     /**
