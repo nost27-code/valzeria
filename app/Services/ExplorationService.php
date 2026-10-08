@@ -276,6 +276,11 @@ class ExplorationService
             );
         }
 
+        // Share only this battle's freshly read area, never a different source area's metadata.
+        if ((int) $targetEnemy->area_id === (int) $area->id) {
+            $targetEnemy->setRelation('area', $area);
+        }
+
         // 3. バトル実行
         $nonCombatEventTypes = ['treasure', 'hidden_area_gate', 'dungeon_lord_encounter', 'sub_area_gate'];
         $isNonCombatEvent = in_array(($specialEvent['type'] ?? null), $nonCombatEventTypes, true);

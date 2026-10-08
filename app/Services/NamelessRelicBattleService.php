@@ -13,6 +13,14 @@ class NamelessRelicBattleService
 {
     public function attach(Character $character, BattleActor $actor): void
     {
+        // These gates belong to one synchronous read; write operations stay outside it.
+        app(NamelessSchemaService::class)->withSnapshot(
+            fn () => $this->attachWithSnapshot($character, $actor),
+        );
+    }
+
+    private function attachWithSnapshot(Character $character, BattleActor $actor): void
+    {
         if (! app(NamelessWorkshopService::class)->ready()) {
             return;
         }

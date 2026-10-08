@@ -68,6 +68,13 @@ class NamelessRelicEquipmentService
 
     public function activeRelics(Character $character, ?string $kind = null, ?string $excludeKind = null): Collection
     {
+        return app(NamelessSchemaService::class)->withSnapshot(
+            fn () => $this->activeRelicsWithSnapshot($character, $kind, $excludeKind),
+        );
+    }
+
+    private function activeRelicsWithSnapshot(Character $character, ?string $kind, ?string $excludeKind): Collection
+    {
         if (! app(NamelessWorkshopService::class)->ready()) {
             return collect();
         }

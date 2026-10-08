@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-10-08-exploration-relic-read-performance',
+        'date' => '2026-10-08',
+        'category' => 'fixed',
+        'title' => '連続探索中の装備効果とエリア読取を軽量化',
+        'detail' => '連続探索中に繰り返していた装備効果の確認とエリア情報の読み取りを削減しました。戦闘結果・報酬・成長・途中停止の扱いは維持します。DB構造変更なし。公開状況と実測値はリリース記録を参照。',
+    ],
+    [
         'id' => '2026-10-08-valmon-ranch-pagination',
         'date' => '2026-10-08',
         'category' => 'changed',
