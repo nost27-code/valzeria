@@ -308,3 +308,13 @@ Weekly ranking catch-up: the daily 09:05 finalizer runs in automatic mode, walks
 - `RequestPerformanceCollector/Store`, `Admin/RequestPerformanceReportService`, `Admin/RequestPerformanceController`, `admin/request-performance`: `exploration_processing_mode`を保存・検証・絞込。過去の欠落は未記録であり旧処理と推測しない。
 - `ExplorationBatchReadContextTest`, `NormalExplorationBatchServiceTest`, `RequestPerformanceTest`: 同条件共有、関連更新、成長/印閾値/遺物、ON/OFF、失敗/rollback、旧JSON/方式比較。
 - 一括保存は未実装。設計・切替条件・比較は `docs/experiments/EXPLORATION_BATCH_READ_CONTEXT_2026-10-08.md`。
+
+## 通常連続探索の図鑑集約（2026-10-08、既定OFF・本番未反映）
+
+- `ExplorationBatchWriteContext`: 冒険者lock/transaction内の敵ごとのpending、末尾flush、savepointごとの巻き戻し。報酬/資産/BattleLogの個別保存を維持。
+- `NormalExplorationBatchService`, `config/exploration_performance.php`: 第1段階の対象＋`EXPLORATION_BATCH_DISCOVERIES_ENABLED`の独立切替。
+- `EnemyDiscoveryService`, `EnemyBookService`: 集約記録、図鑑を読む前のflush。
+- `PlayerLifecycleEventService`: 初戦/初勝利だけ、保存確認後の操作内再利用。登録/ログイン/課金等の処理は変更しない。
+- `AppServiceProvider`: transaction開始/commit/rollbackイベントとwrite scopeの登録。
+- `ExplorationBatchWriteContextTest`, `ExplorationBatchAuditParityTest`: 台帳/結果/停止/再送/故障注入/rollback/複数敵。
+- 計測方式 `batch_discoveries` とQA/未確認は `docs/experiments/EXPLORATION_BATCH_AUDIT_2026-10-08.md`。全状態の一括保存は未実装。

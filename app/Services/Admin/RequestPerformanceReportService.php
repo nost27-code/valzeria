@@ -11,7 +11,8 @@ final class RequestPerformanceReportService
     public const SORTS = ['db_ms' => 'DB合計時間', 'requests' => '実行回数', 'p95' => '応答時間の遅い側（p95）',
         'duplicate_avg' => '重複読み取り', 'contention' => 'DB競合'];
 
-    public const EXPLORATION_MODES = ['legacy' => '通常処理', 'batch_reads' => 'まとめ読取', 'unknown' => '方式未記録'];
+    public const EXPLORATION_MODES = ['legacy' => '通常処理', 'batch_reads' => 'まとめ読取',
+        'batch_discoveries' => 'まとめ読取＋図鑑記録', 'unknown' => '方式未記録'];
 
     public function __construct(private RequestPerformanceStore $store) {}
 

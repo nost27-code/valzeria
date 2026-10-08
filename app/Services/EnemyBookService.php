@@ -144,6 +144,10 @@ class EnemyBookService
 
     private function discoveriesFor(Character $character): Collection
     {
+        $batch = app(ExplorationBatchWriteContext::class);
+        if ($batch->activeFor((int) $character->id)) {
+            $batch->flush();
+        }
         if (! Schema::hasTable(EnemyDiscoveryService::TABLE)) {
             return collect();
         }

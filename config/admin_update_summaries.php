@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-10-08-exploration-batch-audit',
+        'date' => '2026-10-08',
+        'category' => 'internal',
+        'title' => '連続探索の記録をまとめる処理を準備',
+        'detail' => '連続探索の図鑑記録をまとめる処理を初期状態で無効のまま用意しました。報酬・成長・途中停止・再送の整合性を確認し、管理者の負荷分析で処理方式を分けて比較できるようにしました。本番での有効化は未実施です。',
+    ],
+    [
         'id' => '2026-10-08-exploration-batch-read-context',
         'date' => '2026-10-08',
         'category' => 'internal',

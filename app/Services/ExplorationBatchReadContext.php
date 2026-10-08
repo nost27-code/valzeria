@@ -97,6 +97,12 @@ class ExplorationBatchReadContext
         $this->values = $this->dependencies = $this->fingerprints = [];
     }
 
+    public function forget(string $key): void
+    {
+        $this->revision++;
+        unset($this->values[$key], $this->dependencies[$key]);
+    }
+
     public function forgetFinalStats(?int $characterId = null): void
     {
         if ($characterId !== null && $characterId !== $this->characterId) {

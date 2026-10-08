@@ -33,6 +33,29 @@ class PlayerLifecycleEventService
 
     public function recordFirstBattle(Character $character, string $result): void
     {
+        $batch = app(ExplorationBatchReadContext::class);
+        if ($batch->activeFor($character) && app(ExplorationBatchWriteContext::class)->activeFor((int) $character->id)) {
+            $won = in_array($result, ['victory', 'win'], true);
+            $key = 'lifecycle:first-battle:'.$character->user_id.':'.(int) $won;
+            $recorded = $batch->remember($character, $key, ['player_lifecycle_events', 'users'], function () use ($character, $result, $won): array {
+                $this->recordFirstBattleNow($character, $result);
+                // record() can swallow a QueryException. Never memoize an unconfirmed write.
+                $keys = $won ? ['first_battle', 'first_victory'] : ['first_battle'];
+
+                return ['confirmed' => app(SchemaStateService::class)->hasTable('player_lifecycle_events')
+                    && PlayerLifecycleEvent::where('user_id', $character->user_id)->whereIn('event_key', $keys)->count() === count($keys)];
+            });
+            if (! $recorded['confirmed']) {
+                $batch->forget($key);
+            }
+
+            return;
+        }
+        $this->recordFirstBattleNow($character, $result);
+    }
+
+    private function recordFirstBattleNow(Character $character, string $result): void
+    {
         $this->recordForCharacter($character, 'first_battle', 'first_battle');
 
         if (in_array($result, ['victory', 'win'], true)) {

@@ -14,6 +14,10 @@ class EnemyDiscoveryService
             return;
         }
 
+        if (app(ExplorationBatchWriteContext::class)->recordDiscovery($characterId, $enemyId, $result)) {
+            return;
+        }
+
         $now = now();
         DB::table(self::TABLE)->insertOrIgnore([
             'character_id' => $characterId,

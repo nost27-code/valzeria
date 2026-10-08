@@ -25,6 +25,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->scoped(NamelessSchemaService::class);
         $this->app->scoped(GameSettingService::class);
         $this->app->scoped(\App\Services\ExplorationBatchReadContext::class);
+        $this->app->scoped(\App\Services\ExplorationBatchWriteContext::class);
     }
 
     /**
@@ -46,6 +47,13 @@ class AppServiceProvider extends ServiceProvider
         \Illuminate\Support\Facades\Event::listen(\Illuminate\Database\Events\TransactionRolledBack::class,
             fn () => app(\App\Services\ExplorationBatchReadContext::class)->invalidate(),
         );
+        foreach ([\Illuminate\Database\Events\TransactionBeginning::class => 'transactionBeginning',
+            \Illuminate\Database\Events\TransactionCommitted::class => 'transactionCommitted',
+            \Illuminate\Database\Events\TransactionRolledBack::class => 'transactionRolledBack'] as $event => $method) {
+            \Illuminate\Support\Facades\Event::listen($event,
+                fn ($transaction) => app(\App\Services\ExplorationBatchWriteContext::class)->{$method}($transaction->connection),
+            );
+        }
 
         // 同一IP全体とメールアドレス+IPの両方で制限。共有回線の他アカウントを恒久ロックしない。
         foreach (['auth-login' => 10, 'auth-admin' => 5, 'auth-admin-viewer' => 5] as $name => $attempts) {
