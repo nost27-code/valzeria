@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-10-08-web-database-third-account',
+        'date' => '2026-10-08',
+        'category' => 'internal',
+        'title' => '通常プレイのDB接続分散を3ユーザーへ拡張',
+        'detail' => '通常アクセスを3つのDBユーザーへ等確率で振り分けます。接続数を調べる処理は追加せず、1回の処理は同じ接続を維持。ログイン・資産・取引と定期処理用ユーザーを保持します。DB構造・ゲーム仕様の変更なし。',
+    ],
+    [
         'id' => '2026-10-08-champ-exploration-item-retry',
         'date' => '2026-10-08',
         'category' => 'fixed',

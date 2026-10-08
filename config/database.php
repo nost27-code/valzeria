@@ -23,6 +23,8 @@ return [
         'enabled' => (bool) env('DB_WEB_POOL_ENABLED', false),
         'username' => env('DB_WEB_SECONDARY_USERNAME', ''),
         'password' => env('DB_WEB_SECONDARY_PASSWORD', ''),
+        'third_username' => env('DB_WEB_TERTIARY_USERNAME', ''),
+        'third_password' => env('DB_WEB_TERTIARY_PASSWORD', ''),
     ],
 
     'worker' => [

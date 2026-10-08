@@ -17,6 +17,7 @@ class DatabaseConnectionCooldownTest extends TestCase
 {
     public function test_connection_limit_stops_following_requests_before_database_sessions_and_actions(): void
     {
+        $this->freezeTime();
         config(['session.driver' => 'database', 'cache.default' => 'database']);
         DB::listen(fn () => $this->fail('Cooldown must run before any database query'));
         Log::spy();

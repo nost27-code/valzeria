@@ -22,7 +22,8 @@ class WebDatabaseConnectionTest extends TestCase
             app('db')->purge($name);
         }
         config(['database.default' => 'mysql', 'database.web_pool' => [
-            'enabled' => true, 'username' => 'second_web', 'password' => 'fixture-web-secret'],
+            'enabled' => true, 'username' => 'second_web', 'password' => 'fixture-web-secret',
+            'third_username' => 'third_web', 'third_password' => 'fixture-third-secret'],
             'database.worker' => ['enabled' => true, 'username' => 'worker_account', 'password' => 'fixture-worker-secret'],
             'database.connections.mysql.username' => 'first_web', 'database.connections.mysql.url' => null,
             'database.connections.mysql.read' => null, 'database.connections.mysql.write' => null,
@@ -31,19 +32,23 @@ class WebDatabaseConnectionTest extends TestCase
             'queue.connections.database.connection' => 'mysql', 'session.connection' => 'mysql',
             'cache.stores.database.connection' => 'mysql', 'cache.stores.database.lock_connection' => 'unrelated']);
         $connections = config('database.connections');
-        unset($connections['web_secondary']);
+        unset($connections['web_secondary'], $connections['web_tertiary']);
         config(['database.connections' => $connections]);
     }
 
     public function test_each_http_slot_preserves_the_same_database_options_and_uses_one_account(): void
     {
-        foreach ([0 => 'mysql', 1 => 'web_secondary'] as $slot => $expected) {
+        foreach ([0 => 'mysql', 1 => 'web_secondary', 2 => 'web_tertiary'] as $slot => $expected) {
             $this->configurePool();
             $primary = config('database.connections.mysql');
             app(WebDatabaseConnection::class)->apply(false, $slot);
-            $secondary = config('database.connections.web_secondary');
-            unset($primary['username'], $primary['password'], $secondary['username'], $secondary['password']);
-            $this->assertSame($primary, $secondary);
+            unset($primary['username'], $primary['password']);
+            foreach (['web_secondary' => 'second_web', 'web_tertiary' => 'third_web'] as $name => $username) {
+                $secondary = config('database.connections.'.$name);
+                $this->assertSame($username, $secondary['username']);
+                unset($secondary['username'], $secondary['password']);
+                $this->assertSame($primary, $secondary);
+            }
             $this->assertSame($expected, config('database.default'));
             foreach (['queue.batching.database', 'queue.failed.database', 'queue.connections.database.connection',
                 'cache.stores.database.connection', 'session.connection'] as $key) {
@@ -52,6 +57,38 @@ class WebDatabaseConnectionTest extends TestCase
             $this->assertSame('unrelated', config('cache.stores.database.lock_connection'));
             $this->assertSame([], app('db')->getConnections());
         }
+    }
+
+    public function test_optional_third_account_can_be_removed_without_changing_two_account_behavior(): void
+    {
+        foreach ([0 => 'mysql', 1 => 'web_secondary'] as $slot => $expected) {
+            $this->configurePool();
+            config(['database.web_pool.third_username' => '', 'database.web_pool.third_password' => '']);
+            app(WebDatabaseConnection::class)->apply(false, $slot);
+            $this->assertSame($expected, config('database.default'));
+            $this->assertNull(config('database.connections.web_tertiary'));
+        }
+        $this->configurePool();
+        config(['database.web_pool.third_username' => '', 'database.web_pool.third_password' => '']);
+        $this->expectExceptionMessage('slot is not configured');
+        app(WebDatabaseConnection::class)->apply(false, 2);
+    }
+
+    public function test_third_connection_limit_does_not_pause_other_accounts(): void
+    {
+        $this->freezeTime();
+        $this->configurePool();
+        app(WebDatabaseConnection::class)->apply(false, 2);
+        $cooldown = new DatabaseConnectionCooldown;
+        $cooldown->recordConnectionLimit();
+        $this->assertSame(3, $cooldown->remainingSeconds());
+        foreach (['mysql', 'web_secondary'] as $name) {
+            app('db')->setDefaultConnection($name);
+            $this->assertSame(0, $cooldown->remainingSeconds());
+        }
+        $this->configurePool();
+        app(WorkerDatabaseConnection::class)->apply(true, 'worker');
+        $this->assertSame(0, $cooldown->remainingSeconds());
     }
 
     public function test_disabled_http_and_cli_keep_existing_roles(): void
@@ -73,7 +110,11 @@ class WebDatabaseConnectionTest extends TestCase
             ['database.web_pool.username' => 'first_web'], ['database.web_pool.username' => 'worker_account'],
             ['database.connections.mysql.url' => 'mysql://override'],
             ['database.connections.mysql.read' => ['username' => 'override']],
-            ['database.connections.mysql.driver' => 'sqlite']] as $invalid) {
+            ['database.connections.mysql.driver' => 'sqlite'],
+            ['database.web_pool.third_username' => ''], ['database.web_pool.third_password' => ''],
+            ['database.web_pool.third_username' => 'first_web'], ['database.web_pool.third_username' => 'second_web'],
+            ['database.web_pool.third_username' => 'worker_account'], ['database.web_pool.third_username' => null],
+            ['database.connections.web_tertiary' => []]] as $invalid) {
             $this->configurePool();
             config($invalid);
             try {
@@ -137,26 +178,34 @@ class WebDatabaseConnectionTest extends TestCase
             app('cache')->store('database')->put('pool-cache-proof', 'shared-value', 60);
             $db->disconnect();
             app('db')->purge('mysql');
-            config(['database' => $originalDatabase]);
-            app(WebDatabaseConnection::class)->apply(false, 1);
-            $db = app('db')->connection();
-            $second = new Store('pool_session', new DatabaseSessionHandler($db, 'sessions', 120), $id);
-            $second->start();
-            $guard = new SessionGuard('web', app('auth')->createUserProvider('users'), $second);
-            $this->assertSame(1, $guard->id());
-            $this->assertSame($csrf, $second->token());
-            $this->assertSame('oauth-fixture-state', $second->get('state'));
-            $this->assertSame(77, $second->get('current_character_id'));
-            app('cache')->forgetDriver('database');
-            $this->assertSame('shared-value', app('cache')->store('database')->get('pool-cache-proof'));
-            $pdo = $db->getPdo();
-            $db->beginTransaction();
-            $db->insert('INSERT INTO operation_probe VALUES (1)');
-            $this->assertSame($pdo, app('db')->connection()->getPdo());
-            $db->rollBack();
-            $this->assertSame(0, $db->table('operation_probe')->count());
-            $this->expectException(RuntimeException::class);
-            app(WebDatabaseConnection::class)->apply(false, 0);
+            foreach ([1, 2] as $slot) {
+                config(['database' => $originalDatabase]);
+                app(WebDatabaseConnection::class)->apply(false, $slot);
+                $db = app('db')->connection();
+                $second = new Store('pool_session', new DatabaseSessionHandler($db, 'sessions', 120), $id);
+                $second->start();
+                $guard = new SessionGuard('web', app('auth')->createUserProvider('users'), $second);
+                $this->assertSame(1, $guard->id());
+                $this->assertSame($csrf, $second->token());
+                $this->assertSame('oauth-fixture-state', $second->get('state'));
+                $this->assertSame(77, $second->get('current_character_id'));
+                app('cache')->forgetDriver('database');
+                $this->assertSame('shared-value', app('cache')->store('database')->get('pool-cache-proof'));
+                $pdo = $db->getPdo();
+                $db->beginTransaction();
+                $db->insert('INSERT INTO operation_probe VALUES (1)');
+                $this->assertSame($pdo, app('db')->connection()->getPdo());
+                $db->rollBack();
+                $this->assertSame(0, $db->table('operation_probe')->count());
+                try {
+                    app(WebDatabaseConnection::class)->apply(false, 0);
+                    $this->fail('An open request account was switched');
+                } catch (RuntimeException $e) {
+                    $this->assertStringContainsString('incomplete or unsupported', $e->getMessage());
+                }
+                app('db')->purge(config('database.default'));
+            }
+
         } finally {
             foreach (array_keys(app('db')->getConnections()) as $name) {
                 app('db')->purge($name);
@@ -173,18 +222,19 @@ class WebDatabaseConnectionTest extends TestCase
         file_put_contents($cache, '<?php return '.var_export(config()->all(), true).';');
         $before = hash_file('sha256', $cache);
         try {
-            foreach ([0 => 'mysql', 1 => 'web_secondary'] as $slot => $expected) {
+            foreach ([0 => 'mysql', 1 => 'web_secondary', 2 => 'web_tertiary'] as $slot => $expected) {
                 $process = new Process([PHP_BINARY, base_path('tests/Fixtures/web-database-bootstrap.php')], base_path(),
                     ['APP_CONFIG_CACHE' => 'bootstrap/cache/'.basename($cache), 'APP_RUNNING_IN_CONSOLE' => 'false',
                         'PROBE_SLOT' => (string) $slot, 'VALZERIA_DB_ROLE' => 'web', 'DB_WEB_SECONDARY_USERNAME' => 'ignored-runtime-value']);
                 $process->mustRun();
                 $result = json_decode($process->getOutput(), true, flags: JSON_THROW_ON_ERROR);
                 $this->assertSame($expected, $result['connection']);
-                $this->assertSame($slot === 0 ? 'first_web' : 'second_web', $result['username']);
+                $this->assertSame(['first_web', 'second_web', 'third_web'][$slot], $result['username']);
                 $this->assertSame('same_database', $result['database']);
                 $this->assertSame(0, $result['open_connections']);
                 $this->assertSame($before, hash_file('sha256', $cache));
                 $this->assertStringNotContainsString('fixture-web-secret', $process->getOutput());
+                $this->assertStringNotContainsString('fixture-third-secret', $process->getOutput());
             }
             foreach (['web' => 'mysql', 'worker' => 'worker'] as $role => $expected) {
                 $process = new Process([PHP_BINARY, base_path('artisan'), 'db:connection-role'], base_path(),
