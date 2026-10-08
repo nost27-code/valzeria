@@ -297,3 +297,14 @@ Weekly ranking catch-up: the daily 09:05 finalizer runs in automatic mode, walks
 - `NamelessBattleHistoryService`: 遺跡操作台帳を週間勝利数と冒険者カードで共通集計。補填台帳を新しい戦闘として数えない。
 - `NamelessRuinCompensationService` / `scripts/maintenance/compensate-nameless-ruins.php`: 明示承認済みの旧記録だけを非公開計画で補填。抽選結果・元記録ハッシュ・個体ロック・一意な領収記録で再付与を防ぎ、進行中の操作や地図入場中は延期する。
 - `SecurityLoginRetentionService`: 90日超の観測を1回200件まで主キーでNOWAIT整理。ロック中は保存したまま次回へ延期し、検知本体のDB異常は処理段階を記録して失敗にする。
+
+## 通常連続探索のまとめ読取（2026-10-08、既定OFF・本番未反映）
+
+- `config/exploration_performance.php`: `EXPLORATION_BATCH_READS_ENABLED`で旧処理へ戻せる。
+- `NormalExplorationBatchService`: NAM機能ONの通常エリア・複数回・標準runnerだけを冒険者行ロック付きのscopeへ。地域深度/亜域/遺跡/地図/1回は従来経路。
+- `ExplorationBatchReadContext`: 操作内の値配列、依存テーブルのDML失効、DDL/rollback破棄、入力/config fingerprint。
+- `CharacterStatusService`, `MonsterMarkService`, `MonsterMarkAlchemyService`, `NamelessWorkshopService`: 更新後の値を保持し、Eloquentモデルを共有せず読取・計算を再利用。
+- `AppServiceProvider`: scope登録、query-builder/Eloquent更新とrollbackの失効。
+- `RequestPerformanceCollector/Store`, `Admin/RequestPerformanceReportService`, `Admin/RequestPerformanceController`, `admin/request-performance`: `exploration_processing_mode`を保存・検証・絞込。過去の欠落は未記録であり旧処理と推測しない。
+- `ExplorationBatchReadContextTest`, `NormalExplorationBatchServiceTest`, `RequestPerformanceTest`: 同条件共有、関連更新、成長/印閾値/遺物、ON/OFF、失敗/rollback、旧JSON/方式比較。
+- 一括保存は未実装。設計・切替条件・比較は `docs/experiments/EXPLORATION_BATCH_READ_CONTEXT_2026-10-08.md`。

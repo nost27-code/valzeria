@@ -98,14 +98,14 @@ class ExplorationService
                 $locked = Character::whereKey($character->id)->lockForUpdate()->firstOrFail();
                 $character->setRawAttributes($locked->getAttributes(), true);
                 $character->unsetRelations();
-                CharacterStatusService::clearRequestCache();
+                CharacterStatusService::clearRequestCache(discardBatchRead: false);
                 return app(ExplorationStateService::class)->withLockedState($character,
                     fn () => $this->exploreLocked($character, $areaId, $isBossBattle, $forcedEvent, $skipBattleCooldown),
                 );
             });
         } finally {
             $character->refresh();
-            CharacterStatusService::clearRequestCache();
+            CharacterStatusService::clearRequestCache(discardBatchRead: false);
         }
     }
 
@@ -1003,9 +1003,14 @@ class ExplorationService
     ): array
     {
         // Also cover sub-area batches and callers without the HTTP commit middleware.
-        return app(GameSettingService::class)->withFreshSnapshot(
+        $operation = fn () => app(GameSettingService::class)->withFreshSnapshot(
             fn () => $this->exploreRepeatedWithSnapshot($character, $areaId, $requestedCount, $exploreRunner, $repeatableSpecialEvents, $perRunStaminaCost),
         );
+
+        // Special runners (sub-area/ruin) and single explorations keep their existing path.
+        return $exploreRunner === null && self::normalizeRepeatCount($requestedCount) > 1
+            ? app(NormalExplorationBatchService::class)->run($character, $areaId, $operation)
+            : $operation();
     }
 
     private function exploreRepeatedWithSnapshot(

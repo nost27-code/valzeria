@@ -68,6 +68,12 @@ class MonsterMarkAlchemyService
 
     public function bonusesFor(Character $character): array
     {
+        return app(ExplorationBatchReadContext::class)->remember($character, 'refinement-bonuses',
+            ['monster_mark_refinements', 'migrations'], fn () => $this->readBonuses($character));
+    }
+
+    private function readBonuses(Character $character): array
+    {
         $options = $this->statOptions();
 
         return collect($this->bonusPointsFor($character))

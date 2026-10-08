@@ -19,6 +19,7 @@ final class RequestPerformanceController extends Controller
             'until' => ['nullable', 'date_format:Y-m-d\TH:i'],
             'op' => ['nullable', 'regex:/\A[0-9a-f]{64}\z/'],
             'release' => ['nullable', 'regex:/\A(?:[0-9a-f]{40}|local)\z/'],
+            'exploration_mode' => ['nullable', Rule::in(array_keys(RequestPerformanceReportService::EXPLORATION_MODES))],
         ]);
         abort_if($validator->fails(), 422, '集計条件が正しくありません。');
         $filters = $validator->validated();
@@ -27,9 +28,10 @@ final class RequestPerformanceController extends Controller
         abort_if($until > time() + 60 || $until < time() - 48 * 3600, 422, '終了時刻は現在から48時間以内を指定してください。');
         $sort = $filters['sort'] ?? 'db_ms';
 
-        return response()->view('admin.request-performance', $reports->read($minutes, $until, $sort, $filters['op'] ?? null, $filters['release'] ?? '') + [
+        return response()->view('admin.request-performance', $reports->read($minutes, $until, $sort, $filters['op'] ?? null, $filters['release'] ?? '', $filters['exploration_mode'] ?? '') + [
             'minutes' => $minutes, 'sort' => $sort, 'filters' => $filters, 'periods' => RequestPerformanceReportService::PERIODS,
             'sorts' => RequestPerformanceReportService::SORTS, 'enabled' => (bool) config('request_performance.enabled'),
+            'explorationModes' => RequestPerformanceReportService::EXPLORATION_MODES,
         ])->header('Cache-Control', 'no-store, private');
     }
 }

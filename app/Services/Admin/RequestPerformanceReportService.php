@@ -11,15 +11,19 @@ final class RequestPerformanceReportService
     public const SORTS = ['db_ms' => 'DB合計時間', 'requests' => '実行回数', 'p95' => '応答時間の遅い側（p95）',
         'duplicate_avg' => '重複読み取り', 'contention' => 'DB競合'];
 
+    public const EXPLORATION_MODES = ['legacy' => '通常処理', 'batch_reads' => 'まとめ読取', 'unknown' => '方式未記録'];
+
     public function __construct(private RequestPerformanceStore $store) {}
 
-    public function read(int $minutes, int $until, string $sort, ?string $operationId = null, string $release = ''): array
+    public function read(int $minutes, int $until, string $sort, ?string $operationId = null, string $release = '', string $explorationMode = ''): array
     {
         $seconds = $minutes * 60;
         $current = $this->store->read($until - $seconds, $until);
         $previous = $this->store->read($until - 2 * $seconds, $until - $seconds);
         $releases = array_values(array_unique(array_column([...$current['rows'], ...$previous['rows']], 'release')));
-        $filter = fn ($row) => $release === '' || ($row['release'] ?? '') === $release;
+        $filter = fn ($row) => ($release === '' || ($row['release'] ?? '') === $release)
+            && ($explorationMode === '' || ($row['operation'] === 'POST battle.explore'
+                && ($row['exploration_processing_mode'] ?? 'unknown') === $explorationMode));
         $currentRows = array_values(array_filter($current['rows'], $filter));
         $previousRows = array_values(array_filter($previous['rows'], $filter));
         $rows = $this->aggregate($currentRows);

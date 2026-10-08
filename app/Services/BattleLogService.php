@@ -70,7 +70,7 @@ class BattleLogService
             ->first();
 
         $statusService = app(\App\Services\CharacterStatusService::class);
-        \App\Services\CharacterStatusService::clearRequestCache($character->id);
+        \App\Services\CharacterStatusService::clearRequestCache($character->id, discardBatchRead: false);
         $stats = $statusService->getFinalStats($character);
         $preEquip = $stats['pre_equipment'] ?? ['str' => 0, 'mag' => 0];
         $mainStat = max((int) $preEquip['str'], (int) $preEquip['mag']);

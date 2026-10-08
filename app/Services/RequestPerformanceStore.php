@@ -139,6 +139,10 @@ final class RequestPerformanceStore
                 return false;
             }
         }
+        if (isset($row['exploration_processing_mode'])
+            && ! in_array($row['exploration_processing_mode'], ['legacy', 'batch_reads'], true)) {
+            return false;
+        }
         foreach (['categories', 'errors', 'phases'] as $field) {
             foreach ($row[$field] as $value) {
                 if (! is_numeric($value) || $value < 0) {

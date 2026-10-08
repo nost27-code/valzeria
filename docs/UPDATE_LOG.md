@@ -1890,3 +1890,7 @@ Do not record tiny refactors, formatting-only changes, or AI docs-only edits.
 
 #### Internal
 - デプロイ時にLaravelの設定・イベント・Bladeテンプレートの本番キャッシュを生成するようにしました。
+
+## 2026-10-08 通常連続探索のまとめ読取（ローカル・既定OFF）
+
+NAM機能ONの通常エリアの連続探索に、冒険者の排他と個別判定/保存を保ったまま、更新されていない能力・印・武具情報を再利用する経路を追加。`EXPLORATION_BATCH_READS_ENABLED`は既定falseで旧経路を保持。性能ページに通常処理/まとめ読取/方式未記録の絞込を追加。本番未反映。DB構造・既存データ・報酬・成長・途中停止・再送を変更しない。一括保存は次段階であり今回未実装。比較・QA・制約はdocs/experiments/EXPLORATION_BATCH_READ_CONTEXT_2026-10-08.md。

@@ -623,6 +623,9 @@ class NamelessWorkshopService
         if (! $this->ready()) {
             return $offense;
         }
+        if (app(ExplorationBatchReadContext::class)->activeFor($character)) {
+            return $this->batchEquipmentPerformance($character)['weapon'];
+        }
         foreach (PlayerNamelessEquipment::query()->where('character_id', $character->id)->where('kind', 'weapon')->where('is_equipped', true)->get() as $equipment) {
             foreach ($equipment->performanceStats() as $stat => $power) {
                 $offense[$stat] += $power;
@@ -637,6 +640,9 @@ class NamelessWorkshopService
         $defense = ['def' => 0, 'spr' => 0];
         if (! $this->ready()) {
             return $defense;
+        }
+        if (app(ExplorationBatchReadContext::class)->activeFor($character)) {
+            return $this->batchEquipmentPerformance($character)['armor'];
         }
         foreach (PlayerNamelessEquipment::query()->where('character_id', $character->id)->where('kind', 'armor')->where('is_equipped', true)->get() as $equipment) {
             foreach ($equipment->performanceStats() as $stat => $power) {
@@ -654,6 +660,9 @@ class NamelessWorkshopService
         if (! $this->ready() || ($kind !== null && $kind !== 'accessory')) {
             return $bonuses;
         }
+        if (app(ExplorationBatchReadContext::class)->activeFor($character)) {
+            return $this->batchEquipmentPerformance($character)['accessory'];
+        }
         foreach (PlayerNamelessEquipment::query()->where('character_id', $character->id)->where('kind', 'accessory')->where('is_equipped', true)->get() as $equipment) {
             foreach ($equipment->performanceStats() as $stat => $power) {
                 $bonuses[$stat] += $power;
@@ -661,6 +670,24 @@ class NamelessWorkshopService
         }
 
         return $bonuses;
+    }
+
+    private function batchEquipmentPerformance(Character $character): array
+    {
+        $key = 'nameless-body:'.app(ExplorationBatchReadContext::class)->fingerprint('nameless-body', config('nameless_relics'));
+
+        return app(ExplorationBatchReadContext::class)->remember($character, $key,
+            ['player_nameless_equipments', 'migrations'], function () use ($character): array {
+                $bonuses = ['weapon' => ['str' => 0, 'mag' => 0], 'armor' => ['def' => 0, 'spr' => 0],
+                    'accessory' => array_fill_keys(['hp', 'mp', 'str', 'def', 'mag', 'spr', 'agi', 'luk'], 0)];
+                foreach (PlayerNamelessEquipment::query()->where('character_id', $character->id)->where('is_equipped', true)->get() as $equipment) {
+                    foreach ($equipment->performanceStats() as $stat => $power) {
+                        $bonuses[$equipment->kind][$stat] += $power;
+                    }
+                }
+
+                return $bonuses;
+            });
     }
 
     private function ownedEquipment(Character $character, int $id, bool $lock = true): PlayerNamelessEquipment

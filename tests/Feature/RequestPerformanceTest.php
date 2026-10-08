@@ -58,6 +58,11 @@ final class RequestPerformanceTest extends TestCase
         $collector->begin(false);
         $profile = $collector->finish($request, 302);
         $this->assertSame(['requested' => 50, 'completed' => 17], $profile['exploration_count']);
+        $this->assertSame('legacy', $profile['exploration_processing_mode']);
+        $request->attributes->set('exploration_processing_mode', 'batch_reads');
+        $collector->begin(false);
+        $this->assertSame('batch_reads', $collector->finish($request, 302)['exploration_processing_mode']);
+        $request->attributes->remove('exploration_processing_mode');
         $this->assertStringNotContainsString('private-', json_encode($profile));
         $this->assertArrayNotHasKey('character_id', $profile);
         app(RequestPerformanceStore::class)->write($profile);
@@ -66,7 +71,9 @@ final class RequestPerformanceTest extends TestCase
         // Replay/early rejection has no fresh server result and is not a zero-cost 50-run sample.
         $request->attributes->remove('committed_exploration_data');
         $collector->begin(false);
-        $this->assertArrayNotHasKey('exploration_count', $collector->finish($request, 302));
+        $replayed = $collector->finish($request, 302);
+        $this->assertArrayNotHasKey('exploration_count', $replayed);
+        $this->assertArrayNotHasKey('exploration_processing_mode', $replayed);
         $request->attributes->set('committed_exploration_data', ['result' => ['result' => 'victory']]);
         $collector->begin(false);
         $this->assertSame(['requested' => 1, 'completed' => 1], $collector->finish($request, 302)['exploration_count']);
@@ -159,6 +166,23 @@ final class RequestPerformanceTest extends TestCase
         $this->assertSame(1, $profile['categories']['session_cache']);
         $this->assertSame(0, $profile['open_transactions']);
         $this->assertStringNotContainsString('private-token', json_encode($profile));
+    }
+
+    public function test_report_filters_exploration_modes_without_assuming_old_records_or_other_operations(): void
+    {
+        $now = time();
+        $store = app(RequestPerformanceStore::class);
+        $store->write($this->record('POST battle.explore', $now - 1, 10) + ['exploration_processing_mode' => 'legacy']);
+        $store->write($this->record('POST battle.explore', $now - 2, 20) + ['exploration_processing_mode' => 'batch_reads']);
+        $store->write($this->record('POST battle.explore', $now - 3, 30));
+        $store->write($this->record('GET home', $now - 4, 40));
+        $reports = app(\App\Services\Admin\RequestPerformanceReportService::class);
+        foreach (['legacy' => 10, 'batch_reads' => 20, 'unknown' => 30] as $mode => $expectedMs) {
+            $report = $reports->read(15, $now + 1, 'db_ms', explorationMode: $mode);
+            $this->assertSame(1, $report['totalRequests']);
+            $this->assertSame((float) $expectedMs, $report['selected']['db_avg']);
+            $this->assertSame('POST battle.explore', $report['selected']['operation']);
+        }
     }
 
     public function test_busy_writer_is_nonblocking_and_expired_files_are_pruned(): void
@@ -264,6 +288,7 @@ final class RequestPerformanceTest extends TestCase
         $this->assertFalse(is_dir($this->directory));
         $this->get(route('admin.request-performance', ['minutes' => 'bad']))->assertStatus(422);
         $this->get(route('admin.request-performance', ['op' => '../../secret']))->assertStatus(422);
+        $this->get(route('admin.request-performance', ['exploration_mode' => 'invalid']))->assertStatus(422);
     }
 
     public function test_http_queries_are_profiled_and_recording_failures_do_not_change_the_response(): void

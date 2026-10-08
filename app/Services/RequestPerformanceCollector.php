@@ -191,6 +191,9 @@ final class RequestPerformanceCollector
             'status' => $status, 'response_ms' => round((hrtime(true) - $this->started) / 1000000, 3),
             'open_transactions' => count($this->transactions)];
         // Counts come from the server result, never arbitrary request values or player data.
+        if ($operation === 'POST battle.explore' && $request->attributes->get('exploration_processing_mode') === 'batch_reads') {
+            $profile['exploration_processing_mode'] = 'batch_reads';
+        }
         if ($operation === 'POST battle.explore' && $status >= 200 && $status < 400) {
             $result = data_get($request->attributes->get('committed_exploration_data'), 'result');
             if (is_array($result) && ! isset($result['error'])) {
@@ -200,6 +203,8 @@ final class RequestPerformanceCollector
                 if (is_int($requested) && is_int($completed) && $requested >= 1 && $requested <= 50
                     && $completed >= 0 && $completed <= $requested) {
                     $profile['exploration_count'] = ['requested' => $requested, 'completed' => $completed];
+                    $profile['exploration_processing_mode'] = $request->attributes->get('exploration_processing_mode') === 'batch_reads'
+                        ? 'batch_reads' : 'legacy';
                 }
             }
         }

@@ -208,6 +208,13 @@ class MonsterMarkService
 
     public function permanentBonuses(Character $character): array
     {
+        return app(ExplorationBatchReadContext::class)->remember($character, 'mark-bonuses',
+            ['character_monster_marks', 'monster_marks', 'enemies'],
+            fn () => $this->readPermanentBonuses($character));
+    }
+
+    private function readPermanentBonuses(Character $character): array
+    {
         $bonuses = [
             'hp' => 0,
             'mp' => 0,

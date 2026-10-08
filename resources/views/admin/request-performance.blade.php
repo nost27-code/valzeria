@@ -4,11 +4,12 @@
         <h1 class="text-2xl font-black text-slate-950">処理負荷・DB分析</h1>
         <p class="mt-2 text-sm text-slate-600">② 重複取得の削減　③ 表示用キャッシュ　④ 遅いSQL・索引　⑤ ロック競合の改善対象を調べます。</p>
     </header>
-    <form method="GET" action="{{ route('admin.request-performance') }}" class="grid gap-3 rounded-md bg-white p-4 shadow-sm sm:grid-cols-2 lg:grid-cols-5">
+    <form method="GET" action="{{ route('admin.request-performance') }}" class="grid gap-3 rounded-md bg-white p-4 shadow-sm sm:grid-cols-2 lg:grid-cols-6">
         <label class="min-w-0 text-sm font-bold">期間<select name="minutes" class="mt-1 w-full rounded-md border-slate-300">@foreach($periods as $value => $label)<option value="{{ $value }}" @selected($minutes === $value)>{{ $label }}</option>@endforeach</select></label>
         <label class="min-w-0 text-sm font-bold">並び順<select name="sort" class="mt-1 w-full rounded-md border-slate-300">@foreach($sorts as $value => $label)<option value="{{ $value }}" @selected($sort === $value)>{{ $label }}</option>@endforeach</select></label>
         <label class="min-w-0 text-sm font-bold">終了時刻（日本時間）<input type="datetime-local" name="until" value="{{ $filters['until'] ?? '' }}" class="mt-1 w-full min-w-0 rounded-md border-slate-300"><span class="text-xs font-normal text-slate-500">空欄なら現在。改善前後の時刻を指定できます。</span></label>
         <label class="min-w-0 text-sm font-bold">公開版<select name="release" class="mt-1 w-full rounded-md border-slate-300"><option value="">すべて</option>@foreach($releases as $sha)<option value="{{ $sha }}" @selected(($filters['release'] ?? '') === $sha)>{{ $sha === 'local' ? 'ローカル' : substr($sha, 0, 12) }}</option>@endforeach</select></label>
+        <label class="min-w-0 text-sm font-bold">探索処理で絞る<select name="exploration_mode" class="mt-1 w-full rounded-md border-slate-300"><option value="">すべての操作</option>@foreach($explorationModes as $value => $label)<option value="{{ $value }}" @selected(($filters['exploration_mode'] ?? '') === $value)>{{ $label }}</option>@endforeach</select><span class="text-xs font-normal text-slate-500">方式未記録には過去の記録や再送等を含みます。探索回数・公開版も揃えて比較してください。</span></label>
         <div class="flex flex-wrap items-center gap-3"><button class="rounded-md bg-slate-900 px-5 py-3 font-bold text-white" type="submit">集計を更新</button><a class="text-sm underline" href="{{ route('admin.request-performance') }}">条件をリセット</a></div>
     </form>
     <div class="rounded-md border border-slate-200 bg-white p-4 text-sm leading-relaxed">

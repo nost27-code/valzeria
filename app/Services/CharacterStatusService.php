@@ -25,6 +25,23 @@ class CharacterStatusService
 
     private function finalStats(Character $character, bool $reuseLoadedRelations): array
     {
+        $batch = app(ExplorationBatchReadContext::class);
+        if (! $reuseLoadedRelations && $batch->activeFor($character)) {
+            // HP/SP, Gold and counters change every battle; they are not ability inputs.
+            $inputs = $character->only(['level', 'current_job_id', 'hp_base', 'mp_base',
+                'attack_base', 'defense_base', 'magic_base', 'spirit_base', 'speed_base', 'luck_base']);
+            $settings = array_map(fn ($key) => config($key), ['nameless_relics', 'nameless_relic_effects',
+                'equipment_proficiency', 'equipment_scaling', 'equipment_enhancement', 'equipment_affix', 'monster_mark_alchemy']);
+            $key = 'final-stats:'.$batch->fingerprint('final-stats', [$inputs, $settings]);
+
+            return $batch->remember($character, $key, ['character_jobs', 'job_classes',
+                'character_monster_marks', 'monster_marks', 'enemies', 'monster_mark_refinements',
+                'character_items', 'items', 'equipment_affix_prefixes', 'equipment_affix_suffixes',
+                'player_nameless_equipments', 'player_relics', 'job_weapon_permissions', 'job_armor_permissions',
+                'migrations', 'game_settings'], fn () => app(NamelessSchemaService::class)->withSnapshot(
+                    fn () => $this->computeFinalStats($character, false),
+                ));
+        }
         if (isset(self::$requestCache[$character->id])) {
             return self::$requestCache[$character->id];
         }
@@ -508,8 +525,11 @@ class CharacterStatusService
         ];
     }
 
-    public static function clearRequestCache(?int $characterId = null): void
+    public static function clearRequestCache(?int $characterId = null, bool $discardBatchRead = true): void
     {
+        if ($discardBatchRead) {
+            app(ExplorationBatchReadContext::class)->forgetFinalStats($characterId);
+        }
         if ($characterId === null) {
             self::$requestCache = [];
 
