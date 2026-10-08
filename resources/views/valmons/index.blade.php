@@ -871,7 +871,7 @@
                             </div>
                         </div>
                         <p class="mt-2 text-sm font-bold leading-relaxed text-slate-500">
-                            {{ $entry['owned'] ? $master->description : 'ヒント：' . $master->base_find_material_category . 'に縁がある地域で見つかることがあります。' }}
+                            {{ $entry['owned'] ? $master->description : (!empty($entry['ruin_location']) ? 'ヒント：' . $entry['ruin_location'] . 'で卵が見つかることがあります。' : 'ヒント：' . $master->base_find_material_category . 'に縁がある地域で見つかることがあります。') }}
                         </p>
                     </div>
                 @endforeach

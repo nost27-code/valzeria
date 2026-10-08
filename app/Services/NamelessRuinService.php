@@ -217,10 +217,11 @@ class NamelessRuinService
             $drops = [];
             $rareEncounters = [];
             $equipmentDrops = [];
+            $eggFound = null;
             $runIndex = 0;
             $last = [];
             $result = app(ExplorationService::class)->exploreRepeated($locked, 0, $count,
-                function (Character $runner) use ($zone, $zoneKey, $depth, &$drops, &$equipmentDrops, &$rareEncounters, &$runIndex, &$last): array {
+                function (Character $runner) use ($zone, $zoneKey, $depth, &$drops, &$equipmentDrops, &$rareEncounters, &$runIndex, &$last, &$eggFound): array {
                     // A full shared warehouse stops before another battle, preserving earned rewards.
                     $storage = app(StorageCapacityService::class)->summary($runner);
                     $block = app(NamelessWorkshopService::class)->inventoryBlockReason($runner, $storage);
@@ -231,6 +232,7 @@ class NamelessRuinService
                     $runIndex++;
                     $drops = array_merge($drops, $last['relic_drops']);
                     $equipmentDrops = array_merge($equipmentDrops, $last['nameless_equipment_drops']);
+                    $eggFound ??= $last['valmon_egg_found'] ?? null;
                     foreach ($last['rare_encounters'] as $encounter) {
                         $encounter['index'] = $runIndex;
                         $rareEncounters[] = $encounter;
@@ -248,6 +250,7 @@ class NamelessRuinService
             $result['relic_drops'] = $drops;
             $result['nameless_equipment_drops'] = $equipmentDrops;
             $result['rare_encounters'] = $rareEncounters;
+            $result['valmon_egg_found'] = $eggFound;
             $result['drop'] = $last['drop'] ?? null;
             return $result;
         });
@@ -304,6 +307,7 @@ class NamelessRuinService
         $advanced = false;
         $unlockedZoneName = null;
         $equipmentDrops = [];
+        $eggFound = null;
         $reward = [];
         $staminaMaxUp = 0;
         if ($battle->result === 'victory') {
@@ -322,6 +326,7 @@ class NamelessRuinService
             if ($collection->dropsForTicket(random_int(1, 10000), $depth)) {
                 $equipmentDrops[] = $collection->awardLocked($locked);
             }
+            $eggFound = app(ValmonService::class)->tryFindRuinEgg($locked, $zoneKey);
             if ($boss && $depth === (int) $progress->unlocked_depth && $depth < (int) config('nameless_relics.max_depth')) {
                 $progress->increment('unlocked_depth');
                 $advanced = true;
@@ -342,6 +347,7 @@ class NamelessRuinService
             'boss_guide' => $enemyBoss ? array_intersect_key($definition, array_flip(['stage', 'min_depth', 'max_depth', 'trait', 'counter', 'technique', 'recommended_relics'])) : null,
             'unlocked_zone_name' => $unlockedZoneName,
             'nameless_equipment_drops' => $equipmentDrops,
+            'valmon_egg_found' => $eggFound,
             'rare_encounters' => in_array($encounter['kind'], ['cleared_boss', 'relic_goblin'], true)
                 ? [['index' => 1, 'kind' => $encounter['kind'], 'name' => $definition['name'], 'result' => $battle->result, 'relic_count' => count($drops)]] : [],
             'enemy_stat_display' => $battle->enemyStatDisplay, 'enemy_hp_after' => $battle->enemyHpAfter,

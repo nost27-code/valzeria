@@ -170,6 +170,109 @@ class ValmonService
         ];
     }
 
+    /** 区画別の固定確率。通常探索と共通の日次上限・管理設定倍率を使う。 */
+    public function tryFindRuinEgg(Character $character, string $zoneKey): ?array
+    {
+        if (! (bool) config('nameless_relics.enabled') || ! config('nameless_ruins.'.$zoneKey)) {
+            return null;
+        }
+        $ticket = $this->ruinEggTicket();
+        if ($this->ruinKeyForTicket($zoneKey, $ticket) === null) {
+            return null;
+        }
+
+        return DB::transaction(function () use ($character, $zoneKey, $ticket): ?array {
+            $locked = Character::query()->whereKey($character->id)->lockForUpdate()->firstOrFail();
+            if ($this->foundEggToday($locked)) {
+                return null;
+            }
+            if (! \App\Models\City::query()->whereKey($locked->current_city_id)
+                ->where('unlock_condition_type', NamelessTownService::MARKER)->exists()) {
+                return null;
+            }
+            $master = $this->ruinMasterForTicket($locked, $zoneKey, $ticket);
+            if (! $master) {
+                return null;
+            }
+            $egg = PlayerValmonEgg::create([
+                'character_id' => $locked->id, 'valmon_master_id' => $master->id,
+                'found_city_id' => $locked->current_city_id, 'found_at' => now(),
+                // 遺跡は仮想区画。通常エリア・探索チェーンのIDを捏造しない。
+                'found_area_id' => null, 'found_exploration_state_id' => null,
+            ]);
+            $zoneName = (string) config('nameless_ruins.'.$zoneKey.'.name');
+            app(PublicLogService::class)->addLog('valmon',
+                "【ヴァルモンの卵】{$locked->name}さんが{$zoneName}でふしぎな卵を見つけました！", $locked, 2);
+
+            return ['egg_id' => $egg->id, 'name' => $master->name, 'rarity' => $master->rarity,
+                'message' => "遺跡の片隅で、{$master->name}の卵を見つけた！ 街へ戻ると孵化します。"];
+        });
+    }
+
+    protected function ruinEggTicket(): int
+    {
+        return random_int(1, 1000000);
+    }
+
+    private function ruinMasterForTicket(Character $character, string $zoneKey, ?int $ticket = null): ?ValmonMaster
+    {
+        $key = $this->ruinKeyForTicket($zoneKey, $ticket);
+
+        return $key === null ? null : $this->eligibleRuinMaster($character, $key);
+    }
+
+    private function ruinKeyForTicket(string $zoneKey, ?int $ticket = null): ?string
+    {
+        $multiplier = $this->eggRate(0) / self::BASE_EGG_RATE;
+        if ($multiplier <= 0) {
+            return null;
+        }
+        $definitions = array_filter((array) config('nameless_valmons.masters'),
+            fn (array $definition): bool => $definition['zone'] === $zoneKey);
+        $slots = [];
+        $end = 0;
+        foreach ($definitions as $key => $definition) {
+            $units = (int) config('nameless_valmons.ticket_units.'.$definition['rarity'], 0);
+            if ($units < 0) {
+                throw new \RuntimeException('ヴァルモンの確率設定が不正です。');
+            }
+            $end += (int) round($units * $multiplier);
+            $slots[$key] = $end;
+        }
+        if ($end > 1000000) {
+            throw new \RuntimeException('ヴァルモンの確率合計が範囲外です。');
+        }
+        if ($end === 0) {
+            return null;
+        }
+        $ticket ??= $this->ruinEggTicket();
+        if ($ticket < 1 || $ticket > 1000000) {
+            throw new \RuntimeException('ヴァルモンの抽選値が範囲外です。');
+        }
+        $selectedKey = null;
+        foreach ($slots as $key => $upper) {
+            if ($ticket <= $upper) {
+                $selectedKey = $key;
+                break;
+            }
+        }
+        if ($selectedKey === null) {
+            return null;
+        }
+        return $selectedKey;
+    }
+
+    /** 当たり枠だけをDBで確認。既知/保管済み/無効/未登録の枠は再配分しない。 */
+    private function eligibleRuinMaster(Character $character, string $selectedKey): ?ValmonMaster
+    {
+        return ValmonMaster::query()->where('valmon_key', $selectedKey)
+            ->where('is_active', true)
+            ->whereNotIn('id', PlayerValmon::query()->where('character_id', $character->id)->select('valmon_master_id'))
+            ->whereNotIn('id', PlayerValmonEgg::query()->where('character_id', $character->id)
+                ->where('is_hatched', false)->where('is_lost', false)->select('valmon_master_id'))
+            ->first();
+    }
+
     public function tryPartnerFindMaterial(Character $character, Area $area, ?CharacterExplorationState $state, DropService $dropService, ?\App\Models\Enemy $enemy = null): ?array
     {
         if (!$state || (bool) ($state->valmon_material_found ?? false)) {
@@ -1105,7 +1208,7 @@ class ValmonService
         return true;
     }
 
-    private function rollPercent(float $percent): bool
+    protected function rollPercent(float $percent): bool
     {
         if ($percent <= 0) {
             return false;

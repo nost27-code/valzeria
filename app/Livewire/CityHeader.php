@@ -853,7 +853,6 @@ class CityHeader extends Component
         $badges = ValmonMaster::query()
             ->where('is_active', true)
             ->orderBy('sort_order')
-            ->take(21)
             ->get()
             ->map(function (ValmonMaster $master) use ($ownedByMasterId) {
                 $owned = $ownedByMasterId->get($master->id);

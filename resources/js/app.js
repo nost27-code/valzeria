@@ -48,7 +48,10 @@ window.adventurerCardToBlob = async (node, player) => {
 
     const context = canvas.getContext('2d');
     const weapons = (player.favorite_weapons ?? []).slice(0, 3);
-    const valmons = (player.valmon_badges ?? []).filter((valmon) => valmon.owned).slice(0, 14);
+    const ownedValmons = (player.valmon_badges ?? []).filter((valmon) => valmon.owned);
+    const valmons = [...ownedValmons]
+        .sort((a, b) => Number(Boolean(b.is_partner)) - Number(Boolean(a.is_partner)))
+        .slice(0, 14);
     const [backgroundImage, avatarImage, ...itemImages] = await Promise.all([
         loadImage(extractBackgroundUrl(node)),
         loadImage(node.querySelector('img[alt="アバター"]')?.currentSrc),
@@ -180,7 +183,7 @@ window.adventurerCardToBlob = async (node, player) => {
     context.stroke();
     context.fillStyle = '#d7efbd';
     context.font = '700 18px sans-serif';
-    context.fillText(`ヴァルモン  ${valmons.length}/21`, 86, 1017);
+    context.fillText(`ヴァルモン  ${ownedValmons.length}/${(player.valmon_badges ?? []).length}`, 86, 1017);
     valmons.forEach((valmon, index) => {
         const x = 320 + index * 44;
         const y = 992;

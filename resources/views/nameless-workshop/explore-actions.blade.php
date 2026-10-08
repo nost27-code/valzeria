@@ -32,6 +32,15 @@
 @endif
 <div class="flex flex-wrap justify-center gap-2">
     <a href="{{ route('nameless-workshop.return', ['tab' => 'dungeon']) }}" class="rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm font-bold text-slate-700">探索タブへ</a>
-    <a href="{{ route('nameless-workshop.return', ['tab' => 'town']) }}" class="rounded-lg bg-slate-800 px-4 py-3 text-sm font-bold text-white">街へ戻る・回復する</a>
+    @if($hasActiveValmonEgg ?? false)
+        <form action="{{ route('battle.return') }}" method="POST" x-data="{ submitting: false }" @submit="if (submitting) { $event.preventDefault(); return; } submitting = true" @pageshow.window="submitting = false">
+            @csrf
+            <button type="submit" :disabled="submitting" class="min-h-11 rounded-lg bg-slate-800 px-4 py-3 text-sm font-bold text-white disabled:opacity-60">
+                <span x-show="!submitting">卵を連れて街へ戻る</span><span x-show="submitting" style="display: none;">帰還中...</span>
+            </button>
+        </form>
+    @else
+        <a href="{{ route('nameless-workshop.return', ['tab' => 'town']) }}" class="rounded-lg bg-slate-800 px-4 py-3 text-sm font-bold text-white">街へ戻る・回復する</a>
+    @endif
     <a href="{{ route('nameless-workshop.index', ['tab' => 'relics']) }}" class="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-900">遺物を整理する</a>
 </div>

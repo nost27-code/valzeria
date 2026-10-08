@@ -281,6 +281,8 @@ class NamelessWorkshopController extends Controller
             'equippedItems' => app(\App\Services\BattleEquipmentSummaryService::class)->forEnemy($character, (string) ($result['enemy']->species_key ?? '')),
             'isBoss' => (bool) ($result['enemy']->is_boss ?? $namelessRuins['boss']), 'areaName' => $namelessRuins['zone_name'].' 深度'.$namelessRuins['depth'],
             'usesStamina' => false, 'battleWaitSeconds' => 0,
+            'hasActiveValmonEgg' => $character->valmonEggs()->where('is_hatched', false)
+                ->where('is_lost', false)->whereNull('stored_at')->exists(),
             'stamina' => app(ExplorationStaminaService::class)->summary($character),
         ])->header('Cache-Control', 'no-store');
     }

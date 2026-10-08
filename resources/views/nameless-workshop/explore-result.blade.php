@@ -4,6 +4,15 @@
 <section class="p-3" data-nameless-relic-rewards>
     <p class="mb-2 text-xs font-bold text-slate-600">{{ $namelessRuins['zone_name'] }} · 深度{{ $namelessRuins['depth'] }}</p>
     <h2 class="text-sm font-black text-amber-900">遺物発見：{{ count($namelessRuins['relic_drops'] ?? []) }}個</h2>
+    @if($namelessRuins['valmon_egg_found'] ?? null)
+        <div class="mt-2 flex max-w-full items-center gap-2 rounded border border-pink-200 bg-white p-3" data-nameless-valmon-egg>
+            <img src="{{ asset('images/valmon/val_egg01.webp') }}" alt="" class="h-10 w-10 shrink-0 object-contain">
+            <div class="min-w-0 text-sm font-bold text-pink-800">
+                <p class="break-words">{{ $namelessRuins['valmon_egg_found']['name'] }}の卵を見つけた！</p>
+                @if($hasActiveValmonEgg ?? false)<p class="mt-1 text-xs text-slate-600">卵を連れて街へ戻ると、新しい相棒が生まれます。</p>@endif
+            </div>
+        </div>
+    @endif
     @foreach($namelessRuins['rare_encounters'] ?? [] as $encounter)
         <p class="mt-2 rounded bg-white px-2 py-1 text-xs font-bold text-amber-800">{{ $encounter['index'] }}回目：{{ $encounter['name'] }}{{ $encounter['kind'] === 'cleared_boss' ? '（撃破済みボスとの再遭遇）' : '（幸運な遭遇）' }} ／ {{ ['victory' => '勝利', 'defeat' => '敗北', 'timeout' => '時間切れ'][$encounter['result']] ?? $encounter['result'] }} · 遺物{{ $encounter['relic_count'] }}個</p>
     @endforeach
@@ -31,6 +40,6 @@
             <a class="mt-2 inline-flex min-h-11 items-center font-bold text-blue-800 underline" href="{{ route('nameless-workshop.index', ['equipment' => $body['id']]) }}">この武具を鍛冶屋で見る</a>
         </div>
     @endforeach
-    <p class="mt-2 text-xs text-slate-500">遺跡の報酬は遺物と希少な名もなき武具です。EXP・職業EXP・Gold・通常ドロップは増えません。</p>
+    <p class="mt-2 text-xs text-slate-500">遺跡では遺物・希少な名もなき武具・ヴァルモンの卵を発見できます。見つけた卵は、街へ帰ると孵化します。</p>
 </section>
 </details>

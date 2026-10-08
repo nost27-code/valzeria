@@ -77,6 +77,7 @@ class ValmonController extends Controller
             ->map(fn ($master) => [
                 'master' => $master,
                 'owned' => $ownedMasterIds->contains($master->id),
+                'ruin_location' => config('nameless_ruins.'.config('nameless_valmons.masters.'.$master->valmon_key.'.zone', '').'.name'),
             ]);
 
         $partner = $valmons->firstWhere('is_partner', true);
