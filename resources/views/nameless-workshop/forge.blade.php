@@ -17,6 +17,8 @@
         get ready() { return this.points >= this.target && this.canPay && (!this.needsBank || this.useBank); },
         step(id, delta, owned) { this.quantities[id] = Math.min(owned, Math.max(0, Math.trunc(Number(this.quantities[id]) || 0) + delta)); },
         protectHighest() { if (this.protectBest) this.relicIds = this.relicIds.filter(id => !this.bestIds.includes(String(id))); },
+        relicChoices: @js($forgeRelics->values()),
+        selectRelics(lowOnly = false) { const ids = this.relicChoices.filter(relic => (!this.search || relic.name.includes(this.search)) && (!lowOnly || relic.rank <= 3) && (!this.protectBest || !this.bestIds.includes(String(relic.id)))).map(relic => String(relic.id)); this.relicIds = [...new Set([...this.relicIds, ...ids])].slice(0, 300); },
         fill(id, owned) { this.quantities[id] = Math.min(owned, (Number(this.quantities[id]) || 0) + Math.ceil(Math.max(0, this.required - this.total) / this.units[id])); }
     }" x-init="protectHighest()">
         @include('nameless-workshop.token')
@@ -60,10 +62,17 @@
             <p class="muted">I〜IIIは3 pt、IV〜VIは4 pt、VII〜IXは5 pt。<strong>使った遺物は失われ、効果は武具に残りません。</strong></p>
             <input type="hidden" name="protect_best" value="0">
             <label class="check"><input type="checkbox" name="protect_best" value="1" x-model="protectBest" @change="protectHighest()" @checked($forgeSelection['protectBest'])>各効果の最高ランクを1つ残す</label>
+            <div class="row bulk-actions" data-relic-bulk-select>
+                <button type="button" class="secondary" @click="selectRelics()">表示中を一括選択</button>
+                <button type="button" class="secondary" @click="selectRelics(true)">表示中のI〜IIIを選択</button>
+                <button type="button" class="secondary" @click="relicIds = []">選択をすべて解除</button>
+            </div>
+            <small>遺物素材は一度に300個まで選べます。</small>
+            <p class="muted" role="status" x-text="'選択中 ' + relicIds.length + ' 個'">選択中 {{ count($forgeSelection['relicIds']) }} 個</p>
             <div class="material-choices">
             @forelse($forgeRelics as $relic)
-                <div class="forge-material" :class="{ 'chosen': relicIds.includes('{{ $relic['id'] }}') }" x-show="!search || $el.textContent.includes(search)">
-                    <label class="check forge-relic-choice"><input type="checkbox" name="relics[]" value="{{ $relic['id'] }}" x-model="relicIds" :disabled="protectBest && bestIds.includes('{{ $relic['id'] }}')" @checked(in_array((string) $relic['id'], $forgeSelection['relicIds'], true))><x-relic-icon :effect-key="$relic['effect_key']" /><span class="relic-copy"><strong>{{ $relic['name'] }}</strong><small>{{ $relic['unit'] }} pt @if(in_array($relic['id'], $bestIds, true)) · 最高ランク@endif</small></span></label>
+                <div class="forge-material" :class="{ 'chosen': relicIds.includes('{{ $relic['id'] }}') }" x-show="!search || @js($relic['name']).includes(search)">
+                    <label class="check forge-relic-choice"><input type="checkbox" name="relics[]" value="{{ $relic['id'] }}" x-model="relicIds" :disabled="(protectBest && bestIds.includes('{{ $relic['id'] }}')) || (relicIds.length >= 300 && !relicIds.includes('{{ $relic['id'] }}'))" @checked(in_array((string) $relic['id'], $forgeSelection['relicIds'], true))><x-relic-icon :effect-key="$relic['effect_key']" /><span class="relic-copy"><strong>{{ $relic['name'] }}</strong><small>{{ $relic['unit'] }} pt @if(in_array($relic['id'], $bestIds, true)) · 最高ランク@endif</small></span></label>
                     <details class="forge-effect"><summary>効果を見る</summary><p>{{ $relic['summary'] }}</p><small>{{ $relic['description'] }}</small></details>
                 </div>
             @empty<p class="muted">強化に使える遺物がありません。保護中・装着中の遺物は表示されません。</p>@endforelse

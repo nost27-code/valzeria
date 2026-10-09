@@ -10,12 +10,14 @@
         <p><strong>ランク{{ $growth['next_label'] }}：{{ $growth['next_summary'] }}</strong></p>
         <p class="muted">本体は残り、投入した素材だけが消費されます。成功率100%。Goldは不要です。保護中・装着中の本体も育成でき、途中の進捗は保存されます。</p>
         @if($growthCandidates->isNotEmpty())
-            <form method="post" action="{{ route('nameless-workshop.act', 'preview-relic-growth') }}" class="stack" x-data="{ selected: [] }">
+            <form method="post" action="{{ route('nameless-workshop.act', 'preview-relic-growth') }}" class="stack" x-data="{ selected: [], candidates: @js($growthCandidates->pluck('id')->map('strval')->values()), remaining: {{ $growth['remaining'] }} }">
                 @include('nameless-workshop.token')
                 <input type="hidden" name="relic_id" value="{{ $target->id }}">
                 @if($selectedEquipment)<input type="hidden" name="equipment_id" value="{{ $selectedEquipment->id }}">@endif
                 <input type="hidden" name="effect" value="{{ $filterEffect }}">
                 <h3>投入する素材を選ぶ（1〜{{ $growth['remaining'] }}個）</h3>
+                <div class="row bulk-actions"><button type="button" class="secondary" @click="selected = candidates.slice(0, remaining)">必要数まで一括選択</button><button type="button" class="secondary" @click="selected = []">選択をすべて解除</button></div>
+                <small role="status" x-text="'選択中 ' + selected.length + ' 個'"></small>
                 <div class="material-choices">
                     @foreach($growthCandidates as $source)
                         <label class="material-choice"><input type="checkbox" name="source_relics[]" value="{{ $source->id }}" x-model="selected" :disabled="selected.length >= {{ $growth['remaining'] }} && !selected.includes('{{ $source->id }}')"><span><strong>{{ $source->displayName() }}</strong><small>素材候補{{ $loop->iteration }} · 未装着・未保護</small></span></label>

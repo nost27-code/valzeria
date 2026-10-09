@@ -1,4 +1,5 @@
 @include('nameless-workshop.equipment-selector')
+@include('nameless-workshop.equipment-bulk-discard')
 @if($selectedOrdinaryEquipment && $tab === 'sets')
     @include('nameless-workshop.ordinary-equipment', ['body' => $selectedOrdinaryEquipment])
 @endif
