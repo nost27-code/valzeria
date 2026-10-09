@@ -10,6 +10,7 @@ use App\Services\CharacterStatusService;
 use App\Services\ExplorationStaminaService;
 use App\Services\NamelessEquipmentService;
 use App\Services\NamelessEquipmentCollectionService;
+use App\Services\NamelessEquipmentBulkDiscardService;
 use App\Services\NamelessEquipmentListService;
 use App\Services\NamelessRelicCatalog;
 use App\Services\NamelessRelicGrowthService;
@@ -105,6 +106,12 @@ class NamelessWorkshopController extends Controller
         $forge = $equipment->map(fn ($body) => $workshop->forgeSummary($character, $body));
         $selectedCost = $selectedEquipment ? $forge->get($selectedEquipment->id) : null;
         $feedableRelics = $relics->filter(fn ($relic) => ! $relic->is_locked && ! $relic->isAttached() && ! $relic->growth_progress);
+        $bulkDiscard = app(NamelessEquipmentBulkDiscardService::class);
+        $discardableEquipment = $filteredEquipment->filter(fn ($body) => $bulkDiscard->canDiscard($body));
+        $discardSelection = $request->session()->get('nameless_discard_selection.'.$character->id, []);
+        $discardInput = array_filter((array) old('equipment_ids', $discardSelection), fn ($id) => is_scalar($id)
+            && filter_var($id, FILTER_VALIDATE_INT) !== false && (int) $id > 0);
+        $discardSelectedIds = array_slice(array_values(array_unique(array_intersect(array_map('strval', $discardInput), $discardableEquipment->keys()->map('strval')->all()))), 0, NamelessEquipmentBulkDiscardService::MAX_SELECTION);
 
         return view('nameless-workshop.index', [
             'character' => $character, 'equipment' => $equipment, 'relics' => $relics, 'materials' => $materials,
@@ -114,6 +121,7 @@ class NamelessWorkshopController extends Controller
             'relicFeedEquipment' => $selectedEquipment ?? $equipment->first(),
             'selectedOrdinaryEquipment' => $selectedOrdinaryEquipment, 'ordinaryRelics' => $ordinaryRelics,
             'filteredEquipment' => $filteredEquipment,
+            'discardableEquipment' => $discardableEquipment, 'discardSelectedIds' => $discardSelectedIds,
             'selectableEquipment' => $selectableEquipment, 'selectionOutsideFilter' => $selectionOutsideFilter,
             'equipmentFilters' => $equipmentFilters, 'equipmentFilterOptions' => $list->options(),
             'equipmentFilterQuery' => $equipmentFilterQuery,
@@ -131,7 +139,7 @@ class NamelessWorkshopController extends Controller
                 'owned' => (int) $row->quantity, 'unit' => $workshop->materialFeedExp($row->material),
             ]) : collect(),
             'forgeRelics' => $feedableRelics->map(fn ($relic) => [
-                'id' => $relic->id, 'name' => $relic->displayName(), 'summary' => $relic->effectSummary(), 'effect_key' => $relic->effect_key,
+                'id' => $relic->id, 'name' => $relic->displayName(), 'rank' => $relic->rank, 'summary' => $relic->effectSummary(), 'effect_key' => $relic->effect_key,
                 'description' => $catalog->definition($relic->effect_key)['description'], 'unit' => $catalog->feedExp($relic->rank),
             ])->values(),
             'forgeSelection' => [
@@ -163,6 +171,7 @@ class NamelessWorkshopController extends Controller
             'equip' => ['equipment_id' => ['required', 'integer', 'min:1'], 'equipped' => ['required', 'boolean']],
             'protect-equipment' => ['equipment_id' => ['required', 'integer', 'min:1'], 'protected' => ['required', 'boolean']],
             'discard-equipment' => ['equipment_id' => ['required', 'integer', 'min:1'], 'revision' => ['required', 'integer', 'min:0'], 'confirmed' => ['accepted']],
+            'preview-discard-equipment-bulk', 'discard-equipment-bulk' => $this->bulkDiscardRules($action === 'discard-equipment-bulk'),
             'configure' => ['equipment_id' => ['required', 'integer', 'min:1'], 'type' => ['required', 'string', 'max:20'], 'name' => ['nullable', 'string', 'max:32']],
             'rename' => ['equipment_id' => ['required', 'integer', 'min:1'], 'name' => ['nullable', 'string', 'max:32']],
             'attach-ordinary' => ['character_item_id' => ['required', 'integer', 'min:1'], 'slot' => ['required', 'integer', 'min:1', 'max:3'], 'relic_id' => ['required', 'integer', 'min:1']],
@@ -199,8 +208,17 @@ class NamelessWorkshopController extends Controller
         if (in_array($action, ['preview-relic-growth', 'grow-relic'], true)) {
             $back .= '#relic-growth';
         }
+        if (in_array($action, ['preview-discard-equipment-bulk', 'discard-equipment-bulk'], true)) {
+            $back .= '#bulk-equipment-discard';
+        }
         try {
             app(\App\Services\NamelessTownService::class)->assertVisiting($character);
+            if ($action === 'preview-discard-equipment-bulk') {
+                $preview = app(NamelessEquipmentBulkDiscardService::class)->preview($character, $data['equipment_ids']);
+                $request->session()->put('nameless_discard_selection.'.$character->id, $data['equipment_ids']);
+
+                return response()->view('nameless-workshop.equipment-discard-confirm', ['preview' => $preview, 'input' => $data, 'equipmentFilterQuery' => $equipmentFilterQuery, 'backUrl' => $back])->header('Cache-Control', 'no-store');
+            }
             if ($action === 'preview-relic-growth') {
                 $preview = app(NamelessRelicGrowthService::class)->preview($character, $data['relic_id'], $data['source_relics']);
 
@@ -222,6 +240,7 @@ class NamelessWorkshopController extends Controller
                 'equip' => $workshop->changeEquipment($character, $data['equipment_id'], $request->boolean('equipped'), $uuid),
                 'protect-equipment' => $workshop->protectEquipment($character, $data['equipment_id'], $request->boolean('protected'), $uuid),
                 'discard-equipment' => $workshop->discardEquipment($character, $data['equipment_id'], $data['revision'], $uuid),
+                'discard-equipment-bulk' => app(NamelessEquipmentBulkDiscardService::class)->discard($character, $data['equipment_ids'], $data['confirmation_hash'], $uuid),
                 'configure' => $workshop->configure($character, $data['equipment_id'], $data['type'], $data['name'] ?? null, $uuid),
                 'rename' => $workshop->rename($character, $data['equipment_id'], $data['name'] ?? null, $uuid),
                 'attach-ordinary' => $workshop->attachOrdinary($character, $data['character_item_id'], $data['slot'], $data['relic_id'], $uuid),
@@ -240,11 +259,26 @@ class NamelessWorkshopController extends Controller
         } catch (QueryException $e) {
             report($e);
 
+            if (in_array($action, ['preview-discard-equipment-bulk', 'discard-equipment-bulk'], true)) {
+                $back = route('nameless-workshop.index', $equipmentFilterQuery + ['tab' => $data['workshop_tab'] ?? 'workshop']).'#bulk-equipment-discard';
+            }
+
             return redirect($back)->with('error', '処理を完了できませんでした。画面を開き直し、所持状態を確認してから再試行してください。');
         } catch (RuntimeException $e) {
+            if (in_array($action, ['preview-discard-equipment-bulk', 'discard-equipment-bulk'], true) && isset($data['equipment_id'])
+                && ! PlayerNamelessEquipment::query()->where('character_id', $character->id)->whereKey($data['equipment_id'])->exists()) {
+                $back = route('nameless-workshop.index', $equipmentFilterQuery + ['tab' => $data['workshop_tab'] ?? 'workshop']).'#bulk-equipment-discard';
+            }
             return redirect($back)->with('error', $e->getMessage())->withInput();
         }
         $response = redirect($back)->with('status', $result['message']);
+        if ($action === 'discard-equipment-bulk') {
+            $request->session()->forget('nameless_discard_selection.'.$character->id);
+            if (isset($data['equipment_id']) && in_array((int) $data['equipment_id'], array_column($result['discarded_equipment'], 'id'), true)) {
+                $response = redirect()->route('nameless-workshop.index', $equipmentFilterQuery + ['tab' => $data['workshop_tab'] ?? 'workshop'])
+                    ->with('status', $result['message']);
+            }
+        }
         if ($action === 'forge-combined' && (int) $request->session()->get('nameless_forge_selection.equipment_id') === (int) $data['equipment_id']) {
             $request->session()->forget('nameless_forge_selection');
         }
@@ -320,6 +354,17 @@ class NamelessWorkshopController extends Controller
         $rules = ['relic_id' => ['required', 'integer', 'min:1'], 'source_relics' => ['required', 'array', 'min:1', 'max:4'],
             'source_relics.*' => ['required', 'integer', 'min:1', 'distinct'], 'equipment_id' => ['sometimes', 'integer', 'min:1'],
             'effect' => ['sometimes', 'nullable', 'string', 'max:64']];
+        if ($confirm) {
+            $rules += ['confirmation_hash' => ['required', 'string', 'size:64'], 'confirmed' => ['accepted']];
+        }
+
+        return $rules;
+    }
+
+    private function bulkDiscardRules(bool $confirm): array
+    {
+        $rules = ['equipment_ids' => ['required', 'array', 'min:1', 'max:'.NamelessEquipmentBulkDiscardService::MAX_SELECTION],
+            'equipment_ids.*' => ['required', 'integer', 'min:1', 'distinct'], 'equipment_id' => ['sometimes', 'integer', 'min:1']];
         if ($confirm) {
             $rules += ['confirmation_hash' => ['required', 'string', 'size:64'], 'confirmed' => ['accepted']];
         }
