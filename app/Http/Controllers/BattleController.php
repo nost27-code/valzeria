@@ -658,15 +658,22 @@ class BattleController extends Controller
     {
         $character = Auth::user()->currentCharacter();
         if ($character) {
-            $resolvedValmonEggs = DB::transaction(function () use ($character) {
-                $character = Character::whereKey($character->id)->lockForUpdate()->firstOrFail();
+            $runner = app(\App\Services\ExplorationReturnTransactionRunner::class);
+            $returnResult = $runner->run((int) $character->id, function (string &$phase) use ($character, $runner): array {
+                $character = $runner->lock(Character::whereKey($character->id))->firstOrFail();
+                $phase = 'return_save';
                 $eggs = app(\App\Services\ValmonService::class)->hatchActiveEggs($character);
                 app(\App\Services\RegionDepthDungeonService::class)->finalize($character, 'returned');
                 app(ExplorationStateService::class)->reset($character);
                 app(SubAreaExplorationStateService::class)->reset($character);
                 app(\App\Services\MapExplorationItemService::class)->end($character);
-                return $eggs;
+                return ['success' => true, 'eggs' => $eggs];
             });
+            if (! $returnResult['success']) {
+                // Keep exploration/session/eggs intact until return is committed.
+                return redirect()->route('battle.resume')->with('error', $returnResult['message']);
+            }
+            $resolvedValmonEggs = $returnResult['eggs'];
             $this->forgetExploreCount($character);
             session()->forget('nameless_exploration_selected_count.'.$character->id);
         }

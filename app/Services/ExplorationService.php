@@ -1012,9 +1012,9 @@ class ExplorationService
         );
 
         // Special runners (sub-area/ruin) and single explorations keep their existing path.
-        return $exploreRunner === null && self::normalizeRepeatCount($requestedCount) > 1
+        return app(NamelessSchemaService::class)->withBattleSnapshot(fn () => $exploreRunner === null && self::normalizeRepeatCount($requestedCount) > 1
             ? app(NormalExplorationBatchService::class)->run($character, $areaId, $operation)
-            : $operation();
+            : $operation());
     }
 
     private function exploreRepeatedWithSnapshot(
