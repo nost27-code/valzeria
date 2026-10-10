@@ -578,7 +578,12 @@ class NamelessWorkshopService
 
     public function equippedEquipmentForDisplay(Character $character)
     {
-        return $this->ownedEquipmentForDisplay($character)->where('is_equipped', true)->keyBy('kind');
+        if (! $this->ready()) {
+            return collect();
+        }
+
+        return PlayerNamelessEquipment::query()->where('character_id', $character->id)
+            ->where('is_equipped', true)->orderBy('kind')->orderBy('id')->get()->keyBy('kind');
     }
 
     public function activeRelics(Character $character, ?string $kind = null, ?string $excludeKind = null)
