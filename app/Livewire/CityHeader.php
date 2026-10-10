@@ -8,6 +8,7 @@ use App\Models\Character;
 use App\Models\CharacterNotification;
 use App\Models\City;
 use App\Models\JobClass;
+use App\Models\PlayerNamelessEquipment;
 use App\Models\SixHeroRanking;
 use App\Models\SixHeroSeason;
 use App\Models\ValmonMaster;
@@ -21,6 +22,7 @@ use App\Services\ExplorationStaminaService;
 use App\Services\FerdiaMapService;
 use App\Services\FavoriteWeaponService;
 use App\Services\JobService;
+use App\Services\NamelessWorkshopService;
 use App\Services\Nation\Raid\NationRaidCrownService;
 use App\Services\RecentAdventurerService;
 use App\Services\SchemaStateService;
@@ -479,9 +481,10 @@ class CityHeader extends Component
             : '無所属';
         $stats = app(CharacterStatusService::class)->getFinalStats($character);
         $equippedItems = app(EquipmentService::class)->getEquippedItems($character);
-        $weapon = $equippedItems['weapon'] ?? null;
-        $armor = $equippedItems['armor'] ?? null;
-        $accessory = $equippedItems['accessory'] ?? null;
+        $namelessEquipped = app(NamelessWorkshopService::class)->equippedEquipmentForDisplay($character);
+        $weapon = $namelessEquipped->get('weapon') ?? $equippedItems['weapon'] ?? null;
+        $armor = $namelessEquipped->get('armor') ?? $equippedItems['armor'] ?? null;
+        $accessory = $namelessEquipped->get('accessory') ?? $equippedItems['accessory'] ?? null;
 
         $maxHp = max(1, (int) ($stats['max_hp'] ?? $character->hp_base));
         $currentHp = max(0, min((int) $character->current_hp, $maxHp));
@@ -897,6 +900,15 @@ class CityHeader extends Component
 
     private function equipmentLine($characterItem, string $rankColumn): array
     {
+        if ($characterItem instanceof PlayerNamelessEquipment) {
+            return [
+                'name' => $characterItem->displayName().' +'.$characterItem->forge_level,
+                'rank' => PlayerNamelessEquipment::DISPLAY_RANK,
+                'rank_color' => $this->rankColor(PlayerNamelessEquipment::DISPLAY_RANK),
+                'bonus_text' => null,
+            ];
+        }
+
         if (!$characterItem) {
             return [
                 'name' => 'なし',
@@ -933,6 +945,7 @@ class CityHeader extends Component
     private function rankColor(?string $rank): string
     {
         $rankColors = [
+            PlayerNamelessEquipment::DISPLAY_RANK => '#171b20',
             'EPIC' => '#e11d48',
             'SSS' => '#f97316',
             'SS' => '#c084fc',
