@@ -251,6 +251,13 @@ class ChampBattleService
         ?int $expectedChampAppointedAt = null
     ): array
     {
+        return app(NamelessSchemaService::class)->withBattleSnapshot(
+            fn () => $this->executeChallengeWithSnapshot($challenger, $expectedChampCharacterId, $expectedChampAppointedAt),
+        );
+    }
+
+    private function executeChallengeWithSnapshot(Character $challenger, ?int $expectedChampCharacterId, ?int $expectedChampAppointedAt): array
+    {
         $runner = app(ChampBattleTransactionRunner::class);
         $result = $runner->run((int) $challenger->id, function (string &$phase) use ($runner, $challenger, $expectedChampCharacterId, $expectedChampAppointedAt) {
             $phase = 'champ_snapshot';

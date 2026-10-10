@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-10-10-exploration-return-contention',
+        'date' => '2026-10-10',
+        'category' => 'fixed',
+        'title' => '探索処理の軽量化と帰還時の混雑案内を改善',
+        'detail' => '連続探索中の重複確認を減らしました。帰還処理が混み合う場合は探索状態・戦利品・卵を保持し、再度の帰還を案内します。報酬や消費量は変更していません。',
+    ],
+    [
         'id' => '2026-10-09-nameless-bulk-operations',
         'date' => '2026-10-09',
         'category' => 'added',

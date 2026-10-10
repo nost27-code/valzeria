@@ -40,6 +40,7 @@ class ExplorationItemTransactionRunner
                         return $callback($phase);
                     }, 1);
                 } catch (DeadlockException|QueryException $exception) {
+                    app(RequestPerformanceCollector::class)->exception($exception, $phase);
                     // A savepoint rollback does not release all locks. The owner
                     // must roll back an outer transaction before retrying.
                     if ($outerLevel > 0 || $exception instanceof DeadlockException) {
@@ -54,7 +55,7 @@ class ExplorationItemTransactionRunner
                     $elapsedMs = (int) ((hrtime(true) - $startedAt) / 1_000_000);
                     $earlyWait = $phase === 'character_lock';
                     if ($attempt >= ($earlyWait ? 8 : 3) || $elapsedMs >= ($earlyWait ? 3000 : 2000)) {
-                        Log::warning('Exploration item database contention handled.', [
+                        Log::warning($this->contentionLogMessage(), [
                             'database_error_code' => (int) ($error[1] ?? 0),
                             'reason' => 'database_lock',
                             'phase' => $phase,
@@ -64,7 +65,7 @@ class ExplorationItemTransactionRunner
 
                         return [
                             'success' => false,
-                            'message' => '回復アイテムの処理が混み合っています。少し待ってから、もう一度お試しください。',
+                            'message' => $this->contentionMessage(),
                         ];
                     }
                     $this->waitBeforeRetry($attempt);
@@ -77,6 +78,16 @@ class ExplorationItemTransactionRunner
         }
 
         throw new \LogicException('Exploration item transaction ended without a result.');
+    }
+
+    protected function contentionLogMessage(): string
+    {
+        return 'Exploration item database contention handled.';
+    }
+
+    protected function contentionMessage(): string
+    {
+        return '回復アイテムの処理が混み合っています。少し待ってから、もう一度お試しください。';
     }
 
     protected function waitBeforeRetry(int $attempt): void

@@ -1003,9 +1003,9 @@ class ExplorationService
     ): array
     {
         // Also cover sub-area batches and callers without the HTTP commit middleware.
-        return app(GameSettingService::class)->withFreshSnapshot(
+        return app(NamelessSchemaService::class)->withBattleSnapshot(fn () => app(GameSettingService::class)->withFreshSnapshot(
             fn () => $this->exploreRepeatedWithSnapshot($character, $areaId, $requestedCount, $exploreRunner, $repeatableSpecialEvents, $perRunStaminaCost),
-        );
+        ));
     }
 
     private function exploreRepeatedWithSnapshot(

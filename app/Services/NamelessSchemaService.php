@@ -12,7 +12,7 @@ final class NamelessSchemaService
 
     private ?array $snapshot = null;
 
-    /** Share one fresh inspection only inside a synchronous read operation. */
+    /** Share one inspection inside an explicit synchronous operation; only metadata is retained. */
     public function withSnapshot(callable $operation): mixed
     {
         if ($this->snapshotActive) {
@@ -26,6 +26,19 @@ final class NamelessSchemaService
             $this->snapshot = null;
             $this->snapshotActive = false;
         }
+    }
+
+    /** Reuse schema metadata during one battle, never owned assets or config.
+     * Prime before gameplay locks; the next operation always inspects again.
+     */
+    public function withBattleSnapshot(callable $operation): mixed
+    {
+        return $this->withSnapshot(function () use ($operation) {
+            if ((bool) config('nameless_relics.enabled', false)) {
+                $this->problems();
+            }
+            return $operation();
+        });
     }
 
     /** type, nullable, default (where writes rely on one). Integer types are minimum widths. */
@@ -75,7 +88,7 @@ final class NamelessSchemaService
     {
         $problems = [];
         $maria = in_array(DB::getDriverName(), ['mysql', 'mariadb'], true);
-        // Outside an explicit read operation, every inspection stays fresh.
+        // Outside an explicit operation, every inspection stays fresh.
         $metadata = $this->metadata($maria);
         if (! isset($metadata['migrations'])) {
             $problems[] = 'migrations:table_missing';

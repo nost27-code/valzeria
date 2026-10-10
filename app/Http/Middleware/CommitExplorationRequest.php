@@ -5,6 +5,7 @@ namespace App\Http\Middleware;
 use App\Models\Character;
 use App\Services\CharacterStatusService;
 use App\Services\GameSettingService;
+use App\Services\NamelessSchemaService;
 use Closure;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\Request;
@@ -32,7 +33,7 @@ class CommitExplorationRequest
 
         try {
             // 回数指定も一つの操作として確定する。外部応答やセッションを伴うため自動再試行しない。
-            return app(GameSettingService::class)->withFreshSnapshot(fn () => DB::transaction(function () use ($request, $next, $character, $token, $hash) {
+            return app(NamelessSchemaService::class)->withBattleSnapshot(fn () => app(GameSettingService::class)->withFreshSnapshot(fn () => DB::transaction(function () use ($request, $next, $character, $token, $hash) {
                 Character::whereKey($character->id)->lockForUpdate()->firstOrFail();
                 // 同じ冒険者の操作は上の行ロックで直列化済み。
                 // 未登録tokenのFOR UPDATEはInnoDBでgap lockを取り、別の冒険者のINSERTとも競合する。
@@ -60,7 +61,7 @@ class CommitExplorationRequest
                 ]);
 
                 return $response;
-            }));
+            })));
         } catch (\Throwable $exception) {
             $request->session()->flush();
             $request->session()->put($sessionBefore);
