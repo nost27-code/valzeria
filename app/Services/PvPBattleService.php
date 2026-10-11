@@ -20,6 +20,7 @@ use App\Services\Battle\DamageSourceType;
 use App\Services\Battle\DirectAttackResolution;
 use App\Services\Battle\BattleResult;
 use App\Services\Battle\HitResult;
+use App\Services\Battle\RelicDamageTrace;
 use App\Services\Battle\JobArtHitPower;
 use App\Services\Battle\NullPvPRoomRule;
 use App\Services\Battle\PvPBattleExecutionContext;
@@ -158,8 +159,10 @@ class PvPBattleService
 
         if ($isDirect && $source !== null && ($source->namelessRelicsEnabled || $target->namelessRelicsEnabled)) {
             $relicBattle = app(NamelessRelicBattleService::class);
-            $damage = $relicBattle->speciesDamage($damage, $source, $target, true);
-            $damage = $relicBattle->directDamage($damage, $source, $target);
+            $trace = new RelicDamageTrace($damage);
+            $damage = $relicBattle->speciesDamage($damage, $source, $target, true, $trace);
+            $damage = $relicBattle->directDamage($damage, $source, $target, $trace);
+            $relicBattle->logMitigation($target, $state, $trace);
         }
         $damage = max(0, $this->roomRuleFor($state)->modifyFinalDamage(
             $source,

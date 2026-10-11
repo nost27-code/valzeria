@@ -419,6 +419,13 @@ class NationRaidTurnByTurnActionProfileBridge extends BattleService
             )
             : 0.0;
         $finalMultiplier = $legacyMultiplier * (1 - $armorResistanceRate);
+        $withoutRelicsRate = null;
+        if ($player->namelessRelicsEnabled) {
+            $armorOnlyRate = NationRaidRules::ARMOR_SPECIES_RESISTANCE_ENABLED
+                ? $this->pveArmorResistanceRate($boss, $player, NationRaidRules::ARMOR_SPECIES_RESISTANCE_RATE_CAP, false)
+                : 0.0;
+            $withoutRelicsRate = max(0.0, min(0.95, 1 - $legacyMultiplier * (1 - $armorOnlyRate)));
+        }
 
         return new NationRaidPlayerTurnState(
             maxHp: $player->maxHp,
@@ -431,6 +438,7 @@ class NationRaidTurnByTurnActionProfileBridge extends BattleService
             enemyEvadeChancePercent: max(0.0, min(100.0, $activeEvasion)),
             enemyCriticalChancePercent: $this->damageCalculator->criticalChance($boss, $player),
             finalDamageReductionRate: max(0.0, min(0.95, 1 - $finalMultiplier)),
+            finalDamageReductionRateWithoutRelics: $withoutRelicsRate,
             incomingDamageApplier: new NationRaidExistingPlayerDefenseApplier(
                 player: $player,
                 boss: $boss,

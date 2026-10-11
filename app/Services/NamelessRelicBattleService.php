@@ -8,6 +8,7 @@ use App\Services\Battle\BattleState;
 use App\Services\Battle\DamageApplicationResult;
 use App\Services\Battle\DamageSourceType;
 use App\Services\Battle\HitResult;
+use App\Services\Battle\RelicDamageTrace;
 
 class NamelessRelicBattleService
 {
@@ -133,12 +134,12 @@ class NamelessRelicBattleService
     }
 
     /** 刻印は自然種族へ加算しない。PvEの複数自然種族は従来の合計、PvPは最大一致を使う。 */
-    public function killerRate(BattleActor $attacker, BattleActor $defender, bool $pvp): float
+    public function killerRate(BattleActor $attacker, BattleActor $defender, bool $pvp, bool $includeRelicMitigation = true): float
     {
         $rate = $this->matchingKillerRate($attacker, $defender, $pvp);
         return min($pvp ? (float) config('nameless_relics.pvp_killer_cap') : (float) config('equipment_affix.weapon_killer_damage_rate_cap', .55),
             $rate * ($pvp ? (float) config('nameless_relics.pvp_species_scale') : 1))
-            * (1 - ($defender->namelessRelicEffects['brand_guard'] ?? 0));
+            * (1 - ($includeRelicMitigation ? ($defender->namelessRelicEffects['brand_guard'] ?? 0) : 0));
     }
 
     /** Uncapped match; each battle mode applies its existing cap exactly once. */
@@ -160,9 +161,9 @@ class NamelessRelicBattleService
         return max($nativeRate, $foreignRate);
     }
 
-    public function resistanceRate(BattleActor $attacker, BattleActor $defender, bool $pvp): float
+    public function resistanceRate(BattleActor $attacker, BattleActor $defender, bool $pvp, bool $includeRelicMitigation = true): float
     {
-        $effects = $defender->namelessResistEffects;
+        $effects = $includeRelicMitigation ? $defender->namelessResistEffects : [];
         if ($defender->armorResistSpeciesKey) {
             $effects[] = ['species_key' => $defender->armorResistSpeciesKey, 'damage_rate' => $defender->armorSpeciesDamageReductionRate];
         }
@@ -177,17 +178,22 @@ class NamelessRelicBattleService
         return min((float) config('nameless_relics.resist_cap'), max([0, ...array_values($matched)]) * ($pvp ? (float) config('nameless_relics.pvp_species_scale') : 1));
     }
 
-    public function speciesDamage(int $damage, BattleActor $attacker, BattleActor $defender, bool $pvp): int
+    public function speciesDamage(int $damage, BattleActor $attacker, BattleActor $defender, bool $pvp, ?RelicDamageTrace $trace = null): int
     {
         if ($damage <= 0) {
             return $damage;
+        }
+
+        if ($trace !== null) {
+            // 防具耐性・攻撃側の特攻・上限は残し、防御側の遺物耐性と断刻だけを除く。
+            $trace->damageWithoutMitigation = max(1, (int) floor(round($damage * (1 + $this->killerRate($attacker, $defender, $pvp, false)) * (1 - $this->resistanceRate($attacker, $defender, $pvp, false)), 6)));
         }
 
         return max(1, (int) floor(round($damage * (1 + $this->killerRate($attacker, $defender, $pvp)) * (1 - $this->resistanceRate($attacker, $defender, $pvp)), 6)));
     }
 
     /** 命中後の追加効果。callbackは既存のダメージ/回復経路を通す。反応からは呼ばない。 */
-    public function completeDirectHit(BattleActor $attacker, BattleActor $defender, BattleState $state, DamageApplicationResult $result, callable $damage, callable $heal, callable $roll): void
+    public function completeDirectHit(BattleActor $attacker, BattleActor $defender, BattleState $state, DamageApplicationResult $result, callable $damage, callable $heal, callable $roll, ?callable $onResponse = null): void
     {
         if ($result->hitResult === HitResult::MISS || $result->hitResult === HitResult::EVADE) {
             return;
@@ -217,15 +223,21 @@ class NamelessRelicBattleService
         if (! $defender->isDead() && ! $attacker->isDead() && $actual > 0 && ! isset($defender->namelessProcActions['counter:'.$action])) {
             $defender->namelessProcActions['counter:'.$action] = true;
             if (($defender->namelessRelicEffects['counter'] ?? 0) > 0 && $roll() <= $defender->namelessRelicEffects['counter'] * 10000) {
-                $damage($defender, $attacker, max(1, (int) floor($actual * config('nameless_relics.counter_damage_rate'))), DamageSourceType::COUNTER);
-                $state->addLog('【返刃】'.$defender->logName().' の遺物が反撃した。');
+                $response = $damage($defender, $attacker, max(1, (int) floor($actual * config('nameless_relics.counter_damage_rate'))), DamageSourceType::COUNTER);
+                $this->logResponse('返刃', $defender, $attacker, $state, $response);
+                if ($onResponse !== null) {
+                    $onResponse('返刃', $response);
+                }
             }
         }
         $blocked = $defender->namelessMirrorBlocked[$action] ?? 0;
         if ($blocked > 0 && ! $defender->isDead() && ! $attacker->isDead() && ! isset($defender->namelessProcActions['mirror:'.$action])) {
             $defender->namelessProcActions['mirror:'.$action] = true;
-            $damage($defender, $attacker, max(1, (int) floor($blocked * config('nameless_relics.mirror_return_rate'))), DamageSourceType::REFLECT);
-            $state->addLog('【鏡守】軽減した攻撃の一部が返った。');
+            $response = $damage($defender, $attacker, max(1, (int) floor($blocked * config('nameless_relics.mirror_return_rate'))), DamageSourceType::REFLECT);
+            $this->logResponse('鏡守', $defender, $attacker, $state, $response);
+            if ($onResponse !== null) {
+                $onResponse('鏡守', $response);
+            }
         }
     }
 
@@ -239,16 +251,18 @@ class NamelessRelicBattleService
     }
 
     /** 多段技は同一の行動番号で扱う。状態異常の継続ダメージ・反射からは呼ばない。 */
-    public function directDamage(int $damage, BattleActor $attacker, BattleActor $defender): int
+    public function directDamage(int $damage, BattleActor $attacker, BattleActor $defender, ?RelicDamageTrace $trace = null): int
     {
         if ($damage <= 0) {
             return $damage;
         }
         $multiplier = 1.0;
+        $offensiveMultiplier = 1.0;
         if (($attacker->namelessRelicEffects['opener'] ?? 0) > 0) {
             $attacker->namelessOpenerAction ??= $attacker->namelessActionSerial;
             if ($attacker->namelessOpenerAction === $attacker->namelessActionSerial) {
                 $multiplier *= 1 + $attacker->namelessRelicEffects['opener'];
+                $offensiveMultiplier *= 1 + $attacker->namelessRelicEffects['opener'];
             }
         }
         if (($defender->namelessRelicEffects['first_guard'] ?? 0) > 0) {
@@ -261,9 +275,11 @@ class NamelessRelicBattleService
         $threshold = (float) config('nameless_relics.low_hp_threshold');
         if (($defender->namelessReferenceHp ?? $defender->hp) <= $defender->maxHp * $threshold) {
             $multiplier *= 1 + ($attacker->namelessRelicEffects['finisher'] ?? 0);
+            $offensiveMultiplier *= 1 + ($attacker->namelessRelicEffects['finisher'] ?? 0);
             $multiplier *= 1 - ($defender->namelessRelicEffects['last_stand'] ?? 0);
         }
         $multiplier *= 1 + ($attacker->namelessRelicEffects['blood_pact'] ?? 0);
+        $offensiveMultiplier *= 1 + ($attacker->namelessRelicEffects['blood_pact'] ?? 0);
         $guard = (float) ($defender->namelessRelicEffects['mirror_guard'] ?? 0);
         if ($guard > 0) {
             $action = spl_object_id($attacker).':'.$attacker->namelessActionSerial;
@@ -272,7 +288,34 @@ class NamelessRelicBattleService
         }
 
         // 十進の倍率が浮動小数点誤差だけで1ダメージ落ちることを避けて切り捨てる。
-        return max(1, (int) floor(round($damage * $multiplier, 6)));
+        $resolved = max(1, (int) floor(round($damage * $multiplier, 6)));
+        if ($trace !== null) {
+            $withoutMitigation = max(1, (int) floor(round($trace->damageWithoutMitigation * $offensiveMultiplier, 6)));
+            $trace->mitigatedDamage = max(0, $withoutMitigation - $resolved);
+        }
+
+        return $resolved;
+    }
+
+    public function logMitigation(BattleActor $defender, BattleState $state, RelicDamageTrace $trace): void
+    {
+        if ($trace->mitigatedDamage > 0) {
+            $state->deferLogAfterDamage('<span style="overflow-wrap:anywhere">【遺物軽減】'.$defender->logName().' の被ダメージを'.number_format($trace->mitigatedDamage).'軽減した。</span>');
+        }
+    }
+
+    private function logResponse(string $label, BattleActor $source, BattleActor $target, BattleState $state, mixed $response): void
+    {
+        // レイドのdamage sinkへの減少は共有HPの確定値ではない。確定後の表示経路へ渡す。
+        if ($state->battleType === 'raid') {
+            $state->addLog($label === '鏡守' ? '【鏡守】軽減した攻撃の一部が返った。'
+                : '【返刃】'.$source->logName().' の遺物が反撃した。');
+
+            return;
+        }
+        $actual = $response instanceof DamageApplicationResult ? $response->actualHpLoss : 0;
+        $verb = $label === '鏡守' ? '反射し' : '反撃し';
+        $state->deferLogAfterDamage('<span style="overflow-wrap:anywhere">【'.$label.'】'.$source->logName().' の遺物が'.$verb.'、'.$target->logName().' に'.number_format($actual).'ダメージを与えた。</span>');
     }
 
     public function recoverAfterVictory(BattleActor $actor, BattleState $state): void

@@ -23,6 +23,7 @@ final readonly class NationRaidPlayerTurnState
         public float $enemyCriticalChancePercent,
         public float $finalDamageReductionRate,
         public ?NationRaidIncomingDamageApplier $incomingDamageApplier = null,
+        public ?float $finalDamageReductionRateWithoutRelics = null,
     ) {
         if ($maxHp < 1 || $currentHp < 0 || $currentHp > $maxHp
             || $defense < 0 || $spirit < 0 || $maxSp < 0
@@ -52,6 +53,7 @@ final readonly class NationRaidPlayerTurnState
             finalDamageReductionRate: $this->finalDamageReductionRate,
             counterplayEnabled: $base->counterplayEnabled,
             bossSetExactIdentities: $base->bossSetExactIdentities,
+            finalDamageReductionRateWithoutRelics: $this->finalDamageReductionRateWithoutRelics,
         );
     }
 }

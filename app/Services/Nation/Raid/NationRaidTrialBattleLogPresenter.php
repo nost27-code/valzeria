@@ -65,6 +65,7 @@ final readonly class NationRaidTrialBattleLogPresenter
                     : [],
                 $playerName,
                 $bossName,
+                ! empty($enemyDamage['playerDefense']['relic_response_hp_losses']),
             );
 
             $turns[] = [
@@ -160,13 +161,13 @@ final readonly class NationRaidTrialBattleLogPresenter
      * @param  list<string>  $logs
      * @return list<string>
      */
-    private function playerActionLogs(array $logs, string $playerName, string $bossName): array
+    private function playerActionLogs(array $logs, string $playerName, string $bossName, bool $hasRelicResponseDetails = false): array
     {
         $visible = [];
         $normalActionAdded = false;
         foreach ($logs as $log) {
             $plain = $this->plainText($log);
-            if ($this->isRaidIncomingDefenseLog($plain, $playerName, $bossName)) {
+            if ($this->isRaidIncomingDefenseLog($plain, $playerName, $bossName, $hasRelicResponseDetails)) {
                 // ボスターンの防御・反撃結果はPhase 1の確定値から、敵技直後へ表示する。
                 continue;
             }
@@ -192,9 +193,10 @@ final readonly class NationRaidTrialBattleLogPresenter
         return $visible;
     }
 
-    private function isRaidIncomingDefenseLog(string $plain, string $playerName, string $bossName): bool
+    private function isRaidIncomingDefenseLog(string $plain, string $playerName, string $bossName, bool $hasRelicResponseDetails = false): bool
     {
-        return str_contains($plain, $playerName.' は剣冠の構えで攻撃を受け流した！')
+        return ($hasRelicResponseDetails && (str_starts_with($plain, '【返刃】') || str_starts_with($plain, '【鏡守】')))
+            || str_contains($plain, $playerName.' は剣冠の構えで攻撃を受け流した！')
             || (
                 str_contains($plain, $playerName.' の王冠剣陣が反撃し、'.$bossName.' に')
                 && str_contains($plain, 'ダメージ')
@@ -299,6 +301,12 @@ final readonly class NationRaidTrialBattleLogPresenter
         }
         if (($defense['guts_triggered'] ?? false) === true) {
             $messages[] = '不屈の精神で致死ダメージを耐えた！（HP1）';
+        }
+        foreach ($defense['relic_mitigation_hits'] ?? [] as $hit) {
+            $messages[] = '【遺物軽減】被ダメージを'.number_format((int) $hit['damage']).'軽減した。（'.(int) $hit['hit_index'].'撃目）';
+        }
+        foreach ($defense['relic_response_hp_losses'] ?? [] as $response) {
+            $messages[] = '【'.$response['label'].'】相手に'.number_format((int) $response['damage']).'ダメージを与えた。';
         }
 
         return $messages;

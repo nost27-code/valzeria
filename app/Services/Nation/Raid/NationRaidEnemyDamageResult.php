@@ -18,11 +18,24 @@ final readonly class NationRaidEnemyDamageResult
         public array $hits,
         public array $appliedEffects,
         public array $playerDefense = [],
+        public ?int $finalDamageWithoutRelicMitigation = null,
     ) {}
 
     /** @return array<string, mixed> */
     public function toArray(): array
     {
-        return get_object_vars($this);
+        $data = get_object_vars($this);
+        // 旧snapshot・遺物OFFの表示契約へ任意の表示情報を強制しない。
+        if ($this->finalDamageWithoutRelicMitigation === null) {
+            unset($data['finalDamageWithoutRelicMitigation']);
+        }
+
+        return $data;
+    }
+
+    public function withPlayerDefense(array $defense): self
+    {
+        return new self($this->beforeCap, $this->cap, $this->afterCap, $this->finalReductionRate,
+            $this->finalDamage, $this->hits, $this->appliedEffects, $defense, $this->finalDamageWithoutRelicMitigation);
     }
 }

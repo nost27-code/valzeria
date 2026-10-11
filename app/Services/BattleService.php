@@ -19,6 +19,7 @@ use App\Services\Battle\DamageCalculator;
 use App\Services\Battle\DamageSourceType;
 use App\Services\Battle\DirectAttackResolution;
 use App\Services\Battle\HitResult;
+use App\Services\Battle\RelicDamageTrace;
 use App\Services\Battle\JobArtHitPower;
 use App\Services\Enemy\EnemyStatGenerationService;
 use App\Services\Enemy\EnemyStatPreviewService;
@@ -2659,13 +2660,26 @@ class BattleService
         }
 
         if ($state->battleType !== NationRaidRules::BATTLE_TYPE && ($attacker->namelessRelicsEnabled || $defender->namelessRelicsEnabled)) {
-            $damage = app(NamelessRelicBattleService::class)->speciesDamage($damage, $attacker, $defender, false);
+            $relics = app(NamelessRelicBattleService::class);
+            $trace = new RelicDamageTrace($damage);
+            $damage = $relics->speciesDamage($damage, $attacker, $defender, false, $trace);
             if ($defender->isPlayer) {
                 $damage = app(ExplorationSupportService::class)->reduceDirectDamage($damage, $state->explorationSupportSnapshot);
+                $trace->damageWithoutMitigation = app(ExplorationSupportService::class)->reduceDirectDamage($trace->damageWithoutMitigation, $state->explorationSupportSnapshot);
             }
-            return app(NamelessRelicBattleService::class)->directDamage($damage, $attacker, $defender);
+            $damage = $relics->directDamage($damage, $attacker, $defender, $trace);
+            $relics->logMitigation($defender, $state, $trace);
+
+            return $damage;
         }
 
+        $trace = new RelicDamageTrace($damage);
+        if ($state->battleType === NationRaidRules::BATTLE_TYPE) {
+            $displayKillerRate = $this->pveKillerDamageRate($attacker, $defender, $state, false);
+            if ($displayKillerRate > 0) {
+                $trace->damageWithoutMitigation = max(1, (int) floor($damage * (1 + $displayKillerRate)));
+            }
+        }
         $killerRate = $this->pveKillerDamageRate($attacker, $defender, $state);
         if ($killerRate > 0) {
             $damage = max(1, (int) floor($damage * (1 + $killerRate)));
@@ -2685,13 +2699,22 @@ class BattleService
             if ($rate > 0) {
                 $damage = max(1, (int) floor($damage * (1 - $rate)));
             }
+            if ($state->battleType === NationRaidRules::BATTLE_TYPE && NationRaidRules::ARMOR_SPECIES_RESISTANCE_ENABLED) {
+                $armorOnlyRate = $this->pveArmorResistanceRate($attacker, $defender, NationRaidRules::ARMOR_SPECIES_RESISTANCE_RATE_CAP, false);
+                if ($armorOnlyRate > 0) {
+                    $trace->damageWithoutMitigation = max(1, (int) floor($trace->damageWithoutMitigation * (1 - $armorOnlyRate)));
+                }
+            }
         }
 
         // レイド固有の特攻倍率・上限を維持し、遺物の直接効果だけを追加する。
         if ($state->battleType === NationRaidRules::BATTLE_TYPE) {
-            return ($attacker->namelessRelicsEnabled || $defender->namelessRelicsEnabled)
-                ? app(NamelessRelicBattleService::class)->directDamage($damage, $attacker, $defender)
+            $damage = ($attacker->namelessRelicsEnabled || $defender->namelessRelicsEnabled)
+                ? app(NamelessRelicBattleService::class)->directDamage($damage, $attacker, $defender, $trace)
                 : $damage;
+            app(NamelessRelicBattleService::class)->logMitigation($defender, $state, $trace);
+
+            return $damage;
         }
 
         if ($defender->isPlayer) {
@@ -2707,6 +2730,7 @@ class BattleService
         BattleActor $attacker,
         BattleActor $defender,
         ?float $cap = null,
+        bool $includeRelicMitigation = true,
     ): float {
         if ($attacker->isPlayer || ! $defender->isPlayer) {
             return 0.0;
@@ -2714,7 +2738,7 @@ class BattleService
 
         if ($attacker->namelessRelicsEnabled || $defender->namelessRelicsEnabled) {
             return min($cap ?? app(EquipmentAffixRulesService::class)->armorResistDamageReductionCap(),
-                app(NamelessRelicBattleService::class)->resistanceRate($attacker, $defender, false));
+                app(NamelessRelicBattleService::class)->resistanceRate($attacker, $defender, false, $includeRelicMitigation));
         }
 
         $resistSpecies = (string) ($defender->armorResistSpeciesKey ?? '');
@@ -2728,7 +2752,7 @@ class BattleService
             : 0.0;
     }
 
-    private function pveKillerDamageRate(BattleActor $attacker, BattleActor $defender, BattleState $state): float
+    private function pveKillerDamageRate(BattleActor $attacker, BattleActor $defender, BattleState $state, bool $includeRelicMitigation = true): float
     {
         if (! in_array($state->battleType, ['pve', 'boss', NationRaidRules::BATTLE_TYPE], true)
             || ! $attacker->isPlayer
@@ -2749,7 +2773,7 @@ class BattleService
             if ($attacker->namelessRelicsEnabled || $defender->namelessRelicsEnabled) {
                 $rate = app(NamelessRelicBattleService::class)->matchingKillerRate($attacker, $defender);
             }
-            return NationRaidRules::raidKillerDamageRate($rate) * (1 - ($defender->namelessRelicEffects['brand_guard'] ?? 0));
+            return NationRaidRules::raidKillerDamageRate($rate) * (1 - ($includeRelicMitigation ? ($defender->namelessRelicEffects['brand_guard'] ?? 0) : 0));
         }
 
         return min(
