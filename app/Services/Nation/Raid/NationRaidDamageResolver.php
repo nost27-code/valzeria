@@ -87,6 +87,13 @@ final class NationRaidDamageResolver
             : $player->finalDamageReductionRate + $additionalTelegraphReduction;
         $finalReduction = min(0.95, max(0.0, $finalReduction));
         $finalDamage = max(0, (int) floor($afterCap * (1 - $finalReduction)));
+        $withoutRelics = null;
+        if ($player->finalDamageReductionRateWithoutRelics !== null) {
+            // 同じ確定済み命中・乱数・capを使用。予告防御の置換/加算もそのまま残す。
+            $displayReduction = $telegraphReductionOverride
+                ?? ($player->finalDamageReductionRateWithoutRelics + $additionalTelegraphReduction);
+            $withoutRelics = max(0, (int) floor($afterCap * (1 - min(0.95, max(0.0, $displayReduction)))));
+        }
 
         $appliedEffects = [];
         $effect = $action['effect'] ?? null;
@@ -106,6 +113,7 @@ final class NationRaidDamageResolver
             finalDamage: $finalDamage,
             hits: $hitTrace,
             appliedEffects: $appliedEffects,
+            finalDamageWithoutRelicMitigation: $withoutRelics,
         );
     }
 

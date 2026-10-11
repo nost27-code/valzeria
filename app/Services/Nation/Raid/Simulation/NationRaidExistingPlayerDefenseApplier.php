@@ -9,6 +9,7 @@ use App\Services\Battle\DamageApplicationService;
 use App\Services\Battle\DamageSourceType;
 use App\Services\Battle\DirectAttackResolution;
 use App\Services\Battle\HitResult;
+use App\Services\Battle\RelicDamageTrace;
 use App\Services\JobArtV2ResourceService;
 use App\Services\JobArtV2UltimateCounterplayService;
 use App\Services\Nation\Raid\NationRaidEnemyDamageResult;
@@ -44,6 +45,9 @@ final readonly class NationRaidExistingPlayerDefenseApplier implements NationRai
         $guardBefore = $this->player->jobArtV2GuardState();
         $gutsReadyBefore = $this->player->gutsReady;
         $allocatedHits = $this->allocateFinalDamage($damage);
+        $withoutRelicHits = array_column($this->allocateFinalDamage($damage, $damage->finalDamageWithoutRelicMitigation), 'damage', 'index');
+        $relicMitigationHits = [];
+        $relicResponses = [];
         $requestedDamage = 0;
         $gutsTriggered = false;
 
@@ -61,11 +65,13 @@ final readonly class NationRaidExistingPlayerDefenseApplier implements NationRai
                     break;
                 }
 
+                $trace = new RelicDamageTrace($withoutRelicHits[$hit['index']] ?? $hit['damage']);
+
                 $result = $this->damageApplication->apply(new DamageApplicationRequest(
                     sourceActor: $this->boss,
                     targetActor: $this->player,
                     resolvedDamage: $this->player->namelessRelicsEnabled
-                        ? $relics->directDamage($hit['damage'], $this->boss, $this->player) : $hit['damage'],
+                        ? $relics->directDamage($hit['damage'], $this->boss, $this->player, $trace) : $hit['damage'],
                     sourceType: DamageSourceType::OTHER,
                     sourceId: $enemyActionId,
                     battleType: $this->state->battleType,
@@ -83,6 +89,9 @@ final readonly class NationRaidExistingPlayerDefenseApplier implements NationRai
                         sourceType: DamageSourceType::OTHER,
                     ),
                 ));
+                if ($trace->mitigatedDamage > 0) {
+                    $relicMitigationHits[] = ['hit_index' => $hit['index'], 'damage' => $trace->mitigatedDamage];
+                }
                 if ($this->player->namelessRelicsEnabled) {
                     $relics->completeDirectHit($this->boss, $this->player, $this->state, $result,
                         fn ($from, $to, $amount, $type) => $this->damageApplication->apply(new DamageApplicationRequest(
@@ -90,7 +99,10 @@ final readonly class NationRaidExistingPlayerDefenseApplier implements NationRai
                             sourceType: $type, sourceId: null, battleType: $this->state->battleType, battleState: $this->state,
                         )),
                         fn ($actor, $amount) => app(\App\Services\JobArtV2FieldService::class)->applyHpHeal($actor, $this->state, $amount),
-                        fn () => \App\Services\Battle\ScopedBattleRandomizer::int(1, 10000));
+                        fn () => \App\Services\Battle\ScopedBattleRandomizer::int(1, 10000),
+                        function (string $label, mixed $response) use (&$relicResponses): void {
+                            $relicResponses[] = ['label' => $label, 'damage' => $response?->actualHpLoss ?? 0];
+                        });
                 }
                 $requestedDamage += $result->requestedDamage;
                 if ($this->player->gutsJustTriggered) {
@@ -125,6 +137,12 @@ final readonly class NationRaidExistingPlayerDefenseApplier implements NationRai
             'guts_triggered' => $gutsTriggered,
             'actual_hp_loss' => max(0, $hpBefore - $hpAfter),
         ];
+        if ($relicMitigationHits !== []) {
+            $defenseTrace['relic_mitigation_hits'] = $relicMitigationHits;
+        }
+        if ($relicResponses !== []) {
+            $defenseTrace['relic_responses'] = $relicResponses;
+        }
 
         $resolvedDamage = new NationRaidEnemyDamageResult(
             beforeCap: $damage->beforeCap,
@@ -155,7 +173,7 @@ final readonly class NationRaidExistingPlayerDefenseApplier implements NationRai
     /**
      * @return list<array{index:int,type:string,damage:int,hit_count:int}>
      */
-    private function allocateFinalDamage(NationRaidEnemyDamageResult $damage): array
+    private function allocateFinalDamage(NationRaidEnemyDamageResult $damage, ?int $displayDamage = null): array
     {
         $hits = array_values(array_filter(
             $damage->hits,
@@ -163,11 +181,12 @@ final readonly class NationRaidExistingPlayerDefenseApplier implements NationRai
                 && ($hit['outcome'] ?? null) === 'hit'
                 && (int) ($hit['damage'] ?? 0) > 0,
         ));
-        if ($damage->finalDamage <= 0 || $hits === []) {
+        $finalDamage = $displayDamage ?? $damage->finalDamage;
+        if ($finalDamage <= 0 || $hits === []) {
             return [];
         }
 
-        $remainingDamage = $damage->finalDamage;
+        $remainingDamage = $finalDamage;
         $remainingWeight = array_sum(array_map(
             static fn (array $hit): int => (int) $hit['damage'],
             $hits,

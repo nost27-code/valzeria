@@ -1,5 +1,12 @@
 # DATA_MODEL.md
 
+## 遺物の軽減・反撃の表示情報（2026-10-11、公開対象）
+
+- DBスキーマ・出撃時の遺物snapshot契約は変更しない。通常戦・PvP・塔・遺跡は既存のログ文字列へ軽減量と反撃/反射の実HP減少量を含める。`RelicDamageTrace` は同一ヒットの表示用比較値だけを持つ一時DTOで、HP適用や報酬計算へ渡さない。
+- 新しいレイド結果の `enemy_damage.playerDefense` に任意の `relic_mitigation_hits`（hit_index、軽減合計）、`relic_responses`（遺物反応の仮適用値）、`relic_response_hp_losses`（返刃/鏡守の確定後HP減少の寄与）を追加する。表示は確定後の値を使用し、damage sinkの仮適用値を直接表示しない。既存JSON内の追加情報だけで、新しいテーブル・列・移行は不要。
+- 表示情報のない旧保存結果は既存ログを保持し、再戦闘・推測・補填・データ書換えは行わない。公開確認は今回の独立読戻し記録を参照。
+
+
 第3段階の通常連続探索（2026-10-08、ローカル・既定OFF）は既存の`characters`/`character_jobs`/`character_exploration_states`の許可列UPDATEだけを所有者lock付きtransaction内で集約する。各BattleLog実IDとGold台帳の増減/balance_after、資産行は個別保存。対象表を直接読む前にflushし、操作UUID/暗号化結果の保存前に全pendingを確定、例外は外側transactionまでrollbackする。schema/制約/マスタID変更なし。詳細は`docs/experiments/EXPLORATION_BATCH_STATE_2026-10-08.md`。
 
 ## 名もなき武具の名前検証（2026-10-08、公開対象）

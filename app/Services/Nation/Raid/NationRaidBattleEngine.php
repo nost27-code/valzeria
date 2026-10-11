@@ -270,6 +270,7 @@ final class NationRaidBattleEngine
             }
 
             if (($incomingApplication?->counterDamage ?? 0) > 0) {
+                $bossHpBeforeCounter = $virtualHp;
                 $counterSources = $this->applyPlayerRuntimeDamageModifiers([[
                     'kind' => NationRaidRules::DAMAGE_COUNTER,
                     'damage' => $incomingApplication->counterDamage,
@@ -289,6 +290,22 @@ final class NationRaidBattleEngine
                     ...$counterDamage['sources'],
                 ];
                 $playerDamage['total_damage'] += $counterDamage['total_damage'];
+                $relicResponses = $incomingApplication->defenseTrace['relic_responses'] ?? [];
+                if ($relicResponses !== []) {
+                    $enemyDamage = $enemyDamage->withPlayerDefense($enemyDamage->playerDefense + [
+                        'relic_response_hp_losses' => $this->relicResponseHpLosses(
+                            $relicResponses, $incomingApplication->counterDamage, $bossHpBeforeCounter,
+                            $turn, $form, $runtime, $bossGuardReductionRate,
+                        ),
+                    ]);
+                }
+            } elseif (($incomingApplication?->defenseTrace['relic_responses'] ?? []) !== []) {
+                $enemyDamage = $enemyDamage->withPlayerDefense($enemyDamage->playerDefense + [
+                    'relic_response_hp_losses' => array_map(
+                        static fn (array $response): array => ['label' => $response['label'], 'damage' => 0],
+                        $incomingApplication->defenseTrace['relic_responses'],
+                    ),
+                ]);
             }
 
             foreach ($enemyDamage->appliedEffects as $effect) {
@@ -508,6 +525,37 @@ final class NationRaidBattleEngine
         }
 
         return $this->rules->formParameters($form)['form_action'];
+    }
+
+    /**
+     * 表示専用。既存の合算反撃を変えず、職業反撃を残して遺物の発生順に寄与を求める。
+     * 同じ確定済み倍率・軽減と残HPで比較し、乱数・runtime・共有HPを変更しない。
+     * @param list<array{label:string,damage:int}> $responses
+     * @return list<array{label:string,damage:int}>
+     */
+    private function relicResponseHpLosses(array $responses, int $rawTotal, int $bossHp, int $turn, string $form, array $runtime, float $bossReduction): array
+    {
+        $resolvedLoss = function (int $raw) use ($bossHp, $turn, $form, $runtime, $bossReduction): int {
+            $displayRuntime = $runtime;
+            $sources = $this->applyPlayerRuntimeDamageModifiers([[
+                'kind' => NationRaidRules::DAMAGE_COUNTER, 'damage' => $raw,
+                'hit_count' => 1, 'defense_ignore_50_damage' => null,
+            ]], $displayRuntime);
+            $result = $this->damageResolver->resolvePlayerAction($sources, $turn, $form, additionalBossReduction: $bossReduction);
+
+            return min($bossHp, $result['total_damage']);
+        };
+        $raw = max(0, $rawTotal - array_sum(array_column($responses, 'damage')));
+        $previous = $resolvedLoss($raw);
+        $losses = [];
+        foreach ($responses as $response) {
+            $raw += $response['damage'];
+            $current = $resolvedLoss($raw);
+            $losses[] = ['label' => $response['label'], 'damage' => max(0, $current - $previous)];
+            $previous = $current;
+        }
+
+        return $losses;
     }
 
     /**

@@ -29,6 +29,7 @@ final readonly class NationRaidPlayerSnapshot
         public bool $counterplayEnabled = true,
         array $bossSetExactIdentities = [],
         array $actions = [],
+        public ?float $finalDamageReductionRateWithoutRelics = null,
     ) {
         if ($maxHp < 1 || $defense < 0 || $spirit < 0 || $maxSp < 0) {
             throw new InvalidArgumentException('Raid player snapshot has an invalid ability value.');
