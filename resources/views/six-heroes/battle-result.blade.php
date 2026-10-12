@@ -8,6 +8,7 @@
     :showBattleChatLog="true"
     :showExit="false"
 >
+    <x-battle-turn-vitals-styles />
     <div class="mx-auto w-full max-w-4xl pb-4 text-slate-800" data-six-hero-battle-result-page>
         <article class="overflow-hidden rounded-xl border-2 border-amber-300 bg-white shadow-xl">
             <div class="space-y-4 px-3 py-5 sm:px-5">

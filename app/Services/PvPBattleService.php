@@ -11,6 +11,7 @@ use App\Services\Battle\BattleActor;
 use App\Services\Battle\BattleState;
 use App\Services\Battle\BattleStatChangeLogFormatter;
 use App\Services\Battle\BattleTypeAffinity;
+use App\Services\Battle\BattleTurnVitalsLogFormatter;
 use App\Services\Battle\CompetitiveHitPolicy;
 use App\Services\Battle\DamageApplicationRequest;
 use App\Services\Battle\DamageApplicationResult;
@@ -356,6 +357,7 @@ class PvPBattleService
         while (!$state->isBattleEnded() && $state->turnCount < $state->maxTurns) {
             $state->turnCount++;
             $state->addLog("<br><br>--- ターン {$state->turnCount} ---");
+            $state->addLog(BattleTurnVitalsLogFormatter::fromActors($attackerActor, $defenderActor));
             
             $usesRoleSpeed = $this->jobArtBattleSupport->usesRoleEffects($attackerActor)
                 || $this->jobArtBattleSupport->usesRoleEffects($defenderActor);

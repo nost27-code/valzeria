@@ -1,4 +1,5 @@
 <x-layouts.facility title="闘技場 ランク戦結果" headerIconImage="images/icon/icon_005.webp" bgImage="images/bg-castle.webp">
+    <x-battle-turn-vitals-styles />
     {{-- 画面全体の背景を闘技場風に変更 --}}
     <style>
         body {

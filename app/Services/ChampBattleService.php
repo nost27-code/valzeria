@@ -15,6 +15,7 @@ use App\Services\Battle\BattleActor;
 use App\Services\Battle\BattleState;
 use App\Services\Battle\BattleStatChangeLogFormatter;
 use App\Services\Battle\BattleTypeAffinity;
+use App\Services\Battle\BattleTurnVitalsLogFormatter;
 use App\Services\Battle\CompetitiveHitPolicy;
 use App\Services\Battle\DamageApplicationRequest;
 use App\Services\Battle\DamageApplicationResult;
@@ -675,6 +676,7 @@ class ChampBattleService
         for ($turn = 1; $turn <= self::MAX_TURNS; $turn++) {
             $jobArtState->turnCount = $turn;
             $log[] = "<br><br>--- ターン {$turn} ---";
+            $log[] = BattleTurnVitalsLogFormatter::fromActors($attacker, $defender);
             $turnChallengerFirst = $this->challengerActsFirstBySpeed($attacker, $defender);
             if ($usesRoleInitiative) {
                 $turnChallengerFirst = $this->jobArtBattleSupport->adjustInitiative(

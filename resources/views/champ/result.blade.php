@@ -1,4 +1,5 @@
 <x-layouts.facility title="チャンプ戦 結果" headerIconImage="images/icon/icon_009.webp" bgImage="images/bg-castle.webp">
+    <x-battle-turn-vitals-styles />
     @php
         $nextAvailableAt = $result['next_available_at'] ?? null;
         $nextAvailableText = $nextAvailableAt

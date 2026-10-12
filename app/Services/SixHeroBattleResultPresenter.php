@@ -303,6 +303,18 @@ final class SixHeroBattleResultPresenter
                 continue;
             }
 
+            // Only the vitals fill may carry a style: a bounded numeric width, never arbitrary CSS.
+            if (preg_match(
+                '/^<span class="battle-log-vitals-fill battle-log-vitals-(hp|sp)" style="width: ((?:[0-9]|[1-9][0-9])\.[0-9]{2}|100\.00)%;">$/',
+                $part,
+                $matches,
+            ) === 1) {
+                $safe .= '<span class="battle-log-vitals-fill battle-log-vitals-'.$matches[1].'" style="width: '.$matches[2].'%;">';
+                $openSpans++;
+
+                continue;
+            }
+
             if (preg_match(
                 '/^<button type="button" class="([^"]+)" aria-expanded="false">$/i',
                 $part,

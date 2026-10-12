@@ -6,6 +6,7 @@
     :battleResultLayout="true"
     :showExit="false"
 >
+    <x-battle-turn-vitals-styles />
     @php
         $result = $outcome['result'];
         $turns = (int) data_get($result, 'turnCount', 0);

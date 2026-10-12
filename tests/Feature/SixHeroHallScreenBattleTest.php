@@ -578,6 +578,38 @@ final class SixHeroHallScreenBattleTest extends TestCase
         $this->assertLessThan($battleLogPosition, $combatantsPosition);
     }
 
+    public function test_result_preserves_turn_hp_sp_bars_after_log_sanitization(): void
+    {
+        $season = $this->readySeason();
+        $defender = $this->character('バー確認の防衛者');
+        $viewer = $this->character('バー確認の挑戦者');
+        $this->ranking($season, SixHeroRoomKey::MIRACLE, $defender, 1);
+        $this->ranking($season, SixHeroRoomKey::MIRACLE, $viewer, 2);
+        $stats = ['max_hp' => 1_000, 'max_mp' => 100];
+        $player = new \App\Services\Battle\BattleActor($viewer->name, true, $stats);
+        $opponent = new \App\Services\Battle\BattleActor($defender->name, false, $stats);
+        $player->hp = 500;
+        $player->mp = 25;
+        $log = \App\Services\Battle\BattleTurnVitalsLogFormatter::fromActors($player, $opponent);
+        $this->bindBattle(fn (): PvPBattleResolution => $this->resolution(true, [
+            '<br><br>--- ターン 1 ---', $log, '最初の行動',
+        ]));
+
+        $this->hallComponent($viewer, SixHeroRoomKey::MIRACLE)
+            ->call('openBattleConfirmation', 'practice', $defender->id)
+            ->call('executeConfirmedBattle')
+            ->assertRedirect(route('six-heroes.battle-result'));
+        $html = $this->battleResultResponse($viewer)->assertOk()->getContent();
+
+        $this->assertStringContainsString($log, $html);
+        $this->assertStringContainsString('.battle-log-vitals-hp { background: #10b981; }', $html);
+        $this->assertStringContainsString('.battle-log-vitals-sp { background: #0ea5e9; }', $html);
+        $this->assertStringContainsString('style="width: 50.00%;"', $html);
+        $this->assertStringContainsString('style="width: 25.00%;"', $html);
+        $this->assertTrue(strpos($html, '--- ターン 1 ---') < strpos($html, $log));
+        $this->assertTrue(strpos($html, $log) < strpos($html, '最初の行動'));
+    }
+
     public function test_battle_result_shows_every_log_in_chronological_order_before_the_outcome_and_rank_result(): void
     {
         $season = $this->readySeason();
