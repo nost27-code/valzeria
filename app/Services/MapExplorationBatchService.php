@@ -279,6 +279,7 @@ class MapExplorationBatchService
             'character_level_at_start' => $battle->playerLevelAtStart,
             'current_job_id_at_start' => $battle->playerJobIdAtStart,
             'log' => $logText,
+            'battle_replay' => $battle->battleReplay,
             'enemy' => $enemy,
             'enemy_image_path' => $enemyImagePath,
             'exp_gained' => $exp,

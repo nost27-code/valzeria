@@ -202,6 +202,15 @@ for directory in images tools contact_images js/field js/inventory js/facilities
     link_public_directory "$directory"
 done
 
+# Presentation assets follow current so rollback restores the same sources.
+for replay_asset in css/battle-replay.css js/battle-replay.js; do
+    [[ -f "$CURRENT_LINK/public/$replay_asset" ]] || { echo "Missing replay asset" >&2; exit 65; }
+    mkdir -p "$(dirname "$PUBLIC_DIR/$replay_asset")"
+    [[ ! -e "$PUBLIC_DIR/$replay_asset.next" && ! -L "$PUBLIC_DIR/$replay_asset.next" ]] || exit 73
+    ln -s "$CURRENT_LINK/public/$replay_asset" "$PUBLIC_DIR/$replay_asset.next"
+    mv -Tf "$PUBLIC_DIR/$replay_asset.next" "$PUBLIC_DIR/$replay_asset"
+done
+
 for file in favicon.ico robots.txt sw.js js/exploration-stamina-recovery.js; do
     if [[ -f "$release_dir/public/$file" ]]; then
         if [[ -e "$PUBLIC_DIR/$file" && "$release_dir/public/$file" -ef "$PUBLIC_DIR/$file" ]]; then

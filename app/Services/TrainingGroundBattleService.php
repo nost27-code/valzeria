@@ -59,6 +59,12 @@ class TrainingGroundBattleService extends BattleService
         $result->logs[] = '<br><span class="text-sky-800 font-extrabold text-xl">'
             .number_format($maxTurns).'ターンの模擬訓練を終えた！</span>';
 
+        if ($result->battleReplay !== null) {
+            $lastFrame = array_key_last($result->battleReplay['frames']);
+            $lastLog = array_key_last($result->battleReplay['frames'][$lastFrame]['logs']);
+            $result->battleReplay['frames'][$lastFrame]['logs'][$lastLog] = $result->logs[array_key_last($result->logs)];
+        }
+
         return [
             'context' => $context,
             'context_label' => $context === 'boss' ? 'ボス戦用セット' : '通常戦用セット',

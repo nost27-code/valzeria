@@ -179,9 +179,12 @@ class BattleService
             if (! ($source?->namelessRelicsEnabled || $target->namelessRelicsEnabled)) {
                 $hpBefore = $target->hp;
                 $target->takeDamage($damage);
-                return new DamageApplicationResult($damage, $hpBefore, $target->hp,
+                $result = new DamageApplicationResult($damage, $hpBefore, $target->hp,
                     max(0, $hpBefore - $target->hp), max(0, $damage - $hpBefore), $target->isDead(),
                     $sourceType, $sourceId, $hitResult, $hitIndex, $hitCount);
+                $state->replay?->damage($target, $result);
+
+                return $result;
             }
             $hpBefore = $target->hp;
             $target->takeDamage($damage, ! in_array($sourceType, [DamageSourceType::DOT, DamageSourceType::SELF_DAMAGE, DamageSourceType::RECOIL], true));
@@ -213,6 +216,7 @@ class BattleService
                     : null,
             ));
         }
+        $state->replay?->damage($target, $result);
         if ($isDirect && $source !== null && ($source->namelessRelicsEnabled || $target->namelessRelicsEnabled)) {
             app(NamelessRelicBattleService::class)->completeDirectHit($source, $target, $state, $result,
                 fn ($from, $to, $amount, $type) => $this->applyResolvedDamage($from, $to, $state, $amount, $type),
@@ -421,6 +425,9 @@ class BattleService
         $result->playerMpBefore = $playerActor->mp;
 
         $state = new BattleState($playerActor, $enemyActor, $battleContext);
+        if ((bool) config('battle.replay.enabled', false) && $battleContext !== NationRaidRules::BATTLE_TYPE) {
+            $state->replay = new \App\Services\Battle\BattleReplayRecorder($state);
+        }
         app(NamelessRelicBattleService::class)->startBattle($playerActor, $enemyActor, $state);
         if (! (bool) ($options['valmon_assist_enabled'] ?? true)) {
             $state->valmonAssistRolled = true;
@@ -533,6 +540,7 @@ class BattleService
         if ($result->result === 'victory' && $playerActor->namelessRelicsEnabled) {
             app(NamelessRelicBattleService::class)->recoverAfterVictory($playerActor, $state);
         }
+        $result->battleReplay = $state->replay?->result();
         $result->logs = $state->logs;
         $result->playerHpAfter = $playerActor->hp;
         $result->playerMpAfter = $playerActor->mp;
@@ -809,6 +817,7 @@ class BattleService
      */
     protected function executeAction(BattleActor $attacker, BattleActor $defender, BattleState $state): void
     {
+        $state->replay?->begin($attacker);
         if ($attacker->namelessRelicsEnabled) {
             app(NamelessRelicBattleService::class)->beginAction($attacker, $state);
         }
@@ -874,6 +883,7 @@ class BattleService
             }
         } finally {
             $this->jobArtBattleSupport->finishAction($attacker, $state);
+            $state->replay?->finish();
         }
     }
 
@@ -1101,6 +1111,7 @@ class BattleService
         }
 
         $isCrit = $this->damageCalculator->isCritical($attacker, $defender);
+        $state->replay?->critical($isCrit);
         $damage = $attacker->usesMagForNormalAttack()
             ? $this->damageCalculator->calculateMagicalDamage($attacker, $defender, $powerMultiplier, $isCrit)
             : $this->damageCalculator->calculatePhysicalDamage($attacker, $defender, $powerMultiplier, $isCrit);
@@ -1155,6 +1166,7 @@ class BattleService
             ? $this->jobArtV2RoleEffectService->criticalBonusPoints($attacker, $jobArtSkill)
             : 0.0;
         $isCrit = $forceCrit ?? $this->damageCalculator->isCritical($attacker, $defender, $criticalBonus);
+        $state->replay?->critical($isCrit);
         $statOverrides = $jobArtSkill !== null
             ? $this->jobArtV2RoleEffectService->damageStatOverrides($attacker, $defender, $jobArtSkill)
             : ['attack' => null, 'def' => null, 'spr' => null];
@@ -1422,6 +1434,7 @@ class BattleService
         if (! $alreadyMarked) {
             $this->markEnemyActionUsed($action, $state);
         }
+        $state->replay?->skill((string) $action->name);
         $state->addLog("<span class=\"battle-log-enemy-action\">【敵技】{$attacker->logName()} の {$action->name}！</span>");
         $beforeHp = $defender->hp;
         $suppressSecondary = (bool) ($state->enemyTelegraphContext['lineage_suppressed'] ?? false);
@@ -1706,7 +1719,12 @@ class BattleService
     {
         $fieldDelta = $this->jobArtV2FieldService->accuracyDelta($attacker, $state);
         if ($attacker->isPlayer || ! $defender->isPlayer) {
-            return $this->damageCalculator->isHit($attacker, $defender, $skillAccuracy, 0.5, 70, 98, $fieldDelta);
+            $hit = $this->damageCalculator->isHit($attacker, $defender, $skillAccuracy, 0.5, 70, 98, $fieldDelta);
+            if (! $hit) {
+                $state->replay?->miss($defender);
+            }
+
+            return $hit;
         }
 
         $enemy = $attacker->originalModel;
@@ -1716,7 +1734,7 @@ class BattleService
             ? self::PVE_ENEMY_LATE_MIN_HIT_RATE
             : self::PVE_ENEMY_MIN_HIT_RATE;
 
-        return $this->damageCalculator->isHit(
+        $hit = $this->damageCalculator->isHit(
             $attacker,
             $defender,
             $skillAccuracy,
@@ -1725,6 +1743,11 @@ class BattleService
             99,
             $fieldDelta,
         );
+        if (! $hit) {
+            $state->replay?->miss($defender);
+        }
+
+        return $hit;
     }
 
     /**
@@ -1998,6 +2021,7 @@ class BattleService
 
         // Player-facing order follows the actual action: announce the art first,
         // then show cast-time resource changes, and finally HIT-time changes.
+        $state->replay?->skill((string) $skill->name, $skill);
         $state->addLog($this->jobArtActivationLog($attacker, $defender, $skill));
 
         $this->jobArtV2UltimateCounterplayService->beginJobArtCast($attacker, $state, $sourceSkill);
@@ -2027,6 +2051,7 @@ class BattleService
         $hitResult = $this->jobArtActionResolver->resolveJobArt($attacker, $defender, $skill, $state->battleType, $state);
         $this->jobArtV2BattleHudService->recordHitResult($attacker, $state, $hitResult);
         if ($hitResult !== null && ! $hitResult->landed()) {
+            $state->replay?->miss($defender);
             $state->completeJobArtActivation($attacker, $hitResult);
             $state->addLog($this->jobArtResolutionFailureLog($skill, $hitResult));
             $this->applyMissedJobArtOnCastEffects($attacker, $defender, $state, $skill, $rate);
@@ -2098,6 +2123,7 @@ class BattleService
         $this->jobArtV2BreakDebuffService->endRound($state);
         $this->jobArtV2DefenseService->endRound($state);
         $this->jobArtV2RoleEffectService->endRound($state);
+        $state->replay?->capture();
     }
 
     private function executeMultiHitJobArt(BattleActor $attacker, BattleActor $defender, BattleState $state, Skill $skill, int $power, bool $skipHitCheck = false): void

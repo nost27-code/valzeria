@@ -26,6 +26,9 @@
     @endphp
 
     <div class="mx-auto max-w-4xl space-y-4 py-3">
+        <x-battle-replay :replay="data_get($result, 'battleReplay')"
+            :player-image="\App\Support\CharacterIconCatalog::versionedAsset(app(\App\Services\CharacterIconSetService::class)->pathFor($character, 'battle'))"
+            :enemy-image="asset('images/facilities/training_symbol.png')" />
         <section class="rounded-xl border border-sky-200 bg-sky-50 p-4 shadow-sm">
             <div class="flex flex-wrap items-center justify-between gap-3">
                 <div>

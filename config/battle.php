@@ -1,6 +1,9 @@
 <?php
 
 return [
+    // Recorded presentation only; an explicit false restores the legacy result.
+    'replay' => ['enabled' => env('BATTLE_REPLAY_ENABLED', true)],
+
     'speed_breakthrough' => [
         'enabled' => env('PVP_SPEED_BREAKTHROUGH_ENABLED', false),
     ],

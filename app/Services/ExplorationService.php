@@ -916,6 +916,7 @@ class ExplorationService
             'timeout_defeat_display' => $timeoutDefeatDisplay,
             'log' => $logText,
             'job_art_v2_hud' => $battleResult->jobArtV2Hud,
+            'battle_replay' => $battleResult->battleReplay,
             'enemy' => $targetEnemy,
             'enemy_image_path' => $enemyImagePath,
             'exp_gained' => $expGained,

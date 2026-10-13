@@ -197,6 +197,7 @@ class SubAreaExplorationService
             'turn_count' => $battleResult->turnCount,
             'timeout_defeat_display' => true,
             'log' => $logText,
+            'battle_replay' => $battleResult->battleReplay,
             'enemy' => $targetEnemy,
             'exp_gained' => $expGained,
             'gold_gained' => $goldGained,

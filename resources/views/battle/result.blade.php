@@ -1,4 +1,5 @@
 <x-layouts.facility :title="(($result['result'] ?? null) === 'timeout' && (bool) ($result['timeout_defeat_display'] ?? false)) ? '時間切れ敗北' : ((($result['special_event'] ?? null) === 'depth_gate') ? (($result['depth_gate']['label'] ?? '深層') . 'への入口発見') : ((($result['special_event'] ?? null) === 'depth_retreat') ? '探索を継続' : '戦闘開始！'))" :subtitle="$areaName ?? null" :headerIconImage="$battleHeaderIconImage ?? 'images/icon/icon_005.webp'" :pageBackgroundStyle="$battleCityBackgroundStyle ?? null" :headerOverlayClass="$battleHeaderOverlayClass ?? 'bg-white/75'" :headerTitleClass="$battleHeaderTitleClass ?? null" :headerShellStyle="$battleHeaderShellStyle ?? null" :headerBorderClass="$battleHeaderBorderClass ?? null" bgImage="images/bg-battle.webp" :battleResultLayout="true" :battleReturnViaLink="isset($namelessRuins) && empty($hasActiveValmonEgg)" :showBattleChatLog="true" :exitUrl="isset($namelessRuins) ? route('nameless-workshop.return', ['tab' => 'town']) : (isset($mapExploration) ? route('exploration-maps.leave') : null)" :exitLabel="!empty($hasActiveValmonEgg) ? '卵を連れて街へ戻る' : ((isset($result['error']) && !empty($result['batch_explore']) && (int) data_get($result, 'batch_explore.completed', 0) === 0) ? '街に戻る' : null)">
+    @include('battle.partials.battle-replay-assets')
     <style>
         [data-battle-compact-only] { display: none; }
         [data-battle-result-page][data-compact="1"] [data-battle-compact-only] { display: block; }
@@ -17,12 +18,23 @@
         body.battle-result-compact [data-compact-accordion] > summary { list-style: none; }
         body.battle-result-compact [data-compact-accordion] > summary::-webkit-details-marker { display: none; }
         body.battle-result-compact [data-compact-accordion][open] > summary [data-accordion-chevron] { transform: rotate(180deg); }
+        [data-battle-theme="secret-realm"] [data-battle-result-toolbar] {
+            margin: -1.5rem -1.5rem 0;
+            padding: .75rem 1.5rem;
+            background: #0a0a12;
+        }
+        [data-battle-theme="secret-realm"] [data-battle-compact-title] { color: #e2e8f0; }
+        [data-battle-theme="secret-realm"] [data-battle-compact-toggle] { background: #172139; border-color: #64748b; color: #e0f2fe; }
+        [data-battle-theme="secret-realm"] [data-battle-compact-toggle]:hover { background: #243047; }
+        [data-battle-theme="secret-realm"] [data-battle-compact-toggle][aria-pressed="false"] [data-battle-compact-state] { background: #334155; color: #e2e8f0; }
+        [data-battle-theme="secret-realm"] .srl-banner { margin-top: 0; }
+        body.battle-result-compact [data-battle-theme="secret-realm"] [data-battle-result-toolbar] { margin: -.625rem -.625rem 0; padding: .625rem .875rem; }
     </style>
-    <div class="py-1 flex flex-col items-center" data-battle-result-page data-character-id="{{ $character->id }}" data-compact="0">
+    <div class="py-1 flex flex-col items-center" data-battle-result-page data-character-id="{{ $character->id }}" data-compact="0" data-battle-theme="{{ ($result['special_event'] ?? null) === 'secret_realm_lord' ? 'secret-realm' : '' }}">
         <div class="w-full mx-auto sm:px-6 lg:px-8">
             <div class="bg-white shadow-md sm:rounded-lg overflow-hidden border border-slate-200">
                 <div class="p-6 text-slate-800" data-battle-result-content>
-                    <div class="mb-3 flex min-h-9 items-center justify-between gap-3 px-1">
+                    <div class="mb-3 flex min-h-9 items-center justify-between gap-3 px-1" data-battle-result-toolbar>
                         <span data-battle-compact-title class="items-center gap-2 text-base font-black text-red-700">
                             <img src="{{ asset($battleHeaderIconImage ?? 'images/icon/icon_005.webp') }}" alt="" class="h-6 w-6 object-contain">
                             {{ (($result['special_event'] ?? null) === 'depth_gate') ? (($result['depth_gate']['label'] ?? '深層') . 'への入口発見') : ((($result['special_event'] ?? null) === 'depth_retreat') ? '探索を継続' : '戦闘開始！') }}
@@ -133,6 +145,7 @@
                                 ?? $legacyEnemySpeciesLabels[$enemySpeciesKey]
                                 ?? '種族不明';
                             $enemyImagePath = $result['enemy_image_path'] ?? config('enemy_images')[(string) ($result['enemy']->name ?? '')] ?? null;
+                            $battleReplay = config('battle.replay.enabled') ? ($result['battle_replay'] ?? null) : null;
                             $characterIconSetService = app(\App\Services\CharacterIconSetService::class);
                             $characterImagePath = $characterIconSetService->pathFor($character, 'battle');
                             $characterVictoryImagePath = $characterIconSetService->pathFor($character, 'victory');
@@ -347,7 +360,8 @@
                                             <span class="h-1.5 w-1.5 rounded-full bg-violet-400" style="animation: srlPulse 2.4s ease-in-out 1.6s infinite;"></span>
                                         </div>
                                         <div class="srl-name mt-2 text-2xl font-black tracking-[0.2em] text-white drop-shadow-[0_2px_8px_rgba(139,92,246,0.6)]">
-                                            {{ $isVictoryResult ? '秘境主を撃破！' : ($isDefeatResult ? '秘境主に敗北...' : '秘境主が現れた！') }}
+                                            <span data-replay-pending hidden>秘境主が現れた！</span>
+                                            <span data-replay-outcome>{{ $isVictoryResult ? '秘境主を撃破！' : ($isDefeatResult ? '秘境主に敗北...' : '秘境主が現れた！') }}</span>
                                         </div>
                                         <div class="mt-3 text-xs font-bold leading-relaxed text-slate-300">
                                             @if(!empty($areaName))
@@ -355,13 +369,17 @@
                                             @endif
                                             <span class="mt-1 block text-base text-violet-200">{{ $secretRealmName }}</span>
                                         </div>
-                                        <div class="mx-auto mt-4 inline-flex items-center justify-center rounded-lg border px-4 py-2 text-sm font-black shadow-lg {{ $isVictoryResult ? 'border-emerald-300/70 bg-emerald-400/20 text-emerald-100' : ($isDefeatResult ? 'border-rose-300/70 bg-rose-500/20 text-rose-100' : 'border-violet-300/60 bg-white/10 text-violet-100') }}">
+                                        <div data-replay-outcome class="mx-auto mt-4 inline-flex items-center justify-center rounded-lg border px-4 py-2 text-sm font-black shadow-lg {{ $isVictoryResult ? 'border-emerald-300/70 bg-emerald-400/20 text-emerald-100' : ($isDefeatResult ? 'border-rose-300/70 bg-rose-500/20 text-rose-100' : 'border-violet-300/60 bg-white/10 text-violet-100') }}">
                                             {{ $isVictoryResult ? '戦闘結果: 勝利' : ($isDefeatResult ? '戦闘結果: 敗北' : '戦闘結果: 進行中') }}
                                         </div>
                                     </div>
                                 </div>
                             @endif
-                            <div class="mb-8 md:hidden" data-battle-full-only>
+                            <x-battle-replay :replay="$battleReplay"
+                                :batch-requested="$compactRequested" :batch-completed="$compactCompleted"
+                                :player-image="\App\Support\CharacterIconCatalog::versionedAsset($characterImagePath)"
+                                :enemy-image="$enemyImagePath ? asset($enemyImagePath) : null" />
+                            <div class="mb-8 md:hidden" data-battle-full-only data-replay-outcome>
                                 @if($isTreasure)
                                     <div class="mx-auto max-w-xl overflow-hidden rounded-xl border-2 border-amber-300 bg-amber-50 shadow-lg shadow-amber-900/10">
                                         <div class="bg-gradient-to-b from-amber-100 to-yellow-50 px-4 py-5 text-center">
@@ -429,6 +447,7 @@
                                     @endif
                                 </div>
 
+                                @if(empty($battleReplay))
                                 <div class="mx-auto flex max-w-sm items-end justify-center gap-3 py-4">
                                     <img src="{{ \App\Support\CharacterIconCatalog::versionedAsset($characterImagePath) }}" alt="{{ $character->name }}" class="{{ $characterBattleImageClass }} -scale-x-100 object-contain">
                                     <span class="self-center text-3xl font-extrabold italic text-red-500 drop-shadow-md">VS</span>
@@ -437,6 +456,7 @@
                                     @endif
                                 </div>
 
+                                @endif
                                 <div class="mx-auto max-w-xl overflow-hidden rounded-xl border-2 {{ $enemyFrameClass }} bg-white">
                                     <div class="{{ $enemyHeaderClass }} border-b py-1 text-center text-lg font-bold">{{ $result['enemy']->name }}</div>
                                     <table class="w-full text-center text-sm">
@@ -457,8 +477,8 @@
                                 @endif
                             </div>
 
-                            <div class="mb-8 hidden md:grid md:grid-cols-2 md:items-start md:gap-x-20 md:gap-y-5" data-battle-full-only>
-                                @if(!$isTreasure)
+                            <div class="mb-8 hidden md:grid md:grid-cols-2 md:items-start md:gap-x-20 md:gap-y-5" data-battle-full-only data-replay-outcome>
+                                @if(!$isTreasure && empty($battleReplay))
                                     <div class="col-span-2 row-start-1 mx-auto grid w-full max-w-4xl grid-cols-[1fr_auto_1fr] items-end">
                                         <img src="{{ \App\Support\CharacterIconCatalog::versionedAsset($characterImagePath) }}" alt="{{ $character->name }}" class="{{ $characterBattleImageClass }} -translate-x-10 justify-self-center -scale-x-100 object-contain">
                                         <span class="self-center justify-self-center text-3xl font-extrabold italic text-red-500 drop-shadow-md">VS</span>
@@ -586,6 +606,7 @@
                             </div>
                         @endif
 
+                        @if(empty($battleReplay))
                         <section data-battle-compact-only data-battle-compact-frame class="mb-2 rounded-xl border border-slate-200 bg-slate-50 p-2 shadow-sm" aria-label="簡易戦闘結果">
                             @if($isTreasure)
                                 <div class="flex items-center justify-center gap-3 py-1">
@@ -627,6 +648,7 @@
                                 </div>
                             @endif
                         </section>
+                        @endif
 
                         {{-- 戦闘ログ --}}
                         @php
@@ -634,7 +656,7 @@
                                 || ($isDepthGate && !empty($result['batch_explore']));
                         @endphp
                         @if($shouldShowBattleLog && !empty($result['log']))
-                            <details open data-compact-accordion="log" data-battle-compact-frame class="mb-2 rounded-lg border border-slate-200 bg-white">
+                            <details open data-compact-accordion="log" data-battle-compact-frame data-replay-outcome class="mb-2 rounded-lg border border-slate-200 bg-white">
                                 <summary class="hidden min-h-11 cursor-pointer items-center justify-between gap-3 px-3 py-2 text-sm font-black text-slate-800">
                                     <span class="flex items-center gap-2">
                                         <img src="{{ asset('images/icon/icon_005.webp') }}" alt="" class="h-4 w-4 object-contain">
@@ -695,13 +717,14 @@
                             </details>
                         @endif
 
-                        <details open data-compact-accordion="result" data-battle-compact-frame class="mb-2 rounded-lg border border-slate-200 bg-white">
+                        <details open data-compact-accordion="result" data-battle-compact-frame data-replay-outcome class="mb-2 rounded-lg border border-slate-200 bg-white">
                             <summary class="hidden min-h-11 cursor-pointer items-center justify-between gap-2 px-3 py-2">
                                 <span class="min-w-0">
                                     <span class="flex flex-wrap items-center gap-1.5">
                                         <span class="rounded-full border px-2 py-0.5 text-xs font-black {{ $compactResultTone }}">{{ $compactResultLabel }}</span>
                                         @if($compactRequested > 1)
-                                            <span class="text-xs font-black text-slate-700">{{ number_format($compactCompleted) }}/{{ number_format($compactRequested) }}回</span>
+                                            <span class="text-xs font-black text-slate-700">{{ number_format($compactCompleted) }}回分の合計</span>
+                                            @if($compactCompleted !== $compactRequested)<span class="text-xs text-slate-600">{{ number_format($compactCompleted) }}/{{ number_format($compactRequested) }}回で終了</span>@endif
                                         @endif
                                         <span class="text-[10px] font-black text-amber-700">EXP +{{ number_format($compactExp) }}</span>
                                         <span class="text-[10px] font-black text-green-700">Job +{{ number_format($compactJobExp) }}</span>
@@ -719,6 +742,9 @@
                                 </span>
                                 <span data-accordion-chevron class="shrink-0 text-sm text-slate-500 transition-transform">⌄</span>
                             </summary>
+                            @if($compactRequested > 1)
+                                <p class="px-3 py-2 text-xs font-bold text-slate-600">まとめ探索：{{ number_format($compactCompleted) }}回分の合計@if($compactCompleted !== $compactRequested)（{{ number_format($compactRequested) }}回指定）@endif</p>
+                            @endif
                         @if($showGrowthCta)
                             <div class="mb-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 shadow-sm">
                                 <div class="flex items-start gap-3">
@@ -2850,6 +2876,7 @@
                     const replacedPage = currentResultPage();
                     window.__valzeriaInitBattleResultTimers(document);
                     window.__valzeriaInitBattleCompactMode(replacedPage || document);
+                    window.valzeriaBattleReplayBoot?.(replacedPage || document);
                     syncBattleStaminaFromDom(document);
                     if (replacedPage) {
                         replacedPage.scrollIntoView({ block: 'start' });

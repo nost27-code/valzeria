@@ -4,6 +4,8 @@ namespace App\Services\Battle;
 
 class BattleResult
 {
+    public ?array $battleReplay = null;
+
     public string $result = ''; // 'victory', 'defeat', 'timeout'
 
     public array $logs = [];

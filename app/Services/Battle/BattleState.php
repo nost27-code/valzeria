@@ -198,6 +198,8 @@ class BattleState
         }
     }
 
+    public ?BattleReplayRecorder $replay = null;
+
     public function addLog(string $message): void
     {
         $this->logs[] = $message;

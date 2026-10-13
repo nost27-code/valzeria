@@ -1,0 +1,83 @@
+/* Gate spoilers before initialization too, including AJAX-replaced result pages.
+   Without JavaScript or when the replay script cannot load, retain the full result. */
+[data-replay-pending]{display:none}
+html.battle-replay-enabled [data-battle-result-page]:has([data-battle-replay]:not([data-replay-unavailable="1"]):not([data-replay-complete="1"])) [data-replay-outcome]{display:none!important}
+html.battle-replay-enabled [data-battle-result-page]:has([data-battle-replay]:not([data-replay-unavailable="1"]):not([data-replay-complete="1"])) [data-replay-pending]{display:inline}
+.battle-replay{--br-character-width:110px;background:#fff;color:#17253a;border:1px solid #dce3ee;border-radius:8px;padding:16px;margin:0 auto 24px;max-width:820px;text-align:left}
+.battle-replay *{box-sizing:border-box}
+.battle-replay .br-heading{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;font-size:12px;color:#526176;margin-bottom:24px}
+.battle-replay .br-heading label{margin-left:auto;display:flex;align-items:center;gap:5px}
+.battle-replay .br-batch-note{margin:-16px 0 18px;font-size:11px;line-height:1.6;color:#526176}
+.battle-replay .br-field{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:32px}
+.battle-replay .br-fighter{min-width:0;position:relative}
+.battle-replay .br-name{text-align:center;font-weight:800;font-size:16px;overflow-wrap:anywhere;min-height:48px}
+.battle-replay .br-vital{display:flex;justify-content:space-between;gap:4px;width:min(100%,var(--br-character-width));margin-inline:auto;font-size:11px;font-weight:700;font-variant-numeric:tabular-nums}
+.battle-replay .br-track{width:min(100%,var(--br-character-width));height:5px;background:#edf2f7;margin:3px auto 8px;border-radius:3px;overflow:hidden}
+.battle-replay .br-track span{display:block;background:#33977b;height:100%;transition:width .25s}
+.battle-replay [data-meter=sp] span{background:#5291c4}
+.battle-replay .br-character{height:160px;position:relative;display:flex;align-items:center;justify-content:center}
+.battle-replay .br-motion{width:var(--br-character-width);height:126px;position:relative}
+.battle-replay .br-portrait{height:100%;width:100%;position:relative}
+.battle-replay .br-art{width:100%;height:100%;object-fit:contain;image-rendering:auto}
+.battle-replay [data-side=player] .br-art{transform:scaleX(-1)}
+.battle-replay .br-no-image{display:flex;height:100%;align-items:center;justify-content:center;text-align:center;font-weight:700;color:#62748d}
+.battle-replay .br-badges{position:absolute;left:calc(50% + 58px);top:30px;display:flex;flex-direction:column;align-items:flex-start;width:max-content;gap:4px;font-size:10px;max-width:85px;z-index:2}
+.battle-replay [data-side=enemy] .br-badges{left:auto;right:calc(50% + 58px)}
+.battle-replay .br-badges span{background:#fff7ed;color:#9a4a21;border:1px solid #f0cfa8;padding:2px 4px;border-radius:4px;white-space:nowrap;flex-shrink:0}
+.battle-replay .br-resources{font-size:12px;font-weight:700;color:#995c1c;text-align:center;min-height:36px;overflow-wrap:anywhere}
+.battle-replay .br-resource-gain{position:absolute;left:50%;bottom:32px;width:max-content;max-width:calc(100% - 8px);padding:2px 6px;border-radius:4px;background:rgba(255,255,255,.94);color:#995c1c;font-size:12px;font-weight:800;line-height:1.4;text-align:center;overflow-wrap:anywhere;pointer-events:none;z-index:3;animation:br-resource-rise var(--gain-duration,850ms) ease-out both}
+@keyframes br-resource-rise{0%{opacity:0;transform:translate(-50%,10px)}20%,65%{opacity:1}100%{opacity:0;transform:translate(-50%,-22px)}}
+.battle-replay .br-current{background:#f9fbfe;border:1px solid #dce5f1;border-radius:4px;margin:16px 0;padding:12px;height:132px;overflow-y:auto;overscroll-behavior:contain;scrollbar-gutter:stable;font-size:14px;line-height:1.8;overflow-wrap:anywhere;color:#1f3048}
+.battle-replay .br-summary-title{font-weight:800;margin-bottom:4px}
+.battle-replay .br-summary-result strong{color:#c64235;font-weight:800}
+.battle-replay .br-summary-changes{color:#995c1c;font-size:.9em;margin-top:4px}
+.battle-replay .br-current .font-extrabold,.battle-replay .br-current strong{font-weight:800}
+.battle-replay .br-current .text-red-600{color:#c64235}
+.battle-replay .br-current .battle-log-enemy-action{font-weight:800;color:#a54433}
+.battle-replay .br-controls{display:flex;flex-wrap:wrap;gap:8px}
+.battle-replay .br-controls button{min-height:42px;border:1px solid #c8d6e9;border-radius:4px;padding:7px 12px;background:#f9fbfe;font-size:12px;cursor:pointer}
+.battle-replay .br-controls [data-replay-play]{flex:1;background:#ae6d39;color:#fff;border-color:#ae6d39;font-weight:700;min-width:95px}
+.battle-replay .br-controls [data-replay-result]{flex-basis:100%;color:#526176;background:#fff}
+.battle-replay .br-controls button:disabled{opacity:.4;cursor:default}
+.battle-replay button:focus-visible,.battle-replay input:focus-visible{outline:3px solid #2563eb;outline-offset:3px}
+.battle-replay .br-attacking .br-motion{animation:br-lunge var(--body-duration,380ms) ease-in-out}
+.battle-replay [data-side=enemy].br-attacking .br-motion{animation-name:br-enemy-lunge}
+.battle-replay .br-hit .br-motion{animation:br-recoil var(--body-duration,300ms) ease-out}
+.battle-replay .br-dodge .br-motion{animation:br-dodge var(--body-duration,380ms) ease-out}
+.battle-replay .br-ghost{position:absolute;inset:0;opacity:.2;translate:-14px 0;pointer-events:none}
+.battle-replay .br-fx{position:absolute;inset:6%;pointer-events:none;animation:br-envelope var(--fx-duration,650ms) ease-out both}
+.battle-replay .br-ultimate{inset:0}
+.battle-replay .br-paint{display:block;position:absolute;inset:0;background:url('../images/battle-replay/painted-atlas.webp') no-repeat;background-size:400% 300%;transform-origin:center;image-rendering:auto}
+@keyframes br-lunge{0%,100%{transform:translateX(0)}45%{transform:translateX(17px)}}
+@keyframes br-enemy-lunge{0%,100%{transform:translateX(0)}45%{transform:translateX(-17px)}}
+@keyframes br-recoil{0%,100%{transform:translateX(0)}20%,65%{transform:translateX(4px)}40%,80%{transform:translateX(-4px)}}
+@keyframes br-dodge{0%,100%{transform:translateX(0);opacity:1}45%{transform:translateX(12px);opacity:.6}}
+@keyframes br-envelope{0%{opacity:0}18%,45%{opacity:.52}100%{opacity:0}}
+@media(max-width:480px){.battle-replay{padding:12px 8px}.battle-replay .br-field{gap:20px}.battle-replay .br-name{font-size:13px;min-height:40px}.battle-replay .br-character{height:130px}.battle-replay .br-motion{width:var(--br-character-width);height:104px}.battle-replay .br-badges{left:calc(50% + 30px);max-width:62px;font-size:9px;top:20px}.battle-replay [data-side=enemy] .br-badges{left:auto;right:calc(50% + 30px)}.battle-replay .br-resources{font-size:10px;min-height:32px}.battle-replay .br-current{font-size:12px;min-height:132px}.battle-replay .br-controls{gap:5px}.battle-replay .br-controls button{padding:7px 9px}.battle-replay .br-vital{font-size:9px}}
+@media(max-width:480px){.battle-replay{--br-character-width:84px}}
+@media(prefers-reduced-motion:reduce){.battle-replay *{animation:none!important;transition:none!important}.battle-replay .br-fx,.battle-replay .br-ghost{display:none}}
+
+.battle-replay .texture-sword{animation:br-paint-sweep var(--fx-duration) ease-out both}
+.battle-replay .texture-dragon{animation:br-paint-pierce var(--fx-duration) ease-out both}
+.battle-replay .texture-hunt{animation:br-paint-claws var(--fx-duration) ease-out both}
+.battle-replay .texture-aim{animation:br-paint-focus var(--fx-duration) ease-out both}
+.battle-replay .texture-holy{animation:br-paint-veil var(--fx-duration) ease-out both}
+.battle-replay .texture-catalyst{animation:br-paint-heal var(--fx-duration) ease-out both}
+.battle-replay .texture-break{animation:br-paint-thunder var(--fx-duration) ease-out both}
+.battle-replay .texture-command{animation:br-paint-rally var(--fx-duration) ease-out both}
+.battle-replay .texture-star{animation:br-paint-stars var(--fx-duration) ease-out both}
+.battle-replay .texture-eclipse{animation:br-paint-eclipse var(--fx-duration) ease-out both}
+.battle-replay .texture-fire{animation:br-paint-fire var(--fx-duration) ease-out both}
+.battle-replay .texture-impact{animation:br-paint-impact var(--fx-duration) ease-out both}
+@keyframes br-paint-sweep{from{transform:translate(-9px,8px) rotate(-15deg) scale(.75)}to{transform:translate(5px,-5px) rotate(9deg) scale(1.04)}}
+@keyframes br-paint-pierce{from{transform:translateY(20px) scale(.7,.5)}to{transform:translateY(-10px) scale(.9,1.1)}}
+@keyframes br-paint-claws{from{transform:translate(12px,-12px) scale(1.15)}to{transform:translate(-4px,5px) scale(.85)}}
+@keyframes br-paint-focus{from{transform:scale(1.25) rotate(-12deg)}to{transform:scale(.65) rotate(9deg)}}
+@keyframes br-paint-veil{from{transform:scale(.7)}to{transform:scale(1.05)}}
+@keyframes br-paint-heal{from{transform:translateY(12px) scale(.85)}to{transform:translateY(-15px) scale(1)}}
+@keyframes br-paint-thunder{from{transform:translateY(-12px) scale(.9,.55)}45%,to{transform:translateY(5px) scale(1)}}
+@keyframes br-paint-rally{from{transform:scale(.5)}to{transform:scale(1.1) translateY(-4px)}}
+@keyframes br-paint-stars{from{transform:translateY(-18px) rotate(-8deg)}to{transform:translateY(10px) rotate(10deg)}}
+@keyframes br-paint-eclipse{from{transform:scale(1.1) rotate(28deg)}to{transform:scale(.8) rotate(-25deg)}}
+@keyframes br-paint-fire{from{transform:translateY(15px) scale(.8,.7)}to{transform:translateY(-8px) scale(1)}}
+@keyframes br-paint-impact{from{transform:scale(.4) rotate(-8deg)}45%{transform:scale(1.1)}to{transform:scale(1.18) rotate(7deg)}}

@@ -382,6 +382,7 @@ class NamelessRuinService
                 ? [['index' => 1, 'kind' => $encounter['kind'], 'name' => $definition['name'], 'result' => $battle->result, 'relic_count' => count($drops)]] : [],
             'enemy_stat_display' => $battle->enemyStatDisplay, 'enemy_hp_after' => $battle->enemyHpAfter,
             'enemy_max_hp' => $battle->enemyMaxHp, 'job_art_v2_hud' => $battle->jobArtV2Hud,
+            'battle_replay' => $battle->battleReplay,
             'exp_gained' => (int) $battle->exp, 'gold_gained' => (int) $battle->gold, 'job_exp_gained' => (int) $battle->jobExp,
             'level_up_count' => $reward['level_up_count'] ?? 0, 'level_up_details' => $reward['details'] ?? [],
             'progression' => $reward['progression'] ?? null, 'job_result' => $reward['job_result'] ?? null,

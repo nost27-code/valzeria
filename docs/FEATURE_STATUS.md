@@ -1,4 +1,5 @@
 # FEATURE_STATUS.md
+- 戦闘再生: 通常探索・ボス・亜域・地図・遺跡の共通結果と通常/ボス訓練の公開対象。表示専用記録と再生、速度記憶、結果スキップ、エラー復帰、まとめ探索表記を追加。既存の戦闘計算/報酬/DB schemaを維持。旧結果/専用対人/塔/レイド/試練は従来表示。公開確認と未確認範囲は公開記録を参照。
 - 探索50回の遺物読取/Area取得軽量化: 公開対象、公開結果は同一SHAのActionsと独立読戻し記録を参照。正式構造検査は同期read内1回、次操作/書込前はfresh。通常/ボス探索は同一area_idのAreaを一戦内で共有。DB変更なし。比較/QA/未確認はdocs/experiments/EXPLORATION_RELIC_READ_PERFORMANCE_2026-10-08.md。
 - 探索追加改善: 2026-10-08公開対象。公開結果は同一SHAのActionsと独立読戻し記録を参照。構造確認共有/一戦内状態読取の更新失効/raw印集計/探索要求・完了回数の計測を実装。DB/報酬/成長/停止/再送/正式NAM gate変更なし。123テスト1043 assertions成功。比較と未確認範囲はdocs/experiments/EXPLORATION_BATCH_PERFORMANCE_2026-10-08.md。
 
