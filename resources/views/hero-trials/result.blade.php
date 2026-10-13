@@ -69,7 +69,7 @@
 
                     <div class="mt-5 grid gap-4 md:grid-cols-2">
                         <div class="overflow-hidden rounded-lg border-2 border-amber-200 bg-white">
-                            <div class="border-b border-amber-200 bg-amber-100 py-1 text-center font-bold text-amber-900">{{ $character->name }}</div>
+                            <div class="break-all border-b border-amber-200 bg-amber-100 px-2 py-1 text-center font-bold text-amber-900">{{ $character->name }}</div>
                             <table class="w-full text-center text-xs sm:text-sm">
                                 <tbody>
                                     <tr class="border-b border-amber-100">

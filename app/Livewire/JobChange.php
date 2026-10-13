@@ -48,7 +48,7 @@ class JobChange extends Component
 
     public function mount()
     {
-        $this->character = Auth::user()->characters()->first();
+        $this->character = Auth::user()->currentCharacter();
         if (!$this->character) {
             return redirect()->route('home');
         }

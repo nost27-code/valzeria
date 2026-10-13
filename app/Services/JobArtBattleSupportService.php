@@ -386,7 +386,7 @@ class JobArtBattleSupportService
                 continue;
             }
 
-            if (random_int(1, 100) <= $art->effectiveActivationRate()) {
+            if (\App\Services\Battle\ScopedBattleRandomizer::percentRoll() <= $art->effectiveActivationRate()) {
                 return $art;
             }
         }

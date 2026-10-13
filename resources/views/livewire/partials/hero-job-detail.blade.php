@@ -59,11 +59,11 @@
                 <div class="pointer-events-none absolute inset-0 bg-gradient-to-r from-white via-white/95 to-blue-50/70"></div>
                 <img src="{{ asset($heroTrialImage) }}" alt="" class="pointer-events-none absolute -right-14 top-1/2 h-80 w-80 -translate-y-1/2 object-contain opacity-[0.12] sm:right-4">
 
-                <div class="relative grid gap-4 px-6 pb-0 pt-6 sm:px-9 sm:pt-9 lg:min-h-[520px] lg:grid-cols-[minmax(0,1fr)_440px] lg:items-center lg:gap-6 lg:py-9">
-                    <div class="relative z-10 pb-6 sm:pb-9 lg:pb-0">
+                <div class="relative grid grid-cols-1 gap-4 px-6 pb-0 pt-6 sm:px-9 sm:pt-9 lg:min-h-[520px] lg:grid-cols-[minmax(0,1fr)_440px] lg:items-center lg:gap-6 lg:py-9">
+                    <div class="relative z-10 min-w-0 pb-6 sm:pb-9 lg:pb-0">
                         <span class="inline-flex rounded-lg bg-gradient-to-r from-cyan-700 to-blue-900 px-4 py-1.5 text-sm font-black tracking-widest text-white shadow">HERO</span>
-                        <h2 class="mt-4 font-serif text-4xl font-black tracking-[0.08em] text-blue-950 sm:text-6xl">{{ $detailJob->name }}</h2>
-                        <div class="mt-3 text-xl tracking-[0.28em] text-blue-300" aria-label="職業ランク {{ $targetRank }}">
+                        <h2 class="mt-4 font-serif text-3xl font-black tracking-[0.08em] text-blue-950 sm:text-6xl">{{ $detailJob->name }}</h2>
+                        <div class="mt-3 text-base tracking-widest text-blue-300 sm:text-xl" aria-label="職業ランク {{ $targetRank }}">
                             {{ str_repeat('★', $targetRank) }}{{ str_repeat('☆', 10 - $targetRank) }}
                         </div>
                         <p class="mt-6 max-w-2xl whitespace-pre-line text-base font-bold leading-8 text-slate-700 sm:text-lg">
