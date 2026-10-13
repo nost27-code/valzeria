@@ -52,7 +52,7 @@ final class JobArtV2CrownBalanceCatalogTest extends TestCase
                 $this->assertStringContainsString('最大HPの'.(int) $metadata['heal_hp'].'%', $normalEffect, $key);
             }
             if (isset($metadata['reduction'])) {
-                $this->assertStringContainsString((int) $metadata['reduction'].'%軽減', $normalEffect, $key);
+                $this->assertMatchesRegularExpression('/'.(int) $metadata['reduction'].'%(?:軽減|減らす)/u', $normalEffect, $key);
             }
             if (isset($metadata['dynamic_buff']['rate'])) {
                 $this->assertStringContainsString('+'.(int) $metadata['dynamic_buff']['rate'].'%', $normalEffect, $key);

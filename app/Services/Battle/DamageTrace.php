@@ -7,13 +7,17 @@ final class DamageTrace
     public int $damageBeforeActiveGuard = 0;
     public int $damageAfterActiveGuard = 0;
     public int $preventedDamage = 0;
+    public bool $guardReactionResolved = false;
 
+    /** @param array<string, mixed> $guardOnTrigger */
     public function __construct(
         public readonly int $sourceActionId,
         public readonly string $attackerKey,
         public readonly string $targetKey,
         public readonly float $guardRate,
         public readonly bool $guardConsumed,
+        public readonly ?int $guardSourceSkillId = null,
+        public readonly array $guardOnTrigger = [],
     ) {}
 
     public function recordHit(int $before, int $after): void
@@ -34,6 +38,8 @@ final class DamageTrace
             'target_key' => $this->targetKey,
             'guard_rate' => $this->guardRate,
             'guard_consumed' => $this->guardConsumed,
+            'guard_source_skill_id' => $this->guardSourceSkillId,
+            'guard_reaction_resolved' => $this->guardReactionResolved,
             'damage_before_active_guard' => $this->damageBeforeActiveGuard,
             'damage_after_active_guard' => $this->damageAfterActiveGuard,
             'prevented_damage' => $this->preventedDamage,

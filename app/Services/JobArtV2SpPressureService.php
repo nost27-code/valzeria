@@ -26,7 +26,9 @@ final class JobArtV2SpPressureService
         Skill $skill,
         ?HitResult $hitResult,
     ): JobArtV2SpPressureResult {
-        if ($hitResult !== HitResult::HIT || ! $this->featureGate->usesResources($attacker)) {
+        if ($hitResult !== HitResult::HIT || ! $this->featureGate->usesResources($attacker)
+            || $state->harmfulAttachedEffectsBlockedFor($target)
+        ) {
             return JobArtV2SpPressureResult::unchanged();
         }
 

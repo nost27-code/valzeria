@@ -55,6 +55,10 @@
             </div>
         @endif
 
+        <div class="flex justify-end">
+            <a href="{{ route('job-arts.updates') }}" class="inline-flex min-h-10 items-center rounded-lg border border-indigo-200 bg-white px-3 py-2 text-xs font-black text-indigo-700">戦技更新履歴を見る@include('job-arts.partials.update-unread-dot')</a>
+        </div>
+
         @if(session('message'))
             <div class="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-700">
                 {{ session('message') }}
@@ -647,6 +651,7 @@
                     <article
                         data-job-art-card
                         data-job-art-id="{{ $art->id }}"
+                        @if($art->job_art_update) data-job-art-updated-card @endif
                         data-lineage-key="{{ $sourceLineageKey }}"
                         data-filters="{{ implode(' ', array_unique($filterTokens)) }}"
                         data-sort-index="{{ $loop->index }}"
@@ -714,10 +719,14 @@
                                 </div>
 
                                 <div data-job-art-card-body>
+                                    @if($art->job_art_update)
+                                        @include('job-arts.partials.update-explanation', ['effectDescription' => $cardDescription])
+                                    @else
                                     <div class="rounded-lg border {{ $isUltimate ? 'border-amber-200 bg-amber-50/70' : 'border-slate-200 bg-white/85' }} px-3 py-3" data-job-art-card-description data-job-art-v2-details>
                                         <div class="text-[9px] font-black tracking-widest text-slate-400">効果</div>
                                         <p class="mt-1 break-words text-[12px] font-bold leading-6 text-slate-800">@include('job-arts.partials.effect-text', ['text' => $cardDescription])</p>
                                     </div>
+                                    @endif
                                 </div>
 
                                 <div class="flex justify-end" data-job-art-card-footer>
@@ -779,10 +788,14 @@
                                 @endif
                             </div>
                             @if($displayMemo !== '')
+                                @if($art->job_art_update)
+                                    <div class="mt-2">@include('job-arts.partials.update-explanation', ['effectDescription' => $displayMemo])</div>
+                                @else
                                 <div class="mt-2 flex items-start gap-2 text-[11px] font-bold leading-relaxed text-slate-600">
                                     <span class="mt-0.5 shrink-0 rounded bg-slate-100 px-1.5 py-0.5 text-[9px] font-black tracking-wide text-slate-500">補足</span>
                                     <p class="min-w-0 break-words">{{ $displayMemo }}</p>
                                 </div>
+                                @endif
                             @endif
                         @endif
                         <div class="{{ $jobArtV2UiEnabled ? 'px-3 pb-3' : '' }}">
@@ -857,6 +870,42 @@
             const SP_OUTPUT_URL = @json(route('job-arts.sp-output'));
             const STRATEGY_URL = @json(route('job-arts.strategy'));
             const CSRF_TOKEN = @json(csrf_token());
+            const readSaves = new WeakSet();
+            root.addEventListener('toggle', async (event) => {
+                const details = event.target;
+                if (!details.matches('[data-job-art-update-explanation]') || !details.open || details.dataset.unread !== 'true' || readSaves.has(details)) return;
+                readSaves.add(details);
+                const status = details.querySelector('[data-job-art-update-read-status]');
+                status.textContent = '既読を保存中…';
+                try {
+                    const response = await fetch(details.dataset.readUrl, {
+                        method: 'POST', credentials: 'same-origin',
+                        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': CSRF_TOKEN },
+                        body: JSON.stringify({ revision: details.dataset.revision }),
+                    });
+                    if (!response.ok) throw new Error(String(response.status));
+                    const receipt = await response.json();
+                    if (String(receipt.skill_id) !== details.dataset.skillId || receipt.revision !== details.dataset.revision || receipt.unread !== false) {
+                        throw new Error('invalid-receipt');
+                    }
+                    root.querySelectorAll('[data-job-art-update-explanation]').forEach((copy) => {
+                        if (copy.dataset.skillId === details.dataset.skillId && copy.dataset.revision === details.dataset.revision) {
+                            copy.dataset.unread = 'false';
+                            copy.querySelector('[data-job-art-update-unread]').classList.add('hidden');
+                        }
+                    });
+                    if (!root.querySelector('[data-job-art-update-explanation][data-unread="true"]')) {
+                        root.querySelectorAll('[data-job-art-update-unread-dot]').forEach((dot) => dot.remove());
+                    }
+                    status.textContent = '確認済み';
+                } catch (error) {
+                    status.textContent = error.message === '409'
+                        ? '新しい更新があります。画面を再読み込みしてください。'
+                        : '既読を保存できませんでした。解説を閉じて開き直してください。';
+                } finally {
+                    readSaves.delete(details);
+                }
+            }, true);
             const CONTEXT_LABELS = { normal: '通常', boss: 'ボス', pvp: '対人', raid: 'レイド' };
             const SP_POLICY_DESCRIPTIONS = @json($activationPolicyDescriptions);
 

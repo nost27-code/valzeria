@@ -207,6 +207,14 @@ final class JobArtV2RoleEffectCatalog
             ],
             'effect_texts' => ['発動後 攻撃 +30% / 魔力 +30%（3ラウンド、再使用時は重複せず更新）'],
         ],
+        '15:9:不落要塞' => [
+            'role_key' => 'guard_fortress_finisher',
+            'portable' => true,
+            'suppress_legacy_effect' => true,
+            'replacement_template' => 'V2_ROLE_EFFECT_ONLY',
+            'next_action_damage_reduction_percent' => 30,
+            'effect_texts' => ['次の自分の行動開始まで受けるダメージを30%軽減する', '相手が奥義、または敵モンスターがダメージ軽減の効く強い攻撃を予告している時に使うと、その攻撃のダメージを50%減らし、能力低下・SP減少・戦技に使う力への妨害を防ぐ'],
+        ],
         '15:1:不屈の誓い' => [
             'role_key' => 'guard_unyielding_vow',
             'portable' => true,
@@ -795,11 +803,14 @@ final class JobArtV2RoleEffectCatalog
             'suppress_legacy_effect' => true,
             'guard' => [
                 'damage_reduction_rate' => 0.20,
-                'charges' => 1,
+                'charges' => 3,
                 'scope' => 'direct_damage',
+                'on_trigger' => [
+                    'hp_recovery_rate' => 0.03,
+                ],
             ],
             'heal' => false,
-            'effect_texts' => ['次のdirect damageを20%軽減（1回）'],
+            'effect_texts' => ['次の3回の直接攻撃を20%軽減する', '実際に1以上軽減するたび、最大HPの3%を回復する（多段攻撃は1行動につき1回）'],
         ],
         '21:9:金剛不壊' => [
             'role_key' => 'break_single_guard_finisher',
@@ -809,8 +820,19 @@ final class JobArtV2RoleEffectCatalog
                 'damage_reduction_rate' => 0.25,
                 'charges' => 1,
                 'scope' => 'direct_damage',
+                'on_trigger' => [
+                    'counter' => [
+                        'power' => 165,
+                        'attack_stat' => 'str',
+                        'defense_stat' => 'spr',
+                        'damage_category' => 'magical',
+                        'species_keys' => ['mage', 'undead'],
+                        'include_magical_normal_attack' => true,
+                        'multiplier' => 1.20,
+                    ],
+                ],
             ],
-            'effect_texts' => ['次のdirect damageを25%軽減する（1回）'],
+            'effect_texts' => ['次の直接攻撃を25%軽減する（1回）', '実際に1以上軽減した時、自分の攻撃と相手の精神を参照する威力165%の魔力反撃を行う。相手が魔法型または不死系なら最終ダメージを1.20倍にする'],
         ],
         '24:9:大聖堂の奇跡' => [
             'role_key' => 'field_cathedral_cleanse_finisher',

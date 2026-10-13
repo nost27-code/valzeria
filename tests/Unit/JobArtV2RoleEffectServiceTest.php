@@ -1151,7 +1151,7 @@ final class JobArtV2RoleEffectServiceTest extends TestCase
 
         $this->assertSame('V2_ROLE_EFFECT_ONLY', $diamondExecution->effect_template);
         $this->assertSame(0, (int) $diamondExecution->damage_reduction_percent);
-        $this->assertSame(0.30, $actor->jobArtV2GuardState()?->rate);
+        $this->assertSame(0.25, $actor->jobArtV2GuardState()?->rate);
 
         [$gigaActor, $gigaTarget, $gigaState] = $this->battle(62);
         $giga = $this->art(27, 9, 'ギガブレイク', 'MULTI_HIT', 315, 2, [

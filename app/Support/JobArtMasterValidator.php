@@ -3,6 +3,8 @@
 namespace App\Support;
 
 use App\Services\JobArtV2Rank5V6Catalog;
+use App\Models\Skill;
+use App\Services\JobArtV2RoleEffectCatalog;
 
 class JobArtMasterValidator
 {
@@ -91,7 +93,9 @@ class JobArtMasterValidator
             }
 
             foreach (self::FORBIDDEN_MEMO_WORDS as $word) {
-                if (str_contains($memo, $word) && ! str_contains($memo, '命中率に影響')) {
+                if (str_contains($memo, $word) && ! str_contains($memo, '命中率に影響')
+                    && ! self::supportsApprovedV2MemoWord($row, $word)
+                ) {
                     $problems[] = sprintf(
                         'job_id=%d %s: memoに未実装または非推奨の表現「%s」が含まれています。戦闘中表記または実効果に合わせた表現へ修正してください',
                         $jobId,
@@ -113,7 +117,7 @@ class JobArtMasterValidator
                 }
             }
 
-            if (preg_match('/([2-9])回/u', $memo, $matches)) {
+            if (preg_match('/([2-9])回(?:攻撃|に分けて|HIT|Hit|hit)/u', $memo, $matches)) {
                 $expectedHits = (int) $matches[1];
                 $actualHits = (int) ($row['hit_count'] ?? JobArtEffectCatalog::hitCount($template));
                 if ($actualHits !== $expectedHits) {
@@ -147,10 +151,12 @@ class JobArtMasterValidator
                 );
             }
 
+            $guardHealPercent = self::guardTriggerHpRecoveryPercent($row);
             if (self::memoMentionsHpRecovery($memo)
                 && ! in_array($template, ['HEAL', 'HEAL_CLEANSE'], true)
                 && (int) ($row['heal_percent'] ?? 0) <= 0
                 && (float) ($row['drain_hp_rate'] ?? 0) <= 0
+                && $guardHealPercent <= 0
             ) {
                 $problems[] = sprintf('job_id=%d %s: memoはHP回復を示しますが回復効果が設定されていません', $jobId, $name);
             }
@@ -182,13 +188,16 @@ class JobArtMasterValidator
                 && ! in_array($template, ['HEAL', 'HEAL_CLEANSE'], true)
             ) {
                 $expectedHeal = (int) (($matches[1] ?? '') !== '' ? $matches[1] : ($matches[2] ?? 0));
-                $actualHeal = (int) ($row['heal_percent'] ?? 0);
+                $actualHeal = $guardHealPercent > 0
+                    ? $guardHealPercent
+                    : (int) ($row['heal_percent'] ?? 0);
                 if ($expectedHeal > 0 && $actualHeal !== $expectedHeal) {
                     $problems[] = sprintf(
-                        'job_id=%d %s: memoはHP%d%%回復ですが heal_percent=%d です',
+                        'job_id=%d %s: memoはHP%d%%回復ですが %s=%d です',
                         $jobId,
                         $name,
                         $expectedHeal,
+                        $guardHealPercent > 0 ? 'guard.on_trigger.hp_recovery_percent' : 'heal_percent',
                         $actualHeal
                     );
                 }
@@ -400,9 +409,41 @@ class JobArtMasterValidator
         return $required;
     }
 
+    private static function guardTriggerHpRecoveryPercent(array $row): int
+    {
+        if (($row['effect_template'] ?? '') !== 'GUARD_BARRIER') {
+            return 0;
+        }
+
+        $skill = new Skill([
+            'skill_type' => $row['skill_type'] ?? 'job_art',
+            'job_id' => $row['job_id'] ?? null,
+            'learn_rank' => $row['learn_rank'] ?? null,
+            'name' => $row['name'] ?? '',
+        ]);
+        $metadata = (new JobArtV2RoleEffectCatalog())->forArt($skill);
+        $rate = (float) ($metadata['guard']['on_trigger']['hp_recovery_rate'] ?? 0);
+
+        return max(0, (int) round($rate * 100));
+    }
+
     private static function memoMentionsHpRecovery(string $memo): bool
     {
         return (bool) preg_match('/HP.{0,6}回復|最大HPの?\d+%?回復/u', $memo)
             && ! str_contains($memo, 'SPを');
+    }
+
+    private static function supportsApprovedV2MemoWord(array $row, string $word): bool
+    {
+        $identity = implode(':', [
+            (int) ($row['job_id'] ?? 0),
+            (int) ($row['learn_rank'] ?? 0),
+            (string) ($row['name'] ?? ''),
+        ]);
+
+        return match ($identity) {
+            '21:9:金剛不壊' => $word === '反撃',
+            default => false,
+        };
     }
 }

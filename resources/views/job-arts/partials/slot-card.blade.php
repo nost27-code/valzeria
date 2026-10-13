@@ -112,7 +112,7 @@
                             <span class="inline-flex shrink-0 text-[9px] font-black text-indigo-700" data-job-art-lineage-badge>{{ $originLabel }}系譜</span>
                         @endif
                     </div>
-                    @if($v2Display)
+                    @if($v2Display && !$slotArt->job_art_update)
                         <p data-job-art-slot-summary data-job-art-v2-details class="mt-1 min-w-0 break-words text-[10px] font-bold leading-[1.55] text-slate-500 sm:text-[11px]">@include('job-arts.partials.effect-text', ['text' => $v2Display['display_description'] ?? $v2Display['card_description']])</p>
                     @endif
                 </div>
@@ -139,6 +139,10 @@
                     'artSpOutputCosts' => $artSpOutputCosts,
                     'selectedSpOutput' => $selectedSpOutput,
                 ])
+            @endif
+
+            @if($v2Display && $slotArt->job_art_update)
+                <div class="mt-2">@include('job-arts.partials.update-explanation', ['art' => $slotArt, 'effectDescription' => $v2Display['display_description'] ?? $v2Display['card_description']])</div>
             @endif
 
             @if($jobArtV2CardDetailsEnabled ?? false)

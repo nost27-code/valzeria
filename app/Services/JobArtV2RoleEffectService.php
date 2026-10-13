@@ -163,6 +163,9 @@ final class JobArtV2RoleEffectService
         }
 
         $skill = $this->balances()->applyToExecution($skill);
+        if ($state->harmfulAttachedEffectsBlockedFor($defender)) {
+            return ['duration_turns' => max(1, (int) $skill->duration_turns), 'changes' => []];
+        }
         $sourceActionId = $state->currentSourceActionId();
         if ($sourceActionId === null) {
             return ['duration_turns' => max(1, (int) $skill->duration_turns), 'changes' => []];
@@ -1056,6 +1059,9 @@ final class JobArtV2RoleEffectService
     /** @param array<string, mixed> $metadata */
     private function removePositiveTimedEffect(BattleActor $target, BattleState $state, array $metadata): bool
     {
+        if ($state->harmfulAttachedEffectsBlockedFor($target)) {
+            return false;
+        }
         if (! is_array($metadata['remove_positive_effect'] ?? null)) {
             return false;
         }
@@ -1248,6 +1254,9 @@ final class JobArtV2RoleEffectService
                 $canonicalPercent !== null
                     ? $canonicalPercent / 100
                     : max(0.0, min(1.0, (float) ($guard['damage_reduction_rate'] ?? 0.0))),
+                charges: max(1, (int) $guard['charges']),
+                sourceSkillId: (int) $skill->id,
+                onTrigger: is_array($guard['on_trigger'] ?? null) ? $guard['on_trigger'] : [],
             );
         }
     }
@@ -1263,6 +1272,9 @@ final class JobArtV2RoleEffectService
             return;
         }
 
+        if (($state->jobArtV2RoleAction()['ultimate_counterplay_response_effect'] ?? null) === JobArtV2UltimateCounterplayCatalog::FORTRESS_GUARD) {
+            return;
+        }
         $actor->damageReductionRate = max($actor->damageReductionRate, $percent);
         $state->addLog(sprintf(
             '<span class="text-blue-700 font-bold">%s は次の自分の行動開始まで、受けるダメージを %d%% 軽減する！</span>',

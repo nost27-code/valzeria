@@ -39,12 +39,12 @@ class JobArtV2CardDescriptionCatalogTest extends TestCase
         $this->assertCount(192, $catalog);
         $this->assertSame($masterKeys, array_keys($catalog));
         $this->assertSame(
-            '7d897d9759323927bc3083f0db089e07c29ff16928f84e32807eaefee6726b7f',
+            '3c68dad713ea51f368cf6ab98626e2941bb94a3d787eb34bd7fa6b3e2c12836f',
             hash('sha256', json_encode($catalog, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR)),
         );
         $this->assertNotContains('', array_map('trim', $catalog));
-        $this->assertStringContainsString('奥義予告中', implode("\n", $catalog));
-        $this->assertStringContainsString('大技予告中', implode("\n", $catalog));
+        $this->assertStringContainsString('相手が奥義', implode("\n", $catalog));
+        $this->assertStringContainsString('敵モンスターが強い技を予告している', implode("\n", $catalog));
         $this->assertDoesNotMatchRegularExpression(
             '/異系譜.{0,30}(?:消費しない|増えない|増減しない)/u',
             implode("\n", $catalog),
@@ -89,7 +89,7 @@ class JobArtV2CardDescriptionCatalogTest extends TestCase
             '17:9:狩猟の完成' => '狩猟印を-12し、相手に威力255%の物理ダメージを与える。相手の標的印が2段階以上ある場合、標的印を2段階消費し、最終ダメージを1.50倍にする。',
             '19:9:魂喰らい' => '冥蝕を-12し、相手に威力255%の魔力ダメージを与える。与えたダメージの35%分、自分のHPを回復し、相手の現在SPを最大SPの10%分減らす。',
             '22:9:星霊連弓' => '照準を-12し、相手に合計威力255%の物理ダメージを3回に分けて与える。その後、4ターンの間、相手の防御を-20%、精神を-20%する。',
-            '30:5:暗黒剣' => "冥蝕を-4し、自分の攻撃と相手の防御を参照し、相手に威力185%の物理ダメージを与える。与えたダメージの35%分、自分のHPを回復する。その後、反動で最大HPの5%分のダメージを受ける。\n\n奥義予告中の相手、または大技予告中の敵にHITした場合、冥蝕反噬を付与する。対象が次の行動で予告中の奥義または大技を実行すると、解決後に最大HPの5%を非致死で失う。予告中の行動以外を行うと消える。",
+            '30:5:暗黒剣' => "冥蝕を-4し、自分の攻撃と相手の防御を参照し、相手に威力185%の物理ダメージを与える。与えたダメージの35%分、自分のHPを回復する。その後、反動で最大HPの5%分のダメージを受ける。\n\n相手が奥義、または敵モンスターが強い技を予告している時に、この攻撃が命中すると、冥蝕反噬を付与する。対象が次の行動で予告された技を実行すると、解決後に最大HPの5%を失う。ただし、この効果でHPは1未満にならない。予告中の行動以外を行うと消える。",
             '31:5:ゴールドラッシュ' => '触媒を-4し、相手に合計威力185%の物理ダメージを4回に分けて与える。その後、通常探索勝利時のGold獲得量を2%増やす。',
             '33:9:崩落' => '崩しを-12し、相手に威力315%の物理ダメージを与える。相手の解除可能な強化を1つ解除し、5ターンの間、相手の防御と精神を-25%する。',
             '59:1:戦線把握' => '指揮点を+4し、相手に威力205%の物理ダメージを与える。その後、この戦技で成功した行動の種類を記録し、次に使用する指揮系譜戦技の発動率を+15ポイントする。',
@@ -201,14 +201,14 @@ class JobArtV2CardDescriptionCatalogTest extends TestCase
             '剣勢を-4し、相手に合計威力185%の物理ダメージを2回に分けて与える。',
             $catalog->defaultDescription($noTempo) ?? '',
         );
-        $this->assertStringContainsString('大技予告中', $catalog->defaultDescription($noTempo) ?? '');
+        $this->assertStringContainsString('敵モンスターが強い技を予告している', $catalog->defaultDescription($noTempo) ?? '');
         $defaultDescription = $presenter->forArt(60, $noTempo)['card_description'];
         $this->assertStringNotContainsString('1.15', $defaultDescription);
 
         config(['battle.job_art_v2.c_design_prototype' => true]);
         $cDesignDescription = $presenter->forArt(60, $noTempo, $loadout)['card_description'];
 
-        $this->assertStringContainsString('次に受ける予告中の奥義または大技のダメージを20%軽減', $cDesignDescription);
+        $this->assertStringContainsString('次に受けるその予告された攻撃のダメージを20%減らす', $cDesignDescription);
         $this->assertStringContainsString('1.20倍', $cDesignDescription);
         $this->assertStringNotContainsString('1.15', $cDesignDescription);
     }

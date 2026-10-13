@@ -228,6 +228,8 @@ Route::get('/auth/logout', fn () => redirect()->route('top'))->name('auth.logout
 
 // 認証が必要なルート
 Route::middleware('auth')->group(function () {
+    Route::get('/job-arts/updates', \App\Http\Controllers\JobArtUpdateHistoryController::class)->name('job-arts.updates');
+    Route::post('/job-arts/updates/{skill}/read', \App\Http\Controllers\JobArtUpdateReadController::class)->name('job-arts.update-read');
     Route::get('/account/link/google', [AuthController::class, 'beginGoogleLink'])->name('account.link.google');
     // キャラクター未選択でもアクセス可能なルート
     Route::get('/character/select', \App\Livewire\CharacterSelect::class)->name('character.select');

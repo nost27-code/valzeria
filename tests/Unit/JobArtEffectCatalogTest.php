@@ -192,6 +192,25 @@ class JobArtEffectCatalogTest extends TestCase
         $this->assertStringContainsString('luk_power_rate', implode("\n", $problems));
     }
 
+    public function test_validator_uses_exact_guard_trigger_recovery_and_still_rejects_wrong_percent_or_identity(): void
+    {
+        $row = [
+            'job_id' => 20,
+            'learn_rank' => 9,
+            'name' => '大商隊の守護',
+            'skill_type' => 'job_art',
+            'effect_template' => 'GUARD_BARRIER',
+            'memo' => '実際に軽減するたび最大HP3%回復',
+        ];
+        $this->assertSame([], JobArtMasterValidator::validateRows([$row]));
+        $wrongPercent = array_replace($row, ['memo' => '実際に軽減するたび最大HP30%回復']);
+        $problems = JobArtMasterValidator::validateRows([$wrongPercent]);
+        $this->assertStringContainsString('guard.on_trigger.hp_recovery_percent=3', implode("\n", $problems));
+        foreach ([['job_id' => 999], ['learn_rank' => 5], ['name' => '同名ではない戦技'], ['skill_type' => 'special']] as $change) {
+            $this->assertNotSame([], JobArtMasterValidator::validateRows([array_replace($row, $change)]));
+        }
+    }
+
     public function test_current_job_art_json_has_no_memo_template_mismatch(): void
     {
         $rows = json_decode((string) file_get_contents(__DIR__ . '/../../database/data/job_arts.json'), true);

@@ -1313,8 +1313,11 @@ class ChampBattleService
         BattleState $state,
         Skill $skill,
         array &$logs,
-    ): void
-    {
+    ): void {
+        if ($state->harmfulAttachedEffectsBlockedFor($defender)) {
+            return;
+        }
+
         $timed = $this->jobArtBattleSupport->applyTimedStructuredDebuffs(
             $attacker,
             $defender,

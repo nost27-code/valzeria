@@ -641,8 +641,8 @@ final class JobArtV2UltimateCounterplayTest extends TestCase
             $this->guardArt(5),
             $this->commandArt(1),
         ]);
-        $this->assertStringContainsString('35%軽減', implode(' ', $guardCard['effect_texts']));
-        $this->assertStringContainsString('35%軽減', implode(' ', $unselectedCandidate['effect_texts']));
+        $this->assertStringContainsString('35%減らす', implode(' ', $guardCard['effect_texts']));
+        $this->assertStringContainsString('35%減らす', implode(' ', $unselectedCandidate['effect_texts']));
         $this->assertStringNotContainsString('対人戦・主／副系譜の対奥義', implode(' ', $techCandidate['effect_texts']));
         $this->assertStringContainsString('資源が必要量に達すると予告', implode(' ', $ultimateCard['effect_texts']));
         $this->assertStringNotContainsString('連携を1回', implode(' ', $ultimateCard['effect_texts']));

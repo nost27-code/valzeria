@@ -1425,6 +1425,8 @@ class BattleService
         $state->addLog("<span class=\"battle-log-enemy-action\">【敵技】{$attacker->logName()} の {$action->name}！</span>");
         $beforeHp = $defender->hp;
         $suppressSecondary = (bool) ($state->enemyTelegraphContext['lineage_suppressed'] ?? false);
+        $suppressHarmfulAttached = $suppressSecondary
+            || (bool) ($state->enemyTelegraphContext['fortress_secondary_suppressed'] ?? false);
 
         switch ((string) $action->action_type) {
             case 'current_hp_percent':
@@ -1511,7 +1513,7 @@ class BattleService
                 $this->executePhysicalAttack($attacker, $defender, $state, (int) $action->power_percent);
         }
 
-        if ($suppressSecondary || $defender->hp >= $beforeHp || $defender->isDead()) {
+        if ($suppressHarmfulAttached || $defender->hp >= $beforeHp || $defender->isDead()) {
             return;
         }
 
@@ -1875,6 +1877,10 @@ class BattleService
         Skill $skill,
         float $rate = 1.0,
     ): bool {
+        if ($state->harmfulAttachedEffectsBlockedFor($defender)) {
+            return true;
+        }
+
         $timed = $this->jobArtV2RoleEffectService->applyTimedStructuredDebuffs(
             $attacker,
             $defender,
@@ -2536,6 +2542,8 @@ class BattleService
         }
 
         $template = (string) $skill->effect_template;
+        $applyTargetEffects = $applyTargetEffects
+            && ! $state->harmfulAttachedEffectsBlockedFor($defender);
 
         if (! in_array($template, ['HEAL', 'HEAL_CLEANSE'], true) && (int) $skill->heal_percent > 0) {
             $heal = max(1, (int) floor($attacker->maxHp * ((int) $skill->heal_percent / 100) * $rate));

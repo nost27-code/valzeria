@@ -58,7 +58,8 @@ final class JobArtV2UltimateCounterplayService
 
             return match ($this->catalog->effectFor($skill)) {
                JobArtV2UltimateCounterplayCatalog::COUNTER_INTERCEPT,
-                JobArtV2UltimateCounterplayCatalog::ULTIMATE_GUARD =>
+                JobArtV2UltimateCounterplayCatalog::ULTIMATE_GUARD,
+                JobArtV2UltimateCounterplayCatalog::FORTRESS_GUARD =>
                    (bool) ($state->enemyTelegraphContext['can_be_guarded'] ?? false),
                 JobArtV2UltimateCounterplayCatalog::HUNT_CANCEL =>
                     $this->progressionService->huntingMarkCountFor($state->enemy, $actor) > 0,
@@ -166,6 +167,7 @@ final class JobArtV2UltimateCounterplayService
         if ($this->isMainRankNine($actor, $skill)) {
             $preparation = $actorState->preparation;
             if ($preparation?->isReady() === true && $preparation->delayOwnActionsRemaining < 1) {
+                $this->markFortressAttachedEffectsBlocked($actor, $state, $sourceActionId, $preparation->cycleId);
                 $lineageSuppression = $actorState->lineageSuppression;
                 $suppressed = $lineageSuppression !== null
                     && $lineageSuppression->targetCycleId === $preparation->cycleId;
@@ -232,16 +234,19 @@ final class JobArtV2UltimateCounterplayService
             return;
         }
 
-        if ($effect === JobArtV2UltimateCounterplayCatalog::ULTIMATE_GUARD) {
+        if (in_array($effect, [JobArtV2UltimateCounterplayCatalog::ULTIMATE_GUARD, JobArtV2UltimateCounterplayCatalog::FORTRESS_GUARD], true)) {
+            $fortress = $effect === JobArtV2UltimateCounterplayCatalog::FORTRESS_GUARD;
             // GuardStateはここで外し、同じactionで成立した専用guardが
             // standardGuardReplacedForCurrentAction() を通じて通常barrierを抑止する。
             $actor->replaceJobArtV2GuardState(null);
             $actorState->ultimateGuard = new JobArtV2UltimateGuardState(
                 targetActorKey: $state->actorKey($target),
                 targetCycleId: $targetPreparation->cycleId,
+                rate: $fortress ? 0.50 : 0.35,
+                effect: $effect,
                 responseSkillId: (int) $skill->id,
             );
-            $state->addLog('<span class="text-blue-700 font-bold">'.e($actor->name).' は予告された奥義を受け切る構えを取った！（35%軽減）</span>');
+            $state->addLog('<span class="text-blue-700 font-bold">'.e($actor->name).' は予告された奥義を受け切る構えを取った！（'.($fortress ? 50 : 35).'%軽減）</span>');
 
             return;
         }
@@ -538,6 +543,7 @@ final class JobArtV2UltimateCounterplayService
             && in_array($responseEffect, [
                 JobArtV2UltimateCounterplayCatalog::COUNTER_INTERCEPT,
                 JobArtV2UltimateCounterplayCatalog::ULTIMATE_GUARD,
+                JobArtV2UltimateCounterplayCatalog::FORTRESS_GUARD,
             ], true)
             && $guard !== null
             && $guard->effect === $responseEffect
@@ -661,8 +667,16 @@ final class JobArtV2UltimateCounterplayService
         ]);
         if ($effect === JobArtV2UltimateCounterplayCatalog::COUNTER_INTERCEPT
             || $effect === JobArtV2UltimateCounterplayCatalog::ULTIMATE_GUARD
+            || $effect === JobArtV2UltimateCounterplayCatalog::FORTRESS_GUARD
         ) {
-            $rate = $effect === JobArtV2UltimateCounterplayCatalog::COUNTER_INTERCEPT ? 0.20 : 0.35;
+            $rate = match ($effect) {
+                JobArtV2UltimateCounterplayCatalog::COUNTER_INTERCEPT => 0.20,
+                JobArtV2UltimateCounterplayCatalog::FORTRESS_GUARD => 0.50,
+                default => 0.35,
+            };
+            if ($effect === JobArtV2UltimateCounterplayCatalog::FORTRESS_GUARD) {
+                $state->enemyTelegraphContext['fortress_secondary_suppressed'] = true;
+            }
             $actor->replaceJobArtV2GuardState(null);
             $actor->jobArtV2UltimateCounterplayState()->ultimateGuard = new JobArtV2UltimateGuardState(
                 targetActorKey: $state->actorKey($state->enemy),
@@ -1014,5 +1028,28 @@ final class JobArtV2UltimateCounterplayService
     private function opponent(BattleActor $actor, BattleState $state): BattleActor
     {
         return $actor === $state->player ? $state->enemy : $state->player;
+    }
+
+    private function markFortressAttachedEffectsBlocked(
+        BattleActor $attacker,
+        BattleState $state,
+        int $sourceActionId,
+        int $cycleId,
+    ): void {
+        $target = $this->opponent($attacker, $state);
+        $guard = $target->existingJobArtV2UltimateCounterplayState()?->ultimateGuard;
+        if ($guard === null
+            || $guard->effect !== JobArtV2UltimateCounterplayCatalog::FORTRESS_GUARD
+            || $guard->targetActorKey !== $state->actorKey($attacker)
+            || $guard->targetCycleId !== $cycleId
+        ) {
+            return;
+        }
+
+        // Champは多段を合算してHPへ反映する前に付随効果を解決するため、
+        // 予告cycleとの一致が確定した時点で同じsource actionへ防止印を置く。
+        $state->updateJobArtV2RoleAction($sourceActionId, [
+            'fortress_harmful_effects_blocked_target_key' => $state->actorKey($target),
+        ]);
     }
 }

@@ -36,6 +36,7 @@ final class JobArtV2BreakDebuffService
         if ($metadata === null
             || $hitResult !== HitResult::HIT
             || $sourceActionId === null
+            || $state->harmfulAttachedEffectsBlockedFor($target, $sourceActionId)
             || ! $state->claimBreakDebuffEvent($target, $sourceActionId)
         ) {
             return null;

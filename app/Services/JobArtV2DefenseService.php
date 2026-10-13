@@ -37,6 +37,7 @@ final class JobArtV2DefenseService
         private readonly ?JobArtV2UltimateCounterplayService $ultimateCounterplayService = null,
         private readonly ?JobArtV2ProgressionService $progressionService = null,
         private readonly ?DamageCalculator $damageCalculator = null,
+        private readonly ?JobArtV2FieldService $fieldService = null,
     ) {}
 
     public function applyJobArtCast(BattleActor $actor, BattleState $state, Skill $skill): void
@@ -131,6 +132,8 @@ final class JobArtV2DefenseService
         DamageApplicationResult $result,
         bool $gutsTriggered,
     ): void {
+        $this->completeGuardReaction($state, $resolution, $result);
+
         if (! $resolution->direct
             || $resolution->attacker === $resolution->target
             || ! in_array($result->sourceType, [
@@ -345,15 +348,27 @@ final class JobArtV2DefenseService
             }
 
             $crownGuardKey = null;
+            $guardSourceSkillId = null;
+            $guardOnTrigger = [];
             if ($useCrownGuard) {
                 $guardRate = $crownGuard['rate'];
                 $crownGuardKey = $crownGuard['key'];
             } elseif ($useUltimateGuard) {
                 $this->counterplay()->consumeUltimateGuard($resolution->target, $resolution->sourceActionId);
                 $guardRate = $ultimateGuard->rate;
+                $guardSourceSkillId = $ultimateGuard->responseSkillId;
+                if ($ultimateGuard->effect === JobArtV2UltimateCounterplayCatalog::FORTRESS_GUARD) {
+                    $state->updateJobArtV2RoleAction($resolution->sourceActionId, [
+                        'fortress_harmful_effects_blocked_target_key' => $state->actorKey($resolution->target),
+                    ]);
+                }
             } else {
-                $resolution->target->replaceJobArtV2GuardState(null);
+                $resolution->target->replaceJobArtV2GuardState(
+                    $guard->charges > 1 ? $guard->withCharges($guard->charges - 1) : null,
+                );
                 $guardRate = $guard->rate;
+                $guardSourceSkillId = $guard->sourceSkillId;
+                $guardOnTrigger = $guard->onTrigger;
                 if ($guard->cleanseOnMitigation) {
                     $state->updateJobArtV2RoleAction($resolution->sourceActionId, [
                         'rank5_v6_guard_cleanse' => true,
@@ -366,6 +381,8 @@ final class JobArtV2DefenseService
                 targetKey: $state->actorKey($resolution->target),
                 guardRate: $guardRate,
                 guardConsumed: true,
+                guardSourceSkillId: $guardSourceSkillId,
+                guardOnTrigger: $guardOnTrigger,
             );
             $state->recordDamageTrace($resolution->target, $trace);
             if ($crownGuardKey !== null) {
@@ -420,15 +437,20 @@ final class JobArtV2DefenseService
         float $rate,
         bool $cleanseOnMitigation = false,
         bool $expiresAtNextOwnAction = false,
+        int $charges = 1,
+        ?int $sourceSkillId = null,
+        array $onTrigger = [],
     ): void
     {
         $previous = $actor->jobArtV2GuardState();
-        if ($previous === null || $rate >= $previous->rate) {
+        if ($previous === null || $onTrigger !== [] || $charges > 1 || $rate >= $previous->rate) {
             $actor->replaceJobArtV2GuardState(new JobArtV2GuardState(
                 $rate,
-                1,
+                max(1, $charges),
                 $cleanseOnMitigation || ($previous?->cleanseOnMitigation ?? false),
                 $expiresAtNextOwnAction || ($previous?->expiresAtNextOwnAction ?? false),
+                $sourceSkillId,
+                $onTrigger,
             ));
         }
 
@@ -523,5 +545,137 @@ final class JobArtV2DefenseService
     private function calculator(): DamageCalculator
     {
         return $this->damageCalculator ?? app(DamageCalculator::class);
+    }
+
+    private function applyGuardRecovery(BattleActor $actor, BattleState $state, DamageTrace $trace): void
+    {
+        $hpRate = max(0.0, (float) ($trace->guardOnTrigger['hp_recovery_rate'] ?? 0.0));
+        if ($hpRate > 0.0) {
+            $requested = max(1, (int) floor($actor->maxHp * $hpRate));
+            $resolver = $state->hpHealingResolver();
+            if ($resolver !== null) {
+                $skill = new Skill();
+                $skill->id = $trace->guardSourceSkillId ?? 0;
+                $actual = $resolver($actor, $state, $skill, $requested, true);
+            } else {
+                $actual = ($this->fieldService ?? app(JobArtV2FieldService::class))
+                    ->applyHpHeal($actor, $state, $requested);
+            }
+            if ($actual > 0) {
+                $state->deferLogAfterDamage(
+                    '<span class="text-emerald-600 font-bold">大商隊の守護によりHPが '.e((string) $actual).' 回復した！</span>',
+                    $trace->sourceActionId,
+                );
+            }
+        }
+
+    }
+
+    private function applyGuardCounter(
+        DirectAttackResolution $resolution,
+        BattleState $state,
+        DamageTrace $trace,
+    ): void {
+        $definition = $trace->guardOnTrigger['counter'] ?? null;
+        if (! is_array($definition) || $resolution->attacker->isDead()) {
+            return;
+        }
+
+        $power = max(1, (int) ($definition['power'] ?? 100));
+        $damage = $this->guardCounterDamage(
+            $state,
+            $resolution->target,
+            $resolution->attacker,
+            $power,
+        );
+        $speciesKeys = array_values(array_filter(
+            (array) ($definition['species_keys'] ?? []),
+            static fn (mixed $key): bool => is_string($key) && $key !== '',
+        ));
+        if (array_intersect($speciesKeys, $resolution->attacker->speciesKeys) !== []
+            || ((bool) ($definition['include_magical_normal_attack'] ?? false)
+                && $resolution->attacker->usesMagForNormalAttack())
+        ) {
+            $damage = max(1, (int) floor(
+                $damage * max(1.0, (float) ($definition['multiplier'] ?? 1.0)) + 1.0e-9,
+            ));
+        }
+
+        $hpBefore = $resolution->attacker->hp;
+        $resolution->attacker->takeDamage($damage);
+        $actualDamage = max(0, $hpBefore - $resolution->attacker->hp);
+        $state->deferLogAfterDamage(sprintf(
+            '<span class="text-amber-700 font-extrabold">%s は金剛不壊で反撃し、%s に %s の魔力ダメージ！</span>',
+            e($resolution->target->name),
+            e($resolution->attacker->name),
+            number_format($actualDamage),
+        ), $trace->sourceActionId);
+        if ($resolution->attacker->gutsJustTriggered) {
+            $resolution->attacker->gutsJustTriggered = false;
+            $state->deferLogAfterDamage(
+                '<span class="text-orange-700 font-extrabold">'.e($resolution->attacker->name).' は不屈の精神で致死ダメージを耐えた！（HP1）</span>',
+                $trace->sourceActionId,
+            );
+        }
+    }
+
+    private function guardCounterDamage(BattleState $state, BattleActor $counterActor, BattleActor $target, int $power): int
+    {
+        if ($state->battleType === 'champ') {
+            return $this->calculator()->calculateDuelDamage(
+                attacker: $counterActor,
+                defender: $target,
+                attackType: 'magical',
+                skillPower: $power,
+                isCritical: false,
+                affinityMultiplier: BattleTypeAffinity::multiplier($counterActor->battleTypeWeights, $target->battleTypeWeights),
+                overrideAtk: $counterActor->effectiveStr(),
+                overrideDef: $target->effectiveSpr(),
+                overrideSpr: $target->effectiveSpr(),
+            );
+        }
+        if (in_array($state->battleType, ['pvp', 'arena_npc'], true)) {
+            return $this->calculator()->calculateRankBattleDamage(
+                attacker: $counterActor,
+                defender: $target,
+                attackType: 'magical',
+                skillPower: $power,
+                isCritical: false,
+                affinityMultiplier: BattleTypeAffinity::multiplier($counterActor->battleTypeWeights, $target->battleTypeWeights),
+                overrideAtk: $counterActor->effectiveStr(),
+                overrideDef: $target->effectiveSpr(),
+                overrideSpr: $target->effectiveSpr(),
+                isSkill: true,
+                hitCount: 1,
+                minimumDamageGuaranteeEnabled: $state->rankBattleMinimumDamageGuaranteeEnabled,
+                damageCapEnabled: $state->rankBattleDamageCapEnabled,
+                baseDamageMultiplier: $state->rankBattleBaseDamageMultiplier,
+            );
+        }
+        return $this->calculator()->calculateMagicalDamage($counterActor, $target, $power, false,
+            $counterActor->effectiveStr(), $target->effectiveSpr());
+    }
+
+    private function completeGuardReaction(
+        BattleState $state,
+        DirectAttackResolution $resolution,
+        DamageApplicationResult $result,
+    ): void {
+        $trace = $state->damageTrace($resolution->target, $resolution->sourceActionId);
+        if ($trace === null
+            || $trace->guardReactionResolved
+            || $trace->guardOnTrigger === []
+            || $trace->preventedDamage < 1
+        ) {
+            return;
+        }
+
+        $trace->guardReactionResolved = true;
+        if ($resolution->target->isDead()) {
+            return;
+        }
+
+        $this->applyGuardRecovery($resolution->target, $state, $trace);
+        $this->applyGuardCounter($resolution, $state, $trace);
     }
 }

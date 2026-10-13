@@ -703,8 +703,11 @@ class ArenaNpcBattleService
         BattleActor $defender,
         BattleState $state,
         Skill $skill,
-    ): void
-    {
+    ): void {
+        if ($state->harmfulAttachedEffectsBlockedFor($defender)) {
+            return;
+        }
+
         $timed = $this->jobArtBattleSupport->applyTimedStructuredDebuffs(
             $attacker,
             $defender,

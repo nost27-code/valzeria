@@ -76,6 +76,10 @@ class JobArtController extends Controller
             ->flatMap(fn ($arts) => $arts)
             ->unique('id')
             ->values();
+        app(\App\Services\JobArtUpdateReadService::class)->decorate(
+            collect($availableArtsByContext)->flatMap(fn ($arts) => $arts),
+            (int) Auth::id(),
+        );
         $selectedSlots = collect($selectedSlotsByContext)->flatMap(fn ($slots) => $slots)->values();
         $selectedSkillsByContext = collect($selectedSlotsByContext)
             ->map(fn ($slots) => $slots->pluck('skill')->filter()->values())
@@ -158,6 +162,7 @@ class JobArtController extends Controller
             'maxSp' => $maxSp,
             'availableArts' => $availableArts,
             'allAvailableArts' => $availableArts,
+            'hasUnreadJobArtUpdates' => app(\App\Services\JobArtUpdateReadService::class)->hasUnread($availableArts),
             'availableArtsByContext' => $availableArtsByContext,
             'selectedSlots' => $selectedSlotsByContext['normal'],
             'selectedSlotsByContext' => $selectedSlotsByContext,
@@ -403,6 +408,10 @@ class JobArtController extends Controller
                 );
             }
             $contextTotalCost = $jobArtService->totalCost($selectedSkills);
+            app(\App\Services\JobArtUpdateReadService::class)->decorate(
+                $availableArtsByContext->flatMap(fn ($arts) => $arts),
+                (int) Auth::id(),
+            );
             $currentJobId = $character->current_job_id !== null ? (int) $character->current_job_id : null;
             $jobArtV2UiEnabled = $loadoutPresenter->enabledForCurrentJob($currentJobId);
             $contextStrategy = $jobArtService->contextStrategy($character, $slotContext);

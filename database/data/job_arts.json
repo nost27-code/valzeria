@@ -318,7 +318,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 2,
-    "memo": "命中率を最大+12pt。対奥義/大技予告中の相手にHITでSPを最大SPの3%削る",
+    "memo": "命中率を最大+12ポイントする。相手が奥義、または敵モンスターが強い技を予告している時に命中すると、相手の現在SPを最大SPの3%減らす。予告された技の準備は中断しない",
     "activation_phrase": "「射線は通った。」",
     "activation_description": "{user}の矢が一直線に走る。《{skill}》が{target}の急所を狙い澄ました！"
   },
@@ -1274,7 +1274,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 2,
-    "memo": "次の自分の行動開始まで、受けるダメージを20%軽減する。奥義または大技の予告中に発動した場合は、20%軽減の代わりに、その予告行動のダメージを35%軽減する",
+    "memo": "次の自分の行動開始まで、受けるダメージを20%減らす。相手が奥義、または敵モンスターが強い攻撃を予告している時に使うと、20%の代わりに、その予告された攻撃のダメージを35%減らす。ダメージ軽減の効かない攻撃は対象外。通常の軽減とは重ならない。複数回当たる攻撃も、まとめて1つの行動として扱う",
     "activation_phrase": "「守りを攻めに変える！」",
     "activation_description": "{user}の守護の気配が厚みを増す。《{skill}》が戦線を押し返した！"
   },
@@ -1302,9 +1302,10 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 3,
-    "memo": "次の被ダメージを25%軽減。1戦1回",
+    "memo": "次の自分の行動開始まで被ダメージ30%軽減。奥義予告中または軽減可能な敵の大技予告中は、予告攻撃を50%軽減し、付随する能力低下・現在SP減少・系譜資源干渉を防ぐ",
     "activation_phrase": "「この守護、崩せるものか！」",
-    "activation_description": "{user}の前に巨大な守りが立ち上がる。《{skill}》が戦場に不落の壁を築いた！"
+    "activation_description": "{user}の前に巨大な守りが立ち上がる。《{skill}》が戦場に不落の壁を築いた！",
+    "damage_reduction_percent": 30
   },
   {
     "job_id": 16,
@@ -1743,8 +1744,8 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 3,
-    "damage_reduction_percent": 12,
-    "memo": "次の被ダメージを12%軽減。1戦1回",
+    "damage_reduction_percent": 20,
+    "memo": "次の3回の直接攻撃を20%軽減。実際に軽減するたび最大HP3%回復。多段は1行動につき1回",
     "activation_phrase": "「これが王の取引だ！」",
     "activation_description": "{user}が惜しみなく財を動かす。《{skill}》が戦場の主導権を塗り替えた！"
   },
@@ -1828,7 +1829,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 3,
-    "memo": "次の被ダメージを25%軽減。1戦1回",
+    "memo": "次の直接攻撃を25%軽減。軽減時、攻撃対精神の魔力経路で威力165%反撃。魔法型・不死系には最終1.20倍",
     "activation_phrase": "「この守護、崩せるものか！」",
     "activation_description": "{user}の前に巨大な守りが立ち上がる。《{skill}》が戦場に不落の壁を築いた！",
     "damage_reduction_percent": 25
@@ -2403,7 +2404,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 2,
-    "memo": "対奥義/大技を20%軽減。1以上軽減した場合、次の反撃系戦技を×1.20",
+    "memo": "相手が奥義、または敵モンスターが強い攻撃を予告している時は、次に受けるその攻撃のダメージを20%減らす。ダメージ軽減の効かない攻撃は対象外。実際に1以上軽減した場合、次の反撃系譜の戦技で与えるダメージを1.20倍にする",
     "activation_phrase": "「聖なる加護をここに。」",
     "activation_description": "{user}が聖なる印を結ぶ。《{skill}》の光が戦場に広がった！"
   },
@@ -2574,7 +2575,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 2,
-    "memo": "与ダメージの35%を吸収。自傷5%。対奥義予告中にHITで冥蝕反噬を付与",
+    "memo": "与えたダメージの35%分、自分のHPを回復する。反動で最大HPの5%分のダメージを受ける。相手が奥義、または敵モンスターが強い技を予告している時に命中すると、冥蝕反噬を付与する。相手が次の行動でその技を実行すると、解決後に最大HPの5%を失う。ただし、この効果でHPは1未満にならない。別の行動をすると消える",
     "activation_phrase": "「闇よ、喰らえ。」",
     "activation_description": "{user}の闇が濃くなる。《{skill}》が{target}の守りを黒く侵食した！",
     "drain_hp_rate": 0.35,
@@ -2749,7 +2750,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 2,
-    "memo": "相手の防御を30%無視。対奥義/大技予告中は×1.15かつ防御50%無視",
+    "memo": "相手の防御を30%無視する。相手が奥義、または敵モンスターが強い技を予告している時は、最終ダメージを1.15倍にし、相手の防御を50%無視する。予告された技の準備は中断しない",
     "activation_phrase": "「天を裂け、竜の力！」",
     "activation_description": "{user}が天高く跳ぶ。《{skill}》が竜の爪牙となって{target}へ落ちた！"
   },
@@ -2833,7 +2834,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 2,
-    "memo": "5Hit。対奥義予告中にHITかつ崩し印があれば準備効果を1件解除",
+    "memo": "5回に分けて攻撃する。相手が奥義、または敵モンスターが強い技を予告している時に命中し、相手に崩し印がある場合、構え・装填・障壁など、その技を強化する準備効果を1つ解除する。解除対象がある場合だけ崩し印を1段階消費する。予告された技の準備は中断しない",
     "activation_phrase": "「間合いは掴んだ！」",
     "activation_description": "{user}の連撃が間合いを制す。《{skill}》が{target}を押し返した！",
     "hit_count": 5
@@ -4169,7 +4170,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 2,
-    "memo": "相手の奥義/大技が発動可能になる時点を1行動分遅らせる（1予告1回）",
+    "memo": "相手が奥義、または敵モンスターが強い技を予告している時は、その技が発動可能になる時点を1行動分遅らせる。同じ予告中には1回だけ有効",
     "activation_phrase": "「勝機はここだ。」",
     "activation_description": "{user}の指揮が戦線を動かす。《{skill}》で{target}の退路を狭めた！"
   },
@@ -4260,7 +4261,7 @@
     "champ_enabled": false,
     "reward_scope": "mixed",
     "sort_order": 2,
-    "memo": "対奥義予告中にHITで、相手の次2回の資源獲得を各-1。探索報酬に小補正",
+    "memo": "相手が奥義、または敵モンスターが強い技を予告している時に命中すると、相手が戦技に使う力（触媒など）を次の2回獲得する時、獲得量をそれぞれ1減らす。探索報酬に小補正",
     "activation_phrase": "「今ここで調合する。」",
     "activation_description": "{user}が素材を瞬時に混ぜ合わせる。《{skill}》の反応が戦場で弾けた！"
   },
@@ -4612,7 +4613,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 2,
-    "memo": "現在の場を2ターン延長。対奥義予告中なら封式の場を展開",
+    "memo": "現在の場を2ターン延長する。相手が奥義、または敵モンスターが強い技を予告している時は、封式の場を展開する",
     "activation_phrase": "「星辰の光を束ねる。」",
     "activation_description": "{user}の術式に星辰が応える。《{skill}》が{target}へ降り注いだ！"
   },
@@ -4699,7 +4700,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 2,
-    "memo": "標的印1段階以上で発動可。標的印を1段階消費。直前の行動種類を3ターン封じる",
+    "memo": "相手の標的印が1段階以上ある時に発動できる。標的印を1段階消費し、相手が直前に使った行動の種類を3ターン封じる",
     "activation_phrase": "「闇よ、喰らえ。」",
     "activation_description": "{user}の闇が濃くなる。《{skill}》が{target}の守りを黒く侵食した！"
   },

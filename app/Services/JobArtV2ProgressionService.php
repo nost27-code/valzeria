@@ -346,6 +346,7 @@ final class JobArtV2ProgressionService
 
         $actorState = $actor->jobArtV2ProgressionState();
         $landed = $hitResult === null || $hitResult->landed();
+        $targetEffectsBlocked = $state->harmfulAttachedEffectsBlockedFor($target, $sourceActionId);
         $this->advanceFormationOnSuccessfulCategory(
             $actor,
             $artStage,
@@ -455,7 +456,7 @@ final class JobArtV2ProgressionService
                 $actorState->consumeRoundState(self::SUPER_PIERCE_STANCE);
             }
         }
-        if ($sameLineage && $landed && in_array($jobId, [54, 64], true)) {
+        if (! $targetEffectsBlocked && $sameLineage && $landed && in_array($jobId, [54, 64], true)) {
             if ($rank === 1) {
                 $this->addHuntingMark($target, $actor);
                 if ($jobId === 64) {
@@ -475,11 +476,11 @@ final class JobArtV2ProgressionService
                 $this->reserveSeal($actor, $target, 64, $category, false, $state->turnCount);
             }
         }
-        if ($sameLineage && $landed && $jobId === 37 && $rank === 1) {
+        if (! $targetEffectsBlocked && $sameLineage && $landed && $jobId === 37 && $rank === 1) {
             $this->addHuntingMark($target, $actor);
         }
 
-        if ($sameLineage && $landed && $jobId === 67) {
+        if (! $targetEffectsBlocked && $sameLineage && $landed && $jobId === 67) {
             $targetHasLineageResource = $this->resourceCatalog->resourcesForActor($target) !== [];
             if ($targetHasLineageResource) {
                 $ownerKey = $this->actorKey($actor);
@@ -497,7 +498,7 @@ final class JobArtV2ProgressionService
             }
         }
 
-        if ($sameLineage && $landed && in_array($jobId, [58, 68], true)) {
+        if (! $targetEffectsBlocked && $sameLineage && $landed && in_array($jobId, [58, 68], true)) {
             if ($jobId === 58 && in_array($rank, [1, 5], true)) {
                 $this->addBreakMark($target, $actor, false);
             }
@@ -512,11 +513,11 @@ final class JobArtV2ProgressionService
                 $this->addBreakMark($target, $actor, true);
             }
         }
-        if ($sameLineage && $landed && $jobId === 33 && $rank === 5) {
+        if (! $targetEffectsBlocked && $sameLineage && $landed && $jobId === 33 && $rank === 5) {
             $this->addBreakMark($target, $actor, false);
         }
 
-        if ($sameLineage && $landed && $jobId === 26 && $rank === 5) {
+        if (! $targetEffectsBlocked && $sameLineage && $landed && $jobId === 26 && $rank === 5) {
             $this->shortenLongestPositiveTimedEffect($target, $state, 2);
         }
         if ($sameLineage && $landed && $jobId === 46 && $rank === 5) {
@@ -549,7 +550,7 @@ final class JobArtV2ProgressionService
                     'charges' => 2, 'previous_category' => $artStage,
                 ];
             } elseif ($jobId === 49) {
-                $this->shortenAlchemyTimedEffects($actor, $target, $state);
+                $this->shortenAlchemyTimedEffects($actor, $target, $state, $targetEffectsBlocked);
             } elseif ($jobId === 53) {
                 // FieldService performs the fixed-field conversion after HIT.
             } elseif ($jobId === 55) {
@@ -563,7 +564,7 @@ final class JobArtV2ProgressionService
             } elseif ($jobId === 60) {
                 $actor->replaceCounterStanceState(new JobArtV2CounterStanceState(5, $state->turnCount, 0.35));
                 $actorState->applyRoundState('royal_sword_formation', 5, $state->turnCount);
-            } elseif ($jobId === 61) {
+            } elseif ($jobId === 61 && ! $targetEffectsBlocked) {
                 $targetState->blackCrownReversal = ['remaining' => 5, 'last_round' => $state->turnCount];
                 $target->conditions['black_crown_reversal'] = ['turns' => 5, 'rate' => 0.50];
             } elseif ($jobId === 69) {
@@ -1630,7 +1631,12 @@ final class JobArtV2ProgressionService
         return true;
     }
 
-    private function shortenAlchemyTimedEffects(BattleActor $actor, BattleActor $target, BattleState $state): void
+    private function shortenAlchemyTimedEffects(
+        BattleActor $actor,
+        BattleActor $target,
+        BattleState $state,
+        bool $targetEffectsBlocked = false,
+    ): void
     {
         $ownHarmful = array_values(array_filter(
             $actor->jobArtV2TimedEffects(),
@@ -1641,11 +1647,11 @@ final class JobArtV2ProgressionService
         $first = array_shift($ownHarmful);
         $this->shortenTimedEffect($actor, $first, 3);
 
-        $targetPositive = array_values(array_filter(
-            $target->jobArtV2TimedEffects(),
-            static fn (JobArtV2TimedEffectState $effect): bool => ! $effect->isExpired()
-                && array_filter($effect->statModifiers, static fn (float $value): bool => $value > 0.0) !== [],
-        ));
+        $targetPositive = $targetEffectsBlocked ? [] : array_values(array_filter(
+           $target->jobArtV2TimedEffects(),
+           static fn (JobArtV2TimedEffectState $effect): bool => ! $effect->isExpired()
+               && array_filter($effect->statModifiers, static fn (float $value): bool => $value > 0.0) !== [],
+       ));
         usort($targetPositive, static fn (JobArtV2TimedEffectState $a, JobArtV2TimedEffectState $b): int => $b->remainingRounds <=> $a->remainingRounds);
         $enemyBuff = array_shift($targetPositive);
         if ($enemyBuff !== null) {
