@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-10-14-exclusive-character-icon-076',
+        'date' => '2026-10-14',
+        'category' => 'internal',
+        'title' => 'リンネ専用のキャラアイコンを追加',
+        'detail' => 'リンネ専用の通常・勝利・戦闘・敗北の4ポーズを追加しました。',
+    ],
+    [
         'id' => '2026-10-11-exclusive-character-icon-075',
         'date' => '2026-10-11',
         'category' => 'internal',
