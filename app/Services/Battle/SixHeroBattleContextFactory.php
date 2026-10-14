@@ -16,12 +16,12 @@ final class SixHeroBattleContextFactory
         return $this->make($room);
     }
 
-    public function makePractice(SixHeroRoomKey $room): PvPBattleExecutionContext
+    public function makePractice(SixHeroRoomKey $room, bool $recordReplay = false): PvPBattleExecutionContext
     {
-        return $this->make($room);
+        return $this->make($room, $recordReplay);
     }
 
-    public function make(SixHeroRoomKey $room): PvPBattleExecutionContext
+    public function make(SixHeroRoomKey $room, bool $recordReplay = false): PvPBattleExecutionContext
     {
         return new PvPBattleExecutionContext(
             displayLabel: $room->label(),
@@ -32,6 +32,7 @@ final class SixHeroBattleContextFactory
             rankBattleBaseDamageMultiplier: SixHeroCompetitionRules::BASE_DAMAGE_MULTIPLIER,
             rankBattleNormalAttackPower: SixHeroCompetitionRules::NORMAL_ATTACK_POWER,
             speedBreakthroughEnabled: true,
+            recordReplay: $recordReplay,
         );
     }
 }

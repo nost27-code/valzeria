@@ -13,6 +13,7 @@ final readonly class PvPBattleExecutionContext
         public float $rankBattleBaseDamageMultiplier = 1.0,
         public int $rankBattleNormalAttackPower = 125,
         public bool $speedBreakthroughEnabled = false,
+        public bool $recordReplay = false,
     ) {}
 
     public static function arena(): self

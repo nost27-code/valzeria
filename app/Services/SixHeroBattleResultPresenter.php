@@ -90,6 +90,24 @@ final class SixHeroBattleResultPresenter
     /**
      * @return array<string, mixed>
      */
+    /** Administrator preview uses the same combatant and sanitized log presentation. */
+    public function simulation(
+        SixHeroRoomKey $room,
+        Character $attacker,
+        Character $defender,
+        SixHeroPracticeBattleResult $result,
+    ): array {
+        $season = new SixHeroSeason([
+            'season_key' => now()->format('Y-m'),
+            'starts_at' => now()->startOfMonth(),
+        ]);
+
+        return array_merge($this->practice($season, $room, $attacker, $defender, $result), [
+            'modeLabel' => '管理者模擬戦',
+        ]);
+    }
+
+
     private function baseSummary(
         SixHeroSeason $season,
         SixHeroRoomKey $room,

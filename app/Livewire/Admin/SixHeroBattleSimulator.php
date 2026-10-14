@@ -4,6 +4,8 @@ namespace App\Livewire\Admin;
 
 use App\Enums\SixHeroRoomKey;
 use App\Models\Character;
+use App\Models\SixHeroRanking;
+use App\Models\SixHeroSeason;
 use App\Services\Admin\SixHeroBattleSimulatorService;
 use App\Services\Battle\DamageCalculator;
 use App\Services\CharacterStatusService;
@@ -13,6 +15,8 @@ use App\Support\SixHeroRoomUiCatalog;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Livewire\Component;
 use Throwable;
@@ -48,6 +52,45 @@ final class SixHeroBattleSimulator extends Component
         );
     }
 
+    public function mount(): void
+    {
+        $selection = session('six_hero_simulator_selection', []);
+        $this->selectedAttackerId = $selection['attacker'] ?? null;
+        $this->selectedDefenderId = $selection['defender'] ?? null;
+        $this->selectedRoomKey = $selection['room'] ?? SixHeroRoomKey::SEAL_MAGIC->value;
+    }
+
+    public function playBattle(SixHeroBattleSimulatorService $simulator): void
+    {
+        $validated = $this->validate([
+            'selectedAttackerId' => ['required', 'integer', 'exists:characters,id'],
+            'selectedDefenderId' => ['required', 'integer', 'different:selectedAttackerId', 'exists:characters,id'],
+            'selectedRoomKey' => ['required', Rule::enum(SixHeroRoomKey::class)],
+        ]);
+
+        try {
+            $preview = $simulator->preview(
+                SixHeroRoomKey::from($validated['selectedRoomKey']),
+                (int) $validated['selectedAttackerId'],
+                (int) $validated['selectedDefenderId'],
+            );
+            $token = (string) Str::uuid();
+            Cache::put('six_hero_simulator:'.Auth::id().':'.$token, $preview, now()->addMinutes(30));
+            session()->put('six_hero_simulator_selection', [
+                'attacker' => (int) $validated['selectedAttackerId'],
+                'defender' => (int) $validated['selectedDefenderId'],
+                'room' => $validated['selectedRoomKey'],
+            ]);
+        } catch (Throwable $exception) {
+            report($exception);
+            $this->addError('simulation', '戦闘画面を作成できませんでした。キャラクターの最新状態を確認してください。');
+
+            return;
+        }
+
+        $this->redirectRoute('admin.six-hero-simulator.result', ['token' => $token]);
+    }
+
     public function selectAttacker(int $characterId): void
     {
         $this->selectedAttackerId = $characterId;
@@ -78,10 +121,8 @@ final class SixHeroBattleSimulator extends Component
         $this->clearResults();
     }
 
-    public function runSimulation(
-        SixHeroBattleSimulatorService $simulator,
-        SixHeroBattleResultPresenter $presenter,
-    ): void {
+    public function runSimulation(SixHeroBattleSimulatorService $simulator, SixHeroBattleResultPresenter $presenter): void
+    {
         $validated = $this->validate([
             'selectedAttackerId' => ['required', 'integer', 'exists:characters,id'],
             'selectedDefenderId' => [
@@ -99,6 +140,8 @@ final class SixHeroBattleSimulator extends Component
         $room = SixHeroRoomKey::from($validated['selectedRoomKey']);
         $attacker = $this->battleCharacter((int) $validated['selectedAttackerId']);
         $defender = $this->battleCharacter((int) $validated['selectedDefenderId']);
+        CharacterStatusService::clearRequestCache((int) $attacker->id);
+        CharacterStatusService::clearRequestCache((int) $defender->id);
         $runs = [];
         $sampleLogs = [];
         $metricSamples = $this->emptyMetricSamples();
@@ -168,6 +211,7 @@ final class SixHeroBattleSimulator extends Component
         $defender = $this->selectedCharacter($this->selectedDefenderId);
         $room = SixHeroRoomKey::tryFrom($this->selectedRoomKey);
         abort_if($room === null, 422);
+        $season = SixHeroSeason::query()->containing(now())->first();
 
         return view('livewire.admin.six-hero-battle-simulator', [
             'attackerCandidates' => $this->characterCandidates($this->attackerSearch),
@@ -189,6 +233,12 @@ final class SixHeroBattleSimulator extends Component
             'baseDamageMultiplier' => SixHeroCompetitionRules::BASE_DAMAGE_MULTIPLIER,
             'normalAttackPower' => SixHeroCompetitionRules::NORMAL_ATTACK_POWER,
             'speedBreakthroughEnabled' => config('battle.speed_breakthrough.enabled') === true,
+            'topRankings' => $season ? SixHeroRanking::query()
+                ->where('season_id', $season->id)->where('room_key', $room->value)
+                ->where('rank', '>', 0)->whereHas('character')
+                ->with('character.currentJob')->orderBy('rank')->limit(10)->get() : collect(),
+            'readAt' => now()->format('Y-m-d H:i:s T'),
+            'sourceEnvironment' => app()->environment(),
         ]);
     }
 
@@ -199,9 +249,6 @@ final class SixHeroBattleSimulator extends Component
                 'currentJob.skill',
                 'jobHistories',
                 'jobArtSlots.skill',
-                'characterItems.item',
-                'characterItems.affixPrefix',
-                'characterItems.affixSuffix',
             ])
             ->findOrFail($characterId);
     }
@@ -212,10 +259,13 @@ final class SixHeroBattleSimulator extends Component
             return null;
         }
 
+        CharacterStatusService::clearRequestCache($characterId);
+
         return Character::query()
             ->with([
                 'user',
                 'currentJob',
+                'characterItems' => static fn ($query) => $query->where('is_equipped', true),
                 'characterItems.item',
                 'characterItems.affixPrefix',
                 'characterItems.affixSuffix',
@@ -320,8 +370,8 @@ final class SixHeroBattleSimulator extends Component
     }
 
     /**
-     * @param  array<string, mixed>  $samples
-     * @param  list<array<string, int|string|float>>  $runs
+     * @param array<string, mixed> $samples
+     * @param list<array<string, int|string|float>> $runs
      * @return array<string, int|float>
      */
     private function summarizeCombatantMetrics(array $samples, array $runs, string $side): array

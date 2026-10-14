@@ -237,6 +237,7 @@ class PvPBattleService
             hitIndex: $hitIndex,
             hitCount: $hitCount,
         );
+        $state->replay?->damage($target, $result);
         if ($isDirect && $source !== null && ($source->namelessRelicsEnabled || $target->namelessRelicsEnabled)) {
             app(NamelessRelicBattleService::class)->completeDirectHit($source, $target, $state, $result,
                 fn ($from, $to, $amount, $type) => $this->applyResolvedDamage($from, $to, $state, $amount, $type),
@@ -337,6 +338,9 @@ class PvPBattleService
         $relicBattle->attachOrdinaryEquipment($attackerChar, $attackerActor);
         $relicBattle->attachOrdinaryEquipment($defenderChar, $defenderActor);
         $state = new BattleState($attackerActor, $defenderActor, 'pvp');
+        if ($context->recordReplay) {
+            $state->replay = new \App\Services\Battle\BattleReplayRecorder($state);
+        }
         $relicBattle->startBattle($attackerActor, $defenderActor, $state);
         $state->rankBattleMinimumDamageGuaranteeEnabled = $context->rankBattleMinimumDamageGuaranteeEnabled;
         $state->rankBattleDamageCapEnabled = $context->rankBattleDamageCapEnabled;
@@ -353,6 +357,7 @@ class PvPBattleService
         $state->addLog($this->affinityLog($attackerActor, $defenderActor));
         $state->addLog($this->affinityLog($defenderActor, $attackerActor));
         $this->roomRuleFor($state)->onBattleStart($attackerActor, $defenderActor, $state);
+        $state->replay?->capture();
 
         while (!$state->isBattleEnded() && $state->turnCount < $state->maxTurns) {
             $state->turnCount++;
@@ -386,6 +391,7 @@ class PvPBattleService
                 $this->executeActionWithRoomRule($attackerActor, $defenderActor, $state);
                 if ($attackerActor->isDead() || $defenderActor->isDead()) {
                     $this->jobArtBattleSupport->endRound($state);
+                    $state->replay?->capture();
                     break;
                 }
                 $this->addTurnActionHeading($state, $defenderActor, $attackerActor, false);
@@ -395,6 +401,7 @@ class PvPBattleService
                 $this->executeActionWithRoomRule($defenderActor, $attackerActor, $state);
                 if ($attackerActor->isDead() || $defenderActor->isDead()) {
                     $this->jobArtBattleSupport->endRound($state);
+                    $state->replay?->capture();
                     break;
                 }
                 $this->addTurnActionHeading($state, $attackerActor, $attackerActor, false);
@@ -402,6 +409,7 @@ class PvPBattleService
             }
             $this->resolveSpeedExtraAction($state, $attackerActor, $defenderActor);
             $this->jobArtBattleSupport->endRound($state);
+            $state->replay?->capture();
         }
 
         // 戦闘終了と勝敗判定
@@ -425,6 +433,7 @@ class PvPBattleService
             $isAttackerWin = false;
         }
 
+        $result->battleReplay = $state->replay?->result();
         $result->logs = $state->logs;
         $result->playerHpAfter = $attackerActor->hp;
         $result->playerMpAfter = $attackerActor->mp;
@@ -657,8 +666,13 @@ class PvPBattleService
         BattleState $state,
         bool $tickCooldowns = true,
     ): void {
-        $this->executeAction($actor, $opponent, $state, $tickCooldowns);
-        $this->roomRuleFor($state)->onActionEnd($actor, $opponent, $state);
+        $state->replay?->begin($actor);
+        try {
+            $this->executeAction($actor, $opponent, $state, $tickCooldowns);
+            $this->roomRuleFor($state)->onActionEnd($actor, $opponent, $state);
+        } finally {
+            $state->replay?->finish();
+        }
     }
 
     protected function executeAction(
@@ -755,6 +769,7 @@ class PvPBattleService
             $hitRules['normal_max_rate'],
             $this->jobArtBattleSupport->fieldAccuracyDelta($attacker, $state),
         )) {
+            $state->replay?->miss($defender);
             $state->addLog("{$attacker->logName()} の攻撃！……しかし、{$defender->logName()} はかわした！");
             $this->jobArtBattleSupport->recordNormalAttackResolution($attacker, $defender, $state, HitResult::MISS, false);
             return;
@@ -762,6 +777,7 @@ class PvPBattleService
 
         $attackType = $attacker->usesMagForNormalAttack() ? 'magical' : 'physical';
         $isCrit = $this->damageCalculator->isRankBattleCritical($attacker, $defender);
+        $state->replay?->critical($isCrit);
         $affinityMultiplier = $this->affinityMultiplier($attacker, $defender);
         $statOverrides = $this->roomRuleFor($state)->modifyDamageStatOverrides(
             $attacker,
@@ -823,11 +839,13 @@ class PvPBattleService
             $hitRules['normal_max_rate'],
             $this->jobArtBattleSupport->fieldAccuracyDelta($attacker, $state),
         )) {
+            $state->replay?->miss($defender);
             $state->addLog("{$attacker->logName()} の攻撃！……しかし、{$defender->logName()} はかわした！");
             return;
         }
 
         $isCrit = $this->damageCalculator->isRankBattleCritical($attacker, $defender);
+        $state->replay?->critical($isCrit);
         $affinityMultiplier = $this->affinityMultiplier($attacker, $defender);
         $statOverrides = $this->roomRuleFor($state)->modifyDamageStatOverrides(
             $attacker,
@@ -888,6 +906,10 @@ class PvPBattleService
     ): void
     {
         $this->jobArtBattleSupport->markSkillAction($attacker, $state, $skill);
+        $state->replay?->skill($skill->name, $skill);
+        if ($jobArtHitResult !== null && ! $jobArtHitResult->landed()) {
+            $state->replay?->miss($defender);
+        }
         $state->markCompetitiveDamageAction(
             $attacker,
             $defender,
@@ -946,6 +968,7 @@ class PvPBattleService
             $damage = 0;
             // 急所命中は1行動1回だけ抽選し、多段なら全Hitへ同じ倍率を適用する。
             $isCrit = $vitalHit;
+            $state->replay?->critical($isCrit);
             $skillPowerCenti = $totalPowerCenti === null ? null : $hitPowers[$i];
             $skillPowerInt = $skillPowerCenti === null
                 ? $hitPowers[$i]

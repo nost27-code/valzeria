@@ -686,6 +686,8 @@ Route::middleware(['auth', 'admin'])->group(function () {
     Route::get('/admin/user-investigation', \App\Livewire\Admin\UserInvestigationManager::class)->name('admin.user-investigation');
     Route::get('/admin/player-controls', \App\Livewire\Admin\PlayerControlManager::class)->name('admin.player-controls');
     Route::get('/admin/battle-simulator', \App\Livewire\Admin\BattleSimulator::class)->name('admin.battle-simulator');
+    Route::get('/admin/six-hero-simulator/result/{token}', \App\Http\Controllers\AdminSixHeroSimulatorResultController::class)
+        ->whereUuid('token')->name('admin.six-hero-simulator.result');
     Route::get('/admin/balance-battle-lab', \App\Livewire\Admin\BalanceBattleLab::class)->name('admin.balance-battle-lab');
     Route::get('/admin/skill-effect-lab', \App\Livewire\Admin\SkillEffectLab::class)->name('admin.skill-effect-lab');
     Route::prefix('admin/valzeria-lab')

@@ -5,13 +5,25 @@
     bgImage="images/bg-battle.webp"
     pageBackgroundClass="bg-amber-50"
     :battleResultLayout="true"
-    :showBattleChatLog="true"
+    :showBattleChatLog="!isset($simulatorPreview)"
     :showExit="false"
 >
     <x-battle-turn-vitals-styles />
-    <div class="mx-auto w-full max-w-4xl pb-4 text-slate-800" data-six-hero-battle-result-page>
+    @isset($simulatorPreview)
+        <style>[data-six-hero-battle-result-page] .battle-replay .br-controls button { min-height: 44px; min-width: 44px; }</style>
+    @endisset
+    <div class="mx-auto w-full max-w-4xl pb-4 text-slate-800" data-six-hero-battle-result-page @isset($simulatorPreview) data-battle-result-page @endisset>
         <article class="overflow-hidden rounded-xl border-2 border-amber-300 bg-white shadow-xl">
             <div class="space-y-4 px-3 py-5 sm:px-5">
+                @isset($simulatorPreview)
+                    <p class="rounded-lg border border-sky-200 bg-sky-50 p-3 text-sm font-bold text-sky-800" data-simulator-source>
+                        管理者模擬戦・取得元 {{ $simulatorPreview['environment'] }} / {{ $simulatorPreview['capturedAt'] }}<br>
+                        開始時の能力・装備・対人戦技セットでHP/SPを全快にして対戦します。順位・戦績・HP/SP・報酬は保存されません。
+                    </p>
+                    <x-battle-replay :replay="$simulatorPreview['battleReplay']"
+                        :player-image="\App\Support\CharacterIconCatalog::versionedAsset($battleResult['attackerCombatant']['iconPath'])"
+                        :enemy-image="\App\Support\CharacterIconCatalog::versionedAsset($battleResult['defenderCombatant']['iconPath'])" />
+                @endisset
                 <section class="space-y-4" data-six-hero-combatants aria-labelledby="six-hero-combatants-title">
                     <h2 id="six-hero-combatants-title" class="text-center text-sm font-black tracking-widest text-amber-800">対戦者情報</h2>
 
@@ -102,9 +114,17 @@
                     </div>
                 </section>
 
+                @isset($simulatorPreview)
+                    <details class="rounded-lg border border-slate-200 bg-white p-3">
+                        <summary class="min-h-11 cursor-pointer text-sm font-black text-slate-700">全戦闘ログ</summary>
+                @endisset
                 <x-six-hero-battle-log :logs="$battleLogs" />
-
-                <section class="text-center" data-battle-outcome>
+                @isset($simulatorPreview)
+                    </details>
+                    <details class="rounded-lg border border-slate-200 bg-white p-3" data-compact-accordion="result" data-replay-outcome>
+                        <summary class="min-h-11 cursor-pointer text-sm font-black text-slate-700">戦闘結果</summary>
+                @endisset
+                <section class="text-center" data-battle-outcome @isset($simulatorPreview) data-replay-outcome @endisset>
                     <div class="text-3xl font-black {{ $battleResult['attackerWon'] ? 'text-emerald-700' : 'text-rose-700' }}">
                         {{ $battleResult['outcomeLabel'] }}
                     </div>
@@ -162,16 +182,19 @@
                     </section>
                 @else
                     <section class="rounded-lg border border-sky-200 bg-sky-50 px-4 py-3 text-center text-sm font-black leading-relaxed text-sky-800">
-                        相性確認のため、順位・公式戦績・公式戦回数には影響しません。
+                        {{ isset($simulatorPreview) ? '管理者模擬戦のため、順位・公式戦績・公式戦回数には影響しません。' : '相性確認のため、順位・公式戦績・公式戦回数には影響しません。' }}
                     </section>
                 @endif
+                @isset($simulatorPreview)
+                    </details>
+                @endisset
             </div>
         </article>
 
         <div class="mt-8 flex justify-center" data-six-hero-result-return>
             <x-back-button
-                href="{{ route('six-heroes.index', ['room' => $battleResult['roomKey']]) }}"
-                label="六極殿へ戻る"
+                href="{{ isset($simulatorPreview) ? route('admin.battle-simulator') : route('six-heroes.index', ['room' => $battleResult['roomKey']]) }}"
+                :label="isset($simulatorPreview) ? 'シミュレーターへ戻る' : '六極殿へ戻る'"
             />
         </div>
     </div>

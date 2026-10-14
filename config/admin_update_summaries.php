@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-10-14-admin-six-hero-animated-simulator',
+        'date' => '2026-10-14',
+        'category' => 'internal',
+        'title' => '管理者向け六英雄模擬戦のアニメーション再生',
+        'detail' => '各間の今期上位10人から対戦者を選び、実行時の能力・装備・対人戦技セットで模擬戦を再生できます。再生・一時停止・前後移動・速度変更、攻守交代と両方向の勝率集計に対応。順位・挑戦回数・戦績・HP/SP・報酬は保存しません。DB変更なし。',
+    ],
+    [
         'id' => '2026-10-14-ferdia-story-material-drops',
         'date' => '2026-10-14',
         'category' => 'fixed',

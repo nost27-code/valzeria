@@ -23,6 +23,28 @@
         @endforeach
     </div>
 
+    <section class="mt-5 rounded-md border border-indigo-200 bg-white p-4" data-simulator-top-rankings>
+        <div class="flex flex-wrap items-center justify-between gap-3">
+            <h3 class="text-sm font-black text-indigo-900">{{ $selectedRoom->label() }}・今期の上位10人</h3>
+            <button type="button" wire:click="$refresh" wire:loading.attr="disabled" class="min-h-11 rounded border border-slate-300 px-3 text-sm font-bold">最新状態を取得</button>
+        </div>
+        <p class="mt-2 break-words text-xs text-slate-600">取得元 {{ $sourceEnvironment }} / {{ $readAt }}。対戦開始時にも最新の能力・装備・対人戦技セットを読み直します。</p>
+        <div class="mt-3 grid gap-2 sm:grid-cols-2">
+            @forelse($topRankings as $ranking)
+                <div class="flex min-w-0 flex-wrap items-center gap-2 rounded border border-slate-200 p-2">
+                    <span class="font-black text-indigo-800">{{ $ranking->rank }}位</span>
+                    <span class="min-w-0 flex-1 break-words text-sm font-bold">{{ $ranking->character->name }} <span class="text-xs text-slate-500">Lv.{{ $ranking->character->level }} / {{ $ranking->character->currentJob?->name ?? '冒険者' }}</span></span>
+                    <div class="flex gap-2">
+                        <button type="button" wire:click="selectAttacker({{ $ranking->character_id }})" class="min-h-11 rounded border border-indigo-300 px-3 text-xs font-bold">挑戦側へ</button>
+                        <button type="button" wire:click="selectDefender({{ $ranking->character_id }})" class="min-h-11 rounded border border-rose-300 px-3 text-xs font-bold">防衛側へ</button>
+                    </div>
+                </div>
+            @empty
+                <p class="text-sm text-slate-600">今期の順位はありません。下の検索から対戦者を選択できます。</p>
+            @endforelse
+        </div>
+    </section>
+
     <div class="mt-5 grid gap-4 xl:grid-cols-2">
         <div class="rounded-md border border-indigo-200 bg-white p-4">
             <div class="text-sm font-black text-indigo-900">{{ $selectedRoom->label() }}の現行ルール</div>
@@ -149,6 +171,16 @@
     @error('selectedRoomKey') <div class="mt-2 text-xs font-black text-red-700">{{ $message }}</div> @enderror
     @error('simulationCount') <div class="mt-2 text-xs font-black text-red-700">{{ $message }}</div> @enderror
     @error('simulation') <div class="mt-2 text-xs font-black text-red-700">{{ $message }}</div> @enderror
+
+    <div class="mt-5 rounded-md border border-amber-300 bg-amber-50 p-4">
+        <button type="button" wire:click="playBattle" wire:loading.attr="disabled"
+                @disabled(!$selectedAttackerId || !$selectedDefenderId || $selectedAttackerId === $selectedDefenderId)
+                class="min-h-12 rounded-md bg-amber-700 px-5 py-3 text-sm font-black text-white disabled:opacity-50">
+            <span wire:loading.remove wire:target="playBattle">1戦を戦闘画面で再生</span>
+            <span wire:loading wire:target="playBattle">最新状態を取得して対戦中…</span>
+        </button>
+        <p class="mt-2 text-xs font-bold text-amber-900">選択中の挑戦側→防衛側で1戦。実戦の結果画面で再生・一時停止・前後移動・速度変更ができます。攻守交代で逆方向も確認できます。</p>
+    </div>
 
     @if($summary)
         <div class="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-7" data-six-hero-simulator-summary>
