@@ -9,6 +9,10 @@ use App\Models\Material;
 
 class SecretRealmService
 {
+    private const STARDUST_MATERIAL_CODE = 'ACC0005';
+    private const STARDUST_LORD_CITY_IDS = [8, 9, 10];
+    private const STARDUST_LORD_DROP_RATE = 5;
+
     private const REALMS = [
         'dragon_sanctuary' => [
             'name' => '竜王の聖域',
@@ -167,6 +171,15 @@ class SecretRealmService
 
         if ($shardCount > 0) {
             $logs[] = "【秘境主報酬】秘境晶片を {$shardCount} 個手に入れた。";
+        }
+
+        if (in_array((int) $area->city_id, self::STARDUST_LORD_CITY_IDS, true)
+            && rand(1, 100) <= self::STARDUST_LORD_DROP_RATE) {
+            $stardust = Material::where('material_code', self::STARDUST_MATERIAL_CODE)->first();
+            if ($stardust) {
+                $drops[] = $dropService->grantMaterialReward($character, $stardust, 'secret_realm_lord', $sourceEnemy);
+                $logs[] = '【秘境主報酬】星屑の宝材を 1 個手に入れた。';
+            }
         }
 
         return [

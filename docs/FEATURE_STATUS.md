@@ -7,6 +7,7 @@ Legend: D=done, P=partial, N=not implemented, ?=unverified, X=removed
 
 | Feature | St | Evidence | Notes |
 |---|---:|---|---|
+| Accessory EPIC stardust reward  | D | `SecretRealmService::grantLordRewards`, `ItemBookService`, `2026_10_14_130000_enable_stardust_secret_realm_lord_reward.php`, `SecretRealmStardustRewardTest` | 第8〜10都市の秘境主勝利時に5%で星屑の宝材1個を既存の秘境晶片報酬へ追加。図鑑の非表示を解除し、合成屋と図鑑の入手案内を更新する。装飾品10系統のEPIC化素材1個・魔王撃破条件は維持。2026-10-14本番公開。極印の入手は未実装のまま。 |
 | Exploration schema guard and permanent mark reads | D | `SchemaStateService`, `DiscoveryService`, `StorageCapacityService`, `MonsterMarkAlchemyService`, `MonsterMarkService`, `ExplorationSchemaReadReuseTest`, `MonsterMarkServiceTest` | 2026-10-08公開対象、公開結果は同一SHAのActionsと読戻し記録を参照。構造確認をrequest内で共有し、印ボーナスを毎回最新JOIN取得。読取専用比較で構造確認50回500→13 SQL、最終能力50回4.72→2.67秒、能力hash一致。探索全体の応答/ピーク/実機は未確認。報酬/資産/進行/探索力/再送/DB schema変更なし。 |
 | Home arena widget bounded stats calculation | D | `ArenaNpcRankingService::rankingEntries`, `ArenaRankCompactionPerformanceTest` | 2026-10-08公開対象。公開結果は同一SHAのActionsと読戻し記録を参照。全参加者の戦力生成後に上位5人を切り取る処理を、順位選択後の5人だけの計算へ変更。表示値一致、READ ONLY比較で21,637→147 SQL、書込0。関連56テスト成功。DB schema/対戦/報酬/表示鮮度変更なし。実機・公開後HTTP時間・ピークは未確認。 |
 | Admin request / DB performance analysis | D | `RequestPerformanceCollector`, `RequestPerformanceStore`, `RequestPerformanceReportService`, `RequestPerformanceTest` | 2026-10-08公開対象。管理者の検証→処理負荷・DB分析から期間/公開版比較、回数・応答・SQL・同条件重複・transaction/競合を確認。privateファイル・48時間保存・容量上限・詳細抽出20%・欠測明示。DB schema/ゲーム仕様変更なし。ローカル48テスト/301 assertionsと320px表示/操作を確認。配備結果は同一コミットのActionsと読戻し記録を参照。実機・ピーク負荷は未確認。 |

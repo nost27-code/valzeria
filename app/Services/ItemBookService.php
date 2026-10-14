@@ -51,7 +51,6 @@ class ItemBookService
         '古代武器片',
         '秘境の星砂',
         '伝説の武器紋章',
-        '星屑の宝材',
     ];
 
     public function __construct(private MaterialExchangeService $materialExchangeService)
@@ -571,8 +570,7 @@ class ItemBookService
     {
         $name = (string) $material->name;
 
-        return str_contains($name, '極印')
-            || str_contains($name, '星屑の宝材');
+        return str_contains($name, '極印');
     }
 
     private function mainUseFor(Material $material): string
