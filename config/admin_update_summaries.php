@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-10-14-ferdia-story-material-drops',
+        'date' => '2026-10-14',
+        'category' => 'fixed',
+        'title' => 'フェルディア物語分岐五地点の素材入手先を追加',
+        'detail' => '星詠みの廃塔・瀑布神殿アクエリス・風化列柱都市オルド・白潮灯台・地下の謎の穴へ薬素材と古代片の敵別ドロップを追加します。専用migrationで対象地点だけ更新し、既存地点の率・所持素材を保持。ローカルDB適用とffa.testで各地点50回の探索・倉庫反映を確認しました。DBスキーマ変更なし、本番反映。',
+    ],
+    [
         'id' => '2026-10-14-accessory-epic-stardust-reward',
         'date' => '2026-10-14',
         'category' => 'fixed',

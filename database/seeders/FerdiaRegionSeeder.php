@@ -67,6 +67,7 @@ class FerdiaRegionSeeder extends Seeder
         $areas = $this->seedAreas();
         $this->seedEnemies($areas);
         $this->seedMaterialDrops();
+        $this->call(FerdiaStoryMaterialDropSeeder::class);
         $this->seedBosses($areas);
         $this->seedDiscoveryLinks();
         $this->seedStoryFinalLinks();

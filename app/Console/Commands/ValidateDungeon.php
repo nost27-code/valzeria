@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use Database\Seeders\FerdiaStoryMaterialDropSeeder;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -84,7 +85,9 @@ class ValidateDungeon extends Command
     private function validateFerdiaMaterialDropCoverage(array &$errors): void
     {
         $areaIds = DB::table('areas')
-            ->whereBetween('id', [self::FERDIA_MAIN_AREA_ID_MIN, self::FERDIA_MAIN_AREA_ID_MAX])
+            ->where(fn ($query) => $query
+                ->whereBetween('id', [self::FERDIA_MAIN_AREA_ID_MIN, self::FERDIA_MAIN_AREA_ID_MAX])
+                ->orWhereIn('id', FerdiaStoryMaterialDropSeeder::AREA_IDS))
             ->orderBy('id')
             ->pluck('id')
             ->map(fn ($id): int => (int) $id);
@@ -120,6 +123,19 @@ class ValidateDungeon extends Command
                 $errors[] = "ferdia material_drops ancient: area #{$areaId}";
             }
         }
+
+        $this->collect($errors, 'ferdia material_drops enemy', DB::table('enemies as enemy')
+            ->whereIn('enemy.area_id', FerdiaStoryMaterialDropSeeder::AREA_IDS)
+            ->where('enemy.is_boss', false)
+            ->whereNotExists(fn ($query) => $query
+                ->selectRaw('1')
+                ->from('material_drops as material_drop')
+                ->join('materials as material', 'material.id', '=', 'material_drop.material_id')
+                ->whereColumn('material_drop.enemy_id', 'enemy.id')
+                ->where('material_drop.is_active', true)
+                ->where('material_drop.drop_first_clear_only', false)
+                ->where('material_drop.drop_rate', '>', 0))
+            ->pluck('enemy.id'));
     }
 
     private function targetExists(string $type, int $id): bool
