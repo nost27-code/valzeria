@@ -326,9 +326,9 @@ class ExplorationDepthService
             return false;
         }
 
-        $point = (int) (CharacterAreaProgress::where('character_id', (int) $character->id)
-            ->where('area_id', (int) $area->id)
-            ->value('development_point') ?? 0);
+        $point = app(BattleReadScope::class)->remember('development', $character->id.':'.$area->id,
+            fn () => (int) (CharacterAreaProgress::where('character_id', (int) $character->id)
+                ->where('area_id', (int) $area->id)->value('development_point') ?? 0));
 
         return $point < $max;
     }

@@ -626,6 +626,15 @@ class NamelessWorkshopService
 
     public function equippedWeaponOffense(Character $character): array
     {
+        if (! $this->ready()) {
+            return ['str' => 0, 'mag' => 0];
+        }
+        return app(BattleReadScope::class)->remember('nameless_body', 'equippedWeaponOffense:'.$character->id,
+            fn () => $this->computeEquippedWeaponOffense($character));
+    }
+
+    private function computeEquippedWeaponOffense(Character $character): array
+    {
         $offense = ['str' => 0, 'mag' => 0];
         if (! $this->ready()) {
             return $offense;
@@ -640,6 +649,15 @@ class NamelessWorkshopService
     }
 
     public function equippedArmorDefense(Character $character): array
+    {
+        if (! $this->ready()) {
+            return ['def' => 0, 'spr' => 0];
+        }
+        return app(BattleReadScope::class)->remember('nameless_body', 'equippedArmorDefense:'.$character->id,
+            fn () => $this->computeEquippedArmorDefense($character));
+    }
+
+    private function computeEquippedArmorDefense(Character $character): array
     {
         $defense = ['def' => 0, 'spr' => 0];
         if (! $this->ready()) {
@@ -656,6 +674,15 @@ class NamelessWorkshopService
 
     /** 装飾品本体は基礎能力へ固定加算。遺物の割合効果は武具の計算後に適用する。 */
     public function equippedFixedBonuses(Character $character, ?string $kind = null): array
+    {
+        if (! $this->ready() || ($kind !== null && $kind !== 'accessory')) {
+            return array_fill_keys(['hp', 'mp', 'str', 'def', 'mag', 'spr', 'agi', 'luk'], 0);
+        }
+        return app(BattleReadScope::class)->remember('nameless_body', 'equippedFixedBonuses:'.$character->id,
+            fn () => $this->computeEquippedFixedBonuses($character, $kind));
+    }
+
+    private function computeEquippedFixedBonuses(Character $character, ?string $kind = null): array
     {
         $bonuses = array_fill_keys(['hp', 'mp', 'str', 'def', 'mag', 'spr', 'agi', 'luk'], 0);
         if (! $this->ready() || ($kind !== null && $kind !== 'accessory')) {

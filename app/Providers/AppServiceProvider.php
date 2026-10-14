@@ -23,6 +23,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->scoped(\App\Services\ExplorationStateService::class);
         $this->app->scoped(SchemaStateService::class);
         $this->app->scoped(NamelessSchemaService::class);
+        $this->app->scoped(\App\Services\BattleReadScope::class);
         $this->app->scoped(GameSettingService::class);
     }
 
@@ -33,13 +34,28 @@ class AppServiceProvider extends ServiceProvider
     {
         // Include query-builder writes as well as Eloquent writes; never retain state after a mutation.
         \Illuminate\Support\Facades\DB::listen(function (\Illuminate\Database\Events\QueryExecuted $query): void {
+            if (preg_match('/^\s*(insert|update|delete|replace)\b/i', $query->sql)) {
+                app(\App\Services\BattleReadScope::class)->wrote($query->sql);
+            }
             if (str_contains($query->sql, 'character_exploration_states')
                 && preg_match('/^\\s*(insert|update|delete|replace)\\b/i', $query->sql)) {
                 app(\App\Services\ExplorationStateService::class)->invalidate();
             }
         });
         \Illuminate\Support\Facades\Event::listen(\Illuminate\Database\Events\TransactionRolledBack::class,
-            fn () => app(\App\Services\ExplorationStateService::class)->invalidate(),
+            function (): void {
+                app(\App\Services\ExplorationStateService::class)->invalidate();
+                app(\App\Services\BattleReadScope::class)->invalidate();
+            },
+        );
+
+        // Direct service callers may finish one transaction and start another in the same scope.
+        \Illuminate\Support\Facades\Event::listen(\Illuminate\Database\Events\TransactionCommitted::class,
+            function (\Illuminate\Database\Events\TransactionCommitted $event): void {
+                if ($event->connection->transactionLevel() === 0) {
+                    app(\App\Services\BattleReadScope::class)->invalidate();
+                }
+            },
         );
 
         // 同一IP全体とメールアドレス+IPの両方で制限。共有回線の他アカウントを恒久ロックしない。

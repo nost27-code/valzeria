@@ -208,6 +208,12 @@ class MonsterMarkService
 
     public function permanentBonuses(Character $character): array
     {
+        return app(BattleReadScope::class)->remember('mark_bonuses', (string) $character->id,
+            fn () => $this->computePermanentBonuses($character));
+    }
+
+    private function computePermanentBonuses(Character $character): array
+    {
         $bonuses = [
             'hp' => 0,
             'mp' => 0,
@@ -219,7 +225,7 @@ class MonsterMarkService
             'luk' => 0,
         ];
 
-        // Read current quantities each time; avoid hydrating hundreds of Eloquent models.
+        // Aggregate current quantities; the battle scope discards this value after a relevant write.
         $rows = MonsterMark::query()
             ->join('character_monster_marks', 'character_monster_marks.monster_mark_id', '=', 'monster_marks.id')
             ->join('enemies', 'enemies.id', '=', 'monster_marks.enemy_id')

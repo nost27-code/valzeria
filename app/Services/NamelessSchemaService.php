@@ -28,17 +28,17 @@ final class NamelessSchemaService
         }
     }
 
-    /** Reuse schema metadata during one battle, never owned assets or config.
+    /** Reuse metadata and write-invalidated derived bonuses during one battle, never owned models or config.
      * Prime before gameplay locks; the next operation always inspects again.
      */
     public function withBattleSnapshot(callable $operation): mixed
     {
-        return $this->withSnapshot(function () use ($operation) {
+        return app(BattleReadScope::class)->run(fn () => $this->withSnapshot(function () use ($operation) {
             if ((bool) config('nameless_relics.enabled', false)) {
                 $this->problems();
             }
             return $operation();
-        });
+        }));
     }
 
     /** type, nullable, default (where writes rely on one). Integer types are minimum widths. */
