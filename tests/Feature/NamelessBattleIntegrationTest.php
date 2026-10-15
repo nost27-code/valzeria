@@ -53,14 +53,14 @@ class NamelessBattleIntegrationTest extends TestCase
         $this->assertSame(5000, $character->fresh()->current_hp);
     }
 
-    public function test_direct_profile_uses_saved_effects_and_off_suppresses_them(): void
+    public function test_uncontracted_raid_bridge_uses_saved_relics_and_live_activation_setting(): void
     {
         $character = $this->character(['special_opener', 'special_first_guard', 'stat_str']);
         $prepared = app(NationRaidPlayerPreparationService::class)->capture($character)['actor'];
         $this->assertSame(.26, $prepared['nameless_relics']['effects']['opener']);
         $this->assertGreaterThan(10000, $prepared['stats']['str']);
         $first = $this->resolve($character, $prepared);
-        // Changing current equipment must not affect an admitted raid.
+        // Bridge inputs retain captured equipment; formal admission contracts are tested separately.
         PlayerRelic::query()->where('character_id', $character->id)->update(['rank' => 1]);
         $repeat = $this->resolve($character, $prepared);
         $this->assertSame($first->battleResult->toArray(), $repeat->battleResult->toArray());
