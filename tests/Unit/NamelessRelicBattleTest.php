@@ -10,6 +10,7 @@ use App\Services\JobArtV2SpCostCalculator;
 use App\Services\NamelessRelicBattleService;
 use App\Services\NamelessRelicCatalog;
 use App\Services\NamelessRuinService;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 class NamelessRelicBattleTest extends TestCase
@@ -129,28 +130,55 @@ class NamelessRelicBattleTest extends TestCase
         $this->assertSame(100, $service->discountFixedSp(100, 0));
     }
 
-    public function test_thrift_reaches_actual_sp_cost_without_discounting_variable_cost_or_power(): void
+    #[DataProvider('spOutputCases')]
+    public function test_thrift_reaches_actual_sp_cost_without_discounting_variable_cost_or_power(
+        string $output,
+        int $power,
+        ?string $disabledFlag,
+        int $expectedVariableCost,
+        int $expectedBonusBps,
+    ): void
     {
-        config(['battle.job_art_v2.sp_power_scaling.enabled' => true, 'battle.job_art_v2.dynamic_single' => true,
-            'battle.job_art_v2.hit_resolution' => true, 'battle.job_art_v2.damage_application' => true,
-            'battle.job_art_v2.resources' => true, 'battle.job_art_v2.rank5_v6' => true]);
+        config([
+            'battle.job_art_v2.dynamic_single' => true,
+            'battle.job_art_v2.hit_resolution' => true,
+            'battle.job_art_v2.damage_application' => true,
+            'battle.job_art_v2.resources' => true,
+            'battle.job_art_v2.rank5_v6' => true,
+            'battle.job_art_v2.sp_power_scaling.enabled' => true,
+        ]);
+        if ($disabledFlag !== null) {
+            config(['battle.job_art_v2.'.$disabledFlag => false]);
+        }
         $actor = $this->actor();
         $actor->currentJobId = 60;
         $actor->spScalingEligible = true;
         $actor->spPowerReference = 10000;
-        $actor->jobArtStrategy = ['sp_output' => 'standard'];
-        $skill = new Skill(['job_id' => 60, 'skill_type' => 'job_art', 'learn_rank' => 1, 'power' => 100, 'effect_template' => 'PHYSICAL_DAMAGE']);
+        $actor->jobArtStrategy = ['sp_output' => $output];
+        $skill = new Skill(['job_id' => 60, 'skill_type' => 'job_art', 'learn_rank' => 1,
+            'effect_template' => 'PHYSICAL_DAMAGE', 'power' => $power]);
         $skill->setAttribute('id', 1001);
         $calculator = app(JobArtV2SpCostCalculator::class);
         $before = $calculator->scalingForActor($actor, $skill);
         $actor->namelessRelicEffects = ['thrift' => .18];
         $after = $calculator->scalingForActor($actor, $skill);
         $this->assertSame(23, $before->fixedCost);
-        $this->assertGreaterThan(0, $before->variableCost);
+        $this->assertSame($expectedVariableCost, $before->variableCost);
+        $this->assertSame($expectedBonusBps, $before->bonusBps);
         $this->assertSame(19, $after->discountedFixedCost);
         $this->assertSame($before->variableCost, $after->variableCost);
         $this->assertSame($before->totalCost - 4, $after->totalCost);
         $this->assertSame($before->bonusBps, $after->bonusBps);
+    }
+
+    public static function spOutputCases(): iterable
+    {
+        yield 'standard direct damage' => ['standard', 100, null, 75, 1000];
+        yield 'no output' => ['none', 100, null, 0, 0];
+        yield 'zero power' => ['standard', 0, null, 0, 0];
+        foreach (['dynamic_single', 'hit_resolution', 'damage_application', 'resources', 'rank5_v6', 'sp_power_scaling.enabled'] as $flag) {
+            yield $flag.' disabled' => ['standard', 100, $flag, 0, 0];
+        }
     }
 
     private function actor(): BattleActor

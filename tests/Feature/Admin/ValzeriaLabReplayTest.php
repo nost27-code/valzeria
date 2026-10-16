@@ -78,13 +78,10 @@ final class ValzeriaLabReplayTest extends TestCase
     public function test_selected_job_art_is_captured_and_uses_the_seeded_random_scope(): void
     {
         [$character, $enemy] = $this->battlePair();
-        $job = JobClass::query()
-            ->whereHas('jobArts', fn ($query) => $query
-                ->where('effect_template', 'PHYSICAL_DAMAGE')
-                ->where('pve_enabled', true))
-            ->orderBy('id')
-            ->firstOrFail();
+        // 英雄Rank1を明示し、マスタの取得順とSP不足に再現性を左右されないようにする。
+        $job = JobClass::query()->findOrFail(71);
         $skill = $job->jobArts()
+            ->where('learn_rank', 1)
             ->where('effect_template', 'PHYSICAL_DAMAGE')
             ->where('pve_enabled', true)
             ->orderBy('learn_rank')
