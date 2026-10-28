@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-10-28-exclusive-character-icon-079',
+        'date' => '2026-10-28',
+        'category' => 'internal',
+        'title' => '白猫専用のキャラアイコン4ポーズを追加',
+        'detail' => '白猫専用の通常・勝利・戦闘・敗北の4ポーズを追加しました。',
+    ],
+    [
         'id' => '2026-10-28-exclusive-character-icon-078',
         'date' => '2026-10-28',
         'category' => 'internal',
