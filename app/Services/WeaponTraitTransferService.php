@@ -34,14 +34,15 @@ class WeaponTraitTransferService
             ->where('character_id', $character->id)
             ->whereHas('item', fn ($query) => $query->whereIn('type', self::TRANSFERABLE_ITEM_TYPES))
             ->with(['item', 'affixPrefix', 'affixSuffix'])
-            ->when(app(NamelessRelicEquipmentService::class)->ordinarySchemaReady(), fn ($query) => $query->withExists(['relics as has_attached_relics']))
+            ->when(app(NamelessRelicEquipmentService::class)->storedRelicsSchemaReady(), fn ($query) => $query->withExists(['relics as has_attached_relics']))
             ->orderByDesc('is_equipped')
             ->orderByDesc('id')
             ->get();
 
+        $payloads = $equipments->mapWithKeys(fn (CharacterItem $equipment): array => [$equipment->id => $this->itemPayload($equipment)]);
         $baseOptions = $equipments
             ->reject(fn (CharacterItem $equipment): bool => $equipment->isMarketListed())
-            ->map(fn (CharacterItem $equipment): array => $this->itemPayload($equipment))
+            ->map(fn (CharacterItem $equipment): array => $payloads[$equipment->id])
             ->values()
             ->all();
 
@@ -50,7 +51,7 @@ class WeaponTraitTransferService
                 'base_options' => $baseOptions,
                 'material_options' => $equipments
                     ->filter(fn (CharacterItem $equipment): bool => $equipment->affix_prefix_id !== null)
-                    ->map(fn (CharacterItem $equipment): array => $this->itemPayload($equipment))
+                    ->map(fn (CharacterItem $equipment): array => $payloads[$equipment->id])
                     ->values()
                     ->all(),
                 'gold_costs' => config('equipment_affix.transfer.gold_costs', []),
@@ -59,7 +60,7 @@ class WeaponTraitTransferService
                 'base_options' => $baseOptions,
                 'material_options' => $equipments
                     ->filter(fn (CharacterItem $equipment): bool => $equipment->affix_suffix_id !== null)
-                    ->map(fn (CharacterItem $equipment): array => $this->itemPayload($equipment))
+                    ->map(fn (CharacterItem $equipment): array => $payloads[$equipment->id])
                     ->values()
                     ->all(),
                 'gold_costs' => config('equipment_affix.transfer.gold_costs', []),
@@ -314,6 +315,8 @@ class WeaponTraitTransferService
             'item_name' => (string) ($characterItem->item?->name ?? ''),
             'item_type' => (string) ($characterItem->item?->type ?? ''),
             'equipment_label' => $this->equipmentLabel($characterItem),
+            'state_hash' => WeaponTraitAccumulationService::stateHash($characterItem),
+            'category_key' => (string) ($characterItem->item?->{$characterItem->item?->type.'_category'} ?? ''),
             'suffix_trait_label' => $this->suffixTraitLabel($characterItem),
             'display_name' => $characterItem->displayName(),
             'display_name_without_rank' => $characterItem->displayName(false),
@@ -345,7 +348,7 @@ class WeaponTraitTransferService
     }
 
     /**
-     * @return array{id: int|null, level: int, label: string}
+     * @return array{id: int|null, name: string|null, level: int, label: string}
      */
     private function traitPayload(CharacterItem $characterItem, string $kind): array
     {
@@ -357,6 +360,7 @@ class WeaponTraitTransferService
 
         return [
             'id' => $id,
+            'name' => $name,
             'level' => $level,
             'label' => $name
                 ? $this->withLevel($name, $level)
@@ -501,6 +505,6 @@ class WeaponTraitTransferService
 
     private function romanLevel(int $level): string
     {
-        return [1 => 'I', 2 => 'II', 3 => 'III', 4 => 'IV', 5 => 'V'][$level] ?? (string) $level;
+        return \App\Support\EquipmentTraitLevel::label($level);
     }
 }

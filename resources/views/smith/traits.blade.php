@@ -3,12 +3,13 @@
     $bgImage = 'images/card_bg/shop_blacksmith.webp';
     $title = '装備の銘・特攻・耐性を鍛える (' . ($currentCity->name ?? '冒険都市ヴァルゼリア') . ')';
     $initialKind = old('trait_kind', session('weapon_trait_kind', 'engraving'));
-    $relicWorkshopAvailable = app(\App\Services\NamelessWorkshopService::class)->ready();
+    $relicProtectionAvailable = app(\App\Services\NamelessRelicEquipmentService::class)->storedRelicsSchemaReady();
 @endphp
 
 <x-layouts.facility :title="$title" :headerIcon="$headerIcon" :bgImage="$bgImage">
     <div
         class="mx-auto w-full pb-10"
+        style="overflow-wrap: anywhere;"
         x-data="weaponTraitWorkshop(
             @js($workshopCandidates),
             @js($forgeGoldCosts),
@@ -32,7 +33,7 @@
                     </p>
                 </div>
                 <div class="flex items-center gap-2 self-end sm:self-start">
-                    <a href="{{ route('blacksmith.traits.help') }}" @click.prevent="helpOpen = true" class="inline-flex items-center gap-1 rounded border border-slate-300 bg-white px-2.5 py-2 text-xs font-bold text-slate-700 transition hover:bg-slate-100" title="銘・特攻・耐性を鍛える解説">
+                    <a href="{{ route('blacksmith.traits.help') }}" @click.prevent="helpOpen = true" class="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded border border-slate-300 bg-white px-2.5 py-2 text-xs font-bold text-slate-700 transition hover:bg-slate-100" title="銘・特攻・耐性を鍛える解説">
                         <span class="text-sm leading-none">?</span> 解説
                     </a>
                     <div class="rounded border border-slate-200 bg-slate-100 px-3 py-2 text-xs font-bold text-slate-700 sm:text-sm">
@@ -78,8 +79,8 @@
             </div>
 
             <div class="rounded-lg border border-indigo-100 bg-indigo-50 px-3 py-3 text-sm font-bold leading-relaxed text-indigo-900">
-                <span x-show="kind === 'engraving'">同じ銘・同じ段階・同じ装備種なら段階を上げます。それ以外では、素材装備の銘を移せるか自動判定します。</span>
-                <span x-show="kind === 'slayer'" style="display: none;">同じ特攻・耐性・同じ段階・同じ装備種なら段階を上げます。それ以外では、素材装備の特攻・耐性を移せるか自動判定します。武器同士・防具同士で選んでください。</span>
+                <span x-show="kind === 'engraving'">同じ銘・同じ段階・同じ装備種なら従来の合成で段階を上げます。VI以降は同じ銘Vの素材を積み立てることもできます。特攻は一致不要です。それ以外は銘の移植を判定します。</span>
+                <span x-show="kind === 'slayer'" style="display: none;">同じ特攻・耐性・同じ段階・同じ装備種なら従来の合成で段階を上げます。VI以降は同じ特攻・耐性Vの素材を積み立てることもできます。銘は一致不要です。武器同士・防具同士で選んでください。</span>
             </div>
 
             <form method="POST" action="{{ route('blacksmith.traits.process') }}" @submit="confirmTransferBeforeSubmit($event)" class="mt-5 space-y-4">
@@ -88,12 +89,18 @@
                 <input type="hidden" name="base_character_item_id" :value="baseId">
                 <input type="hidden" name="material_character_item_id" :value="materialId">
                 <input type="hidden" name="use_bank" x-ref="useBankInput" value="0">
+                <input type="hidden" name="expected_gold_cost" :value="preview?.gold_cost || 0" :disabled="preview?.action !== 'accumulate'">
+                <input type="hidden" name="expected_base_hash" :value="selectedBase()?.state_hash" :disabled="preview?.action !== 'accumulate'">
+                <input type="hidden" name="expected_material_hash" :value="selectedMaterial()?.state_hash" :disabled="preview?.action !== 'accumulate'">
+                <input type="hidden" name="expected_level" :value="selectedTrait(selectedBase()).level" :disabled="preview?.action !== 'accumulate'">
+                <input type="hidden" name="expected_trait_id" :value="selectedTrait(selectedBase()).id" :disabled="preview?.action !== 'accumulate'">
+                <input type="hidden" name="expected_credits" :value="selectedBase()?.accumulation?.credits || 0" :disabled="preview?.action !== 'accumulate'">
 
                 <div>
                     <p class="mb-1.5 text-sm font-black text-slate-800">1. 残したいベース装備 <span class="text-xs font-bold text-slate-500">（完成後に残る装備）</span></p>
                     <template x-if="selectedBase()">
                         <div class="rounded-xl border-2 border-slate-300 bg-slate-50 p-3 shadow-sm">
-                            <div class="flex items-start justify-between gap-3">
+                            <div class="flex flex-col items-start justify-between gap-3 sm:flex-row">
                                 <p class="min-w-0 font-black text-slate-900" x-text="selectedBase().display_name"></p>
                                 <div class="flex shrink-0 items-center gap-2">
                                     <button type="button" @click="toggleLock(selectedBase())" :disabled="lockingItemId === selectedBase().id" :class="selectedBase().is_locked ? 'border-amber-300 bg-amber-50 text-amber-800' : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100'" class="rounded border px-2 py-1 text-xs font-black transition" x-text="lockButtonLabel(selectedBase())"></button>
@@ -124,7 +131,7 @@
                     <p class="mb-1.5 text-sm font-black text-slate-800">2. 消費する素材装備 <span class="text-xs font-bold text-orange-700">（選ぶと消滅）</span></p>
                     <template x-if="selectedMaterial()">
                         <div class="rounded-xl border-2 border-orange-200 bg-orange-50 p-3 shadow-sm">
-                            <div class="flex items-start justify-between gap-3">
+                            <div class="flex flex-col items-start justify-between gap-3 sm:flex-row">
                                 <p class="min-w-0 font-black text-orange-950" x-text="selectedMaterial().display_name"></p>
                                 <div class="flex shrink-0 items-center gap-2">
                                     <button type="button" @click="toggleLock(selectedMaterial())" :disabled="selectedMaterial().is_market_listed || lockingItemId === selectedMaterial().id" :class="selectedMaterial().is_locked ? 'border-amber-300 bg-amber-50 text-amber-800' : 'border-orange-200 bg-white text-orange-800 hover:bg-orange-100'" class="rounded border px-2 py-1 text-xs font-black transition disabled:cursor-not-allowed disabled:opacity-50" x-text="lockButtonLabel(selectedMaterial())"></button>
@@ -148,11 +155,20 @@
                             <span class="shrink-0 rounded-lg bg-orange-600 px-3 py-2 text-xs font-black text-white">選ぶ</span>
                         </button>
                     </template>
-                    <p class="mt-1 text-xs font-bold text-slate-500">素材装備は消滅します。装備中・保護中・市場出品中{{ $relicWorkshopAvailable ? '・遺物装着中' : '' }}のものは使えません。</p>
-                    @if($relicWorkshopAvailable)
+                    <p class="mt-1 text-xs font-bold text-slate-500">素材装備は消滅します。装備中・保護中・市場出品中{{ $relicProtectionAvailable ? '・遺物装着中' : '' }}のものは使えません。</p>
+                    @if($relicProtectionAvailable)
                         <p x-show="selectedMaterial()?.has_attached_relics && !preview" class="mt-2 text-xs font-bold text-red-700">遺物を取り外してください。</p>
                     @endif
                 </div>
+
+                <template x-if="selectedBase()?.accumulation?.available">
+                    <div class="rounded-lg border border-indigo-200 bg-indigo-50 p-3 text-sm font-bold text-indigo-950">
+                        <p>共有積立：<span x-text="selectedBase().accumulation.credits"></span> / <span x-text="selectedBase().accumulation.required"></span>本</p>
+                        <p class="mt-1 text-xs leading-relaxed">武器同士・防具同士なら種類を問わず、育てたい特性と同じ特性のV素材を使えます。銘を育てるなら素材の特攻・耐性は不問、特攻・耐性を育てるなら銘は不問です。積立は冒険者内で武器・防具別、特性ごとに共有し、進化・移植・通常合成でも残ります。</p>
+                        <p class="mt-1 text-xs">完成時の費用：<span x-text="formatGold(selectedBase().accumulation.gold_cost)"></span>（途中投入は0G）</p>
+                        <p x-show="preview?.action === 'accumulate'" class="mt-1 text-xs" x-text="preview?.description"></p>
+                    </div>
+                </template>
 
                 <template x-if="lockNotice">
                     <div :class="lockNotice.success ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-red-200 bg-red-50 text-red-800'" class="rounded-lg border px-4 py-3 text-sm font-bold" x-text="lockNotice.message"></div>
@@ -166,7 +182,7 @@
 
                         <template x-if="preview.available">
                             <div class="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm font-bold leading-relaxed text-emerald-950">
-                                <p class="text-xs font-black text-emerald-700">完成後の装備名</p>
+                                <p class="text-xs font-black text-emerald-700" x-text="preview.action === 'accumulate' && !preview.completes ? '今回の積立後の装備名' : '完成後の装備名'"></p>
                                 <p class="mt-1 text-base font-black text-emerald-950" x-text="preview.completed_name"></p>
                             </div>
                         </template>
@@ -196,6 +212,23 @@
                 </template>
 
             </form>
+
+            <template x-if="canCompleteTraining">
+                <form method="POST" action="{{ route('blacksmith.traits.process') }}" @submit="confirmTrainingCompletion($event)" class="mt-4 rounded-lg border border-indigo-200 bg-indigo-50 p-3">
+                    @csrf
+                    <input type="hidden" name="trait_kind" :value="kind">
+                    <input type="hidden" name="action" value="accumulate_complete">
+                    <input type="hidden" name="base_character_item_id" :value="baseId">
+                    <input type="hidden" name="expected_gold_cost" :value="selectedBase().accumulation.gold_cost">
+                    <input type="hidden" name="expected_base_hash" :value="selectedBase().state_hash">
+                    <input type="hidden" name="expected_level" :value="selectedTrait(selectedBase()).level">
+                    <input type="hidden" name="expected_trait_id" :value="selectedTrait(selectedBase()).id">
+                    <input type="hidden" name="expected_credits" :value="selectedBase().accumulation.credits">
+                    <input type="hidden" name="use_bank" x-ref="useBankTrainingInput" value="0">
+                    <p class="text-sm font-bold text-indigo-950">積立が揃っています。新しい素材を消費せずに1段階上げられます。</p>
+                    <button type="submit" class="mt-2 w-full rounded-lg bg-indigo-700 px-3 py-3 text-sm font-black text-white">積立分だけで鍛える（<span x-text="formatGold(selectedBase().accumulation.gold_cost)"></span>）</button>
+                </form>
+            </template>
 
             <template x-if="picker">
                 <div @keydown.escape.window="picker = null" class="fixed inset-0 z-[75] overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="trait-picker-title">
@@ -242,15 +275,26 @@
                                         <button type="button" @click="setPickerType('weapon')" :class="pickerType === 'weapon' ? 'border-amber-600 bg-amber-600 text-white' : 'border-amber-200 bg-white text-amber-800 hover:bg-amber-100'" class="rounded-full border px-2.5 py-1 text-[11px] font-bold">武器</button>
                                         <button type="button" @click="setPickerType('armor')" :class="pickerType === 'armor' ? 'border-amber-600 bg-amber-600 text-white' : 'border-amber-200 bg-white text-amber-800 hover:bg-amber-100'" class="rounded-full border px-2.5 py-1 text-[11px] font-bold">防具</button>
                                     </div>
-                                    <label class="mt-2 block">
-                                        <span class="mb-1 block text-[11px] font-bold text-amber-800">装備種</span>
-                                        <select x-model="pickerCategory" class="w-full rounded-md border border-amber-200 bg-white px-3 py-2 text-sm font-bold text-slate-700 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-100">
-                                            <option value="all">すべての装備種</option>
-                                            <template x-for="category in pickerCategories()" :key="category">
-                                                <option :value="category" x-text="category"></option>
-                                            </template>
-                                        </select>
-                                    </label>
+                                    <div class="mt-2 grid grid-cols-2 gap-2">
+                                        <label class="min-w-0">
+                                            <span class="mb-1 block text-[11px] font-bold text-amber-800">装備種</span>
+                                            <select x-model="pickerCategory" class="w-full rounded-md border border-amber-200 bg-white px-3 py-2 text-sm font-bold text-slate-700 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-100">
+                                                <option value="all">すべての装備種</option>
+                                                <template x-for="category in pickerCategories()" :key="category">
+                                                    <option :value="category" x-text="category"></option>
+                                                </template>
+                                            </select>
+                                        </label>
+                                        <label class="min-w-0">
+                                            <span class="mb-1 block text-[11px] font-bold text-amber-800">銘</span>
+                                            <select x-model="pickerEngraving" class="w-full rounded-md border border-amber-200 bg-white px-3 py-2 text-sm font-bold text-slate-700 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-100">
+                                                <option value="all">すべての銘</option>
+                                                <template x-for="engraving in pickerEngravings()" :key="engraving.id">
+                                                    <option :value="String(engraving.id)" x-text="engraving.name"></option>
+                                                </template>
+                                            </select>
+                                        </label>
+                                    </div>
                                     <div class="mt-2 flex flex-wrap items-center gap-1.5">
                                         <span class="mr-1 text-[11px] font-bold text-amber-800">状態</span>
                                         <button type="button" @click="pickerStatus = 'all'" :class="pickerStatus === 'all' ? 'border-amber-600 bg-amber-600 text-white' : 'border-amber-200 bg-white text-amber-800 hover:bg-amber-100'" class="rounded-full border px-2.5 py-1 text-[11px] font-bold">すべて</button>
@@ -273,7 +317,7 @@
                                         <button type="button" @click="pickerTrait = 'none'" :class="pickerTrait === 'none' ? 'border-amber-600 bg-amber-600 text-white' : 'border-amber-200 bg-white text-amber-800 hover:bg-amber-100'" class="rounded-full border px-2.5 py-1 text-[11px] font-bold">特性なし</button>
                                     </div>
                                     <div class="mt-3 flex items-center justify-between gap-3 border-t border-amber-100 pt-2">
-                                        <p class="text-xs font-bold text-amber-900">候補 <span x-text="pickerItems().length"></span>件</p>
+                                        <p class="text-xs font-bold text-amber-900">候補 <span x-text="pickerMatches().length"></span>件</p>
                                         <button x-show="pickerHasActiveFilters()" type="button" @click="resetPickerControls()" class="rounded border border-amber-200 bg-white px-2.5 py-1 text-[11px] font-bold text-amber-800 transition hover:bg-amber-100">条件をリセット</button>
                                     </div>
                                 </div>
@@ -299,13 +343,14 @@
                                             <span x-show="item.is_equipped" class="rounded bg-amber-100 px-2 py-1 text-amber-800">装備中</span>
                                             <span x-show="item.is_locked" class="rounded bg-yellow-100 px-2 py-1 text-yellow-800">保護中</span>
                                             <span x-show="item.is_market_listed" class="rounded bg-rose-100 px-2 py-1 text-rose-800">市場出品中</span>
-                                            @if($relicWorkshopAvailable)
+                                            @if($relicProtectionAvailable)
                                                 <span x-show="picker === 'material' && item.has_attached_relics" class="rounded bg-red-100 px-2 py-1 text-red-700">遺物を取り外してください。</span>
                                             @endif
                                             <span x-show="picker === 'material' && (item.is_equipped || item.is_locked || item.is_market_listed)" class="rounded bg-red-100 px-2 py-1 text-red-700">このままでは素材に使えません</span>
                                         </div>
                                     </button>
                                 </template>
+                                <button type="button" x-show="pickerLimit < pickerMatches().length" @click="pickerLimit += 40" class="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50">さらに40件表示</button>
                             </div>
                             <footer class="border-t border-slate-200 bg-slate-50 px-4 py-3 text-right sm:px-5">
                                 <button type="button" @click="picker = null" class="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-700 transition hover:bg-slate-100">閉じる</button>
@@ -334,8 +379,9 @@
                                     <p class="mt-1 font-black text-orange-950" x-text="confirmation.material_name"></p>
                                 </div>
                                 <div class="rounded-lg border border-emerald-200 bg-emerald-50 p-3">
-                                    <p class="text-xs font-black text-emerald-700">完成後の装備名</p>
+                                    <p class="text-xs font-black text-emerald-700" x-text="confirmation.training_message ? '今回の積立後の装備名' : '完成後の装備名'"></p>
                                     <p class="mt-1 font-black text-emerald-950" x-text="confirmation.completed_name"></p>
+                                    <p x-show="confirmation.training_message" class="mt-2 text-xs font-bold text-indigo-900" x-text="confirmation.training_message"></p>
                                 </div>
                                 <p class="text-center text-base font-black text-amber-800">必要Gold: <span x-text="formatGold(confirmation.gold_cost)"></span></p>
                                 <div x-show="confirmation.bank_gold_used > 0" class="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-bold text-amber-900">
@@ -348,7 +394,7 @@
                                 <button type="button" @click="confirmation = null" :disabled="submittingTransfer" class="flex-1 rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm font-black text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50">キャンセル</button>
                                 <button type="button" @click="confirmTransfer()" :disabled="submittingTransfer" class="flex flex-1 items-center justify-center gap-2 rounded-lg bg-slate-900 px-4 py-3 text-sm font-black text-white shadow-sm transition hover:bg-slate-700 disabled:cursor-wait disabled:opacity-80">
                                     <svg x-show="submittingTransfer" x-cloak class="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle class="opacity-25" cx="12" cy="12" r="9" stroke="currentColor" stroke-width="3"></circle><path class="opacity-90" fill="currentColor" d="M21 12a9 9 0 0 0-9-9v3a6 6 0 0 1 6 6h3Z"></path></svg>
-                                    <span x-text="submittingTransfer ? '鍛冶を始めています…' : '素材を消費して移す'"></span>
+                                    <span x-text="submittingTransfer ? '鍛冶を始めています…' : (pendingAction === 'accumulate' ? 'V素材を消費して積み立てる' : '素材を消費して移す')"></span>
                                 </button>
                             </footer>
                         </section>
@@ -396,6 +442,17 @@
 
     <script>
         function weaponTraitWorkshop(candidates, forgeGoldCosts, dualDiscountRate, initialKind, oldBaseId, oldMaterialId, handGold, bankGold, csrfToken) {
+            if (candidates.items) {
+                const items = new Map(candidates.items.map((item) => [Number(item.id), item]));
+                const groups = {};
+                Object.entries(candidates.groups).forEach(([kind, group]) => {
+                    groups[kind] = { gold_costs: group.gold_costs };
+                    ['base_options', 'material_options'].forEach((list) => {
+                        groups[kind][list] = group[list].map((id) => ({ ...items.get(Number(id)), accumulation: group.accumulation[id] }));
+                    });
+                });
+                candidates = groups;
+            }
             return {
                 candidates,
                 forgeGoldCosts,
@@ -412,16 +469,24 @@
                 confirmation: null,
                 submittingTransfer: false,
                 pendingTransferForm: null,
+                pendingAction: 'transfer',
                 forgingAnimation: false,
                 forgingStep: 0,
                 picker: null,
                 pickerQuery: '',
                 pickerType: 'all',
                 pickerCategory: 'all',
+                pickerEngraving: 'all',
                 pickerStatus: 'all',
                 pickerQuality: 'all',
                 pickerTrait: 'all',
                 pickerSort: 'default',
+                pickerLimit: 40,
+                init() {
+                    ['pickerQuery', 'pickerType', 'pickerCategory', 'pickerEngraving', 'pickerStatus', 'pickerQuality', 'pickerTrait', 'pickerSort', 'picker', 'kind'].forEach((key) => {
+                        this.$watch(key, () => { this.pickerLimit = 40; });
+                    });
+                },
                 get activeData() {
                     return this.candidates[this.kind];
                 },
@@ -440,6 +505,7 @@
                     this.pickerQuery = '';
                     this.pickerType = 'all';
                     this.pickerCategory = 'all';
+                    this.pickerEngraving = 'all';
                     this.pickerStatus = 'all';
                     this.pickerQuality = 'all';
                     this.pickerTrait = 'all';
@@ -449,6 +515,7 @@
                     return this.pickerQuery !== ''
                         || this.pickerType !== 'all'
                         || this.pickerCategory !== 'all'
+                        || this.pickerEngraving !== 'all'
                         || this.pickerStatus !== 'all'
                         || this.pickerQuality !== 'all'
                         || this.pickerTrait !== 'all'
@@ -470,6 +537,17 @@
                         .map((item) => item.weapon_category)
                         .filter(Boolean))]
                         .sort((a, b) => String(a).localeCompare(String(b), 'ja'));
+                },
+                pickerEngravings() {
+                    const otherId = this.picker === 'base' ? this.materialId : this.baseId;
+                    const engravings = new Map();
+                    this.pickerOptions().forEach((item) => {
+                        const engraving = item.engraving;
+                        if (Number(item.id) !== Number(otherId) && Number(engraving?.id) > 0 && engraving.name) {
+                            engravings.set(Number(engraving.id), { id: Number(engraving.id), name: engraving.name });
+                        }
+                    });
+                    return [...engravings.values()].sort((a, b) => a.name.localeCompare(b.name, 'ja'));
                 },
                 setPickerType(type) {
                     this.pickerType = type;
@@ -499,12 +577,13 @@
                     return (!query || searchText.includes(query))
                         && (this.pickerType === 'all' || item.item_type === this.pickerType)
                         && (this.pickerCategory === 'all' || item.weapon_category === this.pickerCategory)
+                        && (this.pickerEngraving === 'all' || Number(item.engraving?.id) === Number(this.pickerEngraving))
                         && (
                             this.pickerStatus === 'all'
                             || (this.pickerStatus === 'equipped' && item.is_equipped)
                             || (this.pickerStatus === 'locked' && item.is_locked)
                             || (this.pickerStatus === 'ready' && !item.is_equipped && !item.is_locked && !item.is_market_listed
-                                @if($relicWorkshopAvailable)
+                                @if($relicProtectionAvailable)
                                     && (this.picker !== 'material' || !item.has_attached_relics)
                                 @endif
                             )
@@ -545,7 +624,7 @@
                         return 0;
                     });
                 },
-                pickerItems() {
+                pickerMatches() {
                     const otherId = this.picker === 'base' ? this.materialId : this.baseId;
 
                     const matches = this.pickerOptions()
@@ -553,6 +632,9 @@
                         .filter((item) => this.matchesPickerItem(item));
 
                     return this.sortPickerItems(matches);
+                },
+                pickerItems() {
+                    return this.pickerMatches().slice(0, this.pickerLimit);
                 },
                 pickerTitle() {
                     return this.picker === 'base' ? '残したいベース装備を選ぶ' : '消費する素材装備を選ぶ';
@@ -612,7 +694,7 @@
                     return `${this.optionLabel(item)} / ${this.kindLabel()}: ${this.selectedTrait(item).label}`;
                 },
                 roman(level) {
-                    return ['', 'I', 'II', 'III', 'IV', 'V'][level] || String(level);
+                    return @js(['', ...array_values(\App\Support\EquipmentTraitLevel::ROMAN)])[level] || String(level);
                 },
                 formatGold(amount) {
                     return `${new Intl.NumberFormat('ja-JP').format(amount)}G`;
@@ -676,7 +758,7 @@
                     const bankGoldUsed = this.bankPaymentFor(goldCost);
                     this.$refs.useBankInput.value = bankGoldUsed > 0 ? '1' : '0';
 
-                    if (action !== 'transfer') {
+                    if (!['transfer', 'accumulate'].includes(action)) {
                         if (bankGoldUsed > 0 && !window.confirm(this.bankConfirmationText(goldCost))) {
                             event.preventDefault();
                         }
@@ -690,7 +772,9 @@
                     if (!base || !material || !preview?.available) return;
 
                     this.pendingTransferForm = event.currentTarget;
+                    this.pendingAction = action;
                     this.confirmation = {
+                        training_message: action === 'accumulate' ? preview.description : '',
                         base_name: base.display_name,
                         material_name: material.display_name,
                         completed_name: preview.completed_name,
@@ -698,6 +782,17 @@
                         hand_gold_used: this.handPaymentFor(preview.gold_cost),
                         bank_gold_used: this.bankPaymentFor(preview.gold_cost),
                     };
+                },
+                get canCompleteTraining() {
+                    const training = this.selectedBase()?.accumulation;
+                    return !!(training?.available && training.credits >= training.required);
+                },
+                confirmTrainingCompletion(event) {
+                    const cost = this.selectedBase()?.accumulation?.gold_cost || 0;
+                    const bank = this.bankPaymentFor(cost);
+                    this.$refs.useBankTrainingInput.value = bank > 0 ? '1' : '0';
+                    const message = `共有積立を使い、${this.formatGold(cost)}で${this.kindLabel()}を1段階上げます。` + (bank > 0 ? this.bankConfirmationText(cost) : '');
+                    if (!window.confirm(message)) event.preventDefault();
                 },
                 confirmTransfer() {
                     if (!this.confirmation || this.submittingTransfer) return;
@@ -727,7 +822,7 @@
                     const action = document.createElement('input');
                     action.type = 'hidden';
                     action.name = 'action';
-                    action.value = 'transfer';
+                    action.value = this.pendingAction;
                     form.appendChild(action);
 
                     HTMLFormElement.prototype.submit.call(form);
@@ -780,7 +875,7 @@
                     if (!base || !material) return null;
                     if (Number(base.id) === Number(material.id)) return { available: false, reason: '同じ装備をベースと素材に選べません。' };
                     if (base.item_type !== material.item_type) return { available: false, reason: '武器と防具をまたいで鍛えることはできません。武器同士・防具同士で選んでください。' };
-                    @if($relicWorkshopAvailable)
+                    @if($relicProtectionAvailable)
                         if (material.has_attached_relics) return { available: false, reason: '遺物を取り外してください。' };
                     @endif
                     if (material.is_equipped) return { available: false, reason: `素材${this.equipLabel()}は装備中です。先に装備を外してください。` };
@@ -798,6 +893,24 @@
                     }
 
                     const sameTrait = current.id && Number(current.id) === Number(source.id);
+                    if (sameTrait && source.level === 5 && (current.level > 5 || (current.level === 5 && base.category_key !== material.category_key))) {
+                        const training = base.accumulation;
+                        if (!training?.available) return { available: false, reason: 'この特性は積立鍛錬の対象外か、準備中です。' };
+                        if (training.credits >= training.required) return { available: false, reason: '積立が揃っています。「積立分だけで鍛える」を選んでください。' };
+                        const completes = training.credits + 1 >= training.required;
+                        const after = completes ? this.withTraitLevel(current, current.level + 1) : current;
+                        return {
+                            available: true, action: 'accumulate', completes,
+                            title: `${this.kindLabel()}のV素材を積み立てる`, before: current.label, after: after.label,
+                            completed_name: this.weaponDisplayName(base,
+                                this.kind === 'engraving' ? after : base.engraving,
+                                this.kind === 'slayer' ? after : base.slayer),
+                            gold_cost: completes ? training.gold_cost : 0,
+                            button_label: completes ? `V素材を使い${this.kindLabel()}を1段階上げる` : 'V素材を1本積み立てる',
+                            description: `今回で${training.credits + 1}/${training.required}本。` + (completes ? '必要数が揃うため、費用を支払って1段階上がります。' : '段階・性能はまだ変わらず、Gold消費もありません。'),
+                        };
+                    }
+
                     if (sameTrait && source.level < current.level) {
                         return { available: false, reason: `同じ${this.kindLabel()}の段階を下げることはできません。` };
                     }
@@ -808,9 +921,6 @@
                         }
 
                         const resultLevel = current.level + 1;
-                        if (resultLevel > 5) {
-                            return { available: false, reason: `${this.kindLabel()}はVが最大段階です。` };
-                        }
                         if (!this.canHoldLevel(base, resultLevel)) {
                             return {
                                 available: false,
