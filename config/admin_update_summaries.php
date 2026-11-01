@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-11-01-exclusive-character-icon-080',
+        'date' => '2026-11-01',
+        'category' => 'internal',
+        'title' => 'ばん専用のキャラアイコン4ポーズを追加',
+        'detail' => 'ばん専用の通常・勝利・戦闘・敗北の4ポーズを追加しました。',
+    ],
+    [
         'id' => '2026-10-30-smith-engraving-filter',
         'date' => '2026-10-30',
         'category' => 'fixed',
